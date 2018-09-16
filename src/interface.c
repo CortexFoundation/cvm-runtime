@@ -57,18 +57,17 @@ void free_model(void *model)
     free_network(net);
 }
 
-char *predict(void *model, char *image_fname, char *output_data, int *length)
+int get_output_length(void *model)
 {
-    FILE *fp = fopen(image_fname , "rb");
-	assert(fp);
-
-    char *img_data = (char*)calloc(28*28, sizeof(char));
-    fread(img_data, sizeof(char), 28*28, fp);
-    fclose(fp);
     network *net = (network*)model;
-    output_data = int_network_predict(net, (char*)img_data);
-	free(img_data);
-    *length = 10;    
-	return 1;
+    return net->outputs;
+}
+
+int predict(void *model, char *image_data, char *output_data)
+{
+    network *net = (network*)model;
+    char *output = int_network_predict(net, (char*)image_data);
+    memcpy(output_data, output, sizeof(char)*net->outputs);
+    return 0;
 }
 
