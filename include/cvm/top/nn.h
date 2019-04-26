@@ -3,8 +3,8 @@
  * \file cvm/top/nn.h
  * \brief Auxiliary param for tensor primitive.
  */
-#ifndef NNVM_TOP_NN_H_
-#define NNVM_TOP_NN_H_
+#ifndef CVM_TOP_NN_H_
+#define CVM_TOP_NN_H_
 
 #include <dmlc/base.h>
 #include <dmlc/parameter.h>
@@ -401,4 +401,4 @@ struct LRNParam : public dmlc::Parameter<LRNParam> {
 }  // namespace top
 }  // namespace cvm
 
-#endif  // NNVM_TOP_NN_H_
+#endif  // CVM_TOP_NN_H_

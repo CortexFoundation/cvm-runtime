@@ -26,12 +26,12 @@ inline bool FlattenInferShape(const NodeAttrs& attrs,
   for (uint32_t i = 1; i < dshape.ndim(); ++i) {
     target_dim *= dshape[i];
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0,
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0,
                            TShape({dshape[0], target_dim}));
   return true;
 }
 
-NNVM_REGISTER_OP(flatten)
+CVM_REGISTER_OP(flatten)
 .describe(R"code(Flattens the input into a 2-D array.
 
 For an input array with shape ``(d1, d2, ..., dk)``, `flatten` operation reshapes
@@ -52,7 +52,7 @@ Example::
     flatten(x) = [[ 1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.],
        [ 1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9.]]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr<FInferShape>("FInferShape", FlattenInferShape)
@@ -96,11 +96,11 @@ inline bool ConcatenateInferShape(const NodeAttrs& attrs,
   if (dshape.ndim() == 0) return false;
 
   for (size_t i = 0; i < in_shape->size(); ++i) {
-    NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, i, dshape);
+    CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, i, dshape);
   }
 
   if (!has_zero) dshape[axis] = size;
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, dshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, dshape);
   return dshape.Size() != 0;
 }
 
@@ -130,13 +130,13 @@ inline bool ConcatenateCorrectLayout(const NodeAttrs& attrs,
   }
 
   for (size_t i = 0; i < ilayouts->size(); ++i) {
-    NNVM_ASSIGN_LAYOUT(*ilayouts, i, layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, i, layout);
   }
-  NNVM_ASSIGN_LAYOUT(*olayouts, 0, layout);
+  CVM_ASSIGN_LAYOUT(*olayouts, 0, layout);
   return true;
 }
 
-NNVM_REGISTER_OP(concatenate)
+CVM_REGISTER_OP(concatenate)
 .describe(R"code(Joins input arrays along a given axis.
 
 The dimensions of the input arrays should be the same except the axis along
@@ -166,7 +166,7 @@ Example::
                              [ 4.,  4.,  7.,  7.],
                              [ 5.,  5.,  8.,  8.]]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor-or-Tensor[]", "List of arrays to concatenate")
 .add_arguments(ConcatenateParam::__FIELDS__())
 .set_attr_parser(ParamParser<ConcatenateParam>)
@@ -202,18 +202,18 @@ inline bool ExpandDimsInferShape(const NodeAttrs& attrs,
   for (int i = axis; i < ndim; ++i) {
     oshape.push_back(dshape[i]);
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0,
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0,
                            TShape(oshape.begin(), oshape.end()));
   return true;
 }
 
-NNVM_REGISTER_OP(expand_dims)
+CVM_REGISTER_OP(expand_dims)
 .describe(R"code(Inserts a new axis of size 1 into the array shape
 
 For example, given ``x`` with shape ``(2,3,4)``, then ``expand_dims(x, axis=1, num_newaxis=5)``
 will return a new array with shape ``(2,1,1,1,1,1,3,4)``.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input tensor")
 .add_arguments(ExpandDimsParam::__FIELDS__())
 .set_attr_parser(ParamParser<ExpandDimsParam>)
@@ -226,7 +226,7 @@ will return a new array with shape ``(2,1,1,1,1,1,3,4)``.
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(1);
 
-NNVM_REGISTER_OP(expand_like)
+CVM_REGISTER_OP(expand_like)
   .describe(R"code(Expand an input array with the shape of second array.
 This operation can be thought of as a composition of expand_dims and broadcast_to.
 If the dimensions are already expanded then it just broadcasts.
@@ -241,7 +241,7 @@ Examples::
                     [[[12,12],[12,12],[12,12]],
                      [[19,19],[19,19],[19,19]],
                      [[27,27],[27,27],[27,27]]]
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("input", "Tensor", "Source input")
 .add_argument("shape_like", "Tensor", "Input with new shape")
 .add_arguments(IndicatorParam::__FIELDS__())
@@ -297,7 +297,7 @@ inline bool SplitInferShape(const NodeAttrs& attrs,
     oshape[axis] /= num_outputs;
 
     for (size_t i = 0; i < out_shape->size(); ++i) {
-      NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, i, oshape);
+      CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, i, oshape);
     }
   } else {
     dim_t num_outputs = param.indices_or_sections.ndim() + 1;
@@ -310,12 +310,12 @@ inline bool SplitInferShape(const NodeAttrs& attrs,
           << param.indices_or_sections;
       oshape[axis] = param.indices_or_sections[i] - begin;
       begin = param.indices_or_sections[i];
-      NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, i, oshape);
+      CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, i, oshape);
     }
     CHECK_LT(begin, dshape[axis])
         << "The sum of sections must match the input.shape[axis]";
     oshape[axis] = dshape[axis] - begin;
-    NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, num_outputs - 1, oshape);
+    CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, num_outputs - 1, oshape);
   }
   return true;
 }
@@ -330,13 +330,13 @@ inline uint32_t SplitNumOutputs(const NodeAttrs& attrs) {
 }
 
 // Intentionally not add ParamGetAttrDict for indices_or_sections.
-NNVM_REGISTER_OP(split)
+CVM_REGISTER_OP(split)
 .describe(R"code(Splits an array along a particular axis into multiple sub-arrays.
 
 **Note** that `indices_or_sections` should evenly divide the length of the axis
 along which to split the array.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Array to be splitted")
 .add_arguments(SplitParam::__FIELDS__())
 .set_attr_parser(SplitParamParser)
@@ -356,14 +356,14 @@ inline bool CastInferType(const NodeAttrs& attrs,
                           std::vector<int>* out_attrs) {
   const CastParam& param = cvm::get<CastParam>(attrs.parsed);
   CHECK_EQ(out_attrs->size(), 1U);
-  NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
+  CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
   return true;
 }
 
-NNVM_REGISTER_OP(cast)
+CVM_REGISTER_OP(cast)
 .describe(R"code(Cast the content of input to dtype.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input data array")
 .add_arguments(CastParam::__FIELDS__())
 .set_attr_parser(ParamParser<CastParam>)
@@ -476,11 +476,11 @@ inline bool ReshapeInferShape(const NodeAttrs& attrs,
       << "Target shape size is different to source. "
       << "Target: " << out_shape
       << "\nSource: " << dshape;
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
   return true;
 }
 
-NNVM_REGISTER_OP(reshape)
+CVM_REGISTER_OP(reshape)
 .describe(R"code(Reshapes the input array.
 
 Given an array and a shape, this function returns a copy of the array in the new shape.
@@ -535,7 +535,7 @@ The significance of each is explained below:
   - input shape = (2,3,4), shape = (-4,1,2,-2), output shape =(1,2,3,4)
   - input shape = (2,3,4), shape = (2,-4,-1,3,-2), output shape = (2,1,3,4)
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input data.")
 .add_arguments(ReshapeParam::__FIELDS__())
 .set_attr_parser(ParamParser<ReshapeParam>)
@@ -553,17 +553,17 @@ inline bool ReshapeLikeInferType(const NodeAttrs &attrs,
                                  std::vector<int> *out_attrs) {
   CHECK_EQ(in_attrs->size(), 2U);
   CHECK_EQ(out_attrs->size(), 1U);
-  NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
+  CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
   return true;
 }
 
-NNVM_REGISTER_OP(reshape_like)
+CVM_REGISTER_OP(reshape_like)
   .describe(R"code(Reshapes the input array by the size of another array.
 For an input array with shape ``(d1, d2, ..., dk)``, `reshape_like` operation reshapes
 the input array into an output array with the same shape as the second input array.
 .. note::
     Sizes for both array should be compatible.
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input data.")
 .add_argument("shape_like", "Tensor", "Input data.")
 .set_num_inputs(2)
@@ -624,11 +624,11 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
       << "Target shape size is different to source. "
       << "Target: " << out_shape
       << "\nSource: " << shp;
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
   return true;
 }
 
-NNVM_REGISTER_OP(squeeze)
+CVM_REGISTER_OP(squeeze)
 .describe(R"code(Squeeze axises in the array.
 
 Examples::
@@ -642,7 +642,7 @@ Examples::
 
   squeeze(x, (0, 2)) = [0, 1, 2]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Source input")
 .add_arguments(SqueezeParam::__FIELDS__())
 .set_attr_parser(ParamParser<SqueezeParam>)
@@ -679,7 +679,7 @@ inline bool TransposeShape(const cvm::NodeAttrs& attrs,
       ret[i] = shp[param.axes[i]];
     }
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, ret);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, ret);
   return true;
 }
 
@@ -695,7 +695,7 @@ inline bool TransposeCorrectLayout(const NodeAttrs& attrs,
                         ? last_ilayouts->at(0)
                         : ilayouts->at(0);
 
-  NNVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
+  CVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
 
   if (input.defined()) {
     std::ostringstream new_layout;
@@ -710,13 +710,13 @@ inline bool TransposeCorrectLayout(const NodeAttrs& attrs,
         new_layout << input.at(param.axes[i]);
       }
     }
-    NNVM_ASSIGN_LAYOUT(*olayouts, 0, Layout(new_layout.str()));
+    CVM_ASSIGN_LAYOUT(*olayouts, 0, Layout(new_layout.str()));
   }
 
   return true;
 }
 
-NNVM_REGISTER_OP(transpose)
+CVM_REGISTER_OP(transpose)
 .describe(R"code(Permutes the dimensions of an array.
 
 Examples::
@@ -744,7 +744,7 @@ Examples::
 
                                 [[ 3.,  4.],
                                  [ 7.,  8.]]]
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Source input")
 .add_arguments(TransposeParam::__FIELDS__())
 .set_attr_parser(ParamParser<TransposeParam>)
@@ -809,11 +809,11 @@ inline bool StridedSliceInferShape(const NodeAttrs& attrs,
         << "] is invalid for axis=" << i;
       oshape[i] = slice_size;
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
   return true;
 }
 
-NNVM_REGISTER_OP(strided_slice)
+CVM_REGISTER_OP(strided_slice)
 .describe(R"code(Strided slice of an array.
 
 Examples::
@@ -836,7 +836,7 @@ Examples::
 
                                                 [[ 5.,  6.],
                                                  [ 7.,  8.]]]
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Array to be sliced")
 .add_arguments(StridedSliceParam::__FIELDS__())
 .set_attr_parser(StridedSliceParamParser)
@@ -851,7 +851,7 @@ Examples::
 // Flip
 DMLC_REGISTER_PARAMETER(FlipParam);
 
-NNVM_REGISTER_OP(flip)
+CVM_REGISTER_OP(flip)
 .describe(R"code(Reverse the elements of an array.
 
 Examples::
@@ -879,7 +879,7 @@ Examples::
 
                      [[ 7.,  8.],
                       [ 5.,  6.]]]
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Source input")
 .add_arguments(FlipParam::__FIELDS__())
 .set_attr_parser(ParamParser<FlipParam>)
@@ -929,9 +929,9 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
       }
     }
   }
-  NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 0, dshape);
-  NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 1, indicesshape);
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
+  CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 0, dshape);
+  CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 1, indicesshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
   return dshape.Size() != 0;
 }
 
@@ -941,9 +941,9 @@ inline bool TakeInferType(const NodeAttrs& attrs,
   CHECK_EQ(in_attrs->size(), 2U);
   CHECK_EQ(out_attrs->size(), 1U);
   CHECK_EQ((*in_attrs)[1], kInt32);
-  NNVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 0, (*in_attrs)[0]);
-  NNVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 1, static_cast<int>(kInt32));
-  NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
+  CVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 0, (*in_attrs)[0]);
+  CVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 1, static_cast<int>(kInt32));
+  CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
   return true;
 }
 
@@ -957,13 +957,13 @@ inline bool TakeCorrectLayout(const NodeAttrs& attrs,
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?
                           last_ilayouts->at(i) : ilayouts->at(i);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, i, input);
+    CVM_ASSIGN_LAYOUT(*ilayouts, i, input);
   }
 
   return true;
 }
 
-NNVM_REGISTER_OP(take)
+CVM_REGISTER_OP(take)
 .describe(R"code(Take elements from an array along an axis.
 
 When axis is not None, this function does the same thing as 'fancy' indexing
@@ -985,7 +985,7 @@ Examples::
   take(a, indices, axis=1) = [[ 2., 1.],
                               [ 4., 3.]]
 
-  )code" NNVM_ADD_FILELINE)
+  )code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Array to be indexed")
 .add_argument("indices", "Tensor", "The indices of the values to extract")
 .add_arguments(TakeParam::__FIELDS__())
@@ -1036,13 +1036,13 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
     }
   }
   TShape out_shape = TShape(std::move(end_idx));
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, out_shape);
   return true;
 }
 
-NNVM_REGISTER_OP(slice_like)
+CVM_REGISTER_OP(slice_like)
 .describe(R"code(Slice the first input respect to the second input.
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input data to be sliced.")
 .add_argument("slice_like", "Tensor", "Tensor with target shape")
 .set_num_inputs(2)
@@ -1075,7 +1075,7 @@ inline bool WhereShape(const cvm::NodeAttrs& attrs,
       << "Shape of condition " << cond_shape
       << " must be either equal to x or has dimension of 1.";
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, x_shape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, x_shape);
   return true;
 }
 
@@ -1096,13 +1096,13 @@ inline bool WhereCorrectLayout(const NodeAttrs& attrs,
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?
                           last_ilayouts->at(i) : ilayouts->at(i);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, i, input);
+    CVM_ASSIGN_LAYOUT(*ilayouts, i, input);
   }
 
   return true;
 }
 
-NNVM_REGISTER_OP(where)
+CVM_REGISTER_OP(where)
 .describe(R"code(
 Return the elements, either from x or y, depending on the condition.
 
@@ -1130,7 +1130,7 @@ Examples::
   cond = [1, 0]
   where(cond, x, y) = [[1, 2], [7, 8]]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("condition", "Tensor", "Condition array")
 .add_argument("x", "Tensor", "First array to be selected")
 .add_argument("y", "Tensor", "Second array to be selected")
@@ -1166,7 +1166,7 @@ inline bool GatherNDInferShape(const cvm::NodeAttrs& attrs,
   if (oshape.size() == 0) {
     oshape.push_back(1);
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0,
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0,
                            TShape(oshape.begin(), oshape.end()));
   return true;
 }
@@ -1176,7 +1176,7 @@ inline bool GatherNDInferType(const NodeAttrs &attrs,
                               std::vector<int> *out_attrs) {
   CHECK_EQ(in_attrs->size(), 2U);
   CHECK_EQ(out_attrs->size(), 1U);
-  NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
+  CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
   return true;
 }
 
@@ -1190,13 +1190,13 @@ inline bool GatherNDCorrectLayout(const NodeAttrs& attrs,
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?
                           last_ilayouts->at(i) : ilayouts->at(i);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, i, input);
+    CVM_ASSIGN_LAYOUT(*ilayouts, i, input);
   }
 
   return true;
 }
 
-NNVM_REGISTER_OP(gather_nd)
+CVM_REGISTER_OP(gather_nd)
 .describe(R"code(
 Gather elements or slices from ``data`` into a tensor specified by ``indices``.
 
@@ -1227,7 +1227,7 @@ Examples::
   indices = [[0, 1], [1, 0]]
   gather_nd(data, indices) = [[3, 4], [5, 6]]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "Input data.")
 .add_argument("indices", "Tensor", "Indices of data")
 .set_num_inputs(2)

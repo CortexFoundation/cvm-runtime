@@ -3,8 +3,8 @@
  * \file cvm/node.h
  * \brief Graph node data structure.
  */
-#ifndef NNVM_NODE_H_
-#define NNVM_NODE_H_
+#ifndef CVM_NODE_H_
+#define CVM_NODE_H_
 
 #include <memory>
 #include <string>
@@ -124,7 +124,7 @@ struct NodeAttrs {
 /*!
  * \brief Node represents an operation in a computation graph.
  */
-class NNVM_DLL Node {
+class CVM_DLL Node {
  public:
   Node() = default;
   Node(const Op* op, const std::string& name) {
@@ -220,4 +220,4 @@ inline uint32_t Node::num_inputs() const {
 
 }  // namespace cvm
 
-#endif  // NNVM_NODE_H_
+#endif  // CVM_NODE_H_

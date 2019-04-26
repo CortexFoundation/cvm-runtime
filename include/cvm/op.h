@@ -3,8 +3,8 @@
  * \file cvm/op.h
  * \brief Operator information structor.
  */
-#ifndef NNVM_OP_H_
-#define NNVM_OP_H_
+#ifndef CVM_OP_H_
+#define CVM_OP_H_
 
 #include <dmlc/parameter.h>
 #include <string>
@@ -43,7 +43,7 @@ static const uint32_t kVarg = std::numeric_limits<uint32_t>::max();
  *  // registeration of oeprators
  *  // NOTE that the attr function can register any
  *  // additional attributes to the operator
- *  NNVM_REGISTER_OP(add)
+ *  CVM_REGISTER_OP(add)
  *  .describe("add two inputs together")
  *  .set_num_inputs(2)
  *  .set_attr<OpKernel>("OpKernel<gpu>", AddKernel)
@@ -51,16 +51,16 @@ static const uint32_t kVarg = std::numeric_limits<uint32_t>::max();
  *
  *  // can register attribute by group
  *  // all the ops that include the group get the attribute.
- *  NNVM_REGISTER_OP_GROUP(ElementwiseOpAttr)
+ *  CVM_REGISTER_OP_GROUP(ElementwiseOpAttr)
  *  .set_attr<FInferShape>("FInferShape", ElementwiseInferShape);
  *
- *  NNVM_REGISTER_OP(sub)
+ *  CVM_REGISTER_OP(sub)
  *  .describe("substract one tensor from another")
  *  .set_num_inputs(2);
  *
  *  // Can call regster multiple times in different files
  *  // to register different part of information
- *  NNVM_REGISTER_OP(sub)
+ *  CVM_REGISTER_OP(sub)
  *  .set_attr<OpKernel>("OpKernel<gpu>", SubKernel);
  *  .include("ElementwiseOpAttr");
  *
@@ -82,7 +82,7 @@ static const uint32_t kVarg = std::numeric_limits<uint32_t>::max();
  * }
  * \endcode
  */
-class NNVM_DLL Op {
+class CVM_DLL Op {
  public:
   /*! \brief name of the operator */
   std::string name;
@@ -249,7 +249,7 @@ class NNVM_DLL Op {
    * \param group_name The name of the group.
    * \return reference to self.
    *
-   * \sa NNVM_REGISTER_OP_GROUP
+   * \sa CVM_REGISTER_OP_GROUP
    */
   Op& include(const std::string& group_name);
   /*!
@@ -358,33 +358,33 @@ class OpGroup {
 };
 
 // internal macros to make
-#define NNVM_REGISTER_VAR_DEF(OpName)                                   \
+#define CVM_REGISTER_VAR_DEF(OpName)                                   \
   static DMLC_ATTRIBUTE_UNUSED ::cvm::Op & __make_ ## NnvmOp ## _ ## OpName
 
-#define NNVM_REGISTER_GVAR_DEF(TagName)                                     \
+#define CVM_REGISTER_GVAR_DEF(TagName)                                     \
   static DMLC_ATTRIBUTE_UNUSED ::cvm::OpGroup __make_ ## NnvmOpGroup ## _ ## TagName
 
 /*!
- * \def NNVM_REGISTER_OP
+ * \def CVM_REGISTER_OP
  * \brief Register a new operator, or set attribute of the corresponding op.
  *
  * \param OpName The name of registry
  *
  * \code
  *
- *  NNVM_REGISTER_OP(add)
+ *  CVM_REGISTER_OP(add)
  *  .describe("add two inputs together")
  *  .set_num_inputs(2)
  *  .set_attr<OpKernel>("gpu_kernel", AddKernel);
  *
  * \endcode
  */
-#define NNVM_REGISTER_OP(OpName)                                     \
-  DMLC_STR_CONCAT(NNVM_REGISTER_VAR_DEF(OpName), __COUNTER__) =         \
+#define CVM_REGISTER_OP(OpName)                                     \
+  DMLC_STR_CONCAT(CVM_REGISTER_VAR_DEF(OpName), __COUNTER__) =         \
       ::dmlc::Registry<::cvm::Op>::Get()->__REGISTER_OR_GET__(#OpName)
 
 /*!
- * \def NNVM_REGISTER_OP_GROUP
+ * \def CVM_REGISTER_OP_GROUP
  * \brief Register attribute to a group of operators.
  * These attributes will be registered to Op that include the group.
  *
@@ -392,20 +392,20 @@ class OpGroup {
  *
  * \code
  *
- *  NNVM_REGISTER_OP(add)
+ *  CVM_REGISTER_OP(add)
  *  .include("ElementwiseOpAttr");
  *
  *  // register same attributes to all the ops that include the group
- *  NNVM_REGISTER_OP_GROUP(ElementwiseOpAttr)
+ *  CVM_REGISTER_OP_GROUP(ElementwiseOpAttr)
  *  .set_attr<FInferShape>("FInferShape", ElementwiseInferShape);
  *
- *  NNVM_REGISTER_OP(mul)
+ *  CVM_REGISTER_OP(mul)
  *  .include("ElementwiseOpAttr");
  *
  * \endcode
  */
-#define NNVM_REGISTER_OP_GROUP(GroupName)                               \
-  DMLC_STR_CONCAT(NNVM_REGISTER_GVAR_DEF(GroupName), __COUNTER__) =     \
+#define CVM_REGISTER_OP_GROUP(GroupName)                               \
+  DMLC_STR_CONCAT(CVM_REGISTER_GVAR_DEF(GroupName), __COUNTER__) =     \
       ::cvm::OpGroup {#GroupName}
 
 // implementations of template functions after this.
@@ -559,4 +559,4 @@ inline OpGroup& OpGroup::set_attr(const std::string& attr_name,
 
 }  // namespace cvm
 
-#endif  // NNVM_OP_H_
+#endif  // CVM_OP_H_

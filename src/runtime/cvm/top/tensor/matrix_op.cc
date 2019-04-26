@@ -36,7 +36,7 @@ inline bool DotShape(const cvm::NodeAttrs& attrs,
   for (uint32_t i = 0; i < lshape.ndim() - 1; i++) oshape[i] = lshape[i];
   for (uint32_t i = 1; i < rshape.ndim(); i++) oshape[i + lshape.ndim() - 2] = rshape[i];
 
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, oshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, oshape);
   return true;
 }
 
@@ -51,8 +51,8 @@ inline bool DotCorrectLayout(const NodeAttrs& attrs,
                                                      : ilayouts->at(0);
   const Layout& rhs = last_ilayouts->at(1).defined() ? last_ilayouts->at(1)
                                                      : ilayouts->at(1);
-  NNVM_ASSIGN_LAYOUT(*ilayouts, 0, lhs);
-  NNVM_ASSIGN_LAYOUT(*ilayouts, 1, rhs);
+  CVM_ASSIGN_LAYOUT(*ilayouts, 0, lhs);
+  CVM_ASSIGN_LAYOUT(*ilayouts, 1, rhs);
 
   if (lhs.ndim() > 1 && rhs.ndim() > 1) {
     // concat lhs and rhs layout
@@ -60,12 +60,12 @@ inline bool DotCorrectLayout(const NodeAttrs& attrs,
     const Layout& rhs_out = param.transpose_b ? rhs.reverse() : rhs;
     Layout out = lhs_out.sublayout(0, lhs_out.ndim()-1) +
         rhs_out.sublayout(1, rhs_out.ndim()-1);
-    NNVM_ASSIGN_LAYOUT(*olayouts, 0, out);
+    CVM_ASSIGN_LAYOUT(*olayouts, 0, out);
   }
   return true;
 }
 
-NNVM_REGISTER_OP(matmul)
+CVM_REGISTER_OP(matmul)
 .describe(R"doc(Matrix multiplication of two arrays.
 
 ``dot``'s behavior depends on the input array dimensions:
@@ -80,7 +80,7 @@ NNVM_REGISTER_OP(matmul)
 
     dot(x,y) = sum(x[i,j,:]*y[:,a,b])
 
-)doc" NNVM_ADD_FILELINE)
+)doc" CVM_ADD_FILELINE)
 .set_support_level(1)
 .set_num_inputs(2)
 .set_num_outputs(1)

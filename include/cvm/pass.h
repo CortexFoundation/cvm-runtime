@@ -3,8 +3,8 @@
  * \file cvm/pass.h
  * \brief Pass that can be applied to a graph.
  */
-#ifndef NNVM_PASS_H_
-#define NNVM_PASS_H_
+#ifndef CVM_PASS_H_
+#define CVM_PASS_H_
 
 #include <vector>
 #include <functional>
@@ -105,12 +105,12 @@ struct PassFunctionReg
 };
 
 /*!
- * \def NNVM_REGISTER_PASS
+ * \def CVM_REGISTER_PASS
  * \brief Macro to register pass fuctions.
  *
  * \code
  * // example of registering a shape inference pass
- * NNVM_REGISTER_PASS(InferShape)
+ * CVM_REGISTER_PASS(InferShape)
  * .describe("Shape Inference function, generate graph attributes")
  * .provide_graph_attr("data_shape")
  * .depend_graph_attr("indexed_graph")
@@ -120,9 +120,9 @@ struct PassFunctionReg
  *   });
  * \endcode
  */
-#define NNVM_REGISTER_PASS(name)                                     \
+#define CVM_REGISTER_PASS(name)                                     \
   DMLC_REGISTRY_REGISTER(::cvm::PassFunctionReg, PassFunctionReg, name)
 
 }  // namespace cvm
 
-#endif  // NNVM_PASS_H_
+#endif  // CVM_PASS_H_

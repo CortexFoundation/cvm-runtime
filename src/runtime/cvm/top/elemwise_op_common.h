@@ -3,8 +3,8 @@
  * \file elemwise_op_common.h
  * \brief Common operator utilities
  */
-#ifndef NNVM_TOP_ELEMWISE_OP_COMMON_H_
-#define NNVM_TOP_ELEMWISE_OP_COMMON_H_
+#ifndef CVM_TOP_ELEMWISE_OP_COMMON_H_
+#define CVM_TOP_ELEMWISE_OP_COMMON_H_
 
 #include <cvm/layout.h>
 #include <cvm/top/nn.h>
@@ -387,8 +387,8 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
   return true;
 }
 
-#define NNVM_REGISTER_ELEMWISE_UNARY_OP(name)                       \
-  NNVM_REGISTER_OP(name)                                            \
+#define CVM_REGISTER_ELEMWISE_UNARY_OP(name)                       \
+  CVM_REGISTER_OP(name)                                            \
   .set_num_inputs(1)                                                \
   .set_num_outputs(1)                                               \
   .set_attr<FInferShape>("FInferShape", ElemwiseShape<1, 1>)        \
@@ -402,19 +402,19 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
   .add_argument("data", "Tensor", "The input tensor.")
 
 
-#define NNVM_REGISTER_INIT_OP(name)                                 \
-  NNVM_REGISTER_OP(name)                                            \
+#define CVM_REGISTER_INIT_OP(name)                                 \
+  CVM_REGISTER_OP(name)                                            \
   .set_num_inputs(0)                                                \
   .set_num_outputs(1)
 
 
-#define NNVM_REGISTER_INIT_LIKE_OP(name)                            \
-  NNVM_REGISTER_ELEMWISE_UNARY_OP(name)                             \
+#define CVM_REGISTER_INIT_LIKE_OP(name)                            \
+  CVM_REGISTER_ELEMWISE_UNARY_OP(name)                             \
   .add_argument("data", "Symbol", "The input")
 
 
-#define NNVM_REGISTER_ELEMWISE_BINARY_OP(name)                      \
-  NNVM_REGISTER_OP(name)                                            \
+#define CVM_REGISTER_ELEMWISE_BINARY_OP(name)                      \
+  CVM_REGISTER_OP(name)                                            \
   .set_num_inputs(2)                                                \
   .set_num_outputs(1)                                               \
   .set_attr<FInferShape>("FInferShape", ElemwiseShape<2, 1>)        \
@@ -429,8 +429,8 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
   .add_argument("rhs", "Tensor", "second input")
 
 
-#define NNVM_REGISTER_ELEMWISE_REDUCE_OP(name)                      \
-  NNVM_REGISTER_OP(name)                                            \
+#define CVM_REGISTER_ELEMWISE_REDUCE_OP(name)                      \
+  CVM_REGISTER_OP(name)                                            \
   .set_num_inputs([](const NodeAttrs& attrs) {                      \
     return static_cast<uint32_t>(                                   \
       dmlc::get<ElementWiseReduceParam>(attrs.parsed).num_args);    \
@@ -446,15 +446,15 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
   .add_argument("args", "Symbol[]", "Positional input arguments")
 
 
-#define NNVM_REGISTER_INDICATOR_OP(name)                            \
-  NNVM_REGISTER_OP(name)                                            \
+#define CVM_REGISTER_INDICATOR_OP(name)                            \
+  CVM_REGISTER_OP(name)                                            \
   .set_num_outputs(1)                                               \
   .set_attr<FInferType>(                                            \
     "FInferType", [](const NodeAttrs& attrs,                        \
                      std::vector<int>* in_attrs,                    \
                      std::vector<int>* out_attrs) {                 \
       CHECK_EQ(out_attrs->size(), 1U);                              \
-      NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0,                 \
+      CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0,                 \
         static_cast<int>(kInt32));                                  \
       return true;                                                  \
   })                                                                \
@@ -464,4 +464,4 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
 
 }  // namespace top
 }  // namespace cvm
-#endif  // NNVM_TOP_ELEMWISE_OP_COMMON_H_
+#endif  // CVM_TOP_ELEMWISE_OP_COMMON_H_

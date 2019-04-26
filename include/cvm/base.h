@@ -3,8 +3,8 @@
  * \file cvm/base.h
  * \brief Configuration of cvm as well as basic data structure.
  */
-#ifndef NNVM_BASE_H_
-#define NNVM_BASE_H_
+#ifndef CVM_BASE_H_
+#define CVM_BASE_H_
 
 #include <dmlc/base.h>
 #include <dmlc/common.h>
@@ -31,8 +31,8 @@ using dmlc::unsafe_get;
 }  // namespace cvm
 
 // describe op registration point
-#define NNVM_STRINGIZE_DETAIL(x) #x
-#define NNVM_STRINGIZE(x) NNVM_STRINGIZE_DETAIL(x)
-#define NNVM_DESCRIBE(...) describe(__VA_ARGS__ "\n\nFrom:" __FILE__ ":" NNVM_STRINGIZE(__LINE__))
-#define NNVM_ADD_FILELINE "\n\nDefined in " __FILE__ ":L" NNVM_STRINGIZE(__LINE__)
-#endif  // NNVM_BASE_H_
+#define CVM_STRINGIZE_DETAIL(x) #x
+#define CVM_STRINGIZE(x) CVM_STRINGIZE_DETAIL(x)
+#define CVM_DESCRIBE(...) describe(__VA_ARGS__ "\n\nFrom:" __FILE__ ":" CVM_STRINGIZE(__LINE__))
+#define CVM_ADD_FILELINE "\n\nDefined in " __FILE__ ":L" CVM_STRINGIZE(__LINE__)
+#endif  // CVM_BASE_H_

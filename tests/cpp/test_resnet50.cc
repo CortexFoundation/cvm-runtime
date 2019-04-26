@@ -59,13 +59,12 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
 //    std::cout << "\n";
 //
 //
-//    CVMArrayFree(y);
+//    cvmArrayFree(y);
 }
 
 void call_cvm_runtime_cpu(cvm::runtime::Module mod, DLTensor*x){
 
 }
-
 
 int main()
 {
@@ -92,7 +91,7 @@ int main()
         std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
         params_in.close();
 
-        // parameters need to be CVMByteArray type to indicate the binary data
+        // parameters need to be cvmByteArray type to indicate the binary data
         CVMByteArray params_arr;
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
@@ -109,11 +108,11 @@ int main()
         CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y1);
 
         //    DLTensor* t_gpu_x, *t_gpu_y;
-        //    CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
-        //    CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
-        //    CVMStreamHandle stream;
-        //    CVMStreamCreate(kDLGPU, device_id, &stream);
-        //    CVMArrayCopyFromTo(x, t_gpu_x, stream);
+        //    cvmArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
+        //    cvmArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
+        //    cvmStreamHandle stream;
+        //    cvmStreamCreate(kDLGPU, device_id, &stream);
+        //    cvmArrayCopyFromTo(x, t_gpu_x, stream);
 
         std::ifstream json_in("/tmp/imagenet_cuda_cvm.json", std::ios::in);
         std::string json_data((std::istreambuf_iterator<char>(json_in)), std::istreambuf_iterator<char>());
@@ -138,7 +137,7 @@ int main()
         std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
         std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
         CVMArrayCopyFromTo(gpu_y, y2, stream1);
-        //CVMArrayFree(y_cpu);
+        //cvmArrayFree(y_cpu);
         for(int i = 0; i < 10; i++){
             std::cout << static_cast<int32_t*>(y2->data)[i] << " ";
         }
@@ -148,8 +147,8 @@ int main()
         CVMArrayFree(x);
         CVMArrayFree(gpu_x);
         CVMArrayFree(gpu_y);
-        //    CVMArrayFree(t_gpu_x);
-        //    CVMArrayFree(t_gpu_y);
+        //    cvmArrayFree(t_gpu_x);
+        //    cvmArrayFree(t_gpu_y);
         CVMArrayFree(y2);
 
     }

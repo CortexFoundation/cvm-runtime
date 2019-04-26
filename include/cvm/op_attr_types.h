@@ -3,8 +3,8 @@
  * \file cvm/op_attr_types.h
  * \brief Data structures that can appear in operator attributes.
  */
-#ifndef NNVM_OP_ATTR_TYPES_H_
-#define NNVM_OP_ATTR_TYPES_H_
+#ifndef CVM_OP_ATTR_TYPES_H_
+#define CVM_OP_ATTR_TYPES_H_
 
 #include <vector>
 #include <string>
@@ -211,4 +211,4 @@ using FInputGraph = std::function<std::vector<uint32_t>(const NodeAttrs& attrs)>
 
 }  // namespace cvm
 
-#endif  // NNVM_OP_ATTR_TYPES_H_
+#endif  // CVM_OP_ATTR_TYPES_H_

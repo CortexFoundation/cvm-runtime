@@ -146,7 +146,6 @@ endif(USE_GRAPH_RUNTIME)
 include(cmake/modules/CUDA.cmake)
 
 add_library(cvm_runtime SHARED ${RUNTIME_SRCS})
-
 target_link_libraries(cvm_runtime ${CVM_RUNTIME_LINKER_LIBS})
 
 # Tests

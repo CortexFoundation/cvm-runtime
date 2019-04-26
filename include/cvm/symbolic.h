@@ -4,11 +4,11 @@
  * \brief Symbolic graph construction API
  *
  *  This API is optional, but useful to allow user
- *  to construct NNVM Graph easily, and quickly create
+ *  to construct CVM Graph easily, and quickly create
  *  front-end host languages.
  */
-#ifndef NNVM_SYMBOLIC_H_
-#define NNVM_SYMBOLIC_H_
+#ifndef CVM_SYMBOLIC_H_
+#define CVM_SYMBOLIC_H_
 
 #include <string>
 #include <vector>
@@ -29,7 +29,7 @@ namespace cvm {
  *  symbol is the final operation of a graph and thus including all the information
  *  required (the graph) to evaluate its output value.
  */
-class NNVM_DLL Symbol {
+class CVM_DLL Symbol {
  public:
   /*! \brief option passed to ListAttr */
   enum ListAttrOption {
@@ -215,4 +215,4 @@ class NNVM_DLL Symbol {
 
 }  // namespace cvm
 
-#endif  // NNVM_SYMBOLIC_H_
+#endif  // CVM_SYMBOLIC_H_

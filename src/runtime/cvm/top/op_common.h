@@ -3,8 +3,8 @@
  * \file op_common.h
  * \brief Common operator utilities
  */
-#ifndef NNVM_TOP_OP_COMMON_H_
-#define NNVM_TOP_OP_COMMON_H_
+#ifndef CVM_TOP_OP_COMMON_H_
+#define CVM_TOP_OP_COMMON_H_
 
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
@@ -154,7 +154,7 @@ inline std::string attr_assign_error_msg(const NodeAttrs& attrs,
  * \param index the index of in the array
  * \param shape the inferred shape
  */
-#define NNVM_ASSIGN_INPUT_SHAPE(attrs, inputs, index, shape)             \
+#define CVM_ASSIGN_INPUT_SHAPE(attrs, inputs, index, shape)             \
   {                                                                      \
     if (!shape_assign(&(inputs)[index], TShape(shape))) {                \
       LOG(FATAL) << attr_assign_error_msg(attrs, index, true, shape,     \
@@ -169,7 +169,7 @@ inline std::string attr_assign_error_msg(const NodeAttrs& attrs,
  * \param index the index of in the array
  * \param shape the inferred shape
  */
-#define NNVM_ASSIGN_OUTPUT_SHAPE(attrs, outputs, index, shape)           \
+#define CVM_ASSIGN_OUTPUT_SHAPE(attrs, outputs, index, shape)           \
   {                                                                      \
     if (!shape_assign(&(outputs)[index], TShape(shape))) {               \
       LOG(FATAL) << attr_assign_error_msg(attrs, index, false, shape,    \
@@ -184,7 +184,7 @@ inline std::string attr_assign_error_msg(const NodeAttrs& attrs,
  * \param index the index of in the array
  * \param type the inferred type
  */
-#define NNVM_ASSIGN_INPUT_TYPE(attrs, inputs, index, type)               \
+#define CVM_ASSIGN_INPUT_TYPE(attrs, inputs, index, type)               \
   {                                                                      \
     if (!type_assign(&(inputs)[index], type)) {                          \
       LOG(FATAL) << attr_assign_error_msg(attrs, index, true, type,      \
@@ -199,7 +199,7 @@ inline std::string attr_assign_error_msg(const NodeAttrs& attrs,
  * \param index the index of in the array
  * \param type the inferred type
  */
-#define NNVM_ASSIGN_OUTPUT_TYPE(attrs, outputs, index, type)             \
+#define CVM_ASSIGN_OUTPUT_TYPE(attrs, outputs, index, type)             \
   {                                                                      \
     if (!type_assign(&(outputs)[index], type)) {                         \
       LOG(FATAL) << attr_assign_error_msg(attrs, index, false, type,     \
@@ -207,7 +207,7 @@ inline std::string attr_assign_error_msg(const NodeAttrs& attrs,
     }                                                                    \
   }
 
-#define NNVM_ASSIGN_LAYOUT(outputs, index, layout)                       \
+#define CVM_ASSIGN_LAYOUT(outputs, index, layout)                       \
   {                                                                      \
     if (layout.defined()) {                                              \
       (outputs)[index] = layout;                                         \
@@ -280,7 +280,7 @@ inline bool AssignOutputAttr(const NodeAttrs& attrs,
   CHECK_LT(in_index, in_attrs->size());
   CHECK_LT(out_index, out_attrs->size());
   const TShape &dshape = in_attrs->at(in_index);
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, out_index, dshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, out_index, dshape);
   return true;
 }
 
@@ -332,4 +332,4 @@ inline std::vector<NodeEntry> MakeGradNode(
 }  // namespace top
 }  // namespace cvm
 
-#endif  // NNVM_TOP_OP_COMMON_H_
+#endif  // CVM_TOP_OP_COMMON_H_
