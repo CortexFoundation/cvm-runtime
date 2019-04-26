@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -O2 -Wall -fPIC -fvisibility=hidden -std=c++11   -shared -Wl,-soname,libvta.so -o libvta.so CMakeFiles/vta.dir/vta/src/device_api.cc.o CMakeFiles/vta.dir/vta/src/runtime.cc.o CMakeFiles/vta.dir/vta/src/sim/sim_driver.cc.o 

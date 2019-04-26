@@ -1,0 +1,177 @@
+[
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cpu_device_api.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cpu_device_api.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cpu_device_api.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/workspace_pool.cc.o -c /home/lizhen/cvm-runtime/src/runtime/workspace_pool.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/workspace_pool.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/registry.cc.o -c /home/lizhen/cvm-runtime/src/runtime/registry.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/registry.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/system_lib_module.cc.o -c /home/lizhen/cvm-runtime/src/runtime/system_lib_module.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/system_lib_module.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/module_util.cc.o -c /home/lizhen/cvm-runtime/src/runtime/module_util.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/module_util.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/dso_module.cc.o -c /home/lizhen/cvm-runtime/src/runtime/dso_module.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/dso_module.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/c_dsl_api.cc.o -c /home/lizhen/cvm-runtime/src/runtime/c_dsl_api.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/c_dsl_api.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/thread_pool.cc.o -c /home/lizhen/cvm-runtime/src/runtime/thread_pool.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/thread_pool.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/file_util.cc.o -c /home/lizhen/cvm-runtime/src/runtime/file_util.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/file_util.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/ndarray.cc.o -c /home/lizhen/cvm-runtime/src/runtime/ndarray.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/ndarray.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/threading_backend.cc.o -c /home/lizhen/cvm-runtime/src/runtime/threading_backend.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/threading_backend.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/c_runtime_api.cc.o -c /home/lizhen/cvm-runtime/src/runtime/c_runtime_api.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/c_runtime_api.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/module.cc.o -c /home/lizhen/cvm-runtime/src/runtime/module.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/module.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_socket_impl.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_socket_impl.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_socket_impl.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_event_impl.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_event_impl.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_event_impl.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_device_api.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_device_api.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_device_api.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_session.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_session.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_session.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_server_env.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_server_env.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_server_env.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/rpc/rpc_module.cc.o -c /home/lizhen/cvm-runtime/src/runtime/rpc/rpc_module.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/rpc/rpc_module.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/graph_runtime.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/graph_runtime.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/graph_runtime.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/ops.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/ops.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/ops.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/infer_attr.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/infer_attr.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/infer_attr.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/op.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/op.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/op.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/node.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/node.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/node.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/nn/convolution.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/convolution.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/convolution.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/nn/pooling.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/pooling.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/pooling.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/nn/nn.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/nn.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/nn/nn.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/tensor/reduce.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/reduce.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/reduce.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/tensor/broadcast.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/broadcast.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/broadcast.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/tensor/transform.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/transform.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/transform.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/tensor/elemwise.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/elemwise.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/elemwise.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cvm/top/tensor/matrix_op.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/matrix_op.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cvm/top/tensor/matrix_op.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/graph/graph_runtime.cc.o -c /home/lizhen/cvm-runtime/src/runtime/graph/graph_runtime.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/graph/graph_runtime.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cuda/cuda_module.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cuda/cuda_module.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cuda/cuda_module.cc"
+},
+{
+  "directory": "/home/lizhen/cvm-runtime/build",
+  "command": "/usr/bin/c++   -DDMLC_USE_FOPEN64=0 -DTVM_LLVM_VERSION=40 -Dtvm_runtime_EXPORTS -I/home/lizhen/cvm-runtime/include -I/usr/local/cuda/include -I/usr/lib/llvm-4.0/include  -g -O2 -Wall -fPIC -fvisibility=hidden -std=c++11  -fPIC   -D_GNU_SOURCE -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/tvm_runtime.dir/src/runtime/cuda/cuda_device_api.cc.o -c /home/lizhen/cvm-runtime/src/runtime/cuda/cuda_device_api.cc",
+  "file": "/home/lizhen/cvm-runtime/src/runtime/cuda/cuda_device_api.cc"
+}
+]

@@ -1,0 +1,7 @@
+/home/lizhen/cvm-runtime/build/CMakeFiles/install.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/list_install_components.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/rebuild_cache.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/tvm_runtime.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/runtime.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/install/local.dir
+/home/lizhen/cvm-runtime/build/CMakeFiles/edit_cache.dir

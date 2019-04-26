@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC -O2 -Wall -fPIC -fvisibility=hidden -std=c++11   -shared -Wl,-soname,libcvm_runtime.so -o libcvm_runtime.so CMakeFiles/cvm_runtime.dir/cvm/runtime/graph_runtime.cc.o 
