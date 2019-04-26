@@ -1,9 +1,9 @@
 #include "graph_runtime.h"
 
-#include <tvm/runtime/ndarray.h>
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/serializer.h>
+#include <cvm/runtime/ndarray.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/serializer.h>
 
 #include <algorithm>
 #include <functional>
@@ -15,7 +15,7 @@
 
 #include "cuda_ops.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 #define DEBUG_OP false
@@ -37,7 +37,7 @@ inline uint32_t getSize(DLTensor *dlTensor){
 * a_min -127
 * a_max 127
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.clip").set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip").set_body([](CVMArgs args, CVMRetValue* rv) {
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    std::string min_str = args[2];
@@ -49,7 +49,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.clip").set_body([](TVMArgs args, TVMRetValu
    }
  });
 
- TVM_REGISTER_GLOBAL("tvm.runtime.cvm.relu").set_body([](TVMArgs args, TVMRetValue* rv) {
+ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu").set_body([](CVMArgs args, CVMRetValue* rv) {
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    for (uint32_t i = 0; i < getSize(x); i++) {
@@ -65,7 +65,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.clip").set_body([](TVMArgs args, TVMRetValu
 * units 1000
 * use_bias True
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.dense").set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense").set_body([](CVMArgs args, CVMRetValue* rv) {
   int ndim = args.num_args;
   DLTensor *x = args[0];
   DLTensor *w = args[1];
@@ -98,8 +98,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.dense").set_body([](TVMArgs args, TVMRetVal
 
 });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.flatten").set_body([]
-(TVMArgs args, TVMRetValue* rv){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten").set_body([]
+(CVMArgs args, CVMRetValue* rv){
      DLTensor *x = args[0];
      DLTensor *y = args[1];
      for (uint32_t i = 0; i < getSize(x); i++) {
@@ -185,8 +185,8 @@ padding (0, 0)
 use_bias True
 strides (1, 1)
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.conv2d").set_body([]
- (TVMArgs args, TVMRetValue* rv){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
+ (CVMArgs args, CVMRetValue* rv){
     DLTensor *x = args[0];
     DLTensor *w = args[1];
 	DLTensor *b = args[2];
@@ -387,8 +387,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.conv2d").set_body([]
  });
 
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_add")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -403,8 +403,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_add")
         }
     });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_sub")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_sub")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -418,8 +418,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_sub")
 			else c[i] = a[i] - b[0];
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_mul")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_mul")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -433,8 +433,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_mul")
 			else c[i] = a[i] * b[0];
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_div")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -446,8 +446,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_div")
 			c[i] = a[i]/b[0];
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_right_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_right_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -470,8 +470,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_right_shift")
 			}
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_left_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_left_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -499,8 +499,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_left_shift")
 * ceil_mode False
 * padding (1, 1)
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.max_pool2d")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 	DLTensor *x = args[0];
 	DLTensor *y = args[1];
 	std::string strides_str = args[2];
@@ -565,8 +565,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.max_pool2d")
 /*
 * axis (2, 3)
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.sum")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.sum")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 		DLTensor *x = args[0];
 		DLTensor *y = args[1];
 		std::string axis_str = args[2];
@@ -593,8 +593,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.sum")
     });
 
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.elemwise_add")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -607,8 +607,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.elemwise_add")
         }
     });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.reshape")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
          DLTensor *x = args[0];
 		 DLTensor *y = args[1];
 		 if(x->data == y->data) return;
@@ -620,8 +620,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.reshape")
  * y, output data
  * precision, clip precision
  */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_clip")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
          DLTensor *x = args[0];
 		 DLTensor *y = args[1];
          int32_t *x_data = static_cast<int32_t*>(x->data);
@@ -649,8 +649,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_clip")
  * precision, clip precision
  * b, shift b
  * */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_right_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *c = args[1];
         std::string str_precision = args[2];
@@ -673,8 +673,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_right_shift")
             }
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_left_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *c = args[2];
         std::string str_precision = args[3];
@@ -696,8 +696,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cvm_left_shift")
             }
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.log")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.log")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 //        std::string x_str = args[0];
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
@@ -712,8 +712,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.log")
         }
         y_data[0] = 64;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.__div_scalar__")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.__div_scalar__")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
         std::string scalar_str = args[2];
@@ -724,8 +724,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.__div_scalar__")
             y_data[i] = x[i] / scalar;
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.abs")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.abs")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
         int32_t *y_data = static_cast<int32_t*>(y->data);
@@ -734,8 +734,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.abs")
             y_data[i] = std::abs(x[i]);
         }
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.max")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
         int32_t *y_data = static_cast<int32_t*>(y->data);
@@ -746,8 +746,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.max")
         }
         y_data[0] = max;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_max")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *b = args[1];
         DLTensor *c = args[2];
@@ -761,8 +761,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_max")
     });
 
 /*********************************cuda op*********************************************/
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.elemwise_add")
-.set_body([](tvm::runtime::TVMArgs args, tvm::runtime::TVMRetValue *rv){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_add")
+.set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     DLTensor *a = args[0];
     DLTensor *b = args[1];
     DLTensor *c = args[2];
@@ -774,8 +774,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.elemwise_add")
     CHECK_EQ(errorStr == NULL, true) << errorStr;
 });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.conv2d")
-.set_body([](TVMArgs args, TVMRetValue* rv){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
+.set_body([](CVMArgs args, CVMRetValue* rv){
     DLTensor *x = args[0];
     DLTensor *w = args[1];
 	DLTensor *b = args[2];
@@ -846,8 +846,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.conv2d")
     }
  });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cuda_max_pool2d")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cuda_max_pool2d")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 	DLTensor *x = args[0];
 	DLTensor *y = args[1];
 	std::string strides_str = args[2];
@@ -885,8 +885,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.cuda_max_pool2d")
             y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, DEBUG_OP);
     CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.dense")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.dense")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
   int ndim = args.num_args;
   DLTensor *x = args[0];
   DLTensor *w = args[1];
@@ -914,7 +914,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.dense")
     CHECK_EQ(errorStr == NULL, true) << errorStr;
 });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.clip").set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.clip").set_body([](CVMArgs args, CVMRetValue* rv) {
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    std::string min_str = args[2];
@@ -930,7 +930,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.clip").set_body([](TVMArgs args, TVMRe
    CHECK_EQ(errorStr == NULL, true) << errorStr;
  });
 
- TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.relu").set_body([](TVMArgs args, TVMRetValue* rv) {
+ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.relu").set_body([](CVMArgs args, CVMRetValue* rv) {
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    const char* errorStr = cuda_relu(
@@ -940,8 +940,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.clip").set_body([](TVMArgs args, TVMRe
            DEBUG_OP);
     CHECK_EQ(errorStr == NULL, true) << errorStr;
  });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.flatten").set_body([]
-(TVMArgs args, TVMRetValue* rv){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.flatten").set_body([]
+(CVMArgs args, CVMRetValue* rv){
      DLTensor *x = args[0];
      DLTensor *y = args[1];
 
@@ -952,8 +952,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.flatten").set_body([]
             DEBUG_OP);
      CHECK_EQ(errorStr == NULL, true) << errorStr;
 });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_add")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_add")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -965,8 +965,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_add")
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_sub")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_sub")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -977,8 +977,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_sub")
         const char* errorStr = cuda_broadcast_sub(a, b, c, getSize(args0), DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_mul")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_mul")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -989,8 +989,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_mul")
         const char* errorStr = cuda_broadcast_mul(a, b, c, getSize(args0), DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_div")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_div")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -1001,8 +1001,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_div")
         const char* errorStr = cuda_broadcast_div(a, b, c, getSize(args0), DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_right_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_right_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -1013,8 +1013,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_right_shift")
         const char* errorStr = cuda_broadcast_right_shift(a, b, c, getSize(args0), DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_left_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_left_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *args0 = args[0];
         DLTensor *args1 = args[1];
         DLTensor *args2 = args[2];
@@ -1032,8 +1032,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_left_shift")
 * ceil_mode False
 * padding (1, 1)
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.max_pool2d")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max_pool2d")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 	DLTensor *x = args[0];
 	DLTensor *y = args[1];
 	std::string strides_str = args[2];
@@ -1074,8 +1074,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.max_pool2d")
 /*
 * axis (2, 3)
 */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.sum")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.sum")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 		DLTensor *x = args[0];
 		DLTensor *y = args[1];
 		std::string axis_str = args[2];
@@ -1092,8 +1092,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.sum")
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.reshape")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.reshape")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
          DLTensor *x = args[0];
 		 DLTensor *y = args[1];
          const char* errorStr = cuda_reshape(
@@ -1108,8 +1108,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.reshape")
  * y, output data
  * precision, clip precision
  */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_clip")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_clip")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
          DLTensor *x = args[0];
 		 DLTensor *y = args[1];
          int32_t *x_data = static_cast<int32_t*>(x->data);
@@ -1132,8 +1132,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_clip")
  * precision, clip precision
  * b, shift b
  * */
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_right_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_right_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *c = args[1];
         std::string str_precision = args[2];
@@ -1153,8 +1153,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_right_shift")
         CHECK(errorStr == NULL) << errorStr;
 
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_left_shift")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_left_shift")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *c = args[2];
         std::string str_precision = args[3];
@@ -1173,8 +1173,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.cvm_left_shift")
                 DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.log")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.log")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
 //        std::string x_str = args[0];
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
@@ -1183,8 +1183,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.log")
         const char* errorStr = cuda_log(x, y_data, DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.abs")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.abs")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
         int32_t *y_data = static_cast<int32_t*>(y->data);
@@ -1192,8 +1192,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.abs")
         const char* errorStr = cuda_abs(x, y_data, getSize(dlx), DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.max")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *dlx = args[0];
         DLTensor *y = args[1];
         int32_t *y_data = static_cast<int32_t*>(y->data);
@@ -1201,8 +1201,8 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.max")
         const char* errorStr = cuda_max(x, y_data, getSize(dlx), DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_max")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
+    .set_body([](CVMArgs args, CVMRetValue *ret){
         DLTensor *a = args[0];
         DLTensor *b = args[1];
         DLTensor *c = args[2];

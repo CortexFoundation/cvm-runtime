@@ -3,18 +3,18 @@
  * \file cpu_dsl_api.cc
  * \brief DSL API dispatcher
  */
-#include <tvm/runtime/registry.h>
-#include <tvm/c_dsl_api.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/c_dsl_api.h>
 #include "dsl_api.h"
 #include "runtime_base.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 DSLAPI* FindDSLAPI() {
   auto* f = Registry::Get("dsl_api.singleton");
   if (f == nullptr) {
-    throw dmlc::Error("TVM runtime only environment,"\
+    throw dmlc::Error("CVM runtime only environment,"\
                       " DSL API is not available");
   }
   void* ptr = (*f)();
@@ -26,17 +26,17 @@ static DSLAPI* GetDSLAPI() {
   return inst;
 }
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
-using namespace tvm::runtime;
+using namespace cvm::runtime;
 
-int TVMNodeFree(NodeHandle handle) {
+int CVMNodeFree(NodeHandle handle) {
   API_BEGIN();
   GetDSLAPI()->NodeFree(handle);
   API_END();
 }
 
-int TVMNodeTypeKey2Index(const char* type_key,
+int CVMNodeTypeKey2Index(const char* type_key,
                          int* out_index) {
   API_BEGIN();
   GetDSLAPI()->NodeTypeKey2Index(type_key, out_index);
@@ -44,16 +44,16 @@ int TVMNodeTypeKey2Index(const char* type_key,
 }
 
 
-int TVMNodeGetTypeIndex(NodeHandle handle,
+int CVMNodeGetTypeIndex(NodeHandle handle,
                         int* out_index) {
   API_BEGIN();
   GetDSLAPI()->NodeGetTypeIndex(handle, out_index);
   API_END();
 }
 
-int TVMNodeGetAttr(NodeHandle handle,
+int CVMNodeGetAttr(NodeHandle handle,
                    const char* key,
-                   TVMValue* out_value,
+                   CVMValue* out_value,
                    int* out_type_code,
                    int* out_success) {
   API_BEGIN();
@@ -62,7 +62,7 @@ int TVMNodeGetAttr(NodeHandle handle,
   API_END();
 }
 
-int TVMNodeListAttrNames(NodeHandle handle,
+int CVMNodeListAttrNames(NodeHandle handle,
                          int *out_size,
                          const char*** out_array) {
   API_BEGIN();

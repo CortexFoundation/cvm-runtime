@@ -2,8 +2,8 @@
  *  Copyright (c) 2017 by Contributors
  * \file stackvm_module.cc
  */
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/module.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/module.h>
 #include <dmlc/memory_io.h>
 #include <memory>
 #include <utility>
@@ -12,7 +12,7 @@
 #include "../file_util.h"
 #include "../module_util.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class StackVMModuleNode : public runtime::ModuleNode {
@@ -24,14 +24,14 @@ class StackVMModuleNode : public runtime::ModuleNode {
   PackedFunc GetFunction(
       const std::string& name,
       const std::shared_ptr<ModuleNode>& sptr_to_self) final {
-    if (name == runtime::symbol::tvm_module_main) {
+    if (name == runtime::symbol::cvm_module_main) {
       return GetFunction(entry_func_, sptr_to_self);
     }
     auto it = fmap_.find(name);
     if (it == fmap_.end()) return PackedFunc();
     const StackVM& vm = it->second;
     // capture sptr_to_self to keep module node alive.
-    return PackedFunc([vm, sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([vm, sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         vm.Run(args, this);
       });
   }
@@ -122,10 +122,10 @@ Module StackVMModuleCreate(std::unordered_map<std::string, StackVM> fmap,
   return StackVMModuleNode::Create(fmap, entry_func);
 }
 
-TVM_REGISTER_GLOBAL("module.loadfile_stackvm")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadfile_stackvm")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = StackVMModuleNode::LoadFromFile(args[0], args[1]);
   });
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

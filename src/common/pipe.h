@@ -3,8 +3,8 @@
  * \file pipe.h
  * \brief Platform independent pipe, used for IPC.
  */
-#ifndef TVM_COMMON_PIPE_H_
-#define TVM_COMMON_PIPE_H_
+#ifndef CVM_COMMON_PIPE_H_
+#define CVM_COMMON_PIPE_H_
 
 #include <dmlc/logging.h>
 #include <dmlc/io.h>
@@ -18,7 +18,7 @@
 #include <cstdlib>
 #endif
 
-namespace tvm {
+namespace cvm {
 namespace common {
 
 /*! \brief Platform independent pipe */
@@ -101,6 +101,6 @@ class Pipe : public dmlc::Stream {
   PipeHandle handle_;
 };
 }  // namespace common
-}  // namespace tvm
+}  // namespace cvm
 
-#endif  // TVM_COMMON_PIPE_H_
+#endif  // CVM_COMMON_PIPE_H_

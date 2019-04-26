@@ -2,7 +2,7 @@
  *  Copyright (c) 2017 by Contributors
  * \file opengl_module.cc
  */
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <utility>
 #include <unordered_map>
 #include "opengl_common.h"
@@ -11,7 +11,7 @@
 #include "../thread_storage_scope.h"
 #include "../file_util.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class OpenGLModuleNode final : public ModuleNode {
@@ -60,7 +60,7 @@ class OpenGLWrappedFunc {
                     std::vector<size_t> arg_size,
                     const std::vector<std::string>& thread_axis_tags);
 
-  void operator()(TVMArgs args, TVMRetValue* rv, void** void_args) const;
+  void operator()(CVMArgs args, CVMRetValue* rv, void** void_args) const;
 
  private:
   // The module
@@ -94,7 +94,7 @@ PackedFunc OpenGLModuleNode::GetFunction(
     const std::string& name,
     const std::shared_ptr<ModuleNode>& sptr_to_self) {
   CHECK_EQ(sptr_to_self.get(), this);
-  CHECK_NE(name, symbol::tvm_module_main) << "Device function do not have main";
+  CHECK_NE(name, symbol::cvm_module_main) << "Device function do not have main";
 
   auto func_info_it = fmap_.find(name);
   if (func_info_it == fmap_.end()) { return PackedFunc(); }
@@ -102,7 +102,7 @@ PackedFunc OpenGLModuleNode::GetFunction(
 
   std::vector<size_t> arg_size(func_info.arg_types.size());
   for (size_t i = 0; i < func_info.arg_types.size(); ++i) {
-    TVMType t = func_info.arg_types[i];
+    CVMType t = func_info.arg_types[i];
     CHECK_EQ(t.lanes, 1U);
     uint32_t bits = t.bits;
     CHECK_EQ(bits % 8, 0U);
@@ -181,7 +181,7 @@ OpenGLWrappedFunc::OpenGLWrappedFunc(
   thread_axis_cfg_.Init(arg_size_.size(), thread_axis_tags);
 }
 
-void OpenGLWrappedFunc::operator()(TVMArgs args, TVMRetValue* rv,
+void OpenGLWrappedFunc::operator()(CVMArgs args, CVMRetValue* rv,
                                    void** void_args) const {
   auto &shader = m_->GetShader(func_name_);
   auto &program = m_->GetProgram(func_name_);
@@ -223,7 +223,7 @@ void OpenGLWrappedFunc::operator()(TVMArgs args, TVMRetValue* rv,
   ThreadWorkLoad wl = thread_axis_cfg_.Extract(args);
   std::unique_ptr<GLint> thread_extent(new GLint(wl.block_dim(0)));
   m_->workspace().SetUniform(program, shader.thread_extent_var,
-                             TVMType{kDLInt, 32, 1},
+                             CVMType{kDLInt, 32, 1},
                              static_cast<void*>(thread_extent.get()));
 
   m_->workspace().Render(output);
@@ -260,20 +260,20 @@ Module OpenGLModuleLoadBinary(void* strm) {
   return OpenGLModuleCreate(FromJSON(data), fmt, fmap);
 }
 
-TVM_REGISTER_GLOBAL("module.loadfile_gl")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadfile_gl")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = OpenGLModuleLoadFile(args[0], args[1]);
   });
 
-TVM_REGISTER_GLOBAL("module.loadfile_glbin")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadfile_glbin")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = OpenGLModuleLoadFile(args[0], args[1]);
   });
 
-TVM_REGISTER_GLOBAL("module.loadbinary_opengl")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadbinary_opengl")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = OpenGLModuleLoadBinary(args[0]);
   });
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

@@ -2,20 +2,20 @@
  *  Copyright (c) 2018 by Contributors
  * \file graph_runtime_debug.cc
  */
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/ndarray.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/ndarray.h>
 #include <chrono>
 #include "../graph_runtime.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*!
  * \brief Graph runtime with debug .
  *
  *  This is the extension of GraphRuntime class used for debugging
- *  TVM runtime PackedFunc API.
+ *  CVM runtime PackedFunc API.
  */
 class GraphRuntimeDebug : public GraphRuntime {
  public:
@@ -26,12 +26,12 @@ class GraphRuntimeDebug : public GraphRuntime {
    */
   double DebugRun(size_t index) {
     CHECK(index < op_execs_.size());
-    TVMContext ctx = data_entry_[entry_id(index, 0)]->ctx;
+    CVMContext ctx = data_entry_[entry_id(index, 0)]->ctx;
     auto tbegin = std::chrono::high_resolution_clock::now();
     if (op_execs_[index]) {
       op_execs_[index]();
     }
-    TVMSynchronize(ctx.device_type, ctx.device_id, nullptr);
+    CVMSynchronize(ctx.device_type, ctx.device_id, nullptr);
     auto tend = std::chrono::high_resolution_clock::now();
     double time = std::chrono::duration_cast<std::chrono::duration<double> >(
         tend - tbegin).count();
@@ -70,10 +70,10 @@ class GraphRuntimeDebug : public GraphRuntime {
         for (int k = 0; k < number; k++) {
           for (size_t index = 0; index < op_execs_.size(); ++index) {
             if (op_execs_[index]) {
-              const TVMContext& ctx = data_entry_[entry_id(index, 0)]->ctx;
+              const CVMContext& ctx = data_entry_[entry_id(index, 0)]->ctx;
               auto op_tbegin = std::chrono::high_resolution_clock::now();
               op_execs_[index]();
-              TVMSynchronize(ctx.device_type, ctx.device_id, nullptr);
+              CVMSynchronize(ctx.device_type, ctx.device_id, nullptr);
               auto op_tend = std::chrono::high_resolution_clock::now();
               double op_duration = std::chrono::duration_cast<
                   std::chrono::duration<double> >(op_tend - op_tbegin).count();
@@ -163,15 +163,15 @@ PackedFunc GraphRuntimeDebug::GetFunction(
     const std::shared_ptr<ModuleNode>& sptr_to_self) {
   // return member functions during query.
   if (name == "debug_run") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         *rv = this->DebugRun(static_cast<size_t>(args[0].operator int64_t()));
       });
   } else if (name == "get_output_by_layer") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         *rv = this->GetOutputByLayer(args[0], args[1]);
       });
   } else if (name == "debug_get_output") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         if (args[0].type_code() == kStr) {
           this->DebugGetNodeOutput(this->GetNodeIndex(args[0]), args[1]);
         } else {
@@ -179,7 +179,7 @@ PackedFunc GraphRuntimeDebug::GetFunction(
         }
       });
   } else if (name == "run_individual") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
       int number = args[0];
       int repeat = args[1];
       int min_repeat_ms = args[2];
@@ -200,15 +200,15 @@ PackedFunc GraphRuntimeDebug::GetFunction(
  * \param ctxs All devices contexts.
  */
 Module GraphRuntimeDebugCreate(const std::string& sym_json,
-                               const tvm::runtime::Module& m,
-                               const std::vector<TVMContext>& ctxs) {
+                               const cvm::runtime::Module& m,
+                               const std::vector<CVMContext>& ctxs) {
   std::shared_ptr<GraphRuntimeDebug> exec = std::make_shared<GraphRuntimeDebug>();
   exec->Init(sym_json, m, ctxs);
   return Module(exec);
 }
 
-TVM_REGISTER_GLOBAL("tvm.graph_runtime_debug.create")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.graph_runtime_debug.create")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     CHECK_GE(args.num_args, 4)
         << "The expected number of arguments for graph_runtime.create is "
            "at least 4, but it has "
@@ -216,8 +216,8 @@ TVM_REGISTER_GLOBAL("tvm.graph_runtime_debug.create")
     *rv = GraphRuntimeDebugCreate(args[0], args[1], GetAllContext(args));
   });
 
-TVM_REGISTER_GLOBAL("tvm.graph_runtime_debug.remote_create")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.graph_runtime_debug.remote_create")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     CHECK_GE(args.num_args, 4) << "The expected number of arguments for "
                                   "graph_runtime.remote_create is "
                                   "at least 4, but it has "
@@ -225,8 +225,8 @@ TVM_REGISTER_GLOBAL("tvm.graph_runtime_debug.remote_create")
     void* mhandle = args[1];
     const auto& contexts = GetAllContext(args);
     *rv = GraphRuntimeDebugCreate(
-        args[0], *static_cast<tvm::runtime::Module*>(mhandle), contexts);
+        args[0], *static_cast<cvm::runtime::Module*>(mhandle), contexts);
   });
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

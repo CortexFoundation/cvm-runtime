@@ -6,13 +6,13 @@
 #ifndef _LIBCPP_SGX_CONFIG
 #include <dmlc/memory_io.h>
 #endif
-#include <tvm/runtime/module.h>
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/module.h>
+#include <cvm/runtime/registry.h>
 #include <string>
 #include <memory>
 #include "module_util.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 void ImportModuleBlob(const char* mblob, std::vector<Module>* mlist) {
@@ -46,14 +46,14 @@ void ImportModuleBlob(const char* mblob, std::vector<Module>* mlist) {
 
 PackedFunc WrapPackedFunc(BackendPackedCFunc faddr,
                           const std::shared_ptr<ModuleNode>& sptr_to_self) {
-  return PackedFunc([faddr, sptr_to_self](TVMArgs args, TVMRetValue* rv) {
+  return PackedFunc([faddr, sptr_to_self](CVMArgs args, CVMRetValue* rv) {
       int ret = (*faddr)(
-          const_cast<TVMValue*>(args.values),
+          const_cast<CVMValue*>(args.values),
           const_cast<int*>(args.type_codes),
           args.num_args);
-      CHECK_EQ(ret, 0) << TVMGetLastError();
+      CHECK_EQ(ret, 0) << CVMGetLastError();
     });
 }
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

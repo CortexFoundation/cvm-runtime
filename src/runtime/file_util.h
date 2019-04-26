@@ -3,14 +3,14 @@
  * \file file_util.h
  * \brief Minimum file manipulation util for runtime.
  */
-#ifndef TVM_RUNTIME_FILE_UTIL_H_
-#define TVM_RUNTIME_FILE_UTIL_H_
+#ifndef CVM_RUNTIME_FILE_UTIL_H_
+#define CVM_RUNTIME_FILE_UTIL_H_
 
 #include <string>
 #include <unordered_map>
 #include "meta_data.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 /*!
  * \brief Get file format from given file name or format argument.
@@ -21,8 +21,8 @@ std::string GetFileFormat(const std::string& file_name,
                           const std::string& format);
 
 /*!
- * \return the directory in which TVM stores cached files.
- *         May be set using TVM_CACHE_DIR; defaults to system locations.
+ * \return the directory in which CVM stores cached files.
+ *         May be set using CVM_CACHE_DIR; defaults to system locations.
  */
 std::string GetCacheDir();
 
@@ -79,5 +79,5 @@ void LoadMetaDataFromFile(
  */
 void RemoveFile(const std::string& file_name);
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_FILE_UTIL_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_FILE_UTIL_H_

@@ -1,16 +1,16 @@
 /*!
  *  Copyright (c) 2017 by Contributors
  * \file thread_storage_scope.h
- * \brief Extract thread axis configuration from TVMArgs.
+ * \brief Extract thread axis configuration from CVMArgs.
  */
-#ifndef TVM_RUNTIME_THREAD_STORAGE_SCOPE_H_
-#define TVM_RUNTIME_THREAD_STORAGE_SCOPE_H_
+#ifndef CVM_RUNTIME_THREAD_STORAGE_SCOPE_H_
+#define CVM_RUNTIME_THREAD_STORAGE_SCOPE_H_
 
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/packed_func.h>
 #include <string>
 #include <vector>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*!
@@ -170,7 +170,7 @@ class ThreadAxisConfig {
     }
   }
   // extract workload from arguments.
-  ThreadWorkLoad Extract(TVMArgs x) const {
+  ThreadWorkLoad Extract(CVMArgs x) const {
     ThreadWorkLoad w;
     std::fill(w.work_size, w.work_size + 6, 1);
     for (size_t i = 0; i < arg_index_map_.size(); ++i) {
@@ -194,14 +194,14 @@ class ThreadAxisConfig {
 };
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
 namespace std {
 template <>
-struct hash<::tvm::runtime::StorageScope> {
-  std::size_t operator()(const ::tvm::runtime::StorageScope& k) const {
+struct hash<::cvm::runtime::StorageScope> {
+  std::size_t operator()(const ::cvm::runtime::StorageScope& k) const {
     return static_cast<size_t>(k.rank);
   }
 };
 }  // namespace std
-#endif  // TVM_RUNTIME_THREAD_STORAGE_SCOPE_H_
+#endif  // CVM_RUNTIME_THREAD_STORAGE_SCOPE_H_

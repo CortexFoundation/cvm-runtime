@@ -120,7 +120,7 @@ typedef struct {
    * \code{.c}
    * static inline size_t GetDataSize(const DLTensor* t) {
    *   size_t size = 1;
-   *   for (tvm_index_t i = 0; i < t->ndim; ++i) {
+   *   for (cvm_index_t i = 0; i < t->ndim; ++i) {
    *     size *= t->shape[i];
    *   }
    *   size *= (t->dtype.bits * t->dtype.lanes + 7) / 8;

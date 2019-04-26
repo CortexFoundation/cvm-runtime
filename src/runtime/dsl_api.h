@@ -3,12 +3,12 @@
  * \file cpu_dsl_api.cc
  * \brief DSL API dispatcher
  */
-#ifndef TVM_RUNTIME_DSL_API_H_
-#define TVM_RUNTIME_DSL_API_H_
+#ifndef CVM_RUNTIME_DSL_API_H_
+#define CVM_RUNTIME_DSL_API_H_
 
-#include <tvm/c_dsl_api.h>
+#include <cvm/c_dsl_api.h>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 /*!
  * \brief Common interface for DSL API
@@ -27,7 +27,7 @@ class DSLAPI {
 
   virtual void NodeGetAttr(NodeHandle handle,
                            const char* key,
-                           TVMValue* out_value,
+                           CVMValue* out_value,
                            int* out_type_code,
                            int* out_success) const = 0;
 
@@ -36,5 +36,5 @@ class DSLAPI {
                                  const char*** out_array) const = 0;
 };
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_DSL_API_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_DSL_API_H_

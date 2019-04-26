@@ -3,10 +3,10 @@
  * \file opengl_module.h
  * \brief Execution handling of OpenGL kernels
  */
-#ifndef TVM_RUNTIME_OPENGL_OPENGL_MODULE_H_
-#define TVM_RUNTIME_OPENGL_OPENGL_MODULE_H_
+#ifndef CVM_RUNTIME_OPENGL_OPENGL_MODULE_H_
+#define CVM_RUNTIME_OPENGL_OPENGL_MODULE_H_
 
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/packed_func.h>
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -15,11 +15,11 @@
 #include <unordered_map>
 #include "../meta_data.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*!
- * \brief The fixed row size of all OpenGL textures in TVM.
+ * \brief The fixed row size of all OpenGL textures in CVM.
  *
  * OpenGL has texture size limit on each dimension. Suppose we have a limit of
  * 1024, then we can have a 2D texture of size (2^10 x 2^10) but not (2^20 x 1).
@@ -160,5 +160,5 @@ inline std::unordered_map<std::string, OpenGLShader> FromJSON(
 }
 
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_OPENGL_OPENGL_MODULE_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_OPENGL_OPENGL_MODULE_H_

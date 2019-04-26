@@ -3,18 +3,18 @@
  * \file rpc_session.h
  * \brief Base RPC session interface.
  */
-#ifndef TVM_RUNTIME_RPC_RPC_SESSION_H_
-#define TVM_RUNTIME_RPC_RPC_SESSION_H_
+#ifndef CVM_RUNTIME_RPC_RPC_SESSION_H_
+#define CVM_RUNTIME_RPC_RPC_SESSION_H_
 
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/device_api.h>
 #include <mutex>
 #include <string>
 #include <memory>
 #include <utility>
 #include "../../common/ring_buffer.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 const int kRPCMagic = 0xff271;
@@ -110,8 +110,8 @@ class RPCSession {
    * \param fwrap Wrapper function to turn Function/Module handle into real return.
    */
   void CallFunc(RPCFuncHandle handle,
-                TVMArgs args,
-                TVMRetValue* rv,
+                CVMArgs args,
+                CVMRetValue* rv,
                 const PackedFunc* fwrap);
   /*!
    * \brief Copy bytes into remote array content.
@@ -128,8 +128,8 @@ class RPCSession {
                     void* to,
                     size_t to_offset,
                     size_t nbytes,
-                    TVMContext ctx_to,
-                    TVMType type_hint);
+                    CVMContext ctx_to,
+                    CVMType type_hint);
   /*!
    * \brief Copy bytes from remote array content.
    * \param from The source host data.
@@ -145,8 +145,8 @@ class RPCSession {
                       void* to,
                       size_t to_offset,
                       size_t nbytes,
-                      TVMContext ctx_from,
-                      TVMType type_hint);
+                      CVMContext ctx_from,
+                      CVMType type_hint);
   /*!
    * \brief Get a remote timer function on ctx.
    *  This function consumes fhandle, caller should not call Free on fhandle.
@@ -169,7 +169,7 @@ class RPCSession {
    * \return A remote timer function
    */
   RPCFuncHandle GetTimeEvaluator(RPCFuncHandle fhandle,
-                                 TVMContext ctx,
+                                 CVMContext ctx,
                                  int number,
                                  int repeat,
                                  int min_repeat_ms);
@@ -180,7 +180,7 @@ class RPCSession {
    * \return The returned remote value.
    */
   template<typename... Args>
-  inline TVMRetValue CallRemote(RPCCode fcode, Args&& ...args);
+  inline CVMRetValue CallRemote(RPCCode fcode, Args&& ...args);
   /*!
    * \return The session table index of the session.
    */
@@ -211,7 +211,7 @@ class RPCSession {
   // Handle events until receives a return
   // Also flushes channels so that the function advances.
   RPCCode HandleUntilReturnEvent(
-      TVMRetValue* rv, bool client_mode, const PackedFunc* fwrap);
+      CVMRetValue* rv, bool client_mode, const PackedFunc* fwrap);
   // Initalization
   void Init();
   // Shutdown
@@ -254,7 +254,7 @@ class RPCSession {
  * \return f_timer A timer function.
  */
 PackedFunc WrapTimeEvaluator(PackedFunc f,
-                             TVMContext ctx,
+                             CVMContext ctx,
                              int number,
                              int repeat,
                              int min_repeat_ms);
@@ -274,11 +274,11 @@ struct RemoteSpace {
 
 // implementation of inline functions
 template<typename... Args>
-inline TVMRetValue RPCSession::CallRemote(RPCCode code, Args&& ...args) {
+inline CVMRetValue RPCSession::CallRemote(RPCCode code, Args&& ...args) {
   std::lock_guard<std::recursive_mutex> lock(mutex_);
   writer_.Write(&code, sizeof(code));
   return call_remote_(std::forward<Args>(args)...);
 }
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_RPC_RPC_SESSION_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_RPC_RPC_SESSION_H_

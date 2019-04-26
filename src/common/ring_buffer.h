@@ -3,14 +3,14 @@
  * \file ring_buffer.h
  * \brief this file aims to provide a wrapper of sockets
  */
-#ifndef TVM_COMMON_RING_BUFFER_H_
-#define TVM_COMMON_RING_BUFFER_H_
+#ifndef CVM_COMMON_RING_BUFFER_H_
+#define CVM_COMMON_RING_BUFFER_H_
 
 #include <vector>
 #include <cstring>
 #include <algorithm>
 
-namespace tvm {
+namespace cvm {
 namespace common {
 /*!
  * \brief Ring buffer class for data buffering in IO.
@@ -156,5 +156,5 @@ class RingBuffer {
   std::vector<char> ring_;
 };
 }  // namespace common
-}  // namespace tvm
-#endif  // TVM_COMMON_RING_BUFFER_H_
+}  // namespace cvm
+#endif  // CVM_COMMON_RING_BUFFER_H_

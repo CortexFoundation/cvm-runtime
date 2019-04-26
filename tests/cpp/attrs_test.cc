@@ -12,18 +12,18 @@ struct TestAttrs : public AttrsNode<TestAttrs> {
   Expr expr;
   double learning_rate;
 
-  TVM_DECLARE_ATTRS(TestAttrs, "attrs.cpptest.TestAttrs") {
-    TVM_ATTR_FIELD(axis)
+  CVM_DECLARE_ATTRS(TestAttrs, "attrs.cpptest.TestAttrs") {
+    CVM_ATTR_FIELD(axis)
         .set_default(10)
         .set_lower_bound(1)
         .set_upper_bound(10)
         .describe("axis field");
-    TVM_ATTR_FIELD(name)
+    CVM_ATTR_FIELD(name)
         .describe("name of the field");
-    TVM_ATTR_FIELD(expr)
+    CVM_ATTR_FIELD(expr)
         .describe("expression field")
         .set_default(make_const(Int(32), 1));
-    TVM_ATTR_FIELD(learning_rate)
+    CVM_ATTR_FIELD(learning_rate)
         .describe("learning_rate")
         .set_default(0.1);
   }

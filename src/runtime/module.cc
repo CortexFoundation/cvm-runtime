@@ -1,18 +1,18 @@
 /*!
  *  Copyright (c) 2017 by Contributors
  * \file module.cc
- * \brief TVM module system
+ * \brief CVM module system
  */
-#include <tvm/runtime/module.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/module.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/packed_func.h>
 #include <unordered_set>
 #include <cstring>
 #ifndef _LIBCPP_SGX_CONFIG
 #include "file_util.h"
 #endif
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 void Module::Import(Module other) {
@@ -134,42 +134,42 @@ bool RuntimeEnabled(const std::string& target) {
   return runtime::Registry::Get(f_name) != nullptr;
 }
 
-TVM_REGISTER_GLOBAL("module._Enabled")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._Enabled")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = RuntimeEnabled(args[0]);
     });
 
-TVM_REGISTER_GLOBAL("module._GetSource")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._GetSource")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = args[0].operator Module()->GetSource(args[1]);
     });
 
-TVM_REGISTER_GLOBAL("module._ImportsSize")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._ImportsSize")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = static_cast<int64_t>(
         args[0].operator Module()->imports().size());
     });
 
-TVM_REGISTER_GLOBAL("module._GetImport")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._GetImport")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = args[0].operator Module()->
         imports().at(args[1].operator int());
     });
 
-TVM_REGISTER_GLOBAL("module._GetTypeKey")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._GetTypeKey")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = std::string(args[0].operator Module()->type_key());
     });
 
-TVM_REGISTER_GLOBAL("module._LoadFromFile")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._LoadFromFile")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     *ret = Module::LoadFromFile(args[0], args[1]);
     });
 
-TVM_REGISTER_GLOBAL("module._SaveToFile")
-.set_body([](TVMArgs args, TVMRetValue *ret) {
+CVM_REGISTER_GLOBAL("module._SaveToFile")
+.set_body([](CVMArgs args, CVMRetValue *ret) {
     args[0].operator Module()->
         SaveToFile(args[1], args[2]);
     });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

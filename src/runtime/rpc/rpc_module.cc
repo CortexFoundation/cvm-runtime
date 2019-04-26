@@ -3,12 +3,12 @@
  * \file rpc_device_api.cc
  * \brief RPC module.
  */
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <memory>
 #include <cstring>
 #include "rpc_session.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 // Wrapped remote function to packed func.
@@ -17,12 +17,12 @@ class RPCWrappedFunc {
   RPCWrappedFunc(void* handle,
                  std::shared_ptr<RPCSession> sess)
       : handle_(handle), sess_(sess) {
-    fwrap_ = PackedFunc([sess](TVMArgs args, TVMRetValue* rv) {
+    fwrap_ = PackedFunc([sess](CVMArgs args, CVMRetValue* rv) {
         WrapRemote(sess, args, rv);
       });
   }
 
-  void operator()(TVMArgs args, TVMRetValue *rv) const {
+  void operator()(CVMArgs args, CVMRetValue *rv) const {
     sess_->CallFunc(handle_, args, rv, &fwrap_);
   }
   ~RPCWrappedFunc() {
@@ -34,8 +34,8 @@ class RPCWrappedFunc {
   }
 
   static void WrapRemote(std::shared_ptr<RPCSession> sess,
-                         TVMArgs args,
-                         TVMRetValue* rv);
+                         CVMArgs args,
+                         CVMRetValue* rv);
 
   // deleter of RPC remote array
   static void RemoteNDArrayDeleter(NDArray::Container* ptr) {
@@ -122,7 +122,7 @@ class RPCModuleNode final : public ModuleNode {
   }
 
   PackedFunc GetTimeEvaluator(const std::string& name,
-                              TVMContext ctx,
+                              CVMContext ctx,
                               int number,
                               int repeat,
                               int min_repeat_ms) {
@@ -140,7 +140,7 @@ class RPCModuleNode final : public ModuleNode {
   PackedFunc WrapRemote(RPCFuncHandle handle) {
     if (handle == nullptr) return PackedFunc();
     auto wf = std::make_shared<RPCWrappedFunc>(handle, sess_);
-    return PackedFunc([wf](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([wf](CVMArgs args, CVMRetValue* rv) {
         return wf->operator()(args, rv);
       });
   }
@@ -164,15 +164,15 @@ class RPCModuleNode final : public ModuleNode {
 };
 
 void RPCWrappedFunc::WrapRemote(std::shared_ptr<RPCSession> sess,
-                                TVMArgs args,
-                                TVMRetValue *rv) {
+                                CVMArgs args,
+                                CVMRetValue *rv) {
   void* handle = args.values[0].v_handle;
   int tcode = args.type_codes[0];
 
   if (handle == nullptr) return;
   if (tcode == kFuncHandle) {
     auto wf = std::make_shared<RPCWrappedFunc>(handle, sess);
-    *rv = PackedFunc([wf](TVMArgs args, TVMRetValue* rv) {
+    *rv = PackedFunc([wf](CVMArgs args, CVMRetValue* rv) {
         return wf->operator()(args, rv);
       });
   } else if (tcode == kModuleHandle) {
@@ -195,11 +195,11 @@ Module CreateRPCModule(std::shared_ptr<RPCSession> sess) {
   return Module(n);
 }
 
-TVM_REGISTER_GLOBAL("module._RPCTimeEvaluator")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module._RPCTimeEvaluator")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     Module m = args[0];
     std::string tkey = m->type_key();
-    TVMContext ctx;
+    CVMContext ctx;
     ctx.device_type = static_cast<DLDeviceType>(args[2].operator int());
     ctx.device_id = args[3];
     if (tkey == "rpc") {
@@ -211,8 +211,8 @@ TVM_REGISTER_GLOBAL("module._RPCTimeEvaluator")
     }
   });
 
-TVM_REGISTER_GLOBAL("rpc._LoadRemoteModule")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._LoadRemoteModule")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     Module m = args[0];
     std::string tkey = m->type_key();
     CHECK_EQ(tkey, "rpc");
@@ -223,8 +223,8 @@ TVM_REGISTER_GLOBAL("rpc._LoadRemoteModule")
     *rv = Module(n);
   });
 
-TVM_REGISTER_GLOBAL("rpc._ImportRemoteModule")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._ImportRemoteModule")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     Module parent = args[0];
     Module child = args[1];
     CHECK(!std::strcmp(parent->type_key(), "rpc") &&
@@ -238,16 +238,16 @@ TVM_REGISTER_GLOBAL("rpc._ImportRemoteModule")
                              cmod->module_handle());
   });
 
-TVM_REGISTER_GLOBAL("rpc._ModuleHandle")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._ModuleHandle")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     Module m = args[0];
     std::string tkey = m->type_key();
     CHECK_EQ(tkey, "rpc");
     *rv = static_cast<RPCModuleNode*>(m.operator->())->module_handle();
   });
 
-TVM_REGISTER_GLOBAL("rpc._SessTableIndex")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._SessTableIndex")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     Module m = args[0];
     std::string tkey = m->type_key();
     CHECK_EQ(tkey, "rpc");
@@ -255,4 +255,4 @@ TVM_REGISTER_GLOBAL("rpc._SessTableIndex")
   });
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

@@ -4,12 +4,12 @@
  * \file stackvm.cc
  */
 #include <dmlc/thread_local.h>
-#include <tvm/runtime/util.h>
-#include <tvm/runtime/c_backend_api.h>
+#include <cvm/runtime/util.h>
+#include <cvm/runtime/c_backend_api.h>
 #include <algorithm>
 #include "stackvm.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 typedef dmlc::ThreadLocalStore<StackVM::State> StackVMStateStore;
@@ -112,13 +112,13 @@ int64_t StackVM::PrintCode(std::ostream& os, int64_t pc) const {
     STACK_VM_PRINT_CODE1(ARRAY_LOAD_INT64);
     STACK_VM_PRINT_CODE1(ARRAY_LOAD_FP64);
     STACK_VM_PRINT_CODE1(ARRAY_LOAD_HANDLE);
-    STACK_VM_PRINT_CODE1(ARRAY_LOAD_TVMVALUE);
+    STACK_VM_PRINT_CODE1(ARRAY_LOAD_CVMVALUE);
     STACK_VM_PRINT_CODE1(ARRAY_STORE_UINT32);
     STACK_VM_PRINT_CODE1(ARRAY_STORE_INT32);
     STACK_VM_PRINT_CODE1(ARRAY_STORE_INT64);
     STACK_VM_PRINT_CODE1(ARRAY_STORE_FP64);
     STACK_VM_PRINT_CODE1(ARRAY_STORE_HANDLE);
-    STACK_VM_PRINT_CODE1(ARRAY_STORE_TVMVALUE);
+    STACK_VM_PRINT_CODE1(ARRAY_STORE_CVMVALUE);
     STACK_VM_PRINT_CODE0(NOT);
     STACK_VM_PRINT_CODE0(ADDR_ADD);
     // stack ops
@@ -134,13 +134,13 @@ int64_t StackVM::PrintCode(std::ostream& os, int64_t pc) const {
     STACK_VM_PRINT_JUMP(RJUMP);
     STACK_VM_PRINT_CODE1(ASSERT_SP);
     // Intrinsics
-    STACK_VM_PRINT_CODE2(TVM_STRUCT_GET);
-    STACK_VM_PRINT_CODE2(TVM_STRUCT_SET);
+    STACK_VM_PRINT_CODE2(CVM_STRUCT_GET);
+    STACK_VM_PRINT_CODE2(CVM_STRUCT_SET);
     // Allocate data by 8 bytes.
-    STACK_VM_PRINT_CODE1(TVM_STACK_ALLOCA_BY_8BYTE);
-    STACK_VM_PRINT_CODE0(TVM_DEVICE_ALLOCA);
-    STACK_VM_PRINT_CODE0(TVM_DEVICE_FREE);
-    STACK_VM_PRINT_CODE0(TVM_THROW_LAST_ERROR);
+    STACK_VM_PRINT_CODE1(CVM_STACK_ALLOCA_BY_8BYTE);
+    STACK_VM_PRINT_CODE0(CVM_DEVICE_ALLOCA);
+    STACK_VM_PRINT_CODE0(CVM_DEVICE_FREE);
+    STACK_VM_PRINT_CODE0(CVM_THROW_LAST_ERROR);
     // packed function.
     case CALL_PACKED_LOWERED: {
       int call_fid = code[pc + 1].v_int;
@@ -173,7 +173,7 @@ std::ostream& operator<<(std::ostream& os, const StackVM& vm) {  // NOLINT(*)
   return os;
 }
 
-void StackVM::Run(const runtime::TVMArgs& args,
+void StackVM::Run(const runtime::CVMArgs& args,
                   runtime::ModuleNode* mod_ctx) const {
   StackVM::State* s = StackVM::ThreadLocalState();
   if (s->heap.size() < heap_size) {
@@ -229,8 +229,8 @@ void StackVM::Run(State* s) const {
   int64_t sp = s->sp;
   int64_t pc = s->pc;
   int64_t alloca_sp = s->sp;
-  std::vector<TVMValue>& stack = s->stack;
-  std::vector<TVMValue>& heap = s->heap;
+  std::vector<CVMValue>& stack = s->stack;
+  std::vector<CVMValue>& heap = s->heap;
   if (stack.size() < stack_size) {
     stack.resize(stack_size);
   }
@@ -263,14 +263,14 @@ void StackVM::Run(State* s) const {
       case ARRAY_LOAD_INT64: STACK_VM_LOAD(.v_int64, int64_t, int64_t); break;
       case ARRAY_LOAD_FP64: STACK_VM_LOAD(.v_float64, double, double); break;
       case ARRAY_LOAD_HANDLE: STACK_VM_LOAD(.v_handle, void*, void*); break;
-      case ARRAY_LOAD_TVMVALUE: STACK_VM_LOAD(, TVMValue, TVMValue); break;
+      case ARRAY_LOAD_CVMVALUE: STACK_VM_LOAD(, CVMValue, CVMValue); break;
       // store
       case ARRAY_STORE_UINT32: STACK_VM_STORE(.v_int64, uint32_t); break;
       case ARRAY_STORE_INT32: STACK_VM_STORE(.v_int64, int32_t); break;
       case ARRAY_STORE_INT64: STACK_VM_STORE(.v_int64, int64_t); break;
       case ARRAY_STORE_FP64: STACK_VM_STORE(.v_float64, double); break;
       case ARRAY_STORE_HANDLE: STACK_VM_STORE(.v_handle, void*); break;
-      case ARRAY_STORE_TVMVALUE: STACK_VM_STORE(, TVMValue); break;
+      case ARRAY_STORE_CVMVALUE: STACK_VM_STORE(, CVMValue); break;
       // add
       case ADDR_ADD: {
         stack[sp - 1].v_handle = (char*)(stack[sp - 1].v_handle) + stack[sp].v_int64;  // NOLINT(*)
@@ -356,7 +356,7 @@ void StackVM::Run(State* s) const {
       }
       case CALL_PACKED_LOWERED: {
         // call packed function.
-        TVMValue* value_stack = static_cast<TVMValue*>(stack[sp - 1].v_handle);
+        CVMValue* value_stack = static_cast<CVMValue*>(stack[sp - 1].v_handle);
         int* type_stack = static_cast<int*>(stack[sp].v_handle);
         int call_fid = code[pc + 1].v_int;
         int begin = code[pc + 2].v_int;
@@ -364,20 +364,20 @@ void StackVM::Run(State* s) const {
         int num_args = end - begin;
         static_assert(sizeof(Code) == sizeof(int) &&
                       alignof(Code) == alignof(int), "asusmption");
-        runtime::TVMRetValue rv;
+        runtime::CVMRetValue rv;
         GetExtern(s, call_fid).CallPacked(
-            runtime::TVMArgs(value_stack + begin, type_stack + begin, num_args), &rv);
+            runtime::CVMArgs(value_stack + begin, type_stack + begin, num_args), &rv);
         sp = sp - 1;
         stack[sp] = rv.value();
         pc += 4;
         break;
       }
       // intrinsics
-      case TVM_STRUCT_GET: {
+      case CVM_STRUCT_GET: {
         using namespace ir;
         int index = code[pc + 1].v_int;
         int kind = code[pc + 2].v_int;
-        TVMArray* arr = static_cast<TVMArray*>(stack[sp].v_handle);
+        CVMArray* arr = static_cast<CVMArray*>(stack[sp].v_handle);
         switch (kind) {
           case intrinsic::kArrData: {
             stack[sp].v_handle = arr[index].data; break;
@@ -417,19 +417,19 @@ void StackVM::Run(State* s) const {
           case intrinsic::kArrAddr: {
             stack[sp].v_handle = arr + index; break;
           }
-          case intrinsic::kTVMValueContent: {
-            stack[sp] = static_cast<TVMValue*>(stack[sp].v_handle)[index]; break;
+          case intrinsic::kCVMValueContent: {
+            stack[sp] = static_cast<CVMValue*>(stack[sp].v_handle)[index]; break;
           }
           default: LOG(FATAL) << "unhandled get " << kind;
         }
         pc = pc + 3;
         break;
       }
-      case TVM_STRUCT_SET: {
+      case CVM_STRUCT_SET: {
         using namespace ir;
         int index = code[pc + 1].v_int;
         int kind = code[pc + 2].v_int;
-        TVMArray* arr = static_cast<TVMArray*>(stack[sp - 1].v_handle);
+        CVMArray* arr = static_cast<CVMArray*>(stack[sp - 1].v_handle);
         switch (kind) {
           case intrinsic::kArrData: {
             arr[index].data = stack[sp].v_handle; break;
@@ -470,18 +470,18 @@ void StackVM::Run(State* s) const {
             arr[index].ctx.device_type = static_cast<DLDeviceType>(stack[sp].v_int64);
             break;
           }
-          case intrinsic::kTVMValueContent: {
-            static_cast<TVMValue*>(stack[sp - 1].v_handle)[index] = stack[sp]; break;
+          case intrinsic::kCVMValueContent: {
+            static_cast<CVMValue*>(stack[sp - 1].v_handle)[index] = stack[sp]; break;
           }
-          default: LOG(FATAL) << "unhandled tvm_struct_set " << kind;
+          default: LOG(FATAL) << "unhandled cvm_struct_set " << kind;
         }
         sp -= 2;
         pc += 3;
         break;
       }
       // alloca
-      case TVM_STACK_ALLOCA_BY_8BYTE: {
-        static_assert(sizeof(TVMValue) == 8, "invariance");
+      case CVM_STACK_ALLOCA_BY_8BYTE: {
+        static_assert(sizeof(CVMValue) == 8, "invariance");
         int num = code[pc + 1].v_int;
         void* addr = &stack[sp] + 1;
         sp = sp + num + 1;
@@ -490,31 +490,31 @@ void StackVM::Run(State* s) const {
         pc = pc + 2;
         break;
       }
-      case TVM_DEVICE_ALLOCA: {
+      case CVM_DEVICE_ALLOCA: {
         int device_type = static_cast<int>(stack[sp - 4].v_int64);
         int device_id = static_cast<int>(stack[sp - 3].v_int64);
         size_t nbytes = static_cast<size_t>(stack[sp - 2].v_int64);
         int dtype_code_hint = static_cast<int>(stack[sp - 1].v_int64);
         int dtype_bits_hint = static_cast<int>(stack[sp].v_int64);
-        void* ptr = TVMBackendAllocWorkspace(device_type, device_id, nbytes,
+        void* ptr = CVMBackendAllocWorkspace(device_type, device_id, nbytes,
                                              dtype_code_hint, dtype_bits_hint);
         stack[sp - 4].v_handle = ptr;
         sp = sp - 4;
         pc = pc + 1;
         break;
       }
-      case TVM_DEVICE_FREE: {
+      case CVM_DEVICE_FREE: {
         int device_type = static_cast<int>(stack[sp - 2].v_int64);
         int device_id = static_cast<int>(stack[sp - 1].v_int64);
         void* ptr = stack[sp].v_handle;
-        int ret = TVMBackendFreeWorkspace(device_type, device_id, ptr);
+        int ret = CVMBackendFreeWorkspace(device_type, device_id, ptr);
         stack[sp - 2].v_int64 = ret;
         sp = sp - 2;
         pc = pc + 1;
         break;
       }
-      case TVM_THROW_LAST_ERROR: {
-        LOG(FATAL) << TVMGetLastError();
+      case CVM_THROW_LAST_ERROR: {
+        LOG(FATAL) << CVMGetLastError();
         break;
       }
     }
@@ -538,4 +538,4 @@ const PackedFunc& StackVM::GetExtern(State* s, int fid) const {
 }
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

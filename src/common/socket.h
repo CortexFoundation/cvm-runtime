@@ -4,8 +4,8 @@
  * \brief this file aims to provide a wrapper of sockets
  * \author Tianqi Chen
  */
-#ifndef TVM_COMMON_SOCKET_H_
-#define TVM_COMMON_SOCKET_H_
+#ifndef CVM_COMMON_SOCKET_H_
+#define CVM_COMMON_SOCKET_H_
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -29,7 +29,7 @@ using ssize_t = int;
 #include <cstring>
 
 
-namespace tvm {
+namespace cvm {
 namespace common {
 /*!
  * \brief Get current host name.
@@ -449,5 +449,5 @@ class TCPSocket : public Socket {
   }
 };
 }  // namespace common
-}  // namespace tvm
-#endif  // TVM_COMMON_SOCKET_H_
+}  // namespace cvm
+#endif  // CVM_COMMON_SOCKET_H_

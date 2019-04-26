@@ -3,14 +3,14 @@
  * \file workspace_pool.h
  * \brief Workspace pool utility.
  */
-#ifndef TVM_RUNTIME_WORKSPACE_POOL_H_
-#define TVM_RUNTIME_WORKSPACE_POOL_H_
+#ifndef CVM_RUNTIME_WORKSPACE_POOL_H_
+#define CVM_RUNTIME_WORKSPACE_POOL_H_
 
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/device_api.h>
 #include <vector>
 #include <memory>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 /*!
  * \brief A workspace pool to manage
@@ -23,7 +23,7 @@ namespace runtime {
  *  - The release order is usually in reverse order of allocate
  *  - Repeative pattern of same allocations over different runs.
  */
-class TVM_DLL WorkspacePool {
+class CVM_DLL WorkspacePool {
  public:
   /*!
    * \brief Create pool with specific device type and device.
@@ -38,14 +38,14 @@ class TVM_DLL WorkspacePool {
    * \param ctx The context of allocation.
    * \param size The size to be allocated.
    */
-  void* AllocWorkspace(TVMContext ctx, size_t size);
+  void* AllocWorkspace(CVMContext ctx, size_t size);
   /*!
    * \brief Free temporal workspace in backend execution.
    *
    * \param ctx The context of allocation.
    * \param ptr The pointer to be freed.
    */
-  void FreeWorkspace(TVMContext ctx, void* ptr);
+  void FreeWorkspace(CVMContext ctx, void* ptr);
 
  private:
   class Pool;
@@ -58,5 +58,5 @@ class TVM_DLL WorkspacePool {
 };
 
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_WORKSPACE_POOL_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_WORKSPACE_POOL_H_

@@ -18,7 +18,7 @@
 using cvm::Op;
 using cvm::TShape;
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 bool CvmRuntime::CheckAttr() {

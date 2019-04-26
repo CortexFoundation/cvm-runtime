@@ -3,12 +3,12 @@
  * \file system_lib_module.cc
  * \brief SystemLib module.
  */
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/c_backend_api.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/c_backend_api.h>
 #include <mutex>
 #include "module_util.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class SystemLibModuleNode : public ModuleNode {
@@ -41,10 +41,10 @@ class SystemLibModuleNode : public ModuleNode {
 
   void RegisterSymbol(const std::string& name, void* ptr) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (name == symbol::tvm_module_ctx) {
+    if (name == symbol::cvm_module_ctx) {
       void** ctx_addr = reinterpret_cast<void**>(ptr);
       *ctx_addr = this;
-    } else if (name == symbol::tvm_dev_mblob) {
+    } else if (name == symbol::cvm_dev_mblob) {
       // Record pointer to content of submodules to be loaded.
       // We defer loading submodules to the first call to GetFunction().
       // The reason is that RegisterSymbol() gets called when initializing the
@@ -79,14 +79,14 @@ class SystemLibModuleNode : public ModuleNode {
   void* module_blob_{nullptr};
 };
 
-TVM_REGISTER_GLOBAL("module._GetSystemLib")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module._GetSystemLib")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = runtime::Module(SystemLibModuleNode::Global());
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
-int TVMBackendRegisterSystemLibSymbol(const char* name, void* ptr) {
-  tvm::runtime::SystemLibModuleNode::Global()->RegisterSymbol(name, ptr);
+int CVMBackendRegisterSystemLibSymbol(const char* name, void* ptr) {
+  cvm::runtime::SystemLibModuleNode::Global()->RegisterSymbol(name, ptr);
   return 0;
 }

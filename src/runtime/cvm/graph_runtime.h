@@ -2,17 +2,17 @@
  *  Copyright (c) 2017 by Contributors
  *
  * \brief Tiny graph runtime that can run graph
- *        containing only tvm PackedFunc.
+ *        containing only cvm PackedFunc.
  * \file graph_runtime.h
  */
-#ifndef TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
-#define TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#ifndef CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#define CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
 
 #include <dlpack/dlpack.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/json.h>
-#include <tvm/runtime/ndarray.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/ndarray.h>
+#include <cvm/runtime/packed_func.h>
 #include <cvm/node.h>
 #include <cvm/top/nn.h>
 
@@ -21,23 +21,23 @@
 #include <vector>
 #include <string>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 using cvm::NodeAttrs;
 
 /*! \brief macro to do C API call */
-#define TVM_CCALL(func)                                            \
+#define CVM_CCALL(func)                                            \
   {                                                                \
     int ret = (func);                                              \
     CHECK_EQ(ret, 0)                                               \
-        << TVMGetLastError();                                      \
+        << CVMGetLastError();                                      \
   }
 
 /*! \brief Magic number for NDArray list file  */
-constexpr uint64_t kTVMNDArrayListMagic = 0xF7E58D4F05049CB7;
+constexpr uint64_t kCVMNDArrayListMagic = 0xF7E58D4F05049CB7;
 
-/*! \brief operator attributes about tvm op */
+/*! \brief operator attributes about cvm op */
 struct CVMOpParam {
   std::string func_name;
   uint32_t num_inputs;
@@ -51,7 +51,7 @@ struct CVMOpParam {
  * \brief Tiny graph runtime.
  *
  *  This runtime can be acccesibly in various language via
- *  TVM runtime PackedFunc API.
+ *  CVM runtime PackedFunc API.
  */
 class CvmRuntime : public ModuleNode {
  public:
@@ -82,8 +82,8 @@ class CvmRuntime : public ModuleNode {
    */
 
   void Init(const std::string& graph_json,
-            tvm::runtime::Module module,
-            const std::vector<TVMContext>& ctxs);
+            cvm::runtime::Module module,
+            const std::vector<CVMContext>& ctxs);
 
   int64_t GetOps();
   int64_t GetOps(const std::string& sym_json);
@@ -440,13 +440,13 @@ class CvmRuntime : public ModuleNode {
   /*! \brief Additional graph attributes. */
   GraphAttr attrs_;
   /*! \brief The code module that contains both host and device code. */
-  tvm::runtime::Module module_;
+  cvm::runtime::Module module_;
   /*! \brief Execution context of all devices including the host. */
-  std::vector<TVMContext> ctxs_;
+  std::vector<CVMContext> ctxs_;
   /*! \brief Common storage pool for all devices. */
   std::vector<NDArray> storage_pool_;
   static std::unordered_map<
-    TVMContext,
+    CVMContext,
     std::vector<std::pair<int64_t, NDArray> >
     >history_storage_pool_;
   /*! \brief Data entry of each node. */
@@ -455,16 +455,16 @@ class CvmRuntime : public ModuleNode {
   std::vector<std::function<void()> > op_execs_;
 };
 
-std::vector<TVMContext> CVMGetAllContext(const TVMArgs& args);
+std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args);
 
 
-// void CVMClip(TVMArgs args, TVMRetValue* rv);
-// void CVMAdd(TVMArgs args, TVMRetValue* rv);
-// void CVMDense(TVMArgs args, TVMRetValue* rv);
-// void CVMFlat(TVMArgs args, TVMRetValue* rv);
-// void CVMConv(TVMArgs args, TVMRetValue* rv);
+// void CVMClip(CVMArgs args, CVMRetValue* rv);
+// void CVMAdd(CVMArgs args, CVMRetValue* rv);
+// void CVMDense(CVMArgs args, CVMRetValue* rv);
+// void CVMFlat(CVMArgs args, CVMRetValue* rv);
+// void CVMConv(CVMArgs args, CVMRetValue* rv);
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
-#endif  // TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#endif  // CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
