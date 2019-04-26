@@ -418,8 +418,8 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   // Get compiled function from the module that contains both host and device
   // code.
   auto ops = std::vector<std::string>{"dense", "conv2d", "flatten", "broadcast_add", "broadcast_sub", "broadcast_mul", "broadcast_div",
-      "broadcast_right_shift", "broadcast_left_shift", "clip", "relu", "max_pool2d", "sum", "elemwise_add", "reshape", "__div_scalar__", "log",
-  "max", "broadcast_max", "abs", "cvm_clip", "cvm_right_shift", "cvm_left_shift"};
+      "broadcast_right_shift", "broadcast_left_shift", "clip", "relu", "max_pool2d", "sum", "elemwise_add", "reshape", "__div_scalar__", "log2",
+  "max", "broadcast_max", "abs", "cvm_clip", "cvm_right_shift", "cvm_left_shift", "concatenate"};
   for (auto& op : ops) {
     if (param.func_name.size() >= op.size() && param.func_name.substr(0, op.size()) == op) {
         int device_type = static_cast<int>(ctxs_[0].device_type);
@@ -529,7 +529,6 @@ TVM_REGISTER_GLOBAL("tvm.cvm_runtime.create")
            "at least 4, but it has "
         << args.num_args;
     const auto& contexts = CVMGetAllContext(args);
-	std::cout << "args: " << args.num_args << std::endl;
 
     *rv = CvmRuntimeCreate(args[0], args[1], contexts);
   });

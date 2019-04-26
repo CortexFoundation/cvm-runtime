@@ -12,17 +12,18 @@ struct Array{
 };
 
 int main(){
-    int aN = 1 * 2 * 2 * 2;
-    int bN = 1 * 1 * 2 * 2;
-    int cN = 1 * 4 * 2 * 2;
+    int aN = 2 * 2 * 2 * 2;
+    int bN = 2 * 1 * 2 * 2;
+    int cN = 2 * 4 * 2 * 2;
 
-    int aShape[4] = {1, 2, 2, 2};
-    int bShape[4] = {1, 1, 2, 2};
-    int cShape[4] = {1, 4, 2, 2};
+    int aShape[4] = {2, 2, 2, 2};
+    int bShape[4] = {2, 1, 2, 2};
+    int cShape[4] = {2, 4, 2, 2};
 
     int *a = new int[aN];
     int *b = new int[bN];
     int *c = new int[cN];
+    int *d = new int[bN];
 
     for(int i = 0; i < aN; i++){
         a[i] = 1;
@@ -30,9 +31,12 @@ int main(){
     for(int i = 0; i < bN; i++){
         b[i] = 2;
     }
+    for(int i = 0; i < bN; i++){
+        d[i] = 3;
+    }
 
 
-    Array args[3] = {Array(aN, aShape, a), Array(bN, bShape, b), Array(bN, bShape, b)};
+    Array args[3] = {Array(aN, aShape, a), Array(bN, bShape, b), Array(bN, bShape, d)};
     int axis = 1;
 
     for(int i = 0; i < cN; i++){

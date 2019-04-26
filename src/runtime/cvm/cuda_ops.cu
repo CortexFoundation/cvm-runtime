@@ -836,13 +836,41 @@ const char* cuda_flatten(const int32_t *x, int32_t *y, const int32_t n, bool deb
     return check_cuda_error(cudaGetLastError());
 }
 
-__global__ void kernel_broadcast_add(const int32_t *a, const int32_t *b, int32_t*c, const int32_t n){
+inline __device__ int32_t broadcast_i_index(int64_t* oshape, int o_index, int64_t* ishape, int idim){
+    int index = 0;
+    int allIndex = 0;
+    for(int i = 0; i < idim; i++){
+        int idx = idim - 1 - i;
+        int ovar = o_index % oshape[idx];
+        if(ovar < ishape[idx]){
+            index += i == 0 ? ovar : allIndex * ovar;
+        }else if(ishape[idx] == 1){
+        }else{
+        }
+        allIndex = (i == 0 ? ishape[idim-1] : allIndex * ishape[idx]);
+        o_index /= oshape[idx];
+    }
+    return index;
+}
+
+__global__ void kernel_broadcast_add(const int32_t *a, const int32_t *b, int32_t*c, 
+        const int32_t n,
+        int64_t *ashape, int32_t adim,
+        int64_t *bshape, int32_t bdim,
+        int64_t *cshape, int32_t cdim){
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if(i < n){
-        c[i] = a[i] + b[0];
+        int ai = broadcast_i_index(cshape, i, ashape, adim);
+        int bi = broadcast_i_index(cshape, i, bshape, bdim);
+        c[i] = a[ai] + b[bi];
     }
 }
-const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, bool debug){
+const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, 
+        const int32_t n, 
+        int64_t *ashape, int32_t adim,
+        int64_t *bshape, int32_t bdim,
+        int64_t *cshape, int32_t cdim,
+        bool debug){
     const int32_t *dev_a = a, *dev_b = b;
     int32_t *tmp_a, *tmp_b;
     int32_t *dev_c = c;
@@ -856,9 +884,16 @@ const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, c
         cudaMemcpy(tmp_b, b, sizeof(int32_t), cudaMemcpyHostToDevice);
     }
 
+    int64_t *dev_ashape, *dev_bshape, *dev_cshape;
+    cudaMalloc((void**)&dev_ashape, sizeof(int64_t) * adim);
+    cudaMalloc((void**)&dev_bshape, sizeof(int64_t) * bdim);
+    cudaMalloc((void**)&dev_cshape, sizeof(int64_t) * cdim);
+    cudaMemcpy(dev_ashape, ashape, sizeof(int64_t) * adim, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_bshape, bshape, sizeof(int64_t) * bdim, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_cshape, cshape, sizeof(int64_t) * cdim, cudaMemcpyHostToDevice);
     int threadSize = 256;
     int blockSize = (n + threadSize - 1) / threadSize;
-    kernel_broadcast_add<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n);
+    kernel_broadcast_add<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n, dev_ashape, adim, dev_bshape, bdim, dev_cshape, cdim);
     //cudaDeviceSynchronize();
 
     if(debug){
@@ -867,6 +902,9 @@ const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, c
         cudaFree(dev_c);
         cudaFree(tmp_b);
     }
+    cudaFree(dev_ashape);
+    cudaFree(dev_bshape);
+    cudaFree(dev_cshape);
     return check_cuda_error(cudaGetLastError());
 }
 __global__ void kernel_broadcast_sub(const int32_t *a, const int32_t *b, int32_t*c, const int32_t n){

@@ -419,7 +419,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.broadcast_add")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] + b[b_index];
@@ -859,7 +859,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.concatenate")
 });
 
 /*********************************cuda op*********************************************/
-#ifdef CVM_RUNTIME_CUDA
+//#ifdef CVM_RUNTIME_CUDA
 TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.elemwise_add")
 .set_body([](tvm::runtime::TVMArgs args, tvm::runtime::TVMRetValue *rv){
     CHECK(args.num_args == 3);
@@ -1073,7 +1073,11 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_add")
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
 
-        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0), DEBUG_OP);
+        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0),
+                args0->shape, args0->ndim,
+                args1->shape, args1->ndim,
+                args2->shape, args2->ndim,
+                DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
 
@@ -1345,7 +1349,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm_cuda.broadcast_max")
                 DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-#endif // end of CVM_RUNTIME_CUDA
+//#endif // end of CVM_RUNTIME_CUDA
 }
 }
 
