@@ -95,7 +95,7 @@ __global__ void kernel_conv2d(
 
     //load bias to shared memory
     int lid = l_y * BS + l_x;
-    for(int i = lid; i < FS; i+=BS*BS){
+    for(int i = lid; bias != NULL && i < FS; i+=BS*BS){
         if(l_f_n*FS + i < o_c)
             shared_b[i] = bias[l_f_n*FS + i];
         else shared_b[i] = 0;
@@ -169,7 +169,7 @@ __global__ void kernel_conv2d(
         for(int fc = 0; fc < FS; fc++){
             if(l_f_n*FS + fc < o_c){
                 int oi = n*o_c*o_h*o_w + (l_f_n*FS+fc) * o_h * o_w + l_o_h/stride_h * o_w + g_x/stride_w;
-                output[oi] = sum[fc] + shared_b[fc];
+                output[oi] = sum[fc] + (bias != NULL ? shared_b[fc] : 0);
             }
         }
     }
@@ -204,7 +204,7 @@ __global__ void kernel_conv2d_no_shared(
                 }
              }
         }
-        output[gy * o_w + gx] = sum + bias[l_o_c];
+        output[gy * o_w + gx] = sum + (bias != NULL ? bias[l_o_c] : 0);
     }
 }
 const char* cuda_conv2d(
@@ -218,6 +218,11 @@ const char* cuda_conv2d(
         int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, 
         int32_t device_id,
         bool debug){
+    if(i_n < 1 || i_c < 1 || i_h < 1 || i_w < 1 || f_n < 1 || f_c < 1 || f_h < 1 || f_w < 1 || 
+            padding_h < 0 || padding_w < 0 || stride_h < 1 || stride_w < 1 || dilation_h < 1 || dilation_w < 1 ||
+            o_n < 1 || o_c < 1 || o_h < 1 || o_w < 1){
+        return "error args";
+    }
     int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
     size_t s_i = i_n * i_c * i_h * i_w * sizeof(int32_t);
     size_t s_f = f_n * f_c * f_h * f_w * sizeof(int32_t);
@@ -226,11 +231,13 @@ const char* cuda_conv2d(
     if(debug){
         cudaMalloc((void**)&dev_i, s_i);
         cudaMalloc((void**)&dev_f, s_f);
-        cudaMalloc((void**)&dev_b, s_b);
         cudaMalloc((void**)&dev_o, s_o);
         cudaMemcpy(dev_i, input, s_i, cudaMemcpyHostToDevice);
         cudaMemcpy(dev_f, filter, s_f, cudaMemcpyHostToDevice);
-        cudaMemcpy(dev_b, bias, s_b, cudaMemcpyHostToDevice);
+        if(bias != NULL){
+            cudaMalloc((void**)&dev_b, s_b);
+            cudaMemcpy(dev_b, bias, s_b, cudaMemcpyHostToDevice);
+        }
     }
 //    clock_t start = clock();
     int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
@@ -281,7 +288,8 @@ const char* cuda_conv2d(
         cudaFree(dev_i);
         cudaFree(dev_f);
         cudaFree(dev_o);
-        cudaFree(dev_b);
+        if(bias != NULL)
+            cudaFree(dev_b);
     }
     return check_cuda_error(cudaGetLastError());
 }
@@ -379,7 +387,7 @@ __global__ void kernel_depthwise_conv2d(
     if(l_o_h % stride_h == 0 && g_x % stride_w == 0){
         //int oi = l_o_c * o_h * o_w + l_o_h * o_w + g_x;
         int oi = l_o_c * o_h * o_w + l_o_h/stride_h * o_w + g_x/stride_w;
-        output[oi] = sum + bias[l_o_c%o_c];
+        output[oi] = sum + (bias != NULL ? bias[l_o_c%o_c] : 0);
     }
 }
 __global__ void kernel_depthwise_conv2d_no_shared(
@@ -409,7 +417,7 @@ __global__ void kernel_depthwise_conv2d_no_shared(
                 sum += x * filter[l_o_n * i_c * f_h * f_w + l_o_c * f_h * f_w + fy * f_w + fx];
             }
         }
-        output[gy * o_w + gx] = sum + bias[l_o_c];
+        output[gy * o_w + gx] = sum + (bias != NULL ? bias[l_o_c] : 0);
     }
 }
 const char* cuda_depthwise_conv2d(
@@ -429,11 +437,13 @@ const char* cuda_depthwise_conv2d(
     if(debug){
         cudaMalloc((void**)&dev_i, s_i);
         cudaMalloc((void**)&dev_f, s_f);
-        cudaMalloc((void**)&dev_b, s_b);
         cudaMalloc((void**)&dev_o, s_o);
         cudaMemcpy(dev_i, input, s_i, cudaMemcpyHostToDevice);
         cudaMemcpy(dev_f, filter, s_f, cudaMemcpyHostToDevice);
-        cudaMemcpy(dev_b, bias, s_b, cudaMemcpyHostToDevice);
+        if(bias != NULL){
+            cudaMalloc((void**)&dev_b, s_b);
+            cudaMemcpy(dev_b, bias, s_b, cudaMemcpyHostToDevice);
+        }
     }
 //    clock_t start = clock();
     int b_h = BS;
@@ -481,7 +491,8 @@ const char* cuda_depthwise_conv2d(
         cudaFree(dev_i);
         cudaFree(dev_f);
         cudaFree(dev_o);
-        cudaFree(dev_b);
+        if(bias != NULL)
+            cudaFree(dev_b);
     }
     return check_cuda_error(cudaGetLastError());
 }
@@ -944,6 +955,11 @@ const char* cuda_broadcast_div(const int32_t *a, const int32_t *b, int32_t* c, c
         cudaMemcpy(tmp_b, b, sizeof(int32_t), cudaMemcpyHostToDevice);
     }
 
+    int h_b;
+    cudaMemcpy(&h_b, dev_b, sizeof(int32_t), cudaMemcpyDeviceToHost);
+    if(h_b == 0)
+        return "error: divide by zero";
+
     int threadSize = 256;
     int blockSize = (n + threadSize - 1) / threadSize;
     kernel_broadcast_div<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n);
@@ -1134,6 +1150,10 @@ const char* cuda_log(const int32_t *x, int32_t *y, const bool debug){
         dev_x = tmp_x;
         cudaMemcpy(tmp_x, x, sizeof(int32_t), cudaMemcpyHostToDevice);
     }
+
+    int h_x;
+    cudaMemcpy(&h_x, dev_x, sizeof(int32_t), cudaMemcpyDeviceToHost);
+    if(h_x == 0) return "error: log2(0)";
 
     kernel_log<<<1,1>>>(dev_x, dev_y);
 

@@ -143,81 +143,112 @@ void print(int* data, int n, int c, int h, int w){
 }
 int main(){
     int i_n = 1;
-    int i_c = 3;
-    int i_h = 32;
-    int i_w = 32;
-    int f_h = 3;
-    int f_w = 3;
-    int o_c = 1024;
+    int i_c = 1;
+    int i_h = 1;
+    int i_w = 1;
+    int f_h = 5;
+    int f_w = 5;
+    int o_c = 2;
     int padding_h = 1;
     int padding_w = 1;
     int stride_h = 1;
     int stride_w = 1;
     int dilation_h = 1;
     int dilation_w= 1;
-    int tmp_f_h = (f_h - 1) * dilation_h + 1;
-    int tmp_f_w = (f_w - 1) * dilation_w + 1;
-    int o_h = (i_h + 2 * padding_h - tmp_f_h) / stride_h + 1;
-    int o_w = (i_w + 2 * padding_w - tmp_f_w) / stride_w + 1;
-    size_t s_i = i_n * i_c * i_h * i_w;
-    size_t s_f = o_c * i_c * f_h * f_w;
-    size_t s_o = i_n * o_c * o_h * o_w;
-    int *input = new int[s_i];
-    int *filter = new int[s_f];
-    int *b_data = new int[o_c];
-    int *output = new int[s_o];
-    for(int i = 0; i < s_i; i++)
-        input[i] = 1;
-    for(int i = 0; i < s_f; i++)
-        filter[i] = 1;
-    for(int i = 0; i < o_c; i++)
-        b_data[i] = 1;
-//    print(input, i_c, i_h, i_w);
-    clock_t start = clock();
-    for(int i = 0; i < 1; i++){
-        conv_cpu(input, i_n, i_h, i_w, i_c,
-                filter, f_h, f_w,
-                b_data,
-                output, o_h, o_w, o_c,
-                stride_h, stride_w,
-                padding_h, padding_w,
-                dilation_h, dilation_w);
+
+    for(i_n = 1; i_n < 4; i_n++){
+    for(i_c = 1; i_c < 2; i_c++){
+    for(f_w = 1; i_h < 64; i_h++){
+        i_w = i_h;
+    for(f_h = 1; f_h <= 11; f_h+=2){
+        f_w = f_h;
+    for(o_c = 1; o_c <= 16; o_c++){
+        int tmp_f_h = (f_h - 1) * dilation_h + 1;
+        int tmp_f_w = (f_w - 1) * dilation_w + 1;
+        int o_h = (i_h + 2 * padding_h - tmp_f_h) / stride_h + 1;
+        int o_w = (i_w + 2 * padding_w - tmp_f_w) / stride_w + 1;
+        if(o_h <= 0 || o_w <= 0) continue;
+        std::cout << i_n << " " << i_c << " " << i_h << " " << i_w << " " << f_h << " " << f_w << " " << o_c << std::endl;
+        size_t s_i = i_n * i_c * i_h * i_w;
+        size_t s_f = o_c * i_c * f_h * f_w;
+        size_t s_o = i_n * o_c * o_h * o_w;
+        int *input = new int[s_i];
+        int *filter = new int[s_f];
+        int *b_data = new int[o_c];
+        int *output = new int[s_o];
+        for(int i = 0; i < s_i; i++)
+            input[i] = 1;
+        for(int i = 0; i < s_f; i++)
+            filter[i] = 1;
+        for(int i = 0; i < o_c; i++)
+            b_data[i] = 1;
+    //    print(input, i_c, i_h, i_w);
+        clock_t start = clock();
+        for(int i = 0; i < 1; i++){
+            conv_cpu(input, i_n, i_h, i_w, i_c,
+                    filter, f_h, f_w,
+                    b_data,
+                    output, o_h, o_w, o_c,
+                    stride_h, stride_w,
+                    padding_h, padding_w,
+                    dilation_h, dilation_w);
+        }
+        clock_t end = clock();
+    //    print(output, i_n, o_c, o_h, o_w);
+        std::cout << "cpu time: " << end-start << std::endl;
+
+    //    int *output3 = new int[s_o];
+    //    clock_t start2 = clock();
+    //    for(int i = 0; i < 10; i++){
+    //        conv_cpu_v2(input, i_n, i_h, i_w, i_c,
+    //                filter, f_h, f_w,
+    //                b_data,
+    //                output3, o_h, o_w, o_c,
+    //                stride, stride,
+    //                padding);
+    //    }
+    //    clock_t end2 = clock();
+    ////  print(output3, i_n, o_c, o_h, o_w);
+    //    std::cout << "cpu time: " << end2-start2 << std::endl;
+    //    int ret = memcmp(output, output3, s_o*sizeof(int32_t));
+    //    std::cout << (ret == 0 ? "pass" : "failed") << std::endl;
+
+        int* output2 = new int[s_o];
+        const char* errorStr = cuda_conv2d(
+            input, i_n, i_c, i_h, i_w,
+            filter, o_c, i_c, f_h, f_w,
+            b_data,
+            padding_h, padding_w,
+            stride_h, stride_w,
+            dilation_h, dilation_w,
+            1,
+            output2, i_n, o_c, o_h, o_w, 0, true);
+
+        clock_t gpu_end = clock();
+        std::cout << "gpu all time: " << gpu_end - end << std::endl;
+        if(errorStr != NULL){
+            std::cout << errorStr << std::endl;
+            return 0;
+        }
+    //    print(output2, i_n, o_c, o_h, o_w);
+        int ret2 = memcmp(output, output2, sizeof(int) * s_o);
+        std::cout << (ret2 == 0 ? "pass" : "failed") << std::endl;
+        if(ret2 != 0){
+            std::cout << "cpu output:\n";
+            print(output, i_n, i_c, i_h, i_w);
+            std::cout << "cuda output:\n";
+            print(output2, i_n, o_c, o_h, o_w);
+            return 0;
+        }
+        delete input;
+        delete filter;
+        delete b_data;
+        delete output;
+        delete output2;
     }
-    clock_t end = clock();
-//    print(output, i_n, o_c, o_h, o_w);
-    std::cout << "cpu time: " << end-start << std::endl;
-
-//    int *output3 = new int[s_o];
-//    clock_t start2 = clock();
-//    for(int i = 0; i < 10; i++){
-//        conv_cpu_v2(input, i_n, i_h, i_w, i_c,
-//                filter, f_h, f_w,
-//                b_data,
-//                output3, o_h, o_w, o_c,
-//                stride, stride,
-//                padding);
-//    }
-//    clock_t end2 = clock();
-////  print(output3, i_n, o_c, o_h, o_w);
-//    std::cout << "cpu time: " << end2-start2 << std::endl;
-//    int ret = memcmp(output, output3, s_o*sizeof(int32_t));
-//    std::cout << (ret == 0 ? "pass" : "failed") << std::endl;
-
-    int* output2 = new int[s_o];
-    cuda_conv2d(
-        input, i_n, i_c, i_h, i_w,
-        filter, o_c, i_c, f_h, f_w,
-        b_data,
-        padding_h, padding_w,
-        stride_h, stride_w,
-        dilation_h, dilation_w,
-        1,
-        output2, i_n, o_c, o_h, o_w, 0, true);
-
-    clock_t gpu_end = clock();
-    std::cout << "gpu all time: " << gpu_end - end << std::endl;
-//    print(output2, i_n, o_c, o_h, o_w);
-    int ret2 = memcmp(output, output2, sizeof(int) * s_o);
-    std::cout << (ret2 == 0 ? "pass" : "failed") << std::endl;
+    }
+    }
+    }
+    }
     return 0;
 }
