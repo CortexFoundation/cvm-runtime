@@ -1,4 +1,4 @@
-#include <dlpack/dlpack.h>
+#include <cvm/dlpack.h>
 #include <cvm/runtime/module.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/packed_func.h>

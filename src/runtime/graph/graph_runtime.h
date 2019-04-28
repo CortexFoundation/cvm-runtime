@@ -8,9 +8,9 @@
 #ifndef CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
 #define CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
 
-#include <dlpack/dlpack.h>
-#include <dmlc/memory_io.h>
-#include <dmlc/json.h>
+#include <cvm/dlpack.h>
+#include <utils/memory_io.h>
+#include <utils/json.h>
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/packed_func.h>
 
@@ -122,7 +122,7 @@ class GraphRuntime : public ModuleNode {
    * \brief Load parameters from binary stream
    * \param strm The input stream.
    */
-  void LoadParams(dmlc::Stream* strm);
+  void LoadParams(utils::Stream* strm);
   /*!
    * \brief Load parameters from parameter blob.
    * \param param_blob A binary blob of parameter.
@@ -154,7 +154,7 @@ class GraphRuntime : public ModuleNode {
     uint32_t index;
     uint32_t version;
     // JSON Loader
-    void Load(dmlc::JSONReader *reader) {
+    void Load(utils::JSONReader *reader) {
       reader->BeginArray();
       CHECK(reader->NextArrayItem()) << "invalid json format";
       reader->Read(&node_id);
@@ -181,7 +181,7 @@ class GraphRuntime : public ModuleNode {
     // control deps
     std::vector<uint32_t> control_deps;
     // JSON Loader
-    void LoadAttrs(dmlc::JSONReader *reader, CVMOpParam* param) {
+    void LoadAttrs(utils::JSONReader *reader, CVMOpParam* param) {
       int bitmask = 0;
       std::string key, value;
       reader->BeginObject();
@@ -204,7 +204,7 @@ class GraphRuntime : public ModuleNode {
       CHECK_EQ(bitmask, 1|2|4|8) << "invalid format";
     }
     // JSON Loader
-    void Load(dmlc::JSONReader *reader) {
+    void Load(utils::JSONReader *reader) {
       reader->BeginObject();
       int bitmask = 0;
       std::string key;
@@ -236,7 +236,7 @@ class GraphRuntime : public ModuleNode {
     std::vector<std::string> dltype;
     std::vector<std::vector<int64_t> > shape;
     // The graph attribute fields.
-    void Load(dmlc::JSONReader *reader) {
+    void Load(utils::JSONReader *reader) {
       reader->BeginObject();
       int bitmask = 0;
       std::string key, type;
@@ -307,7 +307,7 @@ class GraphRuntime : public ModuleNode {
     }
   };
   // The graph attribute fields.
-  void Load(dmlc::JSONReader *reader) {
+  void Load(utils::JSONReader *reader) {
       reader->BeginObject();
       int bitmask = 0;
       std::string key;

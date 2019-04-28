@@ -11,10 +11,10 @@
 #include <mutex>
 #include <unordered_set>
 
-namespace dmlc {
+namespace utils {
 // enable registry
-DMLC_REGISTRY_ENABLE(cvm::Op);
-}  // namespace dmlc
+CVMUTIL_REGISTRY_ENABLE(cvm::Op);
+}  // namespace utils
 
 namespace cvm {
 
@@ -45,14 +45,14 @@ Op::Op() {
 }
 
 Op& Op::add_alias(const std::string& alias) {  // NOLINT(*)
-  dmlc::Registry<Op>::Get()->AddAlias(this->name, alias);
+  utils::Registry<Op>::Get()->AddAlias(this->name, alias);
   return *this;
 }
 
 // find operator by name
 const Op* Op::Get(const std::string& name) {
-  const Op* op = dmlc::Registry<Op>::Find(name);
-  auto allnames = dmlc::Registry<Op>::ListAllNames();
+  const Op* op = utils::Registry<Op>::Find(name);
+  auto allnames = utils::Registry<Op>::ListAllNames();
   CHECK(op != nullptr)
       << "Operator " << name << " is not registered";
   return op;
@@ -86,7 +86,7 @@ void Op::AddGroupTrigger(const std::string& group_name,
   auto& tvec = mgr->tmap[group_name];
   tvec.push_back(trigger);
   auto& op_group = mgr->op_group;
-  for (const Op* op : dmlc::Registry<Op>::List()) {
+  for (const Op* op : utils::Registry<Op>::List()) {
     if (op->index_ < op_group.size() &&
         op_group[op->index_].count(group_name) != 0) {
       trigger((Op*)op);  // NOLINT(*)

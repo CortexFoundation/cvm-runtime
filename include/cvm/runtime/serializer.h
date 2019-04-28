@@ -7,12 +7,12 @@
 #ifndef CVM_RUNTIME_SERIALIZER_H_
 #define CVM_RUNTIME_SERIALIZER_H_
 
-#include <dmlc/io.h>
-#include <dmlc/serializer.h>
+#include <utils/io.h>
+#include <utils/serializer.h>
 #include "c_runtime_api.h"
 #include "ndarray.h"
 
-namespace dmlc {
+namespace utils {
 namespace serializer {
 
 template<>
@@ -47,5 +47,5 @@ struct Handler<DLContext> {
 };
 
 }  // namespace serializer
-}  // namespace dmlc
+}  // namespace utils
 #endif  // CVM_RUNTIME_SERIALIZER_H_

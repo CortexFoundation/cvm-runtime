@@ -6,8 +6,8 @@
 #ifndef CVM_COMMON_PIPE_H_
 #define CVM_COMMON_PIPE_H_
 
-#include <dmlc/logging.h>
-#include <dmlc/io.h>
+#include <utils/logging.h>
+#include <utils/io.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -22,7 +22,7 @@ namespace cvm {
 namespace common {
 
 /*! \brief Platform independent pipe */
-class Pipe : public dmlc::Stream {
+class Pipe : public utils::Stream {
  public:
 #ifdef _WIN32
   using PipeHandle = HANDLE;

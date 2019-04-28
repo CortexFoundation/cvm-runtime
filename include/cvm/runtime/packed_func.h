@@ -9,7 +9,7 @@
 #ifndef _LIBCPP_SGX_NO_IOSTREAMS
 #include <sstream>
 #endif
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #include <functional>
 #include <tuple>
 #include <vector>

@@ -182,7 +182,7 @@ class Tuple {
    * \brief Save Tuple to JSON.
    * \param writer JSONWriter
    */
-  inline void Save(dmlc::JSONWriter* writer) const {
+  inline void Save(utils::JSONWriter* writer) const {
     std::vector<ValueType> tmp(begin(), end());
     writer->Write(tmp);
   }
@@ -190,7 +190,7 @@ class Tuple {
    * \brief Load Tuple from JSON.
    * \param reader JSONReader
    */
-  inline void Load(dmlc::JSONReader* reader) {
+  inline void Load(utils::JSONReader* reader) {
     std::vector<ValueType> tmp;
     reader->Read(&tmp);
     this->assign(tmp.begin(), tmp.end());
@@ -596,7 +596,7 @@ struct hash<cvm::Tuple<T> > {
     std::hash<uint32_t> hash_uint;
     size_t res = hash_uint(val.ndim());
     for (uint32_t i = 0; i < val.ndim(); ++i) {
-      res = dmlc::HashCombine(res, val[i]);
+      res = utils::HashCombine(res, val[i]);
     }
     return res;
   }
@@ -610,16 +610,16 @@ struct hash<cvm::TShape> {
     std::hash<uint32_t> hash_uint;
     size_t res = hash_uint(val.ndim());
     for (uint32_t i = 0; i < val.ndim(); ++i) {
-      res = dmlc::HashCombine(res, val[i]);
+      res = utils::HashCombine(res, val[i]);
     }
     return res;
   }
 };
 }  // namespace std
 
-namespace dmlc {
+namespace utils {
 /*! \brief description for optional TShape */
-DMLC_DECLARE_TYPE_NAME(optional<cvm::TShape>, "Shape or None");
+CVMUTIL_DECLARE_TYPE_NAME(optional<cvm::TShape>, "Shape or None");
 // avoid low version of MSVC
 #if !defined(_MSC_VER)
 template<typename T>
@@ -629,5 +629,5 @@ struct type_name_helper<cvm::Tuple<T> > {
   }
 };
 #endif
-}  // namespace dmlc
+}  // namespace utils
 #endif  // CVM_TUPLE_H_

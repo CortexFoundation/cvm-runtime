@@ -28,7 +28,7 @@ class RPCWrappedFunc {
   ~RPCWrappedFunc() {
     try {
       sess_->CallRemote(RPCCode::kFreeFunc, handle_);
-    } catch (const dmlc::Error& e) {
+    } catch (const utils::Error& e) {
       // fault tolerance to remote close
     }
   }
@@ -59,7 +59,7 @@ class RPCWrappedFunc {
     // RAII now in effect
     data->shape_ = std::vector<int64_t>(
         tensor->shape, tensor->shape + tensor->ndim);
-    data->dl_tensor.shape = dmlc::BeginPtr(data->shape_);
+    data->dl_tensor.shape = utils::BeginPtr(data->shape_);
     data->dl_tensor.ndim = static_cast<int>(data->shape_.size());
     // setup dtype
     data->dl_tensor.dtype = tensor->dtype;
@@ -91,7 +91,7 @@ class RPCModuleNode final : public ModuleNode {
     if (module_handle_ != nullptr) {
       try {
         sess_->CallRemote(RPCCode::kModuleFree, module_handle_);
-      } catch (const dmlc::Error& e) {
+      } catch (const utils::Error& e) {
         // fault tolerance to remote close
       }
       module_handle_ = nullptr;

@@ -5,7 +5,7 @@
  */
 #include <cvm/runtime/device_api.h>
 
-#include <dmlc/thread_local.h>
+#include <utils/thread_local.h>
 #include <cvm/runtime/registry.h>
 #include <cuda_runtime.h>
 #include "cuda_common.h"
@@ -197,7 +197,7 @@ class CUDADeviceAPI final : public DeviceAPI {
   }
 };
 
-typedef dmlc::ThreadLocalStore<CUDAThreadEntry> CUDAThreadStore;
+typedef utils::ThreadLocalStore<CUDAThreadEntry> CUDAThreadStore;
 
 CUDAThreadEntry::CUDAThreadEntry()
     : pool(kDLGPU, CUDADeviceAPI::Global()) {

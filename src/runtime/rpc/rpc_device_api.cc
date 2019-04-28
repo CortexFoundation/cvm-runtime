@@ -2,7 +2,7 @@
  *  Copyright (c) 2017 by Contributors
  * \file rpc_device_api.cc
  */
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/device_api.h>
 #include "rpc_session.h"
@@ -37,7 +37,7 @@ class RPCDeviceAPI final : public DeviceAPI {
     try {
       GetSess(ctx)->CallRemote(
           RPCCode::kDevFreeData, ctx, space->data);
-    } catch (const dmlc::Error& e) {
+    } catch (const utils::Error& e) {
       // fault tolerance to remote close.
     }
     delete space;

@@ -16,7 +16,7 @@ namespace cvm {
 namespace top {
 
 // dense
-DMLC_REGISTER_PARAMETER(DenseParam);
+CVMUTIL_REGISTER_PARAMETER(DenseParam);
 
 inline bool DenseInferPrecision(const NodeAttrs& attrs,
                                 std::vector<TShape>* shapes,
@@ -112,7 +112,7 @@ CVM_REGISTER_ELEMWISE_UNARY_OP(relu)
 
 /*
 // batchnorm
-DMLC_REGISTER_PARAMETER(BatchNormParam);
+CVMUTIL_REGISTER_PARAMETER(BatchNormParam);
 
 inline bool BatchNormInferShape(const cvm::NodeAttrs& attrs,
                                 std::vector<TShape>* in_shape,
@@ -201,7 +201,7 @@ inline bool BatchNormCorrectLayout(const NodeAttrs& attrs,
 
 // softmax
 /*
-DMLC_REGISTER_PARAMETER(SoftmaxParam);
+CVMUTIL_REGISTER_PARAMETER(SoftmaxParam);
 
 CVM_REGISTER_OP(softmax)
 .describe(R"code(Computes softmax.
@@ -244,7 +244,7 @@ CVM_REGISTER_OP(log_softmax)
 .set_support_level(1);
 
 // leaky_relu
-DMLC_REGISTER_PARAMETER(LeakyReLUParam);
+CVMUTIL_REGISTER_PARAMETER(LeakyReLUParam);
 
 CVM_REGISTER_OP(leaky_relu)
 .describe(R"code(Leaky version of a Rectified Linear Unit.
@@ -264,7 +264,7 @@ CVM_REGISTER_OP(leaky_relu)
 .set_support_level(1);
 
 // prelu
-DMLC_REGISTER_PARAMETER(PReLUParam);
+CVMUTIL_REGISTER_PARAMETER(PReLUParam);
 
 inline bool PReluInferShape(const cvm::NodeAttrs &attrs,
                             std::vector<TShape> *in_shape,
@@ -328,7 +328,7 @@ where :math:`*` is an channelwise multiplication for each sample in the
     return std::vector<std::string>{"data", "alpha"};
   });
 
-DMLC_REGISTER_PARAMETER(PadParam);
+CVMUTIL_REGISTER_PARAMETER(PadParam);
 
 inline bool PadInferShape(const cvm::NodeAttrs& attrs,
                           std::vector<TShape>* in_shape,
@@ -366,7 +366,7 @@ CVM_REGISTER_OP(pad)
 .set_support_level(1);
 
 // layout transformer
-DMLC_REGISTER_PARAMETER(LayoutTransformParam);
+CVMUTIL_REGISTER_PARAMETER(LayoutTransformParam);
 
 inline bool LayoutTransformInferShape(const NodeAttrs& attrs,
                                       std::vector<TShape>* in_attrs,
@@ -411,7 +411,7 @@ the input array by output[n, c, h, w, C] = data[n, C*16+c, h, w]
 })
 .set_support_level(1);
 
-DMLC_REGISTER_PARAMETER(LRNParam);
+CVMUTIL_REGISTER_PARAMETER(LRNParam);
 
 inline bool LRNInferShape(const cvm::NodeAttrs& attrs,
                           std::vector<TShape>* in_shape,
@@ -434,7 +434,7 @@ CVM_REGISTER_OP(lrn)
 .set_attr<FInferType>("FInferType", ElemwiseType<1, 1>)
 .set_support_level(1);
 
-DMLC_REGISTER_PARAMETER(L2NormalizeParam);
+CVMUTIL_REGISTER_PARAMETER(L2NormalizeParam);
 
 inline bool L2NormalizeInferShape(const cvm::NodeAttrs& attrs,
                                   std::vector<TShape>* in_shape,

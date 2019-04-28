@@ -6,33 +6,33 @@
 #ifndef CVM_TOP_TENSOR_H_
 #define CVM_TOP_TENSOR_H_
 
-#include <dmlc/base.h>
-#include <dmlc/parameter.h>
+#include <utils/base.h>
+#include <utils/parameter.h>
 #include <cvm/tuple.h>
 
 namespace cvm {
 namespace top {
 
-struct ConcatenateParam : public dmlc::Parameter<ConcatenateParam> {
+struct ConcatenateParam : public utils::Parameter<ConcatenateParam> {
   int axis;
-  DMLC_DECLARE_PARAMETER(ConcatenateParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(1)
+  CVMUTIL_DECLARE_PARAMETER(ConcatenateParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(1)
     .describe("the axis to be concated.");
   }
 };
 
-struct ExpandDimsParam : public dmlc::Parameter<ExpandDimsParam> {
+struct ExpandDimsParam : public utils::Parameter<ExpandDimsParam> {
   int axis;
   int num_newaxis;
-  DMLC_DECLARE_PARAMETER(ExpandDimsParam) {
-    DMLC_DECLARE_FIELD(axis)
+  CVMUTIL_DECLARE_PARAMETER(ExpandDimsParam) {
+    CVMUTIL_DECLARE_FIELD(axis)
     .describe("the axis to be expanded.");
-    DMLC_DECLARE_FIELD(num_newaxis).set_lower_bound(1).set_default(1)
+    CVMUTIL_DECLARE_FIELD(num_newaxis).set_lower_bound(1).set_default(1)
     .describe("Number of new axis to be inserted.");
   }
 };
 
-struct SplitParam : public dmlc::Parameter<SplitParam> {
+struct SplitParam : public utils::Parameter<SplitParam> {
   // numpy convention, only support indices, not support list.
   Tuple<int> indices_or_sections;
   int axis;
@@ -40,36 +40,36 @@ struct SplitParam : public dmlc::Parameter<SplitParam> {
   // deduced from indices_or_sections
   bool equal_split;
 
-  DMLC_DECLARE_PARAMETER(SplitParam) {
-    DMLC_DECLARE_FIELD(indices_or_sections)
+  CVMUTIL_DECLARE_PARAMETER(SplitParam) {
+    CVMUTIL_DECLARE_FIELD(indices_or_sections)
         .describe("Number of outputs to be splitted");
-    DMLC_DECLARE_FIELD(axis).set_default(1)
+    CVMUTIL_DECLARE_FIELD(axis).set_default(1)
         .describe("the axis to be splitted.");
   }
 };
 
 
-struct TakeParam : public dmlc::Parameter<TakeParam> {
-  dmlc::optional<int> axis;
+struct TakeParam : public utils::Parameter<TakeParam> {
+  utils::optional<int> axis;
 
-  DMLC_DECLARE_PARAMETER(TakeParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(dmlc::optional<int>())
+  CVMUTIL_DECLARE_PARAMETER(TakeParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(utils::optional<int>())
         .describe("the axis over which to select values.");
   }
 };
 
-struct StridedSliceParam : public dmlc::Parameter<StridedSliceParam> {
+struct StridedSliceParam : public utils::Parameter<StridedSliceParam> {
   // numpy convention, only support indices, not support list.
   Tuple<int64_t> begin;
   Tuple<int64_t> end;
   Tuple<int64_t> stride;
 
-  DMLC_DECLARE_PARAMETER(StridedSliceParam) {
-    DMLC_DECLARE_FIELD(begin)
+  CVMUTIL_DECLARE_PARAMETER(StridedSliceParam) {
+    CVMUTIL_DECLARE_FIELD(begin)
         .describe("Indices for begin of slice");
-    DMLC_DECLARE_FIELD(end)
+    CVMUTIL_DECLARE_FIELD(end)
         .describe("Indices for end of the slice");
-    DMLC_DECLARE_FIELD(stride).set_default(Tuple<int64_t>())
+    CVMUTIL_DECLARE_FIELD(stride).set_default(Tuple<int64_t>())
         .describe("Stride values of the slice");
   }
 };
@@ -95,8 +95,8 @@ enum IndicatorRuleFlag {
   kMin = 3,
 };
 
-#define DMLC_DECLARE_DTYPE_FIELD(name)                              \
-  DMLC_DECLARE_FIELD(name)                                          \
+#define CVMUTIL_DECLARE_DTYPE_FIELD(name)                              \
+  CVMUTIL_DECLARE_FIELD(name)                                          \
   .add_enum("float16", kFloat16)                                    \
   .add_enum("float32", kFloat32)                                    \
   .add_enum("float64", kFloat64)                                    \
@@ -109,19 +109,19 @@ enum IndicatorRuleFlag {
   .add_enum("int32", kInt32)                                        \
   .add_enum("int64", kInt64)
 
-struct CastParam : public dmlc::Parameter<CastParam> {
+struct CastParam : public utils::Parameter<CastParam> {
   int dtype;
-  DMLC_DECLARE_PARAMETER(CastParam) {
-    DMLC_DECLARE_DTYPE_FIELD(dtype)
+  CVMUTIL_DECLARE_PARAMETER(CastParam) {
+    CVMUTIL_DECLARE_DTYPE_FIELD(dtype)
     .describe("Output data type.");
   }
 };
 
-struct IndicatorParam : public dmlc::Parameter<IndicatorParam> {
+struct IndicatorParam : public utils::Parameter<IndicatorParam> {
   TShape axis;
   bool exclude;
-  DMLC_DECLARE_PARAMETER(IndicatorParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(TShape())
+  CVMUTIL_DECLARE_PARAMETER(IndicatorParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(TShape())
     .describe(R"code(The axis or axes along which to perform the indicator rule.
 
         The default, `axis=()`, will compute over all elements into a
@@ -134,81 +134,81 @@ struct IndicatorParam : public dmlc::Parameter<IndicatorParam> {
 
         If `exclude` is true, rule will be applied on the axes that are
         NOT in axis instead.)code");
-    DMLC_DECLARE_FIELD(exclude).set_default(false)
+    CVMUTIL_DECLARE_FIELD(exclude).set_default(false)
     .describe("Whether to apply rule on axis that are NOT in axis instead.");
   }
 };
 
-struct ReshapeParam : public dmlc::Parameter<ReshapeParam> {
+struct ReshapeParam : public utils::Parameter<ReshapeParam> {
   Tuple<int64_t> shape;
 
-  DMLC_DECLARE_PARAMETER(ReshapeParam) {
-    DMLC_DECLARE_FIELD(shape);
+  CVMUTIL_DECLARE_PARAMETER(ReshapeParam) {
+    CVMUTIL_DECLARE_FIELD(shape);
   }
 };
 
-struct SqueezeParam : public dmlc::Parameter<SqueezeParam> {
+struct SqueezeParam : public utils::Parameter<SqueezeParam> {
   TShape axis;
 
-  DMLC_DECLARE_PARAMETER(SqueezeParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(TShape())
+  CVMUTIL_DECLARE_PARAMETER(SqueezeParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(TShape())
     .describe("The axis to squeeze in the input tensor.");
   }
 };
 
-struct ScalarParam : public dmlc::Parameter<ScalarParam> {
+struct ScalarParam : public utils::Parameter<ScalarParam> {
   int scalar;
 
-  DMLC_DECLARE_PARAMETER(ScalarParam) {
-    DMLC_DECLARE_FIELD(scalar);
+  CVMUTIL_DECLARE_PARAMETER(ScalarParam) {
+    CVMUTIL_DECLARE_FIELD(scalar);
   }
 };
 
-struct FillValueParam : public dmlc::Parameter<FillValueParam> {
+struct FillValueParam : public utils::Parameter<FillValueParam> {
   int fill_value;
 
-  DMLC_DECLARE_PARAMETER(FillValueParam) {
-    DMLC_DECLARE_FIELD(fill_value)
+  CVMUTIL_DECLARE_PARAMETER(FillValueParam) {
+    CVMUTIL_DECLARE_FIELD(fill_value)
     .describe("Scalar value to be filled");
   }
 };
 
-struct TransposeParam : public dmlc::Parameter<TransposeParam> {
+struct TransposeParam : public utils::Parameter<TransposeParam> {
   TShape axes;
 
-  DMLC_DECLARE_PARAMETER(TransposeParam) {
-    DMLC_DECLARE_FIELD(axes).set_default(TShape())
+  CVMUTIL_DECLARE_PARAMETER(TransposeParam) {
+    CVMUTIL_DECLARE_FIELD(axes).set_default(TShape())
     .describe("Target axis order. By default the axes will be inverted.");
   }
 };
 
-struct FlipParam : public dmlc::Parameter<FlipParam> {
+struct FlipParam : public utils::Parameter<FlipParam> {
   int axis;
-  DMLC_DECLARE_PARAMETER(FlipParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(0)
+  CVMUTIL_DECLARE_PARAMETER(FlipParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(0)
     .describe("the axis to be reveresed.");
   }
 };
 
-struct BroadcastToParam : public dmlc::Parameter<BroadcastToParam> {
+struct BroadcastToParam : public utils::Parameter<BroadcastToParam> {
   TShape shape;
 
-  DMLC_DECLARE_PARAMETER(BroadcastToParam) {
-    DMLC_DECLARE_FIELD(shape).set_default(TShape())
+  CVMUTIL_DECLARE_PARAMETER(BroadcastToParam) {
+    CVMUTIL_DECLARE_FIELD(shape).set_default(TShape())
       .describe("The shape of the desired array."
                 " We can set the dim to zero if it's same as the original."
                 " E.g `A = broadcast_to(B, shape=(10, 0, 0))` ");
   }
 };
 
-struct ReduceParam : public dmlc::Parameter<ReduceParam> {
+struct ReduceParam : public utils::Parameter<ReduceParam> {
   TShape axis;
   bool keepdims;
   bool exclude;
   int dtype;
 
-  DMLC_DECLARE_PARAMETER(ReduceParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(TShape())
+  CVMUTIL_DECLARE_PARAMETER(ReduceParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(TShape())
         .describe(R"code(The axis or axes along which to perform the reduction.
 
       The default, `axis=()`, will compute over all elements into a
@@ -222,76 +222,76 @@ struct ReduceParam : public dmlc::Parameter<ReduceParam> {
       If `exclude` is true, reduction will be performed on the axes that are
       NOT in axis instead.)code");
 
-    DMLC_DECLARE_FIELD(keepdims).set_default(false)
+    CVMUTIL_DECLARE_FIELD(keepdims).set_default(false)
       .describe("If this is set to `True`, the reduced axes are left "
                 "in the result as dimension with size one.");
-    DMLC_DECLARE_FIELD(exclude).set_default(false)
+    CVMUTIL_DECLARE_FIELD(exclude).set_default(false)
       .describe("Whether to perform reduction on axis that are NOT in axis instead.");
-    DMLC_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
+    CVMUTIL_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
       .describe("Target data type.");
   }
 };
 
-struct InitOpWithScalarParam : public dmlc::Parameter<InitOpWithScalarParam> {
+struct InitOpWithScalarParam : public utils::Parameter<InitOpWithScalarParam> {
   TShape shape;
   int dtype;
   int fill_value;
 
-  DMLC_DECLARE_PARAMETER(InitOpWithScalarParam) {
-    DMLC_DECLARE_FIELD(shape).set_default(TShape());
-    DMLC_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
+  CVMUTIL_DECLARE_PARAMETER(InitOpWithScalarParam) {
+    CVMUTIL_DECLARE_FIELD(shape).set_default(TShape());
+    CVMUTIL_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
       .describe("Target data type.");
-    DMLC_DECLARE_FIELD(fill_value).describe("Scalar value to fill");
+    CVMUTIL_DECLARE_FIELD(fill_value).describe("Scalar value to fill");
   }
 };
 
-struct InitOpParam : public dmlc::Parameter<InitOpParam> {
+struct InitOpParam : public utils::Parameter<InitOpParam> {
   TShape shape;
   int dtype;
 
-  DMLC_DECLARE_PARAMETER(InitOpParam) {
-    DMLC_DECLARE_FIELD(shape).set_default(TShape());
-    DMLC_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
+  CVMUTIL_DECLARE_PARAMETER(InitOpParam) {
+    CVMUTIL_DECLARE_FIELD(shape).set_default(TShape());
+    CVMUTIL_DECLARE_DTYPE_FIELD(dtype).set_default(kInt32)
       .describe("Target data type.");
   }
 };
 
-struct ElementWiseReduceParam : public dmlc::Parameter<ElementWiseReduceParam> {
+struct ElementWiseReduceParam : public utils::Parameter<ElementWiseReduceParam> {
   int num_args;
-  DMLC_DECLARE_PARAMETER(ElementWiseReduceParam) {
-    DMLC_DECLARE_FIELD(num_args).set_lower_bound(1)
+  CVMUTIL_DECLARE_PARAMETER(ElementWiseReduceParam) {
+    CVMUTIL_DECLARE_FIELD(num_args).set_lower_bound(1)
       .describe("Number of inputs to be reduced.");
   }
 };
 
-struct MatMulParam : public dmlc::Parameter<MatMulParam> {
+struct MatMulParam : public utils::Parameter<MatMulParam> {
   bool transpose_a;
   bool transpose_b;
 
-  DMLC_DECLARE_PARAMETER(MatMulParam) {
-    DMLC_DECLARE_FIELD(transpose_a)
+  CVMUTIL_DECLARE_PARAMETER(MatMulParam) {
+    CVMUTIL_DECLARE_FIELD(transpose_a)
       .describe("If true then transpose the first input before dot.")
       .set_default(false);
-    DMLC_DECLARE_FIELD(transpose_b)
+    CVMUTIL_DECLARE_FIELD(transpose_b)
       .describe("If true then transpose the second input before dot.")
       .set_default(false);
   }
 };
 
-struct ClipParam : public dmlc::Parameter<ClipParam> {
+struct ClipParam : public utils::Parameter<ClipParam> {
   int a_min, a_max;
-  DMLC_DECLARE_PARAMETER(ClipParam) {
-    DMLC_DECLARE_FIELD(a_min)
+  CVMUTIL_DECLARE_PARAMETER(ClipParam) {
+    CVMUTIL_DECLARE_FIELD(a_min)
       .describe("Minimum value such that value smaller then this will be clipped.");
-    DMLC_DECLARE_FIELD(a_max)
+    CVMUTIL_DECLARE_FIELD(a_max)
       .describe("Maximum value such that value larger then this will be clipped.");
   }
 };
 
-struct SliceLikeParam : public dmlc::Parameter<SliceLikeParam> {
+struct SliceLikeParam : public utils::Parameter<SliceLikeParam> {
   Tuple<int> axis;
-  DMLC_DECLARE_PARAMETER(SliceLikeParam) {
-    DMLC_DECLARE_FIELD(axis).set_default(Tuple<int>())
+  CVMUTIL_DECLARE_PARAMETER(SliceLikeParam) {
+    CVMUTIL_DECLARE_FIELD(axis).set_default(Tuple<int>())
       .describe("List of axes on which input data will be sliced according to the "
                 "corresponding size of the second input. By default will slice "
                 "on all axes. Negative axes are supported.");

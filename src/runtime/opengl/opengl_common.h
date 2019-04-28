@@ -9,7 +9,7 @@
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/device_api.h>
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #if defined(__APPLE__)
 #define GLFW_INCLUDE_GLCOREARB
 #endif

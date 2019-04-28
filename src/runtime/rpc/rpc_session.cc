@@ -49,7 +49,7 @@ struct RPCArgBuffer {
 };
 
 // Event handler for RPC events.
-class RPCSession::EventHandler : public dmlc::Stream {
+class RPCSession::EventHandler : public utils::Stream {
  public:
   EventHandler(common::RingBuffer* reader,
                common::RingBuffer* writer,
@@ -519,7 +519,7 @@ class RPCSession::EventHandler : public dmlc::Stream {
           value.v_str = temp_bytes_->data.c_str();
         } else {
           temp_bytes_->arr.size = static_cast<size_t>(temp_bytes_->data.size());
-          temp_bytes_->arr.data = dmlc::BeginPtr(temp_bytes_->data);
+          temp_bytes_->arr.data = utils::BeginPtr(temp_bytes_->data);
           value.v_handle = &(temp_bytes_->arr);
         }
         arg_buf_->temp_bytes.emplace_back(std::move(temp_bytes_));
@@ -546,7 +546,7 @@ class RPCSession::EventHandler : public dmlc::Stream {
       return;
     } else {
       CHECK_EQ(init_header_step_, 1);
-      this->ReadArray(dmlc::BeginPtr(*remote_key_), remote_key_->length());
+      this->ReadArray(utils::BeginPtr(*remote_key_), remote_key_->length());
       this->SwitchToState(kRecvCode);
     }
   }
@@ -604,10 +604,10 @@ class RPCSession::EventHandler : public dmlc::Stream {
       RPCCode code = RPCCode::kCopyAck;
       this->Write(code);
       char* dptr = reinterpret_cast<char*>(handle) + offset;
-      if (!DMLC_IO_NO_ENDIAN_SWAP) {
+      if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
         temp_data_.resize(0);
         temp_data_.insert(temp_data_.end(), dptr, dptr + num_bytes);
-        dmlc::ByteSwap(dmlc::BeginPtr(temp_data_), elem_bytes, num_bytes / elem_bytes);
+        utils::ByteSwap(utils::BeginPtr(temp_data_), elem_bytes, num_bytes / elem_bytes);
         this->WriteArray(temp_data_.data(), num_bytes);
       } else {
         this->WriteArray(dptr, num_bytes);
@@ -620,12 +620,12 @@ class RPCSession::EventHandler : public dmlc::Stream {
         cpu_ctx.device_id = 0;
         DeviceAPI::Get(ctx)->CopyDataFromTo(
             reinterpret_cast<void*>(handle), offset,
-            dmlc::BeginPtr(temp_data_), 0,
+            utils::BeginPtr(temp_data_), 0,
             num_bytes, ctx, cpu_ctx, type_hint, nullptr);
         RPCCode code = RPCCode::kCopyAck;
         this->Write(code);
-        if (!DMLC_IO_NO_ENDIAN_SWAP) {
-          dmlc::ByteSwap(dmlc::BeginPtr(temp_data_), elem_bytes, num_bytes / elem_bytes);
+        if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
+          utils::ByteSwap(utils::BeginPtr(temp_data_), elem_bytes, num_bytes / elem_bytes);
         }
         this->WriteArray(&temp_data_[0], num_bytes);
       } catch (const std::runtime_error &e) {
@@ -664,14 +664,14 @@ class RPCSession::EventHandler : public dmlc::Stream {
       if (copy_ctx_.device_type == kDLCPU) {
         char* dptr = reinterpret_cast<char*>(copy_handle_) + copy_offset_;
         this->ReadArray(dptr, copy_size_);
-        if (!DMLC_IO_NO_ENDIAN_SWAP) {
-          dmlc::ByteSwap(dptr, elem_bytes, copy_size_ / elem_bytes);
+        if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
+          utils::ByteSwap(dptr, elem_bytes, copy_size_ / elem_bytes);
         }
       } else {
         temp_data_.resize(copy_size_ + 1);
         this->ReadArray(&temp_data_[0], copy_size_);
-        if (!DMLC_IO_NO_ENDIAN_SWAP) {
-          dmlc::ByteSwap(dmlc::BeginPtr(temp_data_), elem_bytes, copy_size_ / elem_bytes);
+        if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
+          utils::ByteSwap(utils::BeginPtr(temp_data_), elem_bytes, copy_size_ / elem_bytes);
         }
         try {
           CVMContext cpu_ctx;
@@ -890,7 +890,7 @@ void RPCSession::Shutdown() {
           }, writer_.bytes_available());
         if (n == 0) break;
       }
-    } catch (const dmlc::Error& e) {
+    } catch (const utils::Error& e) {
     }
     channel_.reset(nullptr);
   }
@@ -1167,7 +1167,7 @@ void RPCSession::EventHandler::HandlePackedCall() {
       std::ostringstream os;
       os << "Except caught from RPC call: " << arg_buf_->value[0].v_str;
       arg_buf_.reset();
-      throw dmlc::Error(os.str());
+      throw utils::Error(os.str());
       break;
     }
     // system functions

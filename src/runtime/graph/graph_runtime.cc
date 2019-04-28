@@ -45,7 +45,7 @@ void GraphRuntime::Init(const std::string& graph_json,
 #else
   std::string is = graph_json;
 #endif
-  dmlc::JSONReader reader(&is);
+  utils::JSONReader reader(&is);
   this->Load(&reader);
   module_ = module;
   ctxs_ = ctxs;
@@ -131,11 +131,11 @@ void GraphRuntime::CopyOutputTo(int index, DLTensor* data_out) {
  * \param param_blob A binary blob of parameter.
  */
 void GraphRuntime::LoadParams(const std::string& param_blob) {
-  dmlc::MemoryStringStream strm(const_cast<std::string*>(&param_blob));
+  utils::MemoryStringStream strm(const_cast<std::string*>(&param_blob));
   this->LoadParams(&strm);
 }
 
-void GraphRuntime::LoadParams(dmlc::Stream* strm) {
+void GraphRuntime::LoadParams(utils::Stream* strm) {
   uint64_t header, reserved;
   CHECK(strm->Read(&header))
       << "Invalid parameters file format";

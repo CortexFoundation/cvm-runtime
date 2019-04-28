@@ -8,7 +8,7 @@
 #ifndef CVM_RUNTIME_MODULE_H_
 #define CVM_RUNTIME_MODULE_H_
 
-#include <dmlc/io.h>
+#include <utils/io.h>
 #include <memory>
 #include <vector>
 #include <string>
@@ -112,7 +112,7 @@ class ModuleNode {
    *   but not necessarily host modules.
    *   We can use this to do AOT loading of bundled device functions.
    */
-  CVM_DLL virtual void SaveToBinary(dmlc::Stream* stream);
+  CVM_DLL virtual void SaveToBinary(utils::Stream* stream);
   /*!
    * \brief Get the source code of module, when available.
    * \param format Format of the source code, can be empty by default.

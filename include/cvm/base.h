@@ -6,27 +6,27 @@
 #ifndef CVM_BASE_H_
 #define CVM_BASE_H_
 
-#include <dmlc/base.h>
-#include <dmlc/common.h>
-#include <dmlc/any.h>
-#include <dmlc/memory.h>
-#include <dmlc/logging.h>
-#include <dmlc/registry.h>
-#include <dmlc/array_view.h>
+#include <utils/base.h>
+#include <utils/common.h>
+#include <utils/any.h>
+#include <utils/memory.h>
+#include <utils/logging.h>
+#include <utils/registry.h>
+#include <utils/array_view.h>
 
 namespace cvm {
 
 /*! \brief any type */
-using dmlc::any;
+using utils::any;
 
 /*! \brief array_veiw type  */
-using dmlc::array_view;
+using utils::array_view;
 
 /*!\brief getter function of any type */
-using dmlc::get;
+using utils::get;
 
 /*!\brief "unsafe" getter function of any type */
-using dmlc::unsafe_get;
+using utils::unsafe_get;
 
 }  // namespace cvm
 

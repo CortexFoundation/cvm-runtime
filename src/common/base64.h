@@ -8,8 +8,8 @@
 #ifndef CVM_COMMON_BASE64_H_
 #define CVM_COMMON_BASE64_H_
 
-#include <dmlc/logging.h>
-#include <dmlc/logging.h>
+#include <utils/logging.h>
+#include <utils/logging.h>
 #include <cctype>
 #include <cstdio>
 #include <string>
@@ -51,7 +51,7 @@ class StreamBufferReader {
    * \brief set input stream
    * \param stream The stream to be set
    */
-  void set_stream(dmlc::Stream *stream) {
+  void set_stream(utils::Stream *stream) {
     stream_ = stream;
     read_len_ = read_ptr_ = 1;
   }
@@ -76,7 +76,7 @@ class StreamBufferReader {
 
  private:
   /*! \brief the underlying stream */
-  dmlc::Stream *stream_{nullptr};
+  utils::Stream *stream_{nullptr};
   /*! \brief buffer to hold data */
   std::string buffer_;
   /*! \brief length of valid data in buffer */
@@ -88,9 +88,9 @@ class StreamBufferReader {
 /*!
  * \brief Input stream from base64 encoding
  */
-class Base64InStream: public dmlc::Stream {
+class Base64InStream: public utils::Stream {
  public:
-  explicit Base64InStream(dmlc::Stream *fs) : reader_(256) {
+  explicit Base64InStream(utils::Stream *fs) : reader_(256) {
     reader_.set_stream(fs);
   }
   /*!
@@ -210,9 +210,9 @@ class Base64InStream: public dmlc::Stream {
 /*!
  * \brief Stream to write to base64 format.
  */
-class Base64OutStream: public dmlc::Stream {
+class Base64OutStream: public utils::Stream {
  public:
-  explicit Base64OutStream(dmlc::Stream *fp) : fp_(fp) {
+  explicit Base64OutStream(utils::Stream *fp) : fp_(fp) {
   }
   virtual void Write(const void *ptr, size_t size) {
     using base64::EncodeTable;
@@ -262,7 +262,7 @@ class Base64OutStream: public dmlc::Stream {
  private:
   static constexpr size_t kBufferSize = 256;
 
-  dmlc::Stream *fp_{nullptr};
+  utils::Stream *fp_{nullptr};
   int buf__top_{0};
   unsigned char buf_[4];
   std::string out_buf_;

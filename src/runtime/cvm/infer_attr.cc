@@ -42,7 +42,7 @@ bool CvmRuntime::CheckAttr() {
     std::cout << std::endl;
 #endif
     return true;
-  } catch (dmlc::Error &e) {
+  } catch (utils::Error &e) {
     std::cout << e.what();
     return false;
   }
@@ -104,7 +104,7 @@ void CvmRuntime::SetupPrecision() {
         finfer = cvm::top::ElemwiseSamePrecision;  
       }
       if (!finfer(inode.attrs, &shapes, &iprec, &oprec)) {
-        throw dmlc::Error(std::string("error with ") + inode.attrs.op->name);
+        throw utils::Error(std::string("error with ") + inode.attrs.op->name);
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {
@@ -206,10 +206,10 @@ void CvmRuntime::SetupShape() {
         try {
           finfer(inode.attrs, &ishape, &oshape);
         } catch (const std::exception& e) {
-          throw dmlc::Error(e.what() + std::string(" with ") + inode.attrs.op->name);
+          throw utils::Error(e.what() + std::string(" with ") + inode.attrs.op->name);
         }
       } else {
-        throw dmlc::Error(std::string("check shape method is undefined with") + inode.attrs.op->name);
+        throw utils::Error(std::string("check shape method is undefined with") + inode.attrs.op->name);
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {
@@ -294,10 +294,10 @@ void CvmRuntime::SetupType() {
           cvm::NodeAttrs attrs;
           finfer(inode.attrs, &itype, &otype);
         } catch (const std::exception& e) {
-          throw dmlc::Error(e.what() + std::string(" with ") + inode.attrs.op->name);
+          throw utils::Error(e.what() + std::string(" with ") + inode.attrs.op->name);
         }
       } else {
-        throw dmlc::Error(std::string("check type method is undefined with") + inode.attrs.op->name);
+        throw utils::Error(std::string("check type method is undefined with") + inode.attrs.op->name);
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {

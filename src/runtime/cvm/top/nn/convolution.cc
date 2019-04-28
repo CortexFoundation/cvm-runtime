@@ -16,7 +16,7 @@ namespace cvm {
 namespace top {
 
 // conv2d
-DMLC_REGISTER_PARAMETER(Conv2DParam);
+CVMUTIL_REGISTER_PARAMETER(Conv2DParam);
 
 inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
                              std::vector<TShape>* in_shape,
@@ -248,7 +248,7 @@ CVM_REGISTER_OP(_contrib_conv2d_NCHWc)
 .set_num_inputs(UseBiasNumInputs<Conv2DParam>)
 .set_support_level(2);
 
-DMLC_REGISTER_PARAMETER(Conv2DTransposeParam);
+CVMUTIL_REGISTER_PARAMETER(Conv2DTransposeParam);
 
 inline bool Conv2DTransposeInferShape(const cvm::NodeAttrs& attrs,
                                       std::vector<TShape>* in_shape,

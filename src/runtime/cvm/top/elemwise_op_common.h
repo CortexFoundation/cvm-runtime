@@ -433,7 +433,7 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
   CVM_REGISTER_OP(name)                                            \
   .set_num_inputs([](const NodeAttrs& attrs) {                      \
     return static_cast<uint32_t>(                                   \
-      dmlc::get<ElementWiseReduceParam>(attrs.parsed).num_args);    \
+      utils::get<ElementWiseReduceParam>(attrs.parsed).num_args);    \
     })                                                              \
   .set_attr_parser(ParamParser<ElementWiseReduceParam>)             \
   .set_attr<FGetAttrDict>("FGetAttrDict",                           \
