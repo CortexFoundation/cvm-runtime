@@ -275,7 +275,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.conv2d").set_body([]
             }
             return y_sum;
         };
-        if (filter_w == 1) {
+        if (filter_w == 100) {
             for (int n = 0; n < n_batch; ++n) {
                 for (int k = 0; k < out_channels; ++k) {
                     for (int p = 0; p < o_h; ++p) {
@@ -291,7 +291,7 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.conv2d").set_body([]
                     }
                 }
             }
-        } else if (filter_w == 3) {
+        } else if (filter_w == 30) {
             std::vector<int32_t> y_sum(in_channels * o_h * o_w, 0);
 //            std::cout << "buff " << y_sum.size() << "\n";
             for (int n = 0; n < n_batch; ++n) {
@@ -817,15 +817,6 @@ TVM_REGISTER_GLOBAL("tvm.runtime.cvm.concatenate")
         CHECK(-ndim <= axis && axis < ndim);
         if(axis < 0) axis += ndim;
         CHECK(axis < input0->ndim) << "axis out of bounds.";
-
- //       std::cout << "call concatenate: " << args.num_args << " " << axis  << " " << input0->shape[1] << " " << out->shape[1]<< std::endl;
- //       for(int i = 0; i < args.num_args-1; i++){
- //           DLTensor* dl = args[i];
- //           for(int j = 0; j < dl->ndim; j++){
- //               std::cout << dl->shape[j] << " ";
- //           }
- //           std::cout << std::endl;
- //       }
 
         int32_t *out_data = static_cast<int32_t*>(out->data);
         int tmpi = 0;
