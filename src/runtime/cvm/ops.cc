@@ -158,7 +158,6 @@ padding (0, 0)
 use_bias True
 strides (1, 1)
 */
-=======
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
  (CVMArgs args, CVMRetValue* rv){
     CHECK(args.num_args == 12 || args.num_args == 13);
@@ -369,6 +368,36 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
         }
     }
 
+	FILE *fp = fopen("/tmp/zkh/conv_in.txt", "a+");
+	fprintf(fp, "data:\n");
+	if(fp == NULL) std::cout << "open file failed\n";
+	for(int i = 0; i < 100; i++){
+		fprintf(fp, "%d ", x_data[i]);
+	}
+	fprintf(fp, "\nweight:\n");
+	for(int i = 0; i < 100; i++){
+		fprintf(fp, "%d ", w_data[i]);
+	}
+	fprintf(fp, "\nbias:\n");
+	for(int i = 0; b_data != nullptr && i < 10 && i < out_channels; i++){
+		fprintf(fp, "%d ", b_data[i]);
+	}
+	fprintf(fp, "\n");
+	FILE *fpo = fopen("/tmp/zkh/conv_out.txt", "a+");
+	if(fpo == NULL) std::cout << "open file failed\n";
+	int32_t max = (int32_t)1 << 31;
+	int32_t min = 1 << 30;
+	for(int i = 0; i < getSize(y); i++){
+		max = max < y_data[i] ? y_data[i] : max;
+		min = min > y_data[i] ? y_data[i] : min;
+	}	
+	fprintf(fpo, "out: %d %d\n", max, min);
+	for(int i = 0; i < 100; i++){
+		fprintf(fpo, "%d ", y_data[i]);
+	}
+	fprintf(fpo, "\n");
+	fclose(fp);
+	fclose(fpo);
 //    std::cout << o_h << " " << o_w << " (" << filter_h << "," << " " << filter_w << ")"
 //              << in_channels << " " << out_channels << " "
 //              << (clock() - time_start + .0) / CLOCKS_PER_SEC << "\n";
@@ -483,7 +512,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
             c[i] = a[a_index] / b[b_index];
         }
     });
-=======
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_right_shift")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
@@ -594,7 +622,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
 /*
 * axis (2, 3)
 */
-=======
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.sum")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
@@ -808,8 +835,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
         }
     });
 
-TVM_REGISTER_GLOBAL("tvm.runtime.cvm.concatenate")
-.set_body([](TVMArgs args, TVMRetValue *ret){
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
+.set_body([](CVMArgs args, CVMRetValue *ret){
         int len = args.num_args;
         CHECK(len >= 3);
         DLTensor *input0 = args[0];
@@ -1148,7 +1175,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_left_shift")
 * padding (1, 1)
 */
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max_pool2d")
-    .set_body([](TVMArgs args, TVMRetValue *ret){
+    .set_body([](CVMArgs args, CVMRetValue *ret){
             CHECK(args.num_args == 6);
             DLTensor *x = args[0];
             DLTensor *y = args[1];

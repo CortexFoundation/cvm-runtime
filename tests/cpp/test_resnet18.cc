@@ -1,7 +1,7 @@
 #include <dlpack/dlpack.h>
-#include <tvm/runtime/module.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/module.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/packed_func.h>
 
 #include <fstream>
 #include <iterator>
@@ -19,32 +19,32 @@ int device_type = kDLCPU;
 int device_id = 0;
 
 long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
-        tvm::runtime::Module &mod_syslib  ,  std::string runtime_name, DLTensor *y, int devicetype) {
+        cvm::runtime::Module &mod_syslib  ,  std::string runtime_name, DLTensor *y, int devicetype) {
 		auto t1 = clock();
 	// get global function module for graph runtime
-    auto mf =  (*tvm::runtime::Registry::Get("tvm." + runtime_name + ".create"));
-    tvm::runtime::Module mod = mf(json_data, mod_syslib, static_cast<int>(x->ctx.device_type), device_id);
+    auto mf =  (*cvm::runtime::Registry::Get("cvm." + runtime_name + ".create"));
+    cvm::runtime::Module mod = mf(json_data, mod_syslib, static_cast<int>(x->ctx.device_type), device_id);
 
     // load image data saved in binary
     // std::ifstream data_fin("cat.bin", std::ios::binary);
     // data_fin.read(static_cast<char*>(x->data), 3 * 224 * 224 * 4);
 
     // get the function from the module(set input data)
-    tvm::runtime::PackedFunc set_input = mod.GetFunction("set_input");
+    cvm::runtime::PackedFunc set_input = mod.GetFunction("set_input");
     set_input("data", x);
 
 
     // get the function from the module(load patameters)
-    tvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
+    cvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
     load_params(params_arr);
 
 
 		auto t2 = clock();
     // get the function from the module(run it)
-    tvm::runtime::PackedFunc run = mod.GetFunction("run");
+    cvm::runtime::PackedFunc run = mod.GetFunction("run");
     run();
     // get the function from the module(get output data)
-    tvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
+    cvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
     get_output(0, y);
 
 //    auto y_iter = static_cast<int*>(y->data);
@@ -63,23 +63,11 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
 //    CVMArrayFree(y);
 }
 
-void call_tvm_runtime_cpu(tvm::runtime::Module mod, DLTensor*x){
-
-}
-void call_tvm_runtime_gpu(){
-}
-
-void call_cvm_runtime_cpu(){
-
-}
-void call_cvm_runtime_gpu(){
-
-}
 
 int main()
 {
-    tvm::runtime::Module mod_org = tvm::runtime::Module::LoadFromFile("/tmp/resnet18/lib.nnvm.so");///tmp/imagenet_llvm.org.so
-    tvm::runtime::Module mod_syslib = (*tvm::runtime::Registry::Get("module._GetSystemLib"))();
+    cvm::runtime::Module mod_org = cvm::runtime::Module::LoadFromFile("/tmp/resnet18/lib.nnvm.so");///tmp/imagenet_llvm.org.so
+    cvm::runtime::Module mod_syslib = (*cvm::runtime::Registry::Get("module._GetSystemLib"))();
 
     for(int in = 0; in < 1; in++){
 
@@ -108,7 +96,7 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-        std::ifstream json_in2("/tmp/resnet18/symbol_tvm.json", std::ios::in);
+        std::ifstream json_in2("/tmp/resnet18/symbol_cvm.json", std::ios::in);
         std::string json_data_org((std::istreambuf_iterator<char>(json_in2)), std::istreambuf_iterator<char>());
         json_in2.close();
         // json graph

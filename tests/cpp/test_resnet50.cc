@@ -62,12 +62,9 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
 //    cvmArrayFree(y);
 }
 
-void call_cvm_runtime_cpu(cvm::runtime::Module mod, DLTensor*x){
-
-}
-
 int main()
 {
+//    cvm::runtime::Module mod_org = cvm::runtime::Module::LoadFromFile("/tmp/imagenet_llvm.org.so");///tmp/imagenet_llvm.org.so
     cvm::runtime::Module mod_syslib = (*cvm::runtime::Registry::Get("module._GetSystemLib"))();
 
     for(int in = 0; in < 1; in++){
@@ -96,35 +93,9 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-        std::ifstream json_in2("/tmp/imagenet_llvm.org.json", std::ios::in);
-        std::string json_data_org((std::istreambuf_iterator<char>(json_in2)), std::istreambuf_iterator<char>());
-        json_in2.close();
-        // json graph
-        std::cout << "loadfromfile time" << (clock() - read_t1) * 1000 / CLOCKS_PER_SEC << std::endl;
-
         DLTensor* y1;
         int out_ndim = 2;
         int64_t out_shape[2] = {1, 1000, };
-        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y1);
-
-        //    cvmArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
-        //    cvmArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
-        //    cvmStreamHandle stream;
-        //    cvmStreamCreate(kDLGPU, device_id, &stream);
-        //    cvmArrayCopyFromTo(x, t_gpu_x, stream);
-        //    DLTensor* t_gpu_x, *t_gpu_y;
-        clock_t start = clock();
-        for(int i = 0; i < 1; i++){
-            RunCVM(x, params_arr, json_data_org, mod_org, "graph_runtime", y1,(int)kDLCPU);
-        }
-        clock_t end = clock();
-
-        //    TVMArrayCopyFromTo(t_gpu_y, y1, stream);
-        std::cout << "graph runtime : " << (end-start)*1.0/CLOCKS_PER_SEC << " s" << std::endl;
-        for(int i = 0; i < 10; i++){
-            std::cout << static_cast<int32_t*>(y1->data)[i] << " ";
-        }
-        std::cout << std::endl;
 
         std::ifstream json_in("/tmp/imagenet_cuda_cvm.json", std::ios::in);
         std::string json_data((std::istreambuf_iterator<char>(json_in)), std::istreambuf_iterator<char>());
@@ -155,7 +126,7 @@ int main()
         }
         std::cout << std::endl;
         int32_t ret[] = {-47, -6, -28, 95, -34, 66, -54, -8, -83, -35};
-        std::cout << (memcmp(y1->data, y2->data, 1000*sizeof(int32_t)) == 0 ? "pass" : "failed") << std::endl;
+//        std::cout << (memcmp(y1->data, y2->data, 1000*sizeof(int32_t)) == 0 ? "pass" : "failed") << std::endl;
         CVMArrayFree(x);
         CVMArrayFree(gpu_x);
         CVMArrayFree(gpu_y);

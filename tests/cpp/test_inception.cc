@@ -1,7 +1,7 @@
 #include <dlpack/dlpack.h>
-#include <tvm/runtime/module.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/module.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/packed_func.h>
 
 #include <fstream>
 #include <iterator>
@@ -18,33 +18,33 @@ int dtype_lanes = 1;
 int device_type = kDLCPU;
 int device_id = 0;
 
-long RunCVM(DLTensor* x, TVMByteArray& params_arr, std::string json_data,
-        tvm::runtime::Module &mod_syslib  ,  std::string runtime_name, DLTensor *y, int devicetype) {
+long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
+        cvm::runtime::Module &mod_syslib  ,  std::string runtime_name, DLTensor *y, int devicetype) {
 		auto t1 = clock();
 	// get global function module for graph runtime
-    auto mf =  (*tvm::runtime::Registry::Get("tvm." + runtime_name + ".create"));
-    tvm::runtime::Module mod = mf(json_data, mod_syslib, static_cast<int>(x->ctx.device_type), device_id);
+    auto mf =  (*cvm::runtime::Registry::Get("cvm." + runtime_name + ".create"));
+    cvm::runtime::Module mod = mf(json_data, mod_syslib, static_cast<int>(x->ctx.device_type), device_id);
 
     // load image data saved in binary
     // std::ifstream data_fin("cat.bin", std::ios::binary);
     // data_fin.read(static_cast<char*>(x->data), 3 * 224 * 224 * 4);
 
     // get the function from the module(set input data)
-    tvm::runtime::PackedFunc set_input = mod.GetFunction("set_input");
+    cvm::runtime::PackedFunc set_input = mod.GetFunction("set_input");
     set_input("data", x);
 
 
     // get the function from the module(load patameters)
-    tvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
+    cvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
     load_params(params_arr);
 
 
 		auto t2 = clock();
     // get the function from the module(run it)
-    tvm::runtime::PackedFunc run = mod.GetFunction("run");
+    cvm::runtime::PackedFunc run = mod.GetFunction("run");
     run();
     // get the function from the module(get output data)
-    tvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
+    cvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
     get_output(0, y);
 
 //    auto y_iter = static_cast<int*>(y->data);
@@ -60,13 +60,13 @@ long RunCVM(DLTensor* x, TVMByteArray& params_arr, std::string json_data,
 //    std::cout << "\n";
 //
 //
-//    TVMArrayFree(y);
+//    CVMArrayFree(y);
 }
 
 int main()
 {
-//    tvm::runtime::Module mod_org = tvm::runtime::Module::LoadFromFile("/tmp/imagenet_llvm.org.so");///tmp/imagenet_llvm.org.so
-    tvm::runtime::Module mod_syslib = (*tvm::runtime::Registry::Get("module._GetSystemLib"))();
+//    cvm::runtime::Module mod_org = cvm::runtime::Module::LoadFromFile("/tmp/imagenet_llvm.org.so");///tmp/imagenet_llvm.org.so
+    cvm::runtime::Module mod_syslib = (*cvm::runtime::Registry::Get("module._GetSystemLib"))();
 
     for(int in = 0; in < 1; in++){
 
@@ -77,7 +77,7 @@ int main()
         DLTensor* x;
         int in_ndim = 4;
         int64_t in_shape[4] = {1, 3, 224, 224};
-        TVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
+        CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
         auto x_iter = static_cast<int*>(x->data);
         for (auto i = 0; i < 1*3*224*224; i++) {
 	    if(i < 100)
@@ -93,8 +93,8 @@ int main()
         std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
         params_in.close();
 
-        // parameters need to be TVMByteArray type to indicate the binary data
-        TVMByteArray params_arr;
+        // parameters need to be CVMByteArray type to indicate the binary data
+        CVMByteArray params_arr;
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
@@ -107,21 +107,21 @@ int main()
         DLTensor* y1;
         int out_ndim = 2;
         int64_t out_shape[2] = {1, 1000, };
-//        TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y1);
+//        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y1);
 
         //    DLTensor* t_gpu_x, *t_gpu_y;
-        //    TVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
-        //    TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
-        //    TVMStreamHandle stream;
-        //    TVMStreamCreate(kDLGPU, device_id, &stream);
-        //    TVMArrayCopyFromTo(x, t_gpu_x, stream);
+        //    CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
+        //    CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
+        //    CVMStreamHandle stream;
+        //    CVMStreamCreate(kDLGPU, device_id, &stream);
+        //    CVMArrayCopyFromTo(x, t_gpu_x, stream);
 //        clock_t start = clock();
 //        for(int i = 0; i < 10; i++){
 //            RunCVM(x, params_arr, json_data_org, mod_org, "graph_runtime", y1,(int)kDLCPU);
 //        }
 //        clock_t end = clock();
 //
-//        //    TVMArrayCopyFromTo(t_gpu_y, y1, stream);
+//        //    CVMArrayCopyFromTo(t_gpu_y, y1, stream);
 //        std::cout << "graph runtime : " << (end-start)*1.0/CLOCKS_PER_SEC << " s" << std::endl;
 //        for(int i = 0; i < 10; i++){
 //            std::cout << static_cast<int32_t*>(y1->data)[i] << " ";
@@ -133,14 +133,14 @@ int main()
  //       json_in.close();
 
 //        DLTensor* gpu_x, *gpu_y;
-//        TVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);
-//        TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_y);
-//        TVMStreamHandle stream1;
-//        TVMStreamCreate(kDLGPU, device_id, &stream1);
-//        TVMArrayCopyFromTo(x, gpu_x, stream1);
+//        CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);
+//        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_y);
+//        CVMStreamHandle stream1;
+//        CVMStreamCreate(kDLGPU, device_id, &stream1);
+//        CVMArrayCopyFromTo(x, gpu_x, stream1);
 
         DLTensor* y2;
-        TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y2);
+        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y2);
         clock_t cvm_start = clock();
         clock_t delta = 0;
         clock_t last;
@@ -150,8 +150,8 @@ int main()
         clock_t cvm_end = clock();
         std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
         std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
-//        TVMArrayCopyFromTo(gpu_y, y2, stream1);
-        //TVMArrayFree(y_cpu);
+//        CVMArrayCopyFromTo(gpu_y, y2, stream1);
+        //CVMArrayFree(y_cpu);
         for(int i = 0; i < 10; i++){
             std::cout << static_cast<int32_t*>(y2->data)[i] << " ";
         }
@@ -168,12 +168,12 @@ int main()
 
         }
         std::cout << "\npass\n";
-//        TVMArrayFree(x);
-//        TVMArrayFree(gpu_x);
-//        TVMArrayFree(gpu_y);
-        //    TVMArrayFree(t_gpu_x);
-        //    TVMArrayFree(t_gpu_y);
-//        TVMArrayFree(y2);
+//        CVMArrayFree(x);
+//        CVMArrayFree(gpu_x);
+//        CVMArrayFree(gpu_y);
+        //    CVMArrayFree(t_gpu_x);
+        //    CVMArrayFree(t_gpu_y);
+//        CVMArrayFree(y2);
 
     }
     return 0;
