@@ -1,4 +1,4 @@
-#include <dlpack/dlpack.h>
+#include <cvm/dlpack.h>
 #include <cvm/runtime/module.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/packed_func.h>
@@ -80,8 +80,7 @@ int main()
         CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
         auto x_iter = static_cast<int*>(x->data);
         for (auto i = 0; i < 1*3*224*224; i++) {
-	    if(i < 100)
-//            std::cout << (int)((int8_t)tdata[i]) << " ";
+        //    std::cout << (int)((int8_t)tdata[i]) << " ";
         //    if(i != 0 && i %28 == 0) std::cout << std::endl;
             x_iter[i] = (int)((int8_t)tdata[i]);
         }
@@ -130,7 +129,7 @@ int main()
 
         std::ifstream json_in("/tmp/inception_v3/symbol.json", std::ios::in);
         std::string json_data((std::istreambuf_iterator<char>(json_in)), std::istreambuf_iterator<char>());
- //       json_in.close();
+        json_in.close();
 
 //        DLTensor* gpu_x, *gpu_y;
 //        CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);

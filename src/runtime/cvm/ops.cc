@@ -368,36 +368,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
         }
     }
 
-	FILE *fp = fopen("/tmp/zkh/conv_in.txt", "a+");
-	fprintf(fp, "data:\n");
-	if(fp == NULL) std::cout << "open file failed\n";
-	for(int i = 0; i < 100; i++){
-		fprintf(fp, "%d ", x_data[i]);
-	}
-	fprintf(fp, "\nweight:\n");
-	for(int i = 0; i < 100; i++){
-		fprintf(fp, "%d ", w_data[i]);
-	}
-	fprintf(fp, "\nbias:\n");
-	for(int i = 0; b_data != nullptr && i < 10 && i < out_channels; i++){
-		fprintf(fp, "%d ", b_data[i]);
-	}
-	fprintf(fp, "\n");
-	FILE *fpo = fopen("/tmp/zkh/conv_out.txt", "a+");
-	if(fpo == NULL) std::cout << "open file failed\n";
-	int32_t max = (int32_t)1 << 31;
-	int32_t min = 1 << 30;
-	for(int i = 0; i < getSize(y); i++){
-		max = max < y_data[i] ? y_data[i] : max;
-		min = min > y_data[i] ? y_data[i] : min;
-	}	
-	fprintf(fpo, "out: %d %d\n", max, min);
-	for(int i = 0; i < 100; i++){
-		fprintf(fpo, "%d ", y_data[i]);
-	}
-	fprintf(fpo, "\n");
-	fclose(fp);
-	fclose(fpo);
 //    std::cout << o_h << " " << o_w << " (" << filter_h << "," << " " << filter_w << ")"
 //              << in_channels << " " << out_channels << " "
 //              << (clock() - time_start + .0) / CLOCKS_PER_SEC << "\n";
@@ -449,7 +419,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] + b[b_index];
@@ -625,29 +595,29 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.sum")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
-	DLTensor *x = args[0];
-	DLTensor *y = args[1];
-	std::string axis_str = args[2];
-	int axis[2] = {0};
-	parseToIntPair(axis_str, axis);
+		DLTensor *x = args[0];
+		DLTensor *y = args[1];
+		std::string axis_str = args[2];
+		int axis[2] = {0};
+		parseToIntPair(axis_str, axis);
 
-	int32_t *x_data = static_cast<int32_t*>(x->data);
-	int32_t *y_data = static_cast<int32_t*>(y->data);
-	int n_batch = static_cast<int>(x->shape[0]);
-	int channels = static_cast<int>(x->shape[1]);
-	int x_h = static_cast<int>(x->shape[2]);
-	int x_w = static_cast<int>(x->shape[3]);
-	for(int i = 0; i < n_batch; i++){
-	for(int j = 0; j < channels; j++){
-	int32_t sum = 0;
-	for(int h = 0; h < x_h; h++){
-		for(int w = 0; w < x_w; w++){
-		sum += x_data[i * channels * x_h * x_w + j * x_h * x_w + h * x_w + w];
+		int32_t *x_data = static_cast<int32_t*>(x->data);
+		int32_t *y_data = static_cast<int32_t*>(y->data);
+		int n_batch = static_cast<int>(x->shape[0]);
+		int channels = static_cast<int>(x->shape[1]);
+		int x_h = static_cast<int>(x->shape[2]);
+		int x_w = static_cast<int>(x->shape[3]);
+		for(int i = 0; i < n_batch; i++){
+			for(int j = 0; j < channels; j++){
+				int32_t sum = 0;
+				for(int h = 0; h < x_h; h++){
+					for(int w = 0; w < x_w; w++){
+						sum += x_data[i * channels * x_h * x_w + j * x_h * x_w + h * x_w + w];
+					}
+				}
+				y_data[i*channels + j] = sum;
+			}
 		}
-	}
-	y_data[i*channels + j] = sum;
-	}
-	}
     });
 
 
@@ -760,7 +730,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
             }
         }
     });
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.log")
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.log2")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 2);
 //        std::string x_str = args[0];
@@ -848,6 +818,15 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
         if(axis < 0) axis += ndim;
         CHECK(axis < input0->ndim) << "axis out of bounds.";
 
+ //       std::cout << "call concatenate: " << args.num_args << " " << axis  << " " << input0->shape[1] << " " << out->shape[1]<< std::endl;
+ //       for(int i = 0; i < args.num_args-1; i++){
+ //           DLTensor* dl = args[i];
+ //           for(int j = 0; j < dl->ndim; j++){
+ //               std::cout << dl->shape[j] << " ";
+ //           }
+ //           std::cout << std::endl;
+ //       }
+
         int32_t *out_data = static_cast<int32_t*>(out->data);
         int tmpi = 0;
         for(int i = 0; i < getSize(out); i++){
@@ -880,7 +859,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
 });
 
 /*********************************cuda op*********************************************/
-//#ifdef CVM_RUNTIME_CUDA
+#ifdef CVM_RUNTIME_CUDA
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_add")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     CHECK(args.num_args == 3);
@@ -974,7 +953,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cuda_max_pool2d")
     .set_body([](CVMArgs args, CVMRetValue *ret){
-	CHECK(args.num_args == 6);
+    CHECK(args.num_args == 6);
 	DLTensor *x = args[0];
 	DLTensor *y = args[1];
 	std::string strides_str = args[2];
@@ -1094,11 +1073,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_add")
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
 
-        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0),
-                args0->shape, args0->ndim,
-                args1->shape, args1->ndim,
-                args2->shape, args2->ndim,
-                DEBUG_OP);
+        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0), DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
 
@@ -1220,7 +1195,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max_pool2d")
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.sum")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
-	DLTensor *x = args[0];
+		DLTensor *x = args[0];
 		DLTensor *y = args[1];
 		std::string axis_str = args[2];
 		int axis[2] = {0};
@@ -1322,7 +1297,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_left_shift")
                 DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.log")
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.log2")
     .set_body([](CVMArgs args, CVMRetValue *ret){
 //        std::string x_str = args[0];
         CHECK(args.num_args == 2);
@@ -1370,7 +1345,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
                 DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
-//#endif // end of CVM_RUNTIME_CUDA
+#endif // end of CVM_RUNTIME_CUDA
 }
 }
 

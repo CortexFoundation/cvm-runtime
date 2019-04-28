@@ -722,33 +722,6 @@ src/runtime/file_util.cc.s:
 	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/file_util.cc.s
 .PHONY : src/runtime/file_util.cc.s
 
-src/runtime/graph/graph_runtime.o: src/runtime/graph/graph_runtime.cc.o
-
-.PHONY : src/runtime/graph/graph_runtime.o
-
-# target to build an object file
-src/runtime/graph/graph_runtime.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/graph/graph_runtime.cc.o
-.PHONY : src/runtime/graph/graph_runtime.cc.o
-
-src/runtime/graph/graph_runtime.i: src/runtime/graph/graph_runtime.cc.i
-
-.PHONY : src/runtime/graph/graph_runtime.i
-
-# target to preprocess a source file
-src/runtime/graph/graph_runtime.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/graph/graph_runtime.cc.i
-.PHONY : src/runtime/graph/graph_runtime.cc.i
-
-src/runtime/graph/graph_runtime.s: src/runtime/graph/graph_runtime.cc.s
-
-.PHONY : src/runtime/graph/graph_runtime.s
-
-# target to generate assembly for a file
-src/runtime/graph/graph_runtime.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/graph/graph_runtime.cc.s
-.PHONY : src/runtime/graph/graph_runtime.cc.s
-
 src/runtime/module.o: src/runtime/module.cc.o
 
 .PHONY : src/runtime/module.o
@@ -1201,9 +1174,6 @@ help:
 	@echo "... src/runtime/file_util.o"
 	@echo "... src/runtime/file_util.i"
 	@echo "... src/runtime/file_util.s"
-	@echo "... src/runtime/graph/graph_runtime.o"
-	@echo "... src/runtime/graph/graph_runtime.i"
-	@echo "... src/runtime/graph/graph_runtime.s"
 	@echo "... src/runtime/module.o"
 	@echo "... src/runtime/module.i"
 	@echo "... src/runtime/module.s"
