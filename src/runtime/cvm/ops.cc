@@ -291,7 +291,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
                     }
                 }
             }
-        } else if (filter_w == 30) {
+        } else if (filter_w == 300) {
             std::vector<int32_t> y_sum(in_channels * o_h * o_w, 0);
 //            std::cout << "buff " << y_sum.size() << "\n";
             for (int n = 0; n < n_batch; ++n) {
