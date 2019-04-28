@@ -120,12 +120,12 @@ class NDArray {
    * \param stream The input data stream
    * \return Whether load is successful
    */
-  inline bool Load(dmlc::Stream* stream);
+  inline bool Load(utils::Stream* stream);
   /*!
    * \brief Save NDArray to stream
    * \param stream The output data stream
    */
-  inline void Save(dmlc::Stream* stream) const;
+  inline void Save(utils::Stream* stream) const;
   /*!
    * \brief Create a NDArray that shares the data memory with the current one.
    * \param shape The shape of the new array.
@@ -207,7 +207,7 @@ struct array_type_info<NDArray> {
  * \param strm The outpu stream
  * \param tensor The tensor to be saved.
  */
-inline bool SaveDLTensor(dmlc::Stream* strm, const DLTensor* tensor);
+inline bool SaveDLTensor(utils::Stream* strm, const DLTensor* tensor);
 
 /*!
  * \brief Reference counted Container object used to back NDArray.
@@ -374,7 +374,7 @@ inline const DLTensor* NDArray::operator->() const {
 /*! \brief Magic number for NDArray file */
 constexpr uint64_t kCVMNDArrayMagic = 0xDD5E40F096B4A13F;
 
-inline bool SaveDLTensor(dmlc::Stream* strm,
+inline bool SaveDLTensor(utils::Stream* strm,
                          DLTensor* tensor) {
   uint64_t header = kCVMNDArrayMagic, reserved = 0;
   strm->Write(header);
@@ -404,7 +404,7 @@ inline bool SaveDLTensor(dmlc::Stream* strm,
   int64_t data_byte_size = type_bytes * num_elems;
   strm->Write(data_byte_size);
 
-  if (DMLC_IO_NO_ENDIAN_SWAP &&
+  if (CVMUTIL_IO_NO_ENDIAN_SWAP &&
       tensor->ctx.device_type == kDLCPU &&
       tensor->strides == nullptr &&
       tensor->byte_offset == 0) {
@@ -413,21 +413,21 @@ inline bool SaveDLTensor(dmlc::Stream* strm,
   } else {
     std::vector<uint8_t> bytes(data_byte_size);
     CHECK_EQ(CVMArrayCopyToBytes(
-        tensor, dmlc::BeginPtr(bytes), data_byte_size), 0)
+        tensor, utils::BeginPtr(bytes), data_byte_size), 0)
         << CVMGetLastError();
-    if (!DMLC_IO_NO_ENDIAN_SWAP) {
-      dmlc::ByteSwap(dmlc::BeginPtr(bytes), type_bytes, num_elems);
+    if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
+      utils::ByteSwap(utils::BeginPtr(bytes), type_bytes, num_elems);
     }
-    strm->Write(dmlc::BeginPtr(bytes), data_byte_size);
+    strm->Write(utils::BeginPtr(bytes), data_byte_size);
   }
   return true;
 }
 
-inline void NDArray::Save(dmlc::Stream* strm) const {
+inline void NDArray::Save(utils::Stream* strm) const {
   SaveDLTensor(strm, const_cast<DLTensor*>(operator->()));
 }
 
-inline bool NDArray::Load(dmlc::Stream* strm) {
+inline bool NDArray::Load(utils::Stream* strm) {
   uint64_t header, reserved;
   CHECK(strm->Read(&header))
       << "Invalid DLTensor file format";
@@ -464,8 +464,8 @@ inline bool NDArray::Load(dmlc::Stream* strm) {
       << "Invalid DLTensor file format";
   CHECK(strm->Read(ret->data, data_byte_size))
       << "Invalid DLTensor file format";
-  if (!DMLC_IO_NO_ENDIAN_SWAP) {
-    dmlc::ByteSwap(ret->data, elem_bytes, num_elems);
+  if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
+    utils::ByteSwap(ret->data, elem_bytes, num_elems);
   }
   *this = ret;
   return true;

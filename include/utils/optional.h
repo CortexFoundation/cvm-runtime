@@ -3,8 +3,8 @@
  * \file optional.h
  * \brief Container to hold optional data.
  */
-#ifndef DMLC_OPTIONAL_H_
-#define DMLC_OPTIONAL_H_
+#ifndef CVMUTIL_OPTIONAL_H_
+#define CVMUTIL_OPTIONAL_H_
 
 #include <iostream>
 #include <string>
@@ -16,7 +16,7 @@
 #include "./logging.h"
 #include "./type_traits.h"
 
-namespace dmlc {
+namespace utils {
 
 /*! \brief dummy type for assign null to optional */
 struct nullopt_t {
@@ -127,7 +127,7 @@ class optional {
 /*! \brief serialize an optional object to string.
  *
  *  \code
- *    dmlc::optional<int> x;
+ *    utils::optional<int> x;
  *    std::cout << x;  // None
  *    x = 0;
  *    std::cout << x;  // 0
@@ -150,7 +150,7 @@ std::ostream &operator<<(std::ostream &os, const optional<T> &t) {
 /*! \brief parse a string object into optional<T>
  *
  *  \code
- *    dmlc::optional<int> x;
+ *    utils::optional<int> x;
  *    std::string s1 = "1";
  *    std::istringstream is1(s1);
  *    s1 >> x;  // x == optional<int>(1)
@@ -188,7 +188,7 @@ std::istream &operator>>(std::istream &is, optional<T> &t) {
  * FieldEntry<optional<bool>> without explicit specialization.
  *
  *  \code
- *    dmlc::optional<bool> x;
+ *    utils::optional<bool> x;
  *    std::string s1 = "true";
  *    std::istringstream is1(s1);
  *    s1 >> x;  // x == optional<bool>(true)
@@ -228,34 +228,34 @@ inline std::istream &operator>>(std::istream &is, optional<bool> &t) {
 }
 
 /*! \brief description for optional int */
-DMLC_DECLARE_TYPE_NAME(optional<int>, "int or None");
+CVMUTIL_DECLARE_TYPE_NAME(optional<int>, "int or None");
 /*! \brief description for optional bool */
-DMLC_DECLARE_TYPE_NAME(optional<bool>, "boolean or None");
+CVMUTIL_DECLARE_TYPE_NAME(optional<bool>, "boolean or None");
 /*! \brief description for optional float */
-DMLC_DECLARE_TYPE_NAME(optional<float>, "float or None");
+CVMUTIL_DECLARE_TYPE_NAME(optional<float>, "float or None");
 /*! \brief description for optional double */
-DMLC_DECLARE_TYPE_NAME(optional<double>, "double or None");
+CVMUTIL_DECLARE_TYPE_NAME(optional<double>, "double or None");
 
-}  // namespace dmlc
+}  // namespace utils
 
 namespace std {
 /*! \brief std hash function for optional */
 template<typename T>
-struct hash<dmlc::optional<T> > {
+struct hash<utils::optional<T> > {
   /*!
    * \brief returns hash of the optional value.
    * \param val value.
    * \return hash code.
    */
-  size_t operator()(const dmlc::optional<T>& val) const {
+  size_t operator()(const utils::optional<T>& val) const {
     std::hash<bool> hash_bool;
     size_t res = hash_bool(val.has_value());
     if (val.has_value()) {
-      res = dmlc::HashCombine(res, val.value());
+      res = utils::HashCombine(res, val.value());
     }
     return res;
   }
 };
 }  // namespace std
 
-#endif  // DMLC_OPTIONAL_H_
+#endif  // CVMUTIL_OPTIONAL_H_

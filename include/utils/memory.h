@@ -3,15 +3,15 @@
  * \file memory.h
  * \brief Additional memory hanlding utilities.
  */
-#ifndef DMLC_MEMORY_H_
-#define DMLC_MEMORY_H_
+#ifndef CVMUTIL_MEMORY_H_
+#define CVMUTIL_MEMORY_H_
 
 #include <vector>
 #include "./base.h"
 #include "./logging.h"
 #include "./thread_local.h"
 
-namespace dmlc {
+namespace utils {
 
 /*!
  * \brief A memory pool that allocate memory of fixed size and alignment.
@@ -256,6 +256,6 @@ struct ThreadlocalSharedPtr {
   RefBlock *block_;
 };
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_MEMORY_H_
+#endif  // CVMUTIL_MEMORY_H_

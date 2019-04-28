@@ -47,7 +47,7 @@
 
 
 // CVM Runtime is DLPack compatible.
-#include <dlpack/dlpack.h>
+#include <cvm/dlpack.h>
 
 #ifdef __cplusplus
 extern "C" {

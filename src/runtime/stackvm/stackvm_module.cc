@@ -4,7 +4,7 @@
  */
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/module.h>
-#include <dmlc/memory_io.h>
+#include <utils/memory_io.h>
 #include <memory>
 #include <utility>
 #include <unordered_map>
@@ -48,8 +48,8 @@ class StackVMModuleNode : public runtime::ModuleNode {
   void SaveToFile(const std::string& file_name,
                   const std::string& format) final {
     std::string data, mblob;
-    dmlc::MemoryStringStream writer(&data);
-    dmlc::Stream* strm = &writer;
+    utils::MemoryStringStream writer(&data);
+    utils::Stream* strm = &writer;
     strm->Write(fmap_);
     strm->Write(entry_func_);
     // also save imports
@@ -77,7 +77,7 @@ class StackVMModuleNode : public runtime::ModuleNode {
     return Module(n);
   }
 
-  static Module Load(dmlc::Stream* strm) {
+  static Module Load(utils::Stream* strm) {
     std::unordered_map<std::string, StackVM> fmap;
     std::string entry_func, data;
     strm->Read(&fmap);
@@ -106,7 +106,7 @@ class StackVMModuleNode : public runtime::ModuleNode {
                              std::string format) {
     std::string data;
     LoadBinaryFromFile(file_name, &data);
-    dmlc::MemoryStringStream reader(&data);
+    utils::MemoryStringStream reader(&data);
     return Load(&reader);
   }
 

@@ -5,14 +5,14 @@
  *   format, useful to exchange data in binary serialization,
  *   such as binary raw data or protobuf
  */
-#ifndef DMLC_RECORDIO_H_
-#define DMLC_RECORDIO_H_
+#ifndef CVMUTIL_RECORDIO_H_
+#define CVMUTIL_RECORDIO_H_
 #include <cstring>
 #include <string>
 #include "./io.h"
 #include "./logging.h"
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief writer of binary recordio
  *  binary format for recordio
@@ -192,5 +192,5 @@ class RecordIOChunkReader {
   char *pbegin_, *pend_;
 };
 
-}  // namespace dmlc
-#endif  // DMLC_RECORDIO_H_
+}  // namespace utils
+#endif  // CVMUTIL_RECORDIO_H_

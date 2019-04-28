@@ -32,7 +32,7 @@ class OpenGLModuleNode final : public ModuleNode {
   void SaveToFile(const std::string& file_name,
                   const std::string& format) final;
 
-  void SaveToBinary(dmlc::Stream* stream) final;
+  void SaveToBinary(utils::Stream* stream) final;
 
   const gl::Program& GetProgram(const std::string& func_name) const;
 
@@ -137,7 +137,7 @@ void OpenGLModuleNode::SaveToFile(const std::string& file_name,
   SaveBinaryToFile(file_name, ToJSON(shaders_));
 }
 
-void OpenGLModuleNode::SaveToBinary(dmlc::Stream* stream) {
+void OpenGLModuleNode::SaveToBinary(utils::Stream* stream) {
   stream->Write(fmt_);
   stream->Write(fmap_);
   stream->Write(ToJSON(shaders_));
@@ -250,7 +250,7 @@ Module OpenGLModuleLoadFile(const std::string& file_name,
 }
 
 Module OpenGLModuleLoadBinary(void* strm) {
-  auto stream = static_cast<dmlc::Stream*>(strm);
+  auto stream = static_cast<utils::Stream*>(strm);
   std::string data;
   std::unordered_map<std::string, FunctionInfo> fmap;
   std::string fmt;

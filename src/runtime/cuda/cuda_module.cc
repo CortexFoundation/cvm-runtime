@@ -68,7 +68,7 @@ class CUDAModuleNode : public runtime::ModuleNode {
     }
   }
 
-  void SaveToBinary(dmlc::Stream* stream) final {
+  void SaveToBinary(utils::Stream* stream) final {
     stream->Write(fmt_);
     stream->Write(fmap_);
     stream->Write(data_);
@@ -278,7 +278,7 @@ Module CUDAModuleLoadFile(const std::string& file_name,
 }
 
 Module CUDAModuleLoadBinary(void* strm) {
-  dmlc::Stream* stream = static_cast<dmlc::Stream*>(strm);
+  utils::Stream* stream = static_cast<utils::Stream*>(strm);
   std::string data;
   std::unordered_map<std::string, FunctionInfo> fmap;
   std::string fmt;

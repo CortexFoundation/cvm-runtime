@@ -3,8 +3,8 @@
  * \file registry.h
  * \brief Registry utility that helps to build registry singletons.
  */
-#ifndef DMLC_REGISTRY_H_
-#define DMLC_REGISTRY_H_
+#ifndef CVMUTIL_REGISTRY_H_
+#define CVMUTIL_REGISTRY_H_
 
 #include <map>
 #include <string>
@@ -14,7 +14,7 @@
 #include "./parameter.h"
 #include "./type_traits.h"
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief Registry class.
  *  Registry can be used to register global singletons.
@@ -99,7 +99,7 @@ class Registry {
   }
   /*!
    * \brief get a singleton of the Registry.
-   *  This function can be defined by DMLC_REGISTRY_ENABLE.
+   *  This function can be defined by CVMUTIL_REGISTRY_ENABLE.
    * \return get a singleton
    */
   static Registry *Get();
@@ -131,11 +131,11 @@ class Registry {
  *  };
  *
  *  // in a independent cc file
- *  namespace dmlc {
- *  DMLC_REGISTRY_ENABLE(TreeFactory);
+ *  namespace utils {
+ *  CVMUTIL_REGISTRY_ENABLE(TreeFactory);
  *  }
  *  // register binary tree constructor into the registry.
- *  DMLC_REGISTRY_REGISTER(TreeFactory, TreeFactory, BinaryTree)
+ *  CVMUTIL_REGISTRY_REGISTER(TreeFactory, TreeFactory, BinaryTree)
  *      .describe("Constructor of BinaryTree")
  *      .set_body([]() { return new BinaryTree(); });
  * \endcode
@@ -222,12 +222,12 @@ class FunctionRegEntryBase {
 };
 
 /*!
- * \def DMLC_REGISTRY_ENABLE
+ * \def CVMUTIL_REGISTRY_ENABLE
  * \brief Macro to enable the registry of EntryType.
- * This macro must be used under namespace dmlc, and only used once in cc file.
+ * This macro must be used under namespace utils, and only used once in cc file.
  * \param EntryType Type of registry entry
  */
-#define DMLC_REGISTRY_ENABLE(EntryType)                                 \
+#define CVMUTIL_REGISTRY_ENABLE(EntryType)                                 \
   template<>                                                            \
   Registry<EntryType > *Registry<EntryType >::Get() {                   \
     static Registry<EntryType > inst;                                   \
@@ -243,9 +243,9 @@ class FunctionRegEntryBase {
  * \param Name The name to be registered.
  * \sa FactoryRegistryEntryBase
  */
-#define DMLC_REGISTRY_REGISTER(EntryType, EntryTypeName, Name)          \
-  static DMLC_ATTRIBUTE_UNUSED EntryType & __make_ ## EntryTypeName ## _ ## Name ## __ = \
-      ::dmlc::Registry<EntryType>::Get()->__REGISTER__(#Name)           \
+#define CVMUTIL_REGISTRY_REGISTER(EntryType, EntryTypeName, Name)          \
+  static CVMUTIL_ATTRIBUTE_UNUSED EntryType & __make_ ## EntryTypeName ## _ ## Name ## __ = \
+      ::utils::Registry<EntryType>::Get()->__REGISTER__(#Name)           \
 
 /*!
  * \brief (Optional) Declare a file tag to current file that contains object registrations.
@@ -254,18 +254,18 @@ class FunctionRegEntryBase {
  *  incur a link dependency.
  *
  * \param UniqueTag The unique tag used to represent.
- * \sa DMLC_REGISTRY_LINK_TAG
+ * \sa CVMUTIL_REGISTRY_LINK_TAG
  */
-#define DMLC_REGISTRY_FILE_TAG(UniqueTag)                                \
-  int __dmlc_registry_file_tag_ ## UniqueTag ## __() { return 0; }
+#define CVMUTIL_REGISTRY_FILE_TAG(UniqueTag)                                \
+  int __utils_registry_file_tag_ ## UniqueTag ## __() { return 0; }
 
 /*!
  * \brief (Optional) Force link to all the objects registered in file tag.
  *
- *  This macro must be used in the same file as DMLC_REGISTRY_ENABLE and
- *  in the same namespace as DMLC_REGISTRY_FILE_TAG
+ *  This macro must be used in the same file as CVMUTIL_REGISTRY_ENABLE and
+ *  in the same namespace as CVMUTIL_REGISTRY_FILE_TAG
  *
- *  DMLC_REGISTRY_FILE_TAG and DMLC_REGISTRY_LINK_TAG are optional macros for registration.
+ *  CVMUTIL_REGISTRY_FILE_TAG and CVMUTIL_REGISTRY_LINK_TAG are optional macros for registration.
  *  They are used to encforce link of certain file into during static linking.
  *
  *  This is mainly used to solve problem during statically link a library which contains backward registration.
@@ -278,29 +278,29 @@ class FunctionRegEntryBase {
  *
  * \begincode
  * // in file objective_registry.cc
- * DMLC_REGISTRY_ENABLE(MyObjective);
- * DMLC_REGISTRY_LINK_TAG(regression_op);
- * DMLC_REGISTRY_LINK_TAG(rank_op);
+ * CVMUTIL_REGISTRY_ENABLE(MyObjective);
+ * CVMUTIL_REGISTRY_LINK_TAG(regression_op);
+ * CVMUTIL_REGISTRY_LINK_TAG(rank_op);
  *
  * // in file regression_op.cc
  * // declare tag of this file.
- * DMLC_REGISTRY_FILE_TAG(regression_op);
- * DMLC_REGISTRY_REGISTER(MyObjective, logistic_reg, logistic_reg);
+ * CVMUTIL_REGISTRY_FILE_TAG(regression_op);
+ * CVMUTIL_REGISTRY_REGISTER(MyObjective, logistic_reg, logistic_reg);
  * // ...
  *
  * // in file rank_op.cc
  * // declare tag of this file.
- * DMLC_REGISTRY_FILE_TAG(rank_op);
- * DMLC_REGISTRY_REGISTER(MyObjective, pairwiserank, pairwiserank);
+ * CVMUTIL_REGISTRY_FILE_TAG(rank_op);
+ * CVMUTIL_REGISTRY_REGISTER(MyObjective, pairwiserank, pairwiserank);
  *
  * \endcode
  *
  * \param UniqueTag The unique tag used to represent.
- * \sa DMLC_REGISTRY_ENABLE, DMLC_REGISTRY_FILE_TAG
+ * \sa CVMUTIL_REGISTRY_ENABLE, CVMUTIL_REGISTRY_FILE_TAG
  */
-#define DMLC_REGISTRY_LINK_TAG(UniqueTag)                                \
-  int __dmlc_registry_file_tag_ ## UniqueTag ## __();                   \
-  static int DMLC_ATTRIBUTE_UNUSED __reg_file_tag_ ## UniqueTag ## __ = \
-      __dmlc_registry_file_tag_ ## UniqueTag ## __();
-}  // namespace dmlc
-#endif  // DMLC_REGISTRY_H_
+#define CVMUTIL_REGISTRY_LINK_TAG(UniqueTag)                                \
+  int __utils_registry_file_tag_ ## UniqueTag ## __();                   \
+  static int CVMUTIL_ATTRIBUTE_UNUSED __reg_file_tag_ ## UniqueTag ## __ = \
+      __utils_registry_file_tag_ ## UniqueTag ## __();
+}  // namespace utils
+#endif  // CVMUTIL_REGISTRY_H_

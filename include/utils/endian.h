@@ -3,34 +3,34 @@
  * \file endian.h
  * \brief Endian testing, need c++11
  */
-#ifndef DMLC_ENDIAN_H_
-#define DMLC_ENDIAN_H_
+#ifndef CVMUTIL_ENDIAN_H_
+#define CVMUTIL_ENDIAN_H_
 
 #include "./base.h"
 
-#ifdef DMLC_CMAKE_LITTLE_ENDIAN
+#ifdef CVMUTIL_CMAKE_LITTLE_ENDIAN
   // If compiled with CMake, use CMake's endian detection logic
-  #define DMLC_LITTLE_ENDIAN DMLC_CMAKE_LITTLE_ENDIAN
+  #define CVMUTIL_LITTLE_ENDIAN CVMUTIL_CMAKE_LITTLE_ENDIAN
 #else
   #if defined(__APPLE__) || defined(_WIN32)
-    #define DMLC_LITTLE_ENDIAN 1
+    #define CVMUTIL_LITTLE_ENDIAN 1
   #elif defined(__GLIBC__)
     #include <endian.h>
-    #define DMLC_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
+    #define CVMUTIL_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
   #elif defined(__FreeBSD__)
     #include <sys/endian.h>
-    #define DMLC_LITTLE_ENDIAN (_BYTE_ORDER == _LITTLE_ENDIAN)
+    #define CVMUTIL_LITTLE_ENDIAN (_BYTE_ORDER == _LITTLE_ENDIAN)
   #elif defined(__EMSCRIPTEN__)
-    #define DMLC_LITTLE_ENDIAN 1
+    #define CVMUTIL_LITTLE_ENDIAN 1
   #else
     #error "Unable to determine endianness of your machine; use CMake to compile"
   #endif
 #endif
 
 /*! \brief whether serialize using little endian */
-#define DMLC_IO_NO_ENDIAN_SWAP (DMLC_LITTLE_ENDIAN == DMLC_IO_USE_LITTLE_ENDIAN)
+#define CVMUTIL_IO_NO_ENDIAN_SWAP (CVMUTIL_LITTLE_ENDIAN == CVMUTIL_IO_USE_LITTLE_ENDIAN)
 
-namespace dmlc {
+namespace utils {
 
 /*!
  * \brief A generic inplace byte swapping function.
@@ -51,5 +51,5 @@ inline void ByteSwap(void* data, size_t elem_bytes, size_t num_elems) {
   }
 }
 
-}  // namespace dmlc
-#endif  // DMLC_ENDIAN_H_
+}  // namespace utils
+#endif  // CVMUTIL_ENDIAN_H_

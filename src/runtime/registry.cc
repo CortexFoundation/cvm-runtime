@@ -3,8 +3,8 @@
  * \file registry.cc
  * \brief The global registry of packed function.
  */
-#include <dmlc/logging.h>
-#include <dmlc/thread_local.h>
+#include <utils/logging.h>
+#include <utils/thread_local.h>
 #include <cvm/runtime/registry.h>
 #include <unordered_map>
 #include <mutex>
@@ -121,7 +121,7 @@ struct CVMFuncThreadLocalEntry {
 };
 
 /*! \brief Thread local store that can be used to hold return values. */
-typedef dmlc::ThreadLocalStore<CVMFuncThreadLocalEntry> CVMFuncThreadLocalStore;
+typedef utils::ThreadLocalStore<CVMFuncThreadLocalEntry> CVMFuncThreadLocalStore;
 
 int CVMExtTypeFree(void* handle, int type_code) {
   API_BEGIN();
@@ -158,7 +158,7 @@ int CVMFuncListGlobalNames(int *out_size,
   for (size_t i = 0; i < ret->ret_vec_str.size(); ++i) {
     ret->ret_vec_charp.push_back(ret->ret_vec_str[i].c_str());
   }
-  *out_array = dmlc::BeginPtr(ret->ret_vec_charp);
+  *out_array = utils::BeginPtr(ret->ret_vec_charp);
   *out_size = static_cast<int>(ret->ret_vec_str.size());
   API_END();
 }

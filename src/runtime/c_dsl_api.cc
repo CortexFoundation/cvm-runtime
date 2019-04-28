@@ -14,7 +14,7 @@ namespace runtime {
 DSLAPI* FindDSLAPI() {
   auto* f = Registry::Get("dsl_api.singleton");
   if (f == nullptr) {
-    throw dmlc::Error("CVM runtime only environment,"\
+    throw utils::Error("CVM runtime only environment,"\
                       " DSL API is not available");
   }
   void* ptr = (*f)();

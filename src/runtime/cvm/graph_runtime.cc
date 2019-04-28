@@ -70,7 +70,7 @@ void CvmRuntime::Init(const std::string& graph_json,
 #else
   std::string is = graph_json;
 #endif
-  dmlc::JSONReader reader(&is);
+  utils::JSONReader reader(&is);
   this->Load(&reader);
   module_ = module;
   ctxs_ = ctxs;
@@ -81,7 +81,7 @@ void CvmRuntime::Init(const std::string& graph_json,
 
 int64_t CvmRuntime::GetOps(const std::string& graph_json) {
   std::istringstream is(graph_json);
-  dmlc::JSONReader reader(&is);
+  utils::JSONReader reader(&is);
   this->Load(&reader);
   return this->GetOps();
 }
@@ -166,11 +166,11 @@ void CvmRuntime::CopyOutputTo(int index, DLTensor* data_out) {
  * \param param_blob A binary blob of parameter.
  */
 void CvmRuntime::LoadParams(const std::string& param_blob) {
-  dmlc::MemoryStringStream strm(const_cast<std::string*>(&param_blob));
+  utils::MemoryStringStream strm(const_cast<std::string*>(&param_blob));
   this->LoadParams(&strm);
 }
 
-void CvmRuntime::LoadParams(dmlc::Stream* strm) {
+void CvmRuntime::LoadParams(utils::Stream* strm) {
   uint64_t header, reserved;
   CHECK(strm->Read(&header))
       << "Invalid parameters file format";
@@ -385,7 +385,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   }
   std::stringstream ss; ss << op_attrs;
 // std::cout << "op_attr = " << op_attrs << "\n";
-  dmlc::JSONReader reader(&ss);
+  utils::JSONReader reader(&ss);
   std::string kv;
   reader.BeginObject();
 // std::cout << param.func_name << std::endl;

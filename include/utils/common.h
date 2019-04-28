@@ -3,8 +3,8 @@
  * \file common.h
  * \brief defines some common utility function.
  */
-#ifndef DMLC_COMMON_H_
-#define DMLC_COMMON_H_
+#ifndef CVMUTIL_COMMON_H_
+#define CVMUTIL_COMMON_H_
 
 #include <vector>
 #include <string>
@@ -12,7 +12,7 @@
 #include <mutex>
 #include "./logging.h"
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief Split a string by delimiter
  * \param s String to be splitted.
@@ -64,7 +64,7 @@ class OMPException {
   void Run(Function f, Parameters... params) {
     try {
       f(params...);
-    } catch (dmlc::Error &ex) {
+    } catch (utils::Error &ex) {
       std::lock_guard<std::mutex> lock(mutex_);
       if (!omp_exception_) {
         omp_exception_ = std::current_exception();
@@ -80,6 +80,6 @@ class OMPException {
   }
 };
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_COMMON_H_
+#endif  // CVMUTIL_COMMON_H_

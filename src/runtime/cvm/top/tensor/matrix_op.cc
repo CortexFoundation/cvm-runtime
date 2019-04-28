@@ -12,7 +12,7 @@
 namespace cvm {
 namespace top {
 
-DMLC_REGISTER_PARAMETER(MatMulParam);
+CVMUTIL_REGISTER_PARAMETER(MatMulParam);
 
 inline bool DotShape(const cvm::NodeAttrs& attrs,
                      std::vector<TShape> *in_attrs,

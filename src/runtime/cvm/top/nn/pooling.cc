@@ -15,7 +15,7 @@
 namespace cvm {
 namespace top {
 
-DMLC_REGISTER_PARAMETER(MaxPool2DParam);
+CVMUTIL_REGISTER_PARAMETER(MaxPool2DParam);
 
 template <typename T>
 inline bool Pool2DInferShape(const cvm::NodeAttrs& attrs,
@@ -144,7 +144,7 @@ CVM_REGISTER_OP(max_pool2d)
 .set_attr<FCorrectLayout>("FCorrectLayout", Pool2DCorrectLayout<MaxPool2DParam>)
 .set_support_level(2);
 
-DMLC_REGISTER_PARAMETER(GlobalPool2DParam);
+CVMUTIL_REGISTER_PARAMETER(GlobalPool2DParam);
 
 inline bool GlobalPool2DInferShape(const cvm::NodeAttrs& attrs,
                                    std::vector<TShape>* in_shape,

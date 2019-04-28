@@ -16,7 +16,7 @@ namespace top {
 
 
 // reduce
-DMLC_REGISTER_PARAMETER(ReduceParam);
+CVMUTIL_REGISTER_PARAMETER(ReduceParam);
 
 inline TShape GetReduceAxes(const uint32_t indim,
                             const TShape& axis,

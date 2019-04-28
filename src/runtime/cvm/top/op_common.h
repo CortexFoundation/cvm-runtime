@@ -6,8 +6,8 @@
 #ifndef CVM_TOP_OP_COMMON_H_
 #define CVM_TOP_OP_COMMON_H_
 
-#include <dmlc/logging.h>
-#include <dmlc/parameter.h>
+#include <utils/logging.h>
+#include <utils/parameter.h>
 #include <cvm/top/tensor.h>
 #include <cvm/node.h>
 #include <cvm/op_attr_types.h>
@@ -29,7 +29,7 @@ inline void ParamParser(cvm::NodeAttrs* attrs) {
   PType param;
   try {
     param.Init(attrs->dict);
-  } catch (const dmlc::ParamError& e) {
+  } catch (const utils::ParamError& e) {
     std::ostringstream os;
     os << e.what();
     os << ", in operator " << attrs->op->name << "("
@@ -38,7 +38,7 @@ inline void ParamParser(cvm::NodeAttrs* attrs) {
       os << ", " << k.first << "=\"" << k.second << "\"";
     }
     os << ")";
-    throw dmlc::ParamError(os.str());
+    throw utils::ParamError(os.str());
   }
   attrs->parsed = std::move(param);
 }
@@ -255,7 +255,7 @@ template<typename PType>
 inline bool ZeroShape(const NodeAttrs& attrs,
                       std::vector<TShape> *ishape,
                       std::vector<TShape> *oshape) {
-  const TShape& ts = dmlc::get<PType>(attrs.parsed).shape;
+  const TShape& ts = utils::get<PType>(attrs.parsed).shape;
   if (ts.ndim() != 0) {
     SHAPE_ASSIGN(oshape->at(0), ts);
     return true;
@@ -289,7 +289,7 @@ template<typename PType>
 inline bool ZeroType(const NodeAttrs& attrs,
                      std::vector<int> *iattr,
                      std::vector<int> *oattr) {
-  int dtype = dmlc::get<PType>(attrs.parsed).dtype;
+  int dtype = utils::get<PType>(attrs.parsed).dtype;
   DTYPE_ASSIGN(oattr->at(0), dtype);
   return true;
 }

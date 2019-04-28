@@ -3,15 +3,15 @@
  * \file thread_local.h
  * \brief Portable thread local storage.
  */
-#ifndef DMLC_THREAD_LOCAL_H_
-#define DMLC_THREAD_LOCAL_H_
+#ifndef CVMUTIL_THREAD_LOCAL_H_
+#define CVMUTIL_THREAD_LOCAL_H_
 
 #include <mutex>
 #include <memory>
 #include <vector>
 #include "./base.h"
 
-namespace dmlc {
+namespace utils {
 
 // macro hanlding for threadlocal variables
 #ifdef __GNUC__
@@ -22,7 +22,7 @@ namespace dmlc {
   #define MX_THREAD_LOCAL __declspec(thread)
 #endif
 
-#if DMLC_CXX11_THREAD_LOCAL == 0
+#if CVMUTIL_CXX11_THREAD_LOCAL == 0
 #pragma message("Warning: CXX11 thread_local is not formally supported")
 #endif
 
@@ -36,7 +36,7 @@ class ThreadLocalStore {
  public:
   /*! \return get a thread local singleton */
   static T* Get() {
-#if DMLC_CXX11_THREAD_LOCAL
+#if CVMUTIL_CXX11_THREAD_LOCAL
     static thread_local T inst;
     return &inst;
 #else
@@ -78,6 +78,6 @@ class ThreadLocalStore {
   std::vector<T*> data_;
 };
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_THREAD_LOCAL_H_
+#endif  // CVMUTIL_THREAD_LOCAL_H_

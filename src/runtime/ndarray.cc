@@ -3,7 +3,7 @@
  * \file ndarray.cc
  * \brief NDArray container infratructure.
  */
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/device_api.h>
@@ -71,7 +71,7 @@ struct NDArray::Internal {
     // RAII now in effect
     // setup shape
     data->shape_ = std::move(shape);
-    data->dl_tensor.shape = dmlc::BeginPtr(data->shape_);
+    data->dl_tensor.shape = utils::BeginPtr(data->shape_);
     data->dl_tensor.ndim = static_cast<int>(data->shape_.size());
     // setup dtype
     data->dl_tensor.dtype = dtype;

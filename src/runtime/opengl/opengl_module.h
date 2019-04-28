@@ -64,8 +64,8 @@ struct OpenGLShader {
   std::vector<OpenGLArgKind> arg_kinds;  // Matches FunctionInfo.
   std::string thread_extent_var;         // Stores the output length.
 
-  void Save(dmlc::JSONWriter* writer) const;
-  void Load(dmlc::JSONReader* reader);
+  void Save(utils::JSONWriter* writer) const;
+  void Load(utils::JSONReader* reader);
 };
 
 std::string ToJSON(const std::unordered_map<std::string, OpenGLShader>& shaders);
@@ -109,7 +109,7 @@ inline OpenGLArgKind String2OpenGLArgKind(const std::string& str) {
   }
 }
 
-inline void OpenGLShader::Save(dmlc::JSONWriter* writer) const {
+inline void OpenGLShader::Save(utils::JSONWriter* writer) const {
   std::vector<std::string> arg_kind_strs;
   for (auto kind : arg_kinds) {
     arg_kind_strs.push_back(OpenGLArgKind2String(kind));
@@ -123,9 +123,9 @@ inline void OpenGLShader::Save(dmlc::JSONWriter* writer) const {
   writer->EndObject();
 }
 
-inline void OpenGLShader::Load(dmlc::JSONReader* reader) {
+inline void OpenGLShader::Load(utils::JSONReader* reader) {
   std::vector<std::string> arg_kind_strs;
-  dmlc::JSONObjectReadHelper helper;
+  utils::JSONObjectReadHelper helper;
   helper.DeclareField("arg_names", &arg_names);
   helper.DeclareField("arg_kinds", &arg_kind_strs);
   helper.DeclareField("source", &source);
@@ -141,7 +141,7 @@ inline void OpenGLShader::Load(dmlc::JSONReader* reader) {
 inline std::string ToJSON(
     const std::unordered_map<std::string, OpenGLShader>& shaders) {
   std::ostringstream os;
-  dmlc::JSONWriter writer(&os);
+  utils::JSONWriter writer(&os);
   writer.BeginObject();
   writer.WriteObjectKeyValue("shaders", shaders);
   writer.EndObject();
@@ -152,8 +152,8 @@ inline std::unordered_map<std::string, OpenGLShader> FromJSON(
     const std::string& str) {
   std::unordered_map<std::string, OpenGLShader> shaders;
   std::istringstream is(str);
-  dmlc::JSONReader reader(&is);
-  dmlc::JSONObjectReadHelper helper;
+  utils::JSONReader reader(&is);
+  utils::JSONObjectReadHelper helper;
   helper.DeclareField("shaders", &shaders);
   helper.ReadAllFields(&reader);
   return shaders;

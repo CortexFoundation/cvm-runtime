@@ -8,8 +8,8 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/threading_backend.h>
-#include <dmlc/thread_local.h>
-#include <dmlc/logging.h>
+#include <utils/thread_local.h>
+#include <utils/logging.h>
 #include <thread>
 #include <condition_variable>
 #include <mutex>
@@ -95,7 +95,7 @@ class ParallelLauncher {
   }
   // Get thread local version of the store.
   static ParallelLauncher* ThreadLocal() {
-    return dmlc::ThreadLocalStore<ParallelLauncher>::Get();
+    return utils::ThreadLocalStore<ParallelLauncher>::Get();
   }
   // The parallel lambda
   FCVMParallelLambda flambda;
@@ -297,7 +297,7 @@ class ThreadPool {
   }
 
   static ThreadPool* ThreadLocal() {
-    return dmlc::ThreadLocalStore<ThreadPool>::Get();
+    return utils::ThreadLocalStore<ThreadPool>::Get();
   }
 
   void UpdateWorkerConfiguration(threading::ThreadGroup::AffinityMode mode, int nthreads) {

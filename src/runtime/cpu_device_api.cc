@@ -2,8 +2,8 @@
  *  Copyright (c) 2016 by Contributors
  * \file cpu_device_api.cc
  */
-#include <dmlc/logging.h>
-#include <dmlc/thread_local.h>
+#include <utils/logging.h>
+#include <utils/thread_local.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/device_api.h>
 #include <cstdlib>
@@ -86,12 +86,12 @@ struct CPUWorkspacePool : public WorkspacePool {
 void* CPUDeviceAPI::AllocWorkspace(CVMContext ctx,
                                    size_t size,
                                    CVMType type_hint) {
-  return dmlc::ThreadLocalStore<CPUWorkspacePool>::Get()
+  return utils::ThreadLocalStore<CPUWorkspacePool>::Get()
       ->AllocWorkspace(ctx, size);
 }
 
 void CPUDeviceAPI::FreeWorkspace(CVMContext ctx, void* data) {
-  dmlc::ThreadLocalStore<CPUWorkspacePool>::Get()->FreeWorkspace(ctx, data);
+  utils::ThreadLocalStore<CPUWorkspacePool>::Get()->FreeWorkspace(ctx, data);
 }
 
 CVM_REGISTER_GLOBAL("device_api.cpu")

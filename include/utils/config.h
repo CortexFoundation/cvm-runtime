@@ -3,8 +3,8 @@
  * \file config.h
  * \brief defines config parser class
  */
-#ifndef DMLC_CONFIG_H_
-#define DMLC_CONFIG_H_
+#ifndef CVMUTIL_CONFIG_H_
+#define CVMUTIL_CONFIG_H_
 
 #include <cstring>
 #include <iostream>
@@ -15,8 +15,8 @@
 #include <string>
 #include <sstream>
 
-/*! \brief namespace for dmlc */
-namespace dmlc {
+/*! \brief namespace for utils */
+namespace utils {
 
 /*!
  * \brief class for config parser
@@ -181,6 +181,6 @@ void Config::SetParam(const std::string& key, const T& value, bool is_string) {
   Insert(key, oss.str(), is_string);
 }
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_CONFIG_H_
+#endif  // CVMUTIL_CONFIG_H_

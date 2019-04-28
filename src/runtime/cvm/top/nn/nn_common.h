@@ -6,8 +6,8 @@
 #ifndef CVM_TOP_NN_NN_COMMON_H_
 #define CVM_TOP_NN_NN_COMMON_H_
 
-#include <dmlc/logging.h>
-#include <dmlc/parameter.h>
+#include <utils/logging.h>
+#include <utils/parameter.h>
 #include <cvm/layout.h>
 #include <cvm/top/nn.h>
 #include <string>

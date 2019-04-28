@@ -3,103 +3,103 @@
  * \file base.h
  * \brief defines configuration macros
  */
-#ifndef DMLC_BASE_H_
-#define DMLC_BASE_H_
+#ifndef CVMUTIL_BASE_H_
+#define CVMUTIL_BASE_H_
 
 /*! \brief whether use glog for logging */
-#ifndef DMLC_USE_GLOG
-#define DMLC_USE_GLOG 0
+#ifndef CVMUTIL_USE_GLOG
+#define CVMUTIL_USE_GLOG 0
 #endif
 
 /*!
- * \brief whether throw dmlc::Error instead of
+ * \brief whether throw utils::Error instead of
  *  directly calling abort when FATAL error occured
  *  NOTE: this may still not be perfect.
  *  do not use FATAL and CHECK in destructors
  */
-#ifndef DMLC_LOG_FATAL_THROW
-#define DMLC_LOG_FATAL_THROW 1
+#ifndef CVMUTIL_LOG_FATAL_THROW
+#define CVMUTIL_LOG_FATAL_THROW 1
 #endif
 
 /*!
  * \brief whether always log a message before throw
  * This can help identify the error that cannot be catched.
  */
-#ifndef DMLC_LOG_BEFORE_THROW
-#define DMLC_LOG_BEFORE_THROW 0
+#ifndef CVMUTIL_LOG_BEFORE_THROW
+#define CVMUTIL_LOG_BEFORE_THROW 0
 #endif
 
 /*!
  * \brief Whether to use customized logger,
  * whose output can be decided by other libraries.
  */
-#ifndef DMLC_LOG_CUSTOMIZE
-#define DMLC_LOG_CUSTOMIZE 0
+#ifndef CVMUTIL_LOG_CUSTOMIZE
+#define CVMUTIL_LOG_CUSTOMIZE 0
 #endif
 
 /*! \brief whether compile with hdfs support */
-#ifndef DMLC_USE_HDFS
-#define DMLC_USE_HDFS 0
+#ifndef CVMUTIL_USE_HDFS
+#define CVMUTIL_USE_HDFS 0
 #endif
 
 /*! \brief whether compile with s3 support */
-#ifndef DMLC_USE_S3
-#define DMLC_USE_S3 0
+#ifndef CVMUTIL_USE_S3
+#define CVMUTIL_USE_S3 0
 #endif
 
 /*! \brief whether or not use parameter server */
-#ifndef DMLC_USE_PS
-#define DMLC_USE_PS 0
+#ifndef CVMUTIL_USE_PS
+#define CVMUTIL_USE_PS 0
 #endif
 
 /*! \brief whether or not use c++11 support */
-#ifndef DMLC_USE_CXX11
+#ifndef CVMUTIL_USE_CXX11
 #if defined(__GXX_EXPERIMENTAL_CXX0X__) || defined(_MSC_VER)
-#define DMLC_USE_CXX11 1
+#define CVMUTIL_USE_CXX11 1
 #else
-#define DMLC_USE_CXX11 (__cplusplus >= 201103L)
+#define CVMUTIL_USE_CXX11 (__cplusplus >= 201103L)
 #endif
 #endif
 
 /*! \brief strict CXX11 support */
-#ifndef DMLC_STRICT_CXX11
+#ifndef CVMUTIL_STRICT_CXX11
 #if defined(_MSC_VER)
-#define DMLC_STRICT_CXX11 1
+#define CVMUTIL_STRICT_CXX11 1
 #else
-#define DMLC_STRICT_CXX11 (__cplusplus >= 201103L)
+#define CVMUTIL_STRICT_CXX11 (__cplusplus >= 201103L)
 #endif
 #endif
 
 /*! \brief Whether cxx11 thread local is supported */
-#ifndef DMLC_CXX11_THREAD_LOCAL
+#ifndef CVMUTIL_CXX11_THREAD_LOCAL
 #if defined(_MSC_VER)
-#define DMLC_CXX11_THREAD_LOCAL (_MSC_VER >= 1900)
+#define CVMUTIL_CXX11_THREAD_LOCAL (_MSC_VER >= 1900)
 #elif defined(__clang__)
-#define DMLC_CXX11_THREAD_LOCAL (__has_feature(cxx_thread_local))
+#define CVMUTIL_CXX11_THREAD_LOCAL (__has_feature(cxx_thread_local))
 #else
-#define DMLC_CXX11_THREAD_LOCAL (__cplusplus >= 201103L)
+#define CVMUTIL_CXX11_THREAD_LOCAL (__cplusplus >= 201103L)
 #endif
 #endif
 
 
 /*! \brief whether RTTI is enabled */
-#ifndef DMLC_ENABLE_RTTI
-#define DMLC_ENABLE_RTTI 1
+#ifndef CVMUTIL_ENABLE_RTTI
+#define CVMUTIL_ENABLE_RTTI 1
 #endif
 
 /*! \brief whether use fopen64 */
-#ifndef DMLC_USE_FOPEN64
-#define DMLC_USE_FOPEN64 1
+#ifndef CVMUTIL_USE_FOPEN64
+#define CVMUTIL_USE_FOPEN64 1
 #endif
 
 /// check if g++ is before 4.6
-#if DMLC_USE_CXX11 && defined(__GNUC__) && !defined(__clang_version__)
+#if CVMUTIL_USE_CXX11 && defined(__GNUC__) && !defined(__clang_version__)
 #if __GNUC__ == 4 && __GNUC_MINOR__ < 6
 #pragma message("Will need g++-4.6 or higher to compile all"           \
-                "the features in dmlc-core, "                           \
+                "the features in utils-core, "                           \
                 "compile without c++0x, some features may be disabled")
-#undef DMLC_USE_CXX11
-#define DMLC_USE_CXX11 0
+#undef CVMUTIL_USE_CXX11
+#define CVMUTIL_USE_CXX11 0
 #endif
 #endif
 
@@ -107,33 +107,33 @@
  * \brief Use little endian for binary serialization
  *  if this is set to 0, use big endian.
  */
-#ifndef DMLC_IO_USE_LITTLE_ENDIAN
-#define DMLC_IO_USE_LITTLE_ENDIAN 1
+#ifndef CVMUTIL_IO_USE_LITTLE_ENDIAN
+#define CVMUTIL_IO_USE_LITTLE_ENDIAN 1
 #endif
 
 /*!
  * \brief Enable std::thread related modules,
  *  Used to disable some module in mingw compile.
  */
-#ifndef DMLC_ENABLE_STD_THREAD
-#define DMLC_ENABLE_STD_THREAD DMLC_USE_CXX11
+#ifndef CVMUTIL_ENABLE_STD_THREAD
+#define CVMUTIL_ENABLE_STD_THREAD CVMUTIL_USE_CXX11
 #endif
 
 /*! \brief whether enable regex support, actually need g++-4.9 or higher*/
-#ifndef DMLC_USE_REGEX
-#define DMLC_USE_REGEX DMLC_STRICT_CXX11
+#ifndef CVMUTIL_USE_REGEX
+#define CVMUTIL_USE_REGEX CVMUTIL_STRICT_CXX11
 #endif
 
 /*! \brief helper macro to supress unused warning */
 #if defined(__GNUC__)
-#define DMLC_ATTRIBUTE_UNUSED __attribute__((unused))
+#define CVMUTIL_ATTRIBUTE_UNUSED __attribute__((unused))
 #else
-#define DMLC_ATTRIBUTE_UNUSED
+#define CVMUTIL_ATTRIBUTE_UNUSED
 #endif
 
 /*! \brief helper macro to generate string concat */
-#define DMLC_STR_CONCAT_(__x, __y) __x##__y
-#define DMLC_STR_CONCAT(__x, __y) DMLC_STR_CONCAT_(__x, __y)
+#define CVMUTIL_STR_CONCAT_(__x, __y) __x##__y
+#define CVMUTIL_STR_CONCAT(__x, __y) CVMUTIL_STR_CONCAT_(__x, __y)
 
 /*!
  * \brief Disable copy constructor and assignment operator.
@@ -144,7 +144,7 @@
  * section if C++11 is not available.
  */
 #ifndef DISALLOW_COPY_AND_ASSIGN
-#  if DMLC_USE_CXX11
+#  if CVMUTIL_USE_CXX11
 #    define DISALLOW_COPY_AND_ASSIGN(T) \
        T(T const&) = delete; \
        T(T&&) = delete; \
@@ -203,16 +203,16 @@ typedef unsigned __int64 uint64_t;
 #define noexcept(a) noexcept_##a
 #endif
 
-#if DMLC_USE_CXX11
-#define DMLC_THROW_EXCEPTION noexcept(false)
-#define DMLC_NO_EXCEPTION  noexcept(true)
+#if CVMUTIL_USE_CXX11
+#define CVMUTIL_THROW_EXCEPTION noexcept(false)
+#define CVMUTIL_NO_EXCEPTION  noexcept(true)
 #else
-#define DMLC_THROW_EXCEPTION
-#define DMLC_NO_EXCEPTION
+#define CVMUTIL_THROW_EXCEPTION
+#define CVMUTIL_NO_EXCEPTION
 #endif
 
-/*! \brief namespace for dmlc */
-namespace dmlc {
+/*! \brief namespace for utils */
+namespace utils {
 /*!
  * \brief safely get the beginning address of a vector
  * \param vec input vector
@@ -257,7 +257,7 @@ inline const char* BeginPtr(const std::string &str) {
   if (str.length() == 0) return NULL;
   return &str[0];
 }
-}  // namespace dmlc
+}  // namespace utils
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define constexpr const
@@ -266,8 +266,8 @@ inline const char* BeginPtr(const std::string &str) {
 
 /* If fopen64 is not defined by current machine,
    replace fopen64 with std::fopen. Also determine ability to print stack trace
-   for fatal error and define DMLC_LOG_STACK_TRACE if stack trace can be
-   produced. Always keep this #include at the bottom of dmlc/base.h */
-#include <dmlc/build_config.h>
+   for fatal error and define CVMUTIL_LOG_STACK_TRACE if stack trace can be
+   produced. Always keep this #include at the bottom of utils/base.h */
+#include <utils/build_config.h>
 
-#endif  // DMLC_BASE_H_
+#endif  // CVMUTIL_BASE_H_

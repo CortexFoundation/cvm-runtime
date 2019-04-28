@@ -3,13 +3,13 @@
  * \file array_view.h
  * \brief Read only data structure to reference array
  */
-#ifndef DMLC_ARRAY_VIEW_H_
-#define DMLC_ARRAY_VIEW_H_
+#ifndef CVMUTIL_ARRAY_VIEW_H_
+#define CVMUTIL_ARRAY_VIEW_H_
 
 #include <vector>
 #include <array>
 
-namespace dmlc {
+namespace utils {
 
 /*!
  * \brief Read only data structure to reference continuous memory region of array.
@@ -23,7 +23,7 @@ namespace dmlc {
  *
  * \code
  *  std::vector<int> myvec{1,2,3};
- *  dmlc::array_view<int> view(myvec);
+ *  utils::array_view<int> view(myvec);
  *  // indexed visit to the view.
  *  LOG(INFO) << view[0];
  *
@@ -123,6 +123,6 @@ class array_view {
   size_t size_{0};
 };
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_ARRAY_VIEW_H_
+#endif  // CVMUTIL_ARRAY_VIEW_H_

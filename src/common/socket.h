@@ -24,7 +24,7 @@ using ssize_t = int;
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #endif
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #include <string>
 #include <cstring>
 

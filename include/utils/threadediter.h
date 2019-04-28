@@ -6,12 +6,12 @@
  * To use the functions in this header, C++11 is required
  * \author Tianqi Chen
  */
-#ifndef DMLC_THREADEDITER_H_
-#define DMLC_THREADEDITER_H_
-// defines DMLC_USE_CXX11
+#ifndef CVMUTIL_THREADEDITER_H_
+#define CVMUTIL_THREADEDITER_H_
+// defines CVMUTIL_USE_CXX11
 #include "./base.h"
 // this code depends on c++11
-#if DMLC_ENABLE_STD_THREAD
+#if CVMUTIL_ENABLE_STD_THREAD
 #include <condition_variable>
 #include <functional>
 #include <mutex>
@@ -20,7 +20,7 @@
 #include "./data.h"
 #include "./logging.h"
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief a iterator that was backed by a thread
  *  to pull data eagerly from a single producer into a bounded buffer
@@ -371,7 +371,7 @@ inline void ThreadedIter<DType>::Init(std::function<bool(DType **)> next,
         }
         if (notify)
           consumer_cond_.notify_all();
-      } catch (dmlc::Error &e) {
+      } catch (utils::Error &e) {
         // Shouldn't throw exception in destructor
         DCHECK(producer_sig_ != kDestroy);
         {
@@ -470,6 +470,6 @@ template <typename DType> inline void ThreadedIter<DType>::ClearException(void) 
   iter_exception_ = nullptr;
 }
 
-}  // namespace dmlc
-#endif  // DMLC_USE_CXX11
-#endif  // DMLC_THREADEDITER_H_
+}  // namespace utils
+#endif  // CVMUTIL_USE_CXX11
+#endif  // CVMUTIL_THREADEDITER_H_

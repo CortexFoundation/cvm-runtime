@@ -3,7 +3,7 @@
  * \file c_runtime_api.cc
  * \brief Device specific implementations
  */
-#include <dmlc/thread_local.h>
+#include <utils/thread_local.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/c_backend_api.h>
 #include <cvm/runtime/packed_func.h>
@@ -282,7 +282,7 @@ struct CVMRuntimeEntry {
   CVMByteArray ret_bytes;
 };
 
-typedef dmlc::ThreadLocalStore<CVMRuntimeEntry> CVMAPIRuntimeStore;
+typedef utils::ThreadLocalStore<CVMRuntimeEntry> CVMAPIRuntimeStore;
 
 const char *CVMGetLastError() {
   return CVMAPIRuntimeStore::Get()->last_error.c_str();
@@ -451,7 +451,7 @@ int CVMFuncCreateFromCFunc(CVMPackedCFunc func,
           int ret = func((CVMValue*)args.values, (int*)args.type_codes, // NOLINT(*)
                          args.num_args, rv, resource_handle);
           if (ret != 0) {
-            throw dmlc::Error(CVMGetLastError() + ::dmlc::StackTrace());
+            throw utils::Error(CVMGetLastError() + ::utils::StackTrace());
           }
         });
   } else {
@@ -463,7 +463,7 @@ int CVMFuncCreateFromCFunc(CVMPackedCFunc func,
           int ret = func((CVMValue*)args.values, (int*)args.type_codes, // NOLINT(*)
                          args.num_args, rv, rpack.get());
           if (ret != 0) {
-            throw dmlc::Error(CVMGetLastError() + ::dmlc::StackTrace());
+            throw utils::Error(CVMGetLastError() + ::utils::StackTrace());
           }
       });
   }

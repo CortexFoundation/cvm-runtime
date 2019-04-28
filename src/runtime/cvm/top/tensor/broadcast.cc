@@ -14,7 +14,7 @@ namespace cvm {
 namespace top {
 
 // broadcast_to
-DMLC_REGISTER_PARAMETER(BroadcastToParam);
+CVMUTIL_REGISTER_PARAMETER(BroadcastToParam);
 
 inline bool BroadcastToInferShape(const NodeAttrs& attrs,
                                   std::vector<TShape>* in_attrs,

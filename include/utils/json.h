@@ -4,8 +4,8 @@
  * \brief Lightweight JSON Reader/Writer that read save into C++ data structs.
  *  This includes STL composites and structures.
  */
-#ifndef DMLC_JSON_H_
-#define DMLC_JSON_H_
+#ifndef CVMUTIL_JSON_H_
+#define CVMUTIL_JSON_H_
 
 // This code requires C++11 to compile
 #include <vector>
@@ -23,18 +23,18 @@
 #include "./logging.h"
 #include "./type_traits.h"
 
-#if DMLC_USE_CXX11
+#if CVMUTIL_USE_CXX11
 #include <typeindex>
 #include <typeinfo>
 #include <unordered_map>
-#if DMLC_STRICT_CXX11
-#if DMLC_ENABLE_RTTI
+#if CVMUTIL_STRICT_CXX11
+#if CVMUTIL_ENABLE_RTTI
 #include "./any.h"
-#endif  // DMLC_ENABLE_RTTI
-#endif  // DMLC_STRICT_CXX11
-#endif  // DMLC_USE_CXX11
+#endif  // CVMUTIL_ENABLE_RTTI
+#endif  // CVMUTIL_STRICT_CXX11
+#endif  // CVMUTIL_USE_CXX11
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief Lightweight JSON Reader to read any STL compositions and structs.
  *  The user need to know the schema of the
@@ -57,13 +57,13 @@ class JSONReader {
   /*!
    * \brief Parse next JSON string.
    * \param out_str the output string.
-   * \throw dmlc::Error when next token is not string
+   * \throw utils::Error when next token is not string
    */
   inline void ReadString(std::string *out_str);
   /*!
    * \brief Read Number.
    * \param out_value output value;
-   * \throw dmlc::Error when next token is not number of ValueType.
+   * \throw utils::Error when next token is not number of ValueType.
    * \tparam ValueType type of the number
    */
   template<typename ValueType>
@@ -112,7 +112,7 @@ class JSONReader {
   /*!
    * \brief Read next ValueType.
    * \param out_value any STL or json readable type to be read
-   * \throw dmlc::Error when the read of ValueType is not successful.
+   * \throw utils::Error when the read of ValueType is not successful.
    * \tparam ValueType the data type to be read.
    */
   template<typename ValueType>
@@ -298,8 +298,8 @@ class JSONWriter {
  *    std::string name;
  *    int value;
  *    // define load function from JSON
- *    inline void Load(dmlc::JSONReader *reader) {
- *      dmlc::JSONStructReadHelper helper;
+ *    inline void Load(utils::JSONReader *reader) {
+ *      utils::JSONStructReadHelper helper;
  *      helper.DeclareField("name", &name);
  *      helper.DeclareField("value", &value);
  *      helper.ReadAllFields(reader);
@@ -367,21 +367,21 @@ class JSONObjectReadHelper {
   std::map<std::string, Entry> map_;
 };
 
-#define DMLC_JSON_ENABLE_ANY_VAR_DEF(KeyName)                  \
-  static DMLC_ATTRIBUTE_UNUSED ::dmlc::json::AnyJSONManager&   \
+#define CVMUTIL_JSON_ENABLE_ANY_VAR_DEF(KeyName)                  \
+  static CVMUTIL_ATTRIBUTE_UNUSED ::utils::json::AnyJSONManager&   \
   __make_AnyJSONType ## _ ## KeyName ## __
 
 /*!
- * \def DMLC_JSON_ENABLE_ANY
- * \brief Macro to enable save/load JSON of dmlc:: whose actual type is Type.
+ * \def CVMUTIL_JSON_ENABLE_ANY
+ * \brief Macro to enable save/load JSON of utils:: whose actual type is Type.
  * Any type will be saved as json array [KeyName, content]
  *
  * \param Type The type to be registered.
  * \param KeyName The Type key assigned to the type, must be same during load.
  */
-#define DMLC_JSON_ENABLE_ANY(Type, KeyName)                             \
-  DMLC_STR_CONCAT(DMLC_JSON_ENABLE_ANY_VAR_DEF(KeyName), __COUNTER__) = \
-    ::dmlc::json::AnyJSONManager::Global()->EnableType<Type>(#KeyName) \
+#define CVMUTIL_JSON_ENABLE_ANY(Type, KeyName)                             \
+  CVMUTIL_STR_CONCAT(CVMUTIL_JSON_ENABLE_ANY_VAR_DEF(KeyName), __COUNTER__) = \
+    ::utils::json::AnyJSONManager::Global()->EnableType<Type>(#KeyName) \
 
 //! \cond Doxygen_Suppress
 namespace json {
@@ -407,7 +407,7 @@ template<typename ContainerType>
 struct ArrayHandler {
   inline static void Write(JSONWriter *writer, const ContainerType &array) {
     typedef typename ContainerType::value_type ElemType;
-    writer->BeginArray(array.size() > 10 || !dmlc::is_pod<ElemType>::value);
+    writer->BeginArray(array.size() > 10 || !utils::is_pod<ElemType>::value);
     for (typename ContainerType::const_iterator it = array.begin();
          it != array.end(); ++it) {
       writer->WriteArrayItem(*it);
@@ -501,31 +501,31 @@ template<typename V>
 struct Handler<std::map<std::string, V> > : public MapHandler<std::map<std::string, V> > {
 };
 
-#if DMLC_USE_CXX11
+#if CVMUTIL_USE_CXX11
 template<typename V>
 struct Handler<std::unordered_map<std::string, V> >
     : public MapHandler<std::unordered_map<std::string, V> > {
 };
-#endif  // DMLC_USE_CXX11
+#endif  // CVMUTIL_USE_CXX11
 
 template<typename T>
 struct Handler {
   inline static void Write(JSONWriter *writer, const T &data) {
-    typedef typename dmlc::IfThenElseType<dmlc::is_arithmetic<T>::value,
+    typedef typename utils::IfThenElseType<utils::is_arithmetic<T>::value,
                                           NumericHandler<T>,
                                           CommonJSONSerializer<T> >::Type THandler;
     THandler::Write(writer, data);
   }
   inline static void Read(JSONReader *reader, T *data) {
-    typedef typename dmlc::IfThenElseType<dmlc::is_arithmetic<T>::value,
+    typedef typename utils::IfThenElseType<utils::is_arithmetic<T>::value,
                                           NumericHandler<T>,
                                           CommonJSONSerializer<T> >::Type THandler;
     THandler::Read(reader, data);
   }
 };
 
-#if DMLC_STRICT_CXX11
-#if DMLC_ENABLE_RTTI
+#if CVMUTIL_STRICT_CXX11
+#if CVMUTIL_ENABLE_RTTI
 // Manager to store json serialization strategy.
 class AnyJSONManager {
  public:
@@ -557,7 +557,7 @@ class AnyJSONManager {
 
   template<typename T>
   inline static void WriteAny(JSONWriter *writer, const any &data) {
-    writer->Write(dmlc::unsafe_get<T>(data));
+    writer->Write(utils::unsafe_get<T>(data));
   }
   template<typename T>
   inline static void ReadAny(JSONReader *reader, any* data) {
@@ -586,7 +586,7 @@ struct Handler<any> {
     std::type_index id = std::type_index(data.type());
     auto it = nmap.find(id);
     CHECK(it != nmap.end() && it->first == id)
-        << "Type " << id.name() << " has not been registered via DMLC_JSON_ENABLE_ANY";
+        << "Type " << id.name() << " has not been registered via CVMUTIL_JSON_ENABLE_ANY";
     std::string type_name = it->second;
     AnyJSONManager::Entry e = AnyJSONManager::Global()->type_map_.at(type_name);
     writer->BeginArray(false);
@@ -604,15 +604,15 @@ struct Handler<any> {
         tmap = AnyJSONManager::Global()->type_map_;
     auto it = tmap.find(type_name);
     CHECK(it != tmap.end() && it->first == type_name)
-        << "Typename " << type_name << " has not been registered via DMLC_JSON_ENABLE_ANY";
+        << "Typename " << type_name << " has not been registered via CVMUTIL_JSON_ENABLE_ANY";
     AnyJSONManager::Entry e = it->second;
     CHECK(reader->NextArrayItem()) << "invalid any json format";
     e.read(reader, data);
     CHECK(!reader->NextArrayItem()) << "invalid any json format";
   }
 };
-#endif  // DMLC_ENABLE_RTTI
-#endif  // DMLC_STRICT_CXX11
+#endif  // CVMUTIL_ENABLE_RTTI
+#endif  // CVMUTIL_STRICT_CXX11
 
 }  // namespace json
 
@@ -977,5 +977,5 @@ DeclareFieldInternal(const std::string &key, T *addr, bool optional) {
 }
 
 //! \endcond
-}  // namespace dmlc
-#endif  // DMLC_JSON_H_
+}  // namespace utils
+#endif  // CVMUTIL_JSON_H_

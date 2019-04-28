@@ -3,10 +3,10 @@
  * \file strtonum.h
  * \brief A faster implementation of strtof and strtod
  */
-#ifndef DMLC_STRTONUM_H_
-#define DMLC_STRTONUM_H_
+#ifndef CVMUTIL_STRTONUM_H_
+#define CVMUTIL_STRTONUM_H_
 
-#if DMLC_USE_CXX11
+#if CVMUTIL_USE_CXX11
 #include <type_traits>
 #endif
 
@@ -16,7 +16,7 @@
 #include "./base.h"
 #include "./logging.h"
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief Inline implementation of isspace(). Tests whether the given character
  *        is a whitespace letter.
@@ -62,13 +62,13 @@ inline bool isdigitchars(char c) {
 }
 
 /*!
- * \brief Maximum number of decimal digits dmlc::strtof() / dmlc::strtod()
+ * \brief Maximum number of decimal digits utils::strtof() / utils::strtod()
  *        will process. Trailing digits will be ignored.
  */
 const int kStrtofMaxDigits = 19;
 
 /*!
- * \brief Common implementation for dmlc::strtof() and dmlc::strtod()
+ * \brief Common implementation for utils::strtof() and utils::strtod()
  * TODO: the current version does not support INF, NAN, and hex number
  * \param nptr Beginning of the string that's to be converted into a
  *             floating-point number
@@ -84,7 +84,7 @@ const int kStrtofMaxDigits = 19;
  */
 template <typename FloatType, bool CheckRange = false>
 inline FloatType ParseFloat(const char* nptr, char** endptr) {
-#if DMLC_USE_CXX11
+#if CVMUTIL_USE_CXX11
   static_assert(std::is_same<FloatType, double>::value
                 || std::is_same<FloatType, float>::value,
                "ParseFloat is defined only for 'float' and 'double' types");
@@ -285,7 +285,7 @@ inline double strtod_check_range(const char* nptr, char** endptr) {
  */
 template <typename SignedIntType>
 inline SignedIntType ParseSignedInt(const char* nptr, char** endptr, int base) {
-#ifdef DMLC_USE_CXX11
+#ifdef CVMUTIL_USE_CXX11
   static_assert(std::is_signed<SignedIntType>::value
                 && std::is_integral<SignedIntType>::value,
                 "ParseSignedInt is defined for signed integers only");
@@ -326,7 +326,7 @@ inline SignedIntType ParseSignedInt(const char* nptr, char** endptr, int base) {
  */
 template <typename UnsignedIntType>
 inline UnsignedIntType ParseUnsignedInt(const char* nptr, char** endptr, int base) {
-#ifdef DMLC_USE_CXX11
+#ifdef CVMUTIL_USE_CXX11
   static_assert(std::is_unsigned<UnsignedIntType>::value
                 && std::is_integral<UnsignedIntType>::value,
                 "ParseUnsignedInt is defined for unsigned integers only");
@@ -417,7 +417,7 @@ inline float atof(const char* nptr) {
 inline float stof(const std::string& value, size_t* pos = nullptr) {
   const char* str_source = value.c_str();
   char* endptr;
-  const float parsed_value = dmlc::strtof_check_range(str_source, &endptr);
+  const float parsed_value = utils::strtof_check_range(str_source, &endptr);
   if (errno == ERANGE && parsed_value == std::numeric_limits<float>::infinity()) {
     throw std::out_of_range("Out of range value");
   } else if (const_cast<const char*>(endptr) == str_source) {
@@ -447,7 +447,7 @@ inline float stof(const std::string& value, size_t* pos = nullptr) {
 inline double stod(const std::string& value, size_t* pos = nullptr) {
   const char* str_source = value.c_str();
   char* endptr;
-  const double parsed_value = dmlc::strtod_check_range(str_source, &endptr);
+  const double parsed_value = utils::strtod_check_range(str_source, &endptr);
   if (errno == ERANGE && parsed_value == std::numeric_limits<double>::infinity()) {
     throw std::out_of_range("Out of range value");
   } else if (const_cast<const char*>(endptr) == str_source) {
@@ -682,6 +682,6 @@ inline int ParseTriple(const char * begin, const char * end,
   v3 = Str2Type<T3>(p, q);
   return 3;
 }
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_STRTONUM_H_
+#endif  // CVMUTIL_STRTONUM_H_

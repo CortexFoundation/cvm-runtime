@@ -3,7 +3,7 @@
  * Implementation stack VM.
  * \file stackvm.cc
  */
-#include <dmlc/thread_local.h>
+#include <utils/thread_local.h>
 #include <cvm/runtime/util.h>
 #include <cvm/runtime/c_backend_api.h>
 #include <algorithm>
@@ -12,7 +12,7 @@
 namespace cvm {
 namespace runtime {
 
-typedef dmlc::ThreadLocalStore<StackVM::State> StackVMStateStore;
+typedef utils::ThreadLocalStore<StackVM::State> StackVMStateStore;
 
 StackVM::State* StackVM::ThreadLocalState() {
   return StackVMStateStore::Get();
@@ -194,7 +194,7 @@ void StackVM::InitCache() {
       extern_func_name.size(), PackedFunc(nullptr));
 }
 
-void StackVM::Save(dmlc::Stream* strm) const {
+void StackVM::Save(utils::Stream* strm) const {
   // to be endian invariant.
   std::vector<int32_t> code_copy(code.size());
   std::transform(code.begin(), code.end(), code_copy.begin(), [](Code c) {
@@ -208,7 +208,7 @@ void StackVM::Save(dmlc::Stream* strm) const {
   strm->Write(stack_size);
 }
 
-bool StackVM::Load(dmlc::Stream* strm)  {
+bool StackVM::Load(utils::Stream* strm)  {
   // to be endian invariant.
   std::vector<int32_t> code_copy;
   if (!strm->Read(&code_copy)) return false;

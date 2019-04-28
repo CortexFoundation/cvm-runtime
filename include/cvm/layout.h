@@ -12,7 +12,7 @@
 #ifndef CVM_LAYOUT_H_
 #define CVM_LAYOUT_H_
 
-#include <dmlc/parameter.h>
+#include <utils/parameter.h>
 #include <string>
 #include <sstream>
 #include <vector>
@@ -366,7 +366,7 @@ class Layout {
    * \brief Write layout in JSON format.
    * \param writer JSONWriter
    */
-  inline void Save(dmlc::JSONWriter* writer) const {
+  inline void Save(utils::JSONWriter* writer) const {
     writer->Write(name_);
   }
 
@@ -374,7 +374,7 @@ class Layout {
    * \brief Load layout from JSON.
    * \param reader JSONReader
    */
-  inline void Load(dmlc::JSONReader* reader) {
+  inline void Load(utils::JSONReader* reader) {
     std::string tmp;
     reader->Read(&tmp);
     this->parse(tmp);

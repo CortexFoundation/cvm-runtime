@@ -4,8 +4,8 @@
  * \brief defines common input data structure,
  *  and interface for handling the input data
  */
-#ifndef DMLC_DATA_H_
-#define DMLC_DATA_H_
+#ifndef CVMUTIL_DATA_H_
+#define CVMUTIL_DATA_H_
 
 #include <string>
 #include <vector>
@@ -16,9 +16,9 @@
 #include "./registry.h"
 
 // To help C Preprocessor with processing c++ templated types
-#define __DMLC_COMMA ,
+#define __CVMUTIL_COMMA ,
 
-namespace dmlc {
+namespace utils {
 /*!
  * \brief this defines the float point
  * that will be used to store feature values
@@ -275,7 +275,7 @@ class RowBlockIter : public DataIter<RowBlock<IndexType, DType> > {
 
 /*!
  * \brief parser interface that parses input data
- * used to load dmlc data format into your own data format
+ * used to load utils data format into your own data format
  * Difference between RowBlockIter and Parser:
  *     RowBlockIter caches the data internally that can be used
  *     to iterate the dataset multiple times,
@@ -330,7 +330,7 @@ struct ParserFactoryReg
                                   typename Parser<IndexType, DType>::Factory> {};
 
 /*!
- * \brief Register a new distributed parser to dmlc-core.
+ * \brief Register a new distributed parser to utils-core.
  *
  * \param IndexType The type of Batch index, can be uint32_t or uint64_t
  * \param DataType The type of Batch label and value, can be real_t or int
@@ -346,17 +346,17 @@ struct ParserFactoryReg
  *    return new LibSVMParser(uri, part_index, num_parts);
  *  }
  *
- *  // Register it to DMLC
+ *  // Register it to CVMUTIL
  *  // Then we can use Parser<uint32_t>::Create(uri, part_index, num_parts, "libsvm");
  *  // to create the parser
  *
- *  DMLC_REGISTER_DATA_PARSER(uint32_t, real_t, libsvm, CreateLibSVMParser<uint32_t>);
- *  DMLC_REGISTER_DATA_PARSER(uint64_t, real_t, libsvm, CreateLibSVMParser<uint64_t>);
+ *  CVMUTIL_REGISTER_DATA_PARSER(uint32_t, real_t, libsvm, CreateLibSVMParser<uint32_t>);
+ *  CVMUTIL_REGISTER_DATA_PARSER(uint64_t, real_t, libsvm, CreateLibSVMParser<uint64_t>);
  *
  * \endcode
  */
-#define DMLC_REGISTER_DATA_PARSER(IndexType, DataType, TypeName, FactoryFunction) \
-  DMLC_REGISTRY_REGISTER(ParserFactoryReg<IndexType __DMLC_COMMA DataType>,           \
+#define CVMUTIL_REGISTER_DATA_PARSER(IndexType, DataType, TypeName, FactoryFunction) \
+  CVMUTIL_REGISTRY_REGISTER(ParserFactoryReg<IndexType __CVMUTIL_COMMA DataType>,           \
                          ParserFactoryReg ## _ ## IndexType ## _ ## DataType, TypeName)  \
   .set_body(FactoryFunction)
 
@@ -393,5 +393,5 @@ RowBlock<IndexType, DType>::operator[](size_t rowid) const {
   return inst;
 }
 
-}  // namespace dmlc
-#endif  // DMLC_DATA_H_
+}  // namespace utils
+#endif  // CVMUTIL_DATA_H_

@@ -174,9 +174,9 @@ CVM_REGISTER_ELEMWISE_UNARY_OP(copy)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(3);
 
-DMLC_REGISTER_PARAMETER(InitOpParam);
-DMLC_REGISTER_PARAMETER(InitOpWithScalarParam);
-DMLC_REGISTER_PARAMETER(FillValueParam);
+CVMUTIL_REGISTER_PARAMETER(InitOpParam);
+CVMUTIL_REGISTER_PARAMETER(InitOpWithScalarParam);
+CVMUTIL_REGISTER_PARAMETER(FillValueParam);
 
 // full
 CVM_REGISTER_INIT_OP(full)
@@ -272,7 +272,7 @@ as the input array.
 .set_support_level(4);
 
 // unary scalar op
-DMLC_REGISTER_PARAMETER(ScalarParam);
+CVMUTIL_REGISTER_PARAMETER(ScalarParam);
 
 #define CVM_REGISTER_ELEMWISE_BINARY_SCALAR(op)                        \
   CVM_REGISTER_ELEMWISE_UNARY_OP(op)                                   \
@@ -401,7 +401,7 @@ CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__pow_scalar__)
 })
 .set_support_level(3);
 
-DMLC_REGISTER_PARAMETER(ElementWiseReduceParam);
+CVMUTIL_REGISTER_PARAMETER(ElementWiseReduceParam);
 
 inline bool ElemwiseSumInferPrecision(const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -424,7 +424,7 @@ CVM_REGISTER_ELEMWISE_REDUCE_OP(elemwise_sum)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSumInferPrecision)
 .set_support_level(4);
 
-DMLC_REGISTER_PARAMETER(IndicatorParam);
+CVMUTIL_REGISTER_PARAMETER(IndicatorParam);
 
 // indicator function
 CVM_REGISTER_INDICATOR_OP(greater)
@@ -452,7 +452,7 @@ with 1.0 if (left < right), otherwise 0.0 element-wise.
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<1>)
 .set_support_level(4);
 
-DMLC_REGISTER_PARAMETER(ClipParam);
+CVMUTIL_REGISTER_PARAMETER(ClipParam);
 
 CVM_REGISTER_OP(clip)
 .describe(R"doc(Clips (limits) the values in an array.
@@ -484,7 +484,7 @@ Example::
 .add_arguments(ClipParam::__FIELDS__())
 .set_support_level(4);
 
-DMLC_REGISTER_PARAMETER(CVMClipParam);
+CVMUTIL_REGISTER_PARAMETER(CVMClipParam);
 
 CVM_REGISTER_OP(cvm_clip)
 .describe(R"doc(CVM clip input with precision.
@@ -525,7 +525,7 @@ Example::
 .add_arguments(CVMClipParam::__FIELDS__())
 .set_support_level(4);
 
-DMLC_REGISTER_PARAMETER(CVMLeftShiftParam);
+CVMUTIL_REGISTER_PARAMETER(CVMLeftShiftParam);
 
 CVM_REGISTER_OP(cvm_left_shift)
 .describe(R"code(CVM left shift with precision-aware clip.
@@ -556,7 +556,7 @@ CVM_REGISTER_OP(cvm_left_shift)
 .add_arguments(CVMLeftShiftParam::__FIELDS__())
 .set_support_level(4);
 
-DMLC_REGISTER_PARAMETER(CVMRightShiftParam);
+CVMUTIL_REGISTER_PARAMETER(CVMRightShiftParam);
 
 CVM_REGISTER_OP(cvm_right_shift)
 .describe(R"code(CVM right shift with precision-aware clip.

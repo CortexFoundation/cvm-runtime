@@ -289,12 +289,12 @@ class StackVM {
    * \brief Save stackvm program to an output stream
    * \param strm The output stream
    */
-  void Save(dmlc::Stream* strm) const;
+  void Save(utils::Stream* strm) const;
   /*!
    * \brief Load stackvm program from output stream
    * \param strm The output stream
    */
-  bool Load(dmlc::Stream* strm);
+  bool Load(utils::Stream* strm);
   /*!
    * \brief Print instruction at location pc
    * \param os The ostream
@@ -399,7 +399,7 @@ class StackVM {
 }  // namespace runtime
 }  // namespace cvm
 
-namespace dmlc {
-DMLC_DECLARE_TRAITS(has_saveload, ::cvm::runtime::StackVM, true);
+namespace utils {
+CVMUTIL_DECLARE_TRAITS(has_saveload, ::cvm::runtime::StackVM, true);
 }
 #endif  // CVM_RUNTIME_STACKVM_STACKVM_H_

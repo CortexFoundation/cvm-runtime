@@ -4,7 +4,7 @@
  * \brief Native threading backend
  */
 #include <cvm/runtime/threading_backend.h>
-#include <dmlc/logging.h>
+#include <utils/logging.h>
 #include <thread>
 #include <algorithm>
 #if defined(__linux__) || defined(__ANDROID__)

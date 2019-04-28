@@ -3,8 +3,8 @@
  * \file any.h
  * \brief Container to hold any data type.
  */
-#ifndef DMLC_ANY_H_
-#define DMLC_ANY_H_
+#ifndef CVMUTIL_ANY_H_
+#define CVMUTIL_ANY_H_
 
 // This code need c++11 to compile
 #include <typeinfo>
@@ -16,7 +16,7 @@
 #include "./base.h"
 #include "./logging.h"
 
-namespace dmlc {
+namespace utils {
 // forward declare any;
 class any;
 
@@ -76,14 +76,14 @@ inline T& unsafe_get(any& src);  // NOLINT(*)
  * \brief An any class that is compatible to std::any in c++17.
  *
  * \code
- *   dmlc::any a = std::string("mydear"), b = 1;
+ *   utils::any a = std::string("mydear"), b = 1;
  *   // get reference out and add it
- *   dmlc::get<int>(b) += 1;
+ *   utils::get<int>(b) += 1;
  *   // a is now string
- *   LOG(INFO) << dmlc::get<std::string>(a);
+ *   LOG(INFO) << utils::get<std::string>(a);
  *   // a is now 2, the string stored will be properly destructed
  *   a = std::move(b);
- *   LOG(INFO) << dmlc::get<int>(a);
+ *   LOG(INFO) << utils::get<int>(a);
  * \endcode
  * \sa get
  */
@@ -422,6 +422,6 @@ class any::TypeInfo
 };
 //! \endcond
 
-}  // namespace dmlc
+}  // namespace utils
 
-#endif  // DMLC_ANY_H_
+#endif  // CVMUTIL_ANY_H_

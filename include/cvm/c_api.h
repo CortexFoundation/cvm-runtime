@@ -330,7 +330,7 @@ CVM_DLL int NNGraphGetSymbol(GraphHandle graph, SymbolHandle *symbol);
  * \param handle The graph handle.
  * \param key The key to the attribute.
  * \param json_value The value need to be in format [type_name, value],
- *  Where type_name is a registered type string in C++ side via DMLC_JSON_ENABLE_ANY.
+ *  Where type_name is a registered type string in C++ side via CVMUTIL_JSON_ENABLE_ANY.
  * \return 0 when success, -1 when failure happens
  */
 CVM_DLL int NNGraphSetJSONAttr(GraphHandle handle,
@@ -345,7 +345,7 @@ CVM_DLL int NNGraphSetJSONAttr(GraphHandle handle,
  * \param key The key to the attribute.
  * \param json_out The result attribute, can be NULL if the attribute do not exist.
  *  The json_out is an array of [type_name, value].
- *  Where the type_name is a registered type string in C++ side via DMLC_JSON_ENABLE_ANY.
+ *  Where the type_name is a registered type string in C++ side via CVMUTIL_JSON_ENABLE_ANY.
  * \param success Whether the result is contained in out.
  * \return 0 when success, -1 when failure happens
  */

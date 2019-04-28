@@ -50,7 +50,7 @@ inline Graph ApplyPass(Graph src, const std::string& pass) {
  * \brief Registry entry for pass functions.
  */
 struct PassFunctionReg
-    : public dmlc::FunctionRegEntryBase<PassFunctionReg,
+    : public utils::FunctionRegEntryBase<PassFunctionReg,
                                         PassFunction> {
   /*!
    * \brief Whether the pass will change graph structure
@@ -121,7 +121,7 @@ struct PassFunctionReg
  * \endcode
  */
 #define CVM_REGISTER_PASS(name)                                     \
-  DMLC_REGISTRY_REGISTER(::cvm::PassFunctionReg, PassFunctionReg, name)
+  CVMUTIL_REGISTRY_REGISTER(::cvm::PassFunctionReg, PassFunctionReg, name)
 
 }  // namespace cvm
 

@@ -70,7 +70,7 @@ void ModuleNode::SaveToFile(const std::string& file_name,
   LOG(FATAL) << "Module[" << type_key() << "] does not support SaveToFile";
 }
 
-void ModuleNode::SaveToBinary(dmlc::Stream* stream) {
+void ModuleNode::SaveToBinary(utils::Stream* stream) {
   LOG(FATAL) << "Module[" << type_key() << "] does not support SaveToBinary";
 }
 

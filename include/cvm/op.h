@@ -6,7 +6,7 @@
 #ifndef CVM_OP_H_
 #define CVM_OP_H_
 
-#include <dmlc/parameter.h>
+#include <utils/parameter.h>
 #include <string>
 #include <vector>
 #include <utility>
@@ -25,7 +25,7 @@ template<typename ValueType>
 class OpMap;
 class OpGroup;
 class OpRegistryEntry;
-using dmlc::ParamFieldInfo;
+using utils::ParamFieldInfo;
 
 /*! \brief constant to indicate it take any length of positional inputs */
 static const uint32_t kVarg = std::numeric_limits<uint32_t>::max();
@@ -273,7 +273,7 @@ class CVM_DLL Op {
   template<typename ValueType>
   friend class OpMap;
   friend class OpGroup;
-  friend class dmlc::Registry<Op>;
+  friend class utils::Registry<Op>;
   // Program internal unique index of operator.
   // Used to help index the program.
   uint32_t index_{0};
@@ -359,10 +359,10 @@ class OpGroup {
 
 // internal macros to make
 #define CVM_REGISTER_VAR_DEF(OpName)                                   \
-  static DMLC_ATTRIBUTE_UNUSED ::cvm::Op & __make_ ## NnvmOp ## _ ## OpName
+  static CVMUTIL_ATTRIBUTE_UNUSED ::cvm::Op & __make_ ## NnvmOp ## _ ## OpName
 
 #define CVM_REGISTER_GVAR_DEF(TagName)                                     \
-  static DMLC_ATTRIBUTE_UNUSED ::cvm::OpGroup __make_ ## NnvmOpGroup ## _ ## TagName
+  static CVMUTIL_ATTRIBUTE_UNUSED ::cvm::OpGroup __make_ ## NnvmOpGroup ## _ ## TagName
 
 /*!
  * \def CVM_REGISTER_OP
@@ -380,8 +380,8 @@ class OpGroup {
  * \endcode
  */
 #define CVM_REGISTER_OP(OpName)                                     \
-  DMLC_STR_CONCAT(CVM_REGISTER_VAR_DEF(OpName), __COUNTER__) =         \
-      ::dmlc::Registry<::cvm::Op>::Get()->__REGISTER_OR_GET__(#OpName)
+  CVMUTIL_STR_CONCAT(CVM_REGISTER_VAR_DEF(OpName), __COUNTER__) =         \
+      ::utils::Registry<::cvm::Op>::Get()->__REGISTER_OR_GET__(#OpName)
 
 /*!
  * \def CVM_REGISTER_OP_GROUP
@@ -405,7 +405,7 @@ class OpGroup {
  * \endcode
  */
 #define CVM_REGISTER_OP_GROUP(GroupName)                               \
-  DMLC_STR_CONCAT(CVM_REGISTER_GVAR_DEF(GroupName), __COUNTER__) =     \
+  CVMUTIL_STR_CONCAT(CVM_REGISTER_GVAR_DEF(GroupName), __COUNTER__) =     \
       ::cvm::OpGroup {#GroupName}
 
 // implementations of template functions after this.

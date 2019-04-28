@@ -63,7 +63,7 @@ Example::
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision);
 
 // concatenate
-DMLC_REGISTER_PARAMETER(ConcatenateParam);
+CVMUTIL_REGISTER_PARAMETER(ConcatenateParam);
 
 inline bool ConcatenateInferShape(const NodeAttrs& attrs,
                                   std::vector<TShape>* in_shape,
@@ -180,7 +180,7 @@ Example::
 .set_support_level(1);
 
 // expand_dims
-DMLC_REGISTER_PARAMETER(ExpandDimsParam);
+CVMUTIL_REGISTER_PARAMETER(ExpandDimsParam);
 
 inline bool ExpandDimsInferShape(const NodeAttrs& attrs,
                                  std::vector<TShape>* in_shape,
@@ -257,7 +257,7 @@ Examples::
 .set_support_level(4);
 
 // split
-DMLC_REGISTER_PARAMETER(SplitParam);
+CVMUTIL_REGISTER_PARAMETER(SplitParam);
 
 inline void SplitParamParser(cvm::NodeAttrs* attrs) {
   SplitParam param;
@@ -349,7 +349,7 @@ along which to split the array.
 .set_support_level(3);
 
 // cast
-DMLC_REGISTER_PARAMETER(CastParam);
+CVMUTIL_REGISTER_PARAMETER(CastParam);
 
 inline bool CastInferType(const NodeAttrs& attrs,
                           std::vector<int>* in_attrs,
@@ -396,7 +396,7 @@ CVM_REGISTER_OP(cast)
 
 
 // reshape
-DMLC_REGISTER_PARAMETER(ReshapeParam);
+CVMUTIL_REGISTER_PARAMETER(ReshapeParam);
 
 inline bool ReshapeInferShape(const NodeAttrs& attrs,
                               std::vector<TShape>* in_attrs,
@@ -575,7 +575,7 @@ the input array into an output array with the same shape as the second input arr
 .set_support_level(4);
 
 // squeeze
-DMLC_REGISTER_PARAMETER(SqueezeParam);
+CVMUTIL_REGISTER_PARAMETER(SqueezeParam);
 
 inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,
@@ -656,7 +656,7 @@ Examples::
 .set_support_level(1);
 
 // transpose
-DMLC_REGISTER_PARAMETER(TransposeParam);
+CVMUTIL_REGISTER_PARAMETER(TransposeParam);
 
 inline bool TransposeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,
@@ -758,7 +758,7 @@ Examples::
 .set_support_level(4);
 
 // strided_slice
-DMLC_REGISTER_PARAMETER(StridedSliceParam);
+CVMUTIL_REGISTER_PARAMETER(StridedSliceParam);
 
 inline void StridedSliceParamParser(cvm::NodeAttrs* attrs) {
   StridedSliceParam param;
@@ -849,7 +849,7 @@ Examples::
 .set_support_level(1);
 
 // Flip
-DMLC_REGISTER_PARAMETER(FlipParam);
+CVMUTIL_REGISTER_PARAMETER(FlipParam);
 
 CVM_REGISTER_OP(flip)
 .describe(R"code(Reverse the elements of an array.
@@ -893,7 +893,7 @@ Examples::
 
 
 // take
-DMLC_REGISTER_PARAMETER(TakeParam);
+CVMUTIL_REGISTER_PARAMETER(TakeParam);
 
 inline bool TakeInferShape(const NodeAttrs& attrs,
                            std::vector<TShape>* in_shape,
@@ -1000,7 +1000,7 @@ Examples::
 
 
 // SliceLike
-DMLC_REGISTER_PARAMETER(SliceLikeParam);
+CVMUTIL_REGISTER_PARAMETER(SliceLikeParam);
 
 inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,

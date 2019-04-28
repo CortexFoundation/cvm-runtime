@@ -1,10 +1,10 @@
 /*!
  *  Copyright (c) 2015 by Contributors
  * \file io.h
- * \brief defines serializable interface of dmlc
+ * \brief defines serializable interface of utils
  */
-#ifndef DMLC_IO_H_
-#define DMLC_IO_H_
+#ifndef CVMUTIL_IO_H_
+#define CVMUTIL_IO_H_
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -21,8 +21,8 @@ typedef unsigned __int64 uint64_t;
 #include <inttypes.h>
 #endif
 
-/*! \brief namespace for dmlc */
-namespace dmlc {
+/*! \brief namespace for utils */
+namespace utils {
 /*!
  * \brief interface of stream I/O for serialization
  */
@@ -60,11 +60,11 @@ class Stream {  // NOLINT(*)
   /*!
    * \brief writes a data to stream.
    *
-   * dmlc::Stream support Write/Read of most STL composites and base types.
+   * utils::Stream support Write/Read of most STL composites and base types.
    * If the data type is not supported, a compile time error will be issued.
    *
    * This function is endian-aware,
-   * the output endian defined by DMLC_IO_USE_LITTLE_ENDIAN
+   * the output endian defined by CVMUTIL_IO_USE_LITTLE_ENDIAN
    *
    * \param data data to be written
    * \tparam T the data type to be written
@@ -74,11 +74,11 @@ class Stream {  // NOLINT(*)
   /*!
    * \brief loads a data from stream.
    *
-   * dmlc::Stream support Write/Read of most STL composites and base types.
+   * utils::Stream support Write/Read of most STL composites and base types.
    * If the data type is not supported, a compile time error will be issued.
    *
    * This function is endian-aware,
-   * the input endian defined by DMLC_IO_USE_LITTLE_ENDIAN
+   * the input endian defined by CVMUTIL_IO_USE_LITTLE_ENDIAN
    *
    * \param out_data place holder of data to be deserialized
    * \return whether the load was successful
@@ -309,7 +309,7 @@ class InputSplit {
  * \code
  *
  *   Stream *fs = Stream::Create("hdfs:///test.txt", "w");
- *   dmlc::ostream os(fs);
+ *   utils::ostream os(fs);
  *   os << "hello world" << std::endl;
  *   delete fs;
  * \endcode
@@ -327,7 +327,7 @@ class ostream : public std::basic_ostream<char> {
     this->set_stream(stream);
   }
   // explictly synchronize the buffer
-  virtual ~ostream() DMLC_NO_EXCEPTION {
+  virtual ~ostream() CVMUTIL_NO_EXCEPTION {
     buf_.pubsync();
   }
   /*!
@@ -380,7 +380,7 @@ class ostream : public std::basic_ostream<char> {
  * \code
  *
  *   Stream *fs = Stream::Create("hdfs:///test.txt", "r");
- *   dmlc::istream is(fs);
+ *   utils::istream is(fs);
  *   is >> mydata;
  *   delete fs;
  * \endcode
@@ -397,7 +397,7 @@ class istream : public std::basic_istream<char> {
       : std::basic_istream<char>(NULL), buf_(buffer_size) {
     this->set_stream(stream);
   }
-  virtual ~istream() DMLC_NO_EXCEPTION {}
+  virtual ~istream() CVMUTIL_NO_EXCEPTION {}
   /*!
    * \brief set internal stream to be stream, reset states
    * \param stream new stream as output
@@ -440,11 +440,11 @@ class istream : public std::basic_istream<char> {
   InBuf buf_;
 };
 #endif
-}  // namespace dmlc
+}  // namespace utils
 
 #include "./serializer.h"
 
-namespace dmlc {
+namespace utils {
 // implementations of inline functions
 template<typename T>
 inline void Stream::Write(const T &data) {
@@ -518,5 +518,5 @@ inline int istream::InBuf::underflow() {
   }
 }
 #endif
-}  // namespace dmlc
-#endif  // DMLC_IO_H_
+}  // namespace utils
+#endif  // CVMUTIL_IO_H_
