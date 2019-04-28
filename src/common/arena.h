@@ -5,13 +5,13 @@
  * \brief Arena allocator that allocates
  *  memory chunks and frees them all during destruction time.
  */
-#ifndef TVM_COMMON_ARENA_H_
-#define TVM_COMMON_ARENA_H_
+#ifndef CVM_COMMON_ARENA_H_
+#define CVM_COMMON_ARENA_H_
 
 #include <utility>
 #include <type_traits>
 
-namespace tvm {
+namespace cvm {
 namespace common {
 
 const constexpr int kArenaPageSize = 16 << 10;
@@ -145,5 +145,5 @@ struct LinkedList {
 };
 
 }  // namespace common
-}  // namespace tvm
-#endif  // TVM_COMMON_ARENA_H_
+}  // namespace cvm
+#endif  // CVM_COMMON_ARENA_H_

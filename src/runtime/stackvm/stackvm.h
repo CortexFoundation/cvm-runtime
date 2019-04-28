@@ -7,16 +7,16 @@
  *  to setup calls into device functions
  *  when only Runtime compilation for device is available(via NVRTC or OpenCL).
  */
-#ifndef TVM_RUNTIME_STACKVM_STACKVM_H_
-#define TVM_RUNTIME_STACKVM_STACKVM_H_
+#ifndef CVM_RUNTIME_STACKVM_STACKVM_H_
+#define CVM_RUNTIME_STACKVM_STACKVM_H_
 
-#include <tvm/runtime/c_runtime_api.h>
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/module.h>
+#include <cvm/runtime/c_runtime_api.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/module.h>
 #include <string>
 #include <vector>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 using runtime::operator<<;
@@ -30,7 +30,7 @@ class StackVM {
    * \param args The arguments to the StackVM.
    * \param mod_ctx The module context used in running.
    */
-  void Run(const TVMArgs& args, runtime::ModuleNode* mod_ctx) const;
+  void Run(const CVMArgs& args, runtime::ModuleNode* mod_ctx) const;
   /*!
    * \brief The opcode of stack vm
    * \note Notation
@@ -69,7 +69,7 @@ class StackVM {
     ARRAY_LOAD_INT64,
     ARRAY_LOAD_FP64,
     ARRAY_LOAD_HANDLE,
-    ARRAY_LOAD_TVMVALUE,
+    ARRAY_LOAD_CVMVALUE,
     /*!
      * \brief Routine to store data from constant offset.
      * \code
@@ -83,7 +83,7 @@ class StackVM {
     ARRAY_STORE_INT64,
     ARRAY_STORE_FP64,
     ARRAY_STORE_HANDLE,
-    ARRAY_STORE_TVMVALUE,
+    ARRAY_STORE_CVMVALUE,
     // logical ops
     NOT,
     /*!
@@ -214,7 +214,7 @@ class StackVM {
      *  pc = pc + 1;
      * \endcode
      */
-    TVM_STACK_ALLOCA_BY_8BYTE,
+    CVM_STACK_ALLOCA_BY_8BYTE,
     /*!
      * \brief allocate data from device.
      * \code
@@ -226,7 +226,7 @@ class StackVM {
      *  pc = pc + 1;
      * \endcode
      */
-    TVM_DEVICE_ALLOCA,
+    CVM_DEVICE_ALLOCA,
     /*!
      * \brief free data into device.
      * \code
@@ -238,11 +238,11 @@ class StackVM {
      *  pc = pc + 1;
      * \endcode
      */
-    TVM_DEVICE_FREE,
+    CVM_DEVICE_FREE,
     /*!
      * \brief throw last error
      */
-    TVM_THROW_LAST_ERROR,
+    CVM_THROW_LAST_ERROR,
     /*!
      * \brief get data from structure.
      * \code
@@ -252,7 +252,7 @@ class StackVM {
      *  pc = pc + 3
      * \endcode
      */
-    TVM_STRUCT_GET,
+    CVM_STRUCT_GET,
     /*!
      * \brief set data into structure.
      * \code
@@ -263,7 +263,7 @@ class StackVM {
      *  sp = sp - 1
      * \endcode
      */
-    TVM_STRUCT_SET
+    CVM_STRUCT_SET
   };
   /*! \brief The code structure */
   union Code {
@@ -273,9 +273,9 @@ class StackVM {
   /*! \brief The state object of StackVM */
   struct State {
     /*! \brief The execution stack */
-    std::vector<TVMValue> stack;
+    std::vector<CVMValue> stack;
     /*! \brief The global heap space */
-    std::vector<TVMValue> heap;
+    std::vector<CVMValue> heap;
     /*! \brief stack pointer  */
     int64_t sp{0};
     /*! \brief program counter */
@@ -340,7 +340,7 @@ class StackVM {
    * \param t the type code.
    * \return The load opcode
    */
-  static OpCode GetLoad(TVMType t) {
+  static OpCode GetLoad(CVMType t) {
     CHECK_EQ(t.lanes, 1U);
     if (t.code == kHandle) return ARRAY_LOAD_HANDLE;
     if (t.code == kDLInt) {
@@ -365,7 +365,7 @@ class StackVM {
    * \param t the type code.
    * \return The load opcode
    */
-  static OpCode GetStore(TVMType t) {
+  static OpCode GetStore(CVMType t) {
     CHECK_EQ(t.lanes, 1U);
     if (t.code == kHandle) return ARRAY_STORE_HANDLE;
     if (t.code == kDLInt) {
@@ -397,9 +397,9 @@ class StackVM {
 };
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
 namespace dmlc {
-DMLC_DECLARE_TRAITS(has_saveload, ::tvm::runtime::StackVM, true);
+DMLC_DECLARE_TRAITS(has_saveload, ::cvm::runtime::StackVM, true);
 }
-#endif  // TVM_RUNTIME_STACKVM_STACKVM_H_
+#endif  // CVM_RUNTIME_STACKVM_STACKVM_H_

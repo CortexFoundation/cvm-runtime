@@ -9,9 +9,9 @@ TEST(PackedFunc, Basic) {
   using namespace tvm::runtime;
   int x = 0;
   void* handle = &x;
-  TVMArray a;
+  CVMArray a;
 
-  Var v = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  Var v = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       CHECK(args.num_args == 3);
       CHECK(args.values[0].v_float64 == 1.0);
       CHECK(args.type_codes[0] == kDLFloat);
@@ -28,7 +28,7 @@ TEST(PackedFunc, Node) {
   using namespace tvm;
   using namespace tvm::runtime;
   Var x;
-  Var t = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  Var t = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       CHECK(args.num_args == 1);
       CHECK(args.type_codes[0] == kNodeHandle);
       Var b = args[0];
@@ -42,16 +42,16 @@ TEST(PackedFunc, NDArray) {
   using namespace tvm;
   using namespace tvm::runtime;
   auto x = NDArray::Empty(
-      {}, String2TVMType("float32"),
-      TVMContext{kDLCPU, 0});
+      {}, String2CVMType("float32"),
+      CVMContext{kDLCPU, 0});
   reinterpret_cast<float*>(x->data)[0] = 10.0f;
   CHECK(x.use_count() == 1);
 
-  PackedFunc forward([&](TVMArgs args, TVMRetValue* rv) {
+  PackedFunc forward([&](CVMArgs args, CVMRetValue* rv) {
       *rv = args[0];
     });
 
-  NDArray ret = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  NDArray ret = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       NDArray y = args[0];
       DLTensor* ptr = args[0];
       CHECK(ptr == x.operator->());
@@ -66,7 +66,7 @@ TEST(PackedFunc, NDArray) {
 TEST(PackedFunc, str) {
   using namespace tvm;
   using namespace tvm::runtime;
-  PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       CHECK(args.num_args == 1);
       std::string x = args[0];
       CHECK(x == "hello");
@@ -78,27 +78,27 @@ TEST(PackedFunc, str) {
 TEST(PackedFunc, func) {
   using namespace tvm;
   using namespace tvm::runtime;
-  PackedFunc addone([&](TVMArgs args, TVMRetValue* rv) {
+  PackedFunc addone([&](CVMArgs args, CVMRetValue* rv) {
       *rv = args[0].operator int() + 1;
     });
   // function as arguments
-  int r0 = PackedFunc([](TVMArgs args, TVMRetValue* rv) {
+  int r0 = PackedFunc([](CVMArgs args, CVMRetValue* rv) {
       PackedFunc f = args[0];
-      // TVMArgValue -> Arguments as function
+      // CVMArgValue -> Arguments as function
       *rv = f(args[1]).operator int();
     })(addone, 1);
   CHECK_EQ(r0, 2);
 
-  int r1 = PackedFunc([](TVMArgs args, TVMRetValue* rv) {
-      // TVMArgValue -> TVMRetValue
+  int r1 = PackedFunc([](CVMArgs args, CVMRetValue* rv) {
+      // CVMArgValue -> CVMRetValue
       *rv = args[1];
     })(2, 100);
   CHECK_EQ(r1, 100);
 
-  int r2 = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  int r2 = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       // re-assignment
       *rv = args[0];
-      // TVMRetValue -> Function argument
+      // CVMRetValue -> Function argument
       *rv = addone(args[0].operator PackedFunc()(args[1], 1));
     })(addone, 100);
   CHECK_EQ(r2, 102);
@@ -108,13 +108,13 @@ TEST(PackedFunc, Expr) {
   using namespace tvm;
   using namespace tvm::runtime;
   // automatic conversion of int to expr
-  PackedFunc addone([](TVMArgs args, TVMRetValue* rv) {
+  PackedFunc addone([](CVMArgs args, CVMRetValue* rv) {
       Expr x = args[0];
       *rv = x.as<tvm::ir::IntImm>()->value + 1;
   });
-  int r0 = PackedFunc([](TVMArgs args, TVMRetValue* rv) {
+  int r0 = PackedFunc([](CVMArgs args, CVMRetValue* rv) {
       PackedFunc f = args[0];
-      // TVMArgValue -> Arguments as function
+      // CVMArgValue -> Arguments as function
       *rv = f(args[1]).operator int();
     })(addone, 1);
   CHECK_EQ(r0, 2);
@@ -123,11 +123,11 @@ TEST(PackedFunc, Expr) {
 TEST(PackedFunc, Type) {
   using namespace tvm;
   using namespace tvm::runtime;
-  auto get_type = PackedFunc([](TVMArgs args, TVMRetValue* rv) {
+  auto get_type = PackedFunc([](CVMArgs args, CVMRetValue* rv) {
       Type x = args[0];
       *rv = x;
     });
-  auto get_type2 = PackedFunc([](TVMArgs args, TVMRetValue* rv) {
+  auto get_type2 = PackedFunc([](CVMArgs args, CVMRetValue* rv) {
       *rv = args[0];
     });
   CHECK(get_type("int32").operator Type() == Int(32));
@@ -175,7 +175,7 @@ struct extension_type_info<test::IntVector> {
 }  // tvm
 
 // do registration, this need to be in cc file
-TVM_REGISTER_EXT_TYPE(test::IntVector);
+CVM_REGISTER_EXT_TYPE(test::IntVector);
 
 TEST(PackedFunc, ExtensionType) {
   using namespace tvm;
@@ -183,7 +183,7 @@ TEST(PackedFunc, ExtensionType) {
   // note: class are copy by value.
   test::IntVector vec{1, 2, 4};
 
-  auto copy_vec = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  auto copy_vec = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       // copy by value
       const test::IntVector& v = args[0].AsExtension<test::IntVector>();
       CHECK(&v == &vec);
@@ -194,7 +194,7 @@ TEST(PackedFunc, ExtensionType) {
       *rv = v2;
     });
 
-  auto pass_vec = PackedFunc([&](TVMArgs args, TVMRetValue* rv) {
+  auto pass_vec = PackedFunc([&](CVMArgs args, CVMRetValue* rv) {
       // copy by value
       *rv = args[0];
     });

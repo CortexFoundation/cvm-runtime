@@ -3,11 +3,11 @@
  * \file rpc_event_impl.cc
  * \brief Event based RPC server implementation.
  */
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <memory>
 #include "rpc_session.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class CallbackChannel final : public RPCChannel {
@@ -16,7 +16,7 @@ class CallbackChannel final : public RPCChannel {
       : fsend_(fsend) {}
 
   size_t Send(const void* data, size_t size) final {
-    TVMByteArray bytes;
+    CVMByteArray bytes;
     bytes.data = static_cast<const char*>(data);
     bytes.size = size;
     uint64_t ret = fsend_(bytes);
@@ -38,15 +38,15 @@ PackedFunc CreateEventDrivenServer(PackedFunc fsend,
   std::unique_ptr<CallbackChannel> ch(new CallbackChannel(fsend));
   std::shared_ptr<RPCSession> sess =
       RPCSession::Create(std::move(ch), name, remote_key);
-  return PackedFunc([sess](TVMArgs args, TVMRetValue* rv) {
+  return PackedFunc([sess](CVMArgs args, CVMRetValue* rv) {
       int ret = sess->ServerEventHandler(args[0], args[1]);
       *rv = ret;
     });
 }
 
-TVM_REGISTER_GLOBAL("rpc._CreateEventDrivenServer")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._CreateEventDrivenServer")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = CreateEventDrivenServer(args[0], args[1], args[2]);
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

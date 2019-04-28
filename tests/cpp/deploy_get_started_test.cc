@@ -25,8 +25,8 @@ int main()
     std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
     params_in.close();
 
-    // parameters need to be TVMByteArray type to indicate the binary data
-    TVMByteArray params_arr;
+    // parameters need to be CVMByteArray type to indicate the binary data
+    CVMByteArray params_arr;
     params_arr.data = params_data.c_str();
     params_arr.size = params_data.length();
 
@@ -43,7 +43,7 @@ int main()
     DLTensor* x;
     int in_ndim = 2;
     int64_t in_shape[2] = {1, 28};
-    TVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
+    CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
     auto x_iter = static_cast<int*>(x->data);
     for (auto i = 0; i < 28; i++) {
         x_iter[i] = i;
@@ -60,7 +60,7 @@ int main()
         DLTensor* w;
         int win_ndim = 2;
         int64_t win_shape[2] = {16, 28};
-        TVMArrayAlloc(win_shape, win_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &w);
+        CVMArrayAlloc(win_shape, win_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &w);
         for (auto i = 0; i < 16 * 28; i++) {
             static_cast<int*>(w->data)[i] = i / 10;
         }
@@ -70,7 +70,7 @@ int main()
         DLTensor* w1;
         int w1in_ndim = 2;
         int64_t w1in_shape[2] = {10, 16};
-        TVMArrayAlloc(w1in_shape, w1in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &w1);
+        CVMArrayAlloc(w1in_shape, w1in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &w1);
         for (auto i = 0; i < 10 * 16; i++) {
             static_cast<int*>(w1->data)[i] = i / 10;
         }
@@ -84,15 +84,15 @@ int main()
     DLTensor* y;
     int out_ndim = 2;
     int64_t out_shape[2] = {1, 10, };
-    TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y);
+    CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y);
 
     // get the function from the module(get output data)
     tvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
     get_output(0, y);
 
     // DLTensor* y_cpu;
-    // TVMArrayAlloc(y->shape, y->ndim, y->dtype.code, y->dtype.bits, y->dtype.lanes, kDLCPU, 0, &y_cpu);
-    // TVMArrayCopyFromTo(y_cpu, y, nullptr);
+    // CVMArrayAlloc(y->shape, y->ndim, y->dtype.code, y->dtype.bits, y->dtype.lanes, kDLCPU, 0, &y_cpu);
+    // CVMArrayCopyFromTo(y_cpu, y, nullptr);
 
     // get the maximum position in output vector
     auto y_iter = static_cast<int*>(y->data);
@@ -101,9 +101,9 @@ int main()
     }
     std::cout << "\n";
 
-    TVMArrayFree(x);
-    TVMArrayFree(y);
-    // TVMArrayFree(y_cpu);
+    CVMArrayFree(x);
+    CVMArrayFree(y);
+    // CVMArrayFree(y_cpu);
 
     return 0;
 }

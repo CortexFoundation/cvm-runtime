@@ -3,8 +3,8 @@
  * \file nn_common.h
  * \brief Common utilities for nn ops.
  */
-#ifndef NNVM_TOP_NN_NN_COMMON_H_
-#define NNVM_TOP_NN_NN_COMMON_H_
+#ifndef CVM_TOP_NN_NN_COMMON_H_
+#define CVM_TOP_NN_NN_COMMON_H_
 
 #include <dmlc/logging.h>
 #include <dmlc/parameter.h>
@@ -89,4 +89,4 @@ inline TShape ConvertLayout(TShape src, const Layout& src_layout, const Layout& 
 }  // namespace top
 }  // namespace cvm
 
-#endif  // NNVM_TOP_NN_NN_COMMON_H_
+#endif  // CVM_TOP_NN_NN_COMMON_H_

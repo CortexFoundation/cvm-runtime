@@ -3,8 +3,8 @@
  * \file cvm/graph_attr_types.h
  * \brief Data structures that can appear in graph attributes.
  */
-#ifndef NNVM_GRAPH_ATTR_TYPES_H_
-#define NNVM_GRAPH_ATTR_TYPES_H_
+#ifndef CVM_GRAPH_ATTR_TYPES_H_
+#define CVM_GRAPH_ATTR_TYPES_H_
 
 #include <vector>
 #include <string>
@@ -110,4 +110,4 @@ using StorageVector = std::vector<int>;
 
 }  // namespace cvm
 
-#endif  // NNVM_GRAPH_ATTR_TYPES_H_
+#endif  // CVM_GRAPH_ATTR_TYPES_H_

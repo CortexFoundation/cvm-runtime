@@ -22,8 +22,8 @@ int main()
     std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
     params_in.close();
 
-    // parameters need to be TVMByteArray type to indicate the binary data
-    TVMByteArray params_arr;
+    // parameters need to be CVMByteArray type to indicate the binary data
+    CVMByteArray params_arr;
     params_arr.data = params_data.c_str();
     params_arr.size = params_data.length();
 
@@ -39,7 +39,7 @@ int main()
     DLTensor* x;
     int in_ndim = 4;
     int64_t in_shape[4] = {1, 3, 224, 224};
-    TVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
+    CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &x);
     // load image data saved in binary
     // std::ifstream data_fin("cat.bin", std::ios::binary);
     // data_fin.read(static_cast<char*>(x->data), 3 * 224 * 224 * 4);
@@ -62,15 +62,15 @@ int main()
     DLTensor* y;
     int out_ndim = 2;
     int64_t out_shape[2] = {1, 1000, };
-    TVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y);
+    CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y);
 
     // get the function from the module(get output data)
     tvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
     get_output(0, y);
 
     // DLTensor* y_cpu;
-    // TVMArrayAlloc(y->shape, y->ndim, y->dtype.code, y->dtype.bits, y->dtype.lanes, kDLCPU, 0, &y_cpu);
-    // TVMArrayCopyFromTo(y_cpu, y, nullptr);
+    // CVMArrayAlloc(y->shape, y->ndim, y->dtype.code, y->dtype.bits, y->dtype.lanes, kDLCPU, 0, &y_cpu);
+    // CVMArrayCopyFromTo(y_cpu, y, nullptr);
 
     // get the maximum position in output vector
     auto y_iter = static_cast<int*>(y->data);
@@ -78,9 +78,9 @@ int main()
     auto max_index = std::distance(y_iter, max_iter);
     std::cout << "The maximum position in output vector is: " << max_index << std::endl;
 
-    TVMArrayFree(x);
-    TVMArrayFree(y);
-    // TVMArrayFree(y_cpu);
+    CVMArrayFree(x);
+    CVMArrayFree(y);
+    // CVMArrayFree(y_cpu);
 
     return 0;
 }

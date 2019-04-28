@@ -3,23 +3,23 @@
  * \file meta_data.h
  * \brief Meta data related utilities
  */
-#ifndef TVM_RUNTIME_META_DATA_H_
-#define TVM_RUNTIME_META_DATA_H_
+#ifndef CVM_RUNTIME_META_DATA_H_
+#define CVM_RUNTIME_META_DATA_H_
 
 #include <dmlc/json.h>
 #include <dmlc/io.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/packed_func.h>
 #include <string>
 #include <vector>
 #include "runtime_base.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*! \brief function information needed by device */
 struct FunctionInfo {
   std::string name;
-  std::vector<TVMType> arg_types;
+  std::vector<CVMType> arg_types;
   std::vector<std::string> thread_axis_tags;
 
   void Save(dmlc::JSONWriter *writer) const;
@@ -28,9 +28,9 @@ struct FunctionInfo {
   bool Load(dmlc::Stream *reader);
 };
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
 namespace dmlc {
-DMLC_DECLARE_TRAITS(has_saveload, ::tvm::runtime::FunctionInfo, true);
+DMLC_DECLARE_TRAITS(has_saveload, ::cvm::runtime::FunctionInfo, true);
 }  // namespace dmlc
-#endif  // TVM_RUNTIME_META_DATA_H_
+#endif  // CVM_RUNTIME_META_DATA_H_

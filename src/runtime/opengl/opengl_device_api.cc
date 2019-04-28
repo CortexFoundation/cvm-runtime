@@ -2,12 +2,12 @@
  *  Copyright (c) 2017 by Contributors
  * \file opengl_device_api.cc
  */
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <cstring>
 #include "opengl_common.h"
 #include "opengl_module.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 namespace gl {
 
@@ -68,14 +68,14 @@ const std::shared_ptr<OpenGLWorkspace>& OpenGLWorkspace::Global() {
   return inst;
 }
 
-void OpenGLWorkspace::SetDevice(TVMContext ctx) {
+void OpenGLWorkspace::SetDevice(CVMContext ctx) {
   CHECK_EQ(ctx.device_type, static_cast<int>(kOpenGL))
     << "Device type must be OpenGL.";
   CHECK_EQ(ctx.device_id, 0) << "Only support 1 OpenGL \"device\".";
 }
 
 void OpenGLWorkspace::GetAttr(
-    TVMContext ctx, DeviceAttrKind kind, TVMRetValue* rv) {
+    CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) {
   switch (kind) {
     case kExist: {
       *rv = static_cast<int>(ctx.device_id == 0);
@@ -102,11 +102,11 @@ void OpenGLWorkspace::GetAttr(
 }
 
 void* OpenGLWorkspace::AllocDataSpace(
-    TVMContext ctx, size_t nbytes, size_t alignment, TVMType type_hint) {
+    CVMContext ctx, size_t nbytes, size_t alignment, CVMType type_hint) {
   return reinterpret_cast<void*>(new Texture(CreateTexture(type_hint, nbytes)));
 }
 
-void OpenGLWorkspace::FreeDataSpace(TVMContext ctx, void* ptr) {
+void OpenGLWorkspace::FreeDataSpace(CVMContext ctx, void* ptr) {
   delete reinterpret_cast<Texture*>(ptr);
 }
 
@@ -115,10 +115,10 @@ void OpenGLWorkspace::CopyDataFromTo(const void* from,
                                      void* to,
                                      size_t to_offset,
                                      size_t size,
-                                     TVMContext ctx_from,
-                                     TVMContext ctx_to,
-                                     TVMType type_hint,
-                                     TVMStreamHandle stream) {
+                                     CVMContext ctx_from,
+                                     CVMContext ctx_to,
+                                     CVMType type_hint,
+                                     CVMStreamHandle stream) {
   CHECK(stream == nullptr);
 
   // TODO(zhixunt): This is a nasty hack to avoid comparison between
@@ -159,7 +159,7 @@ void OpenGLWorkspace::CopyDataFromTo(const void* from,
   }
 }
 
-void OpenGLWorkspace::StreamSync(TVMContext ctx, TVMStreamHandle stream) {}
+void OpenGLWorkspace::StreamSync(CVMContext ctx, CVMStreamHandle stream) {}
 
 OpenGLWorkspace::OpenGLWorkspace() {
   // Set an error handler.
@@ -293,7 +293,7 @@ GLuint OpenGLWorkspace::CreateShader(GLenum shader_kind,
   return shader;
 }
 
-static TextureFormat GetTextureFormat(TVMType type) {
+static TextureFormat GetTextureFormat(CVMType type) {
   CHECK_EQ(type.lanes, 1) << "Not supporting multi-lane types.";
 
   switch (type.code) {
@@ -336,7 +336,7 @@ static TextureFormat GetTextureFormat(TVMType type) {
   return {GL_R32F, GL_RED, GL_FLOAT};
 }
 
-Texture OpenGLWorkspace::CreateTexture(TVMType type, size_t nbytes) {
+Texture OpenGLWorkspace::CreateTexture(CVMType type, size_t nbytes) {
   // Create a texture.
   GLuint texture;
   OPENGL_CALL(gl->GenTextures(1, &texture));
@@ -402,10 +402,10 @@ Program OpenGLWorkspace::CreateProgram(GLuint fragment_shader) {
 }
 
 /*!
- * \brief Visit a 1D range of an OpenGL texture-backed TVM array.
+ * \brief Visit a 1D range of an OpenGL texture-backed CVM array.
  * When getting/setting a sub image of a texture, we can only specify a 2D
  * block (xbeg, ybeg, width, height).
- * Since we are storing all TVM arrays using (kTextureRowSize x nrows) 2D
+ * Since we are storing all CVM arrays using (kTextureRowSize x nrows) 2D
  * textures (row-major), a range in an array does not necessarily map to a 2D
  * block.
  * This function split a 1D range into 3 2D blocks.
@@ -536,7 +536,7 @@ void OpenGLWorkspace::SetCurrentProgram(const Program& program) {
 
 void OpenGLWorkspace::SetUniform(const Program& program,
                                  const std::string& name,
-                                 TVMType type,
+                                 CVMType type,
                                  void* value) {
   GLint location = gl->GetUniformLocation(program.program(), name.c_str());
   switch (type.code) {
@@ -603,12 +603,12 @@ void OpenGLWorkspace::Render(Texture* output) {
   OPENGL_CALL(gl->DeleteFramebuffers(1, &frame_buffer));
 }
 
-TVM_REGISTER_GLOBAL("device_api.opengl")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("device_api.opengl")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
   DeviceAPI* ptr = OpenGLWorkspace::Global().get();
   *rv = static_cast<void*>(ptr);
 });
 
 }  // namespace gl
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

@@ -3,17 +3,17 @@
  * \file cuda_module.h
  * \brief Execution handling of CUDA kernels
  */
-#ifndef TVM_RUNTIME_CUDA_CUDA_MODULE_H_
-#define TVM_RUNTIME_CUDA_CUDA_MODULE_H_
+#ifndef CVM_RUNTIME_CUDA_CUDA_MODULE_H_
+#define CVM_RUNTIME_CUDA_CUDA_MODULE_H_
 
-#include <tvm/runtime/module.h>
+#include <cvm/runtime/module.h>
 #include <memory>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include "../meta_data.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*! \brief Maximum number of GPU supported in CUDAModule */
@@ -33,5 +33,5 @@ Module CUDAModuleCreate(
     std::unordered_map<std::string, FunctionInfo> fmap,
     std::string cuda_source);
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_CUDA_CUDA_MODULE_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_CUDA_CUDA_MODULE_H_

@@ -3,8 +3,8 @@
  * \file cvm/graph.h
  * \brief Configuation of cvm as well as basic data structure.
  */
-#ifndef NNVM_GRAPH_H_
-#define NNVM_GRAPH_H_
+#ifndef CVM_GRAPH_H_
+#define CVM_GRAPH_H_
 
 #include <vector>
 #include <string>
@@ -313,4 +313,4 @@ inline void DFSVisit(const std::vector<NodeEntry>& heads,
 
 }  // namespace cvm
 
-#endif  // NNVM_GRAPH_H_
+#endif  // CVM_GRAPH_H_

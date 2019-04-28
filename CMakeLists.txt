@@ -1,13 +1,10 @@
 cmake_minimum_required(VERSION 3.2)
-project(tvm C CXX)
+project(cvm C CXX)
 set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 # Utility functions
 include(cmake/util/Util.cmake)
 include(cmake/util/FindCUDA.cmake)
-include(cmake/util/FindVulkan.cmake)
-include(cmake/util/FindLLVM.cmake)
-include(cmake/util/FindROCM.cmake)
 
 if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/config.cmake)
   include(${CMAKE_CURRENT_BINARY_DIR}/config.cmake)
@@ -21,43 +18,42 @@ endif()
 # You can create a config.cmake at build folder
 # and add set(OPTION VALUE) to override these build options.
 # Alernatively, use cmake -DOPTION=VALUE through command-line.
-tvm_option(USE_CUDA "Build with CUDA" ON)
-tvm_option(USE_OPENCL "Build with OpenCL" ON)
-tvm_option(USE_VULKAN "Build with Vulkan" OFF)
-tvm_option(USE_OPENGL "Build with OpenGL" OFF)
-tvm_option(USE_METAL "Build with Metal" OFF)
-tvm_option(USE_ROCM "Build with ROCM" OFF)
-tvm_option(ROCM_PATH "The path to rocm" /opt/rocm)
-tvm_option(USE_RPC "Build with RPC" ON)
-tvm_option(USE_LLVM "Build with LLVM, can be set to specific llvm-config path" ON)
-tvm_option(USE_STACKVM_RUNTIME "Include stackvm into the runtime" OFF)
-tvm_option(USE_GRAPH_RUNTIME "Build with tiny graph runtime" ON)
-tvm_option(USE_CVM_RUNTIME "Build with tiny cvm runtime" ON)
-tvm_option(USE_GRAPH_RUNTIME_DEBUG "Build with tiny graph runtime debug mode" OFF)
-tvm_option(USE_CVM_GRAPH_RUNTIME "Build with CVM graph runtime" ON)
-tvm_option(USE_SGX "Build with SGX" OFF)
-tvm_option(USE_RTTI "Build with RTTI" ON)
-tvm_option(USE_MSVC_MT "Build with MT" OFF)
-tvm_option(INSTALL_DEV "Install compiler infrastructure" OFF)
+cvm_option(USE_CUDA "Build with CUDA" ON)
+cvm_option(USE_OPENCL "Build with OpenCL" ON)
+cvm_option(USE_VULKAN "Build with Vulkan" OFF)
+cvm_option(USE_METAL "Build with Metal" OFF)
+cvm_option(USE_ROCM "Build with ROCM" OFF)
+cvm_option(ROCM_PATH "The path to rocm" /opt/rocm)
+cvm_option(USE_RPC "Build with RPC" ON)
+cvm_option(USE_LLVM "Build with LLVM, can be set to specific llvm-config path" ON)
+cvm_option(USE_STACKVM_RUNTIME "Include stackvm into the runtime" OFF)
+cvm_option(USE_GRAPH_RUNTIME "Build with tiny graph runtime" ON)
+cvm_option(USE_CVM_RUNTIME "Build with tiny cvm runtime" ON)
+cvm_option(USE_GRAPH_RUNTIME_DEBUG "Build with tiny graph runtime debug mode" OFF)
+cvm_option(USE_CVM_GRAPH_RUNTIME "Build with CVM graph runtime" ON)
+cvm_option(USE_SGX "Build with SGX" OFF)
+cvm_option(USE_RTTI "Build with RTTI" ON)
+cvm_option(USE_MSVC_MT "Build with MT" OFF)
+cvm_option(INSTALL_DEV "Install compiler infrastructure" OFF)
 
 # Contrib library options
-tvm_option(USE_BLAS "The blas library to be linked" none)
-tvm_option(USE_MKL_PATH "MKL root path when use MKL blas" none)
-tvm_option(USE_CUDNN "Build with cuDNN" OFF)
-tvm_option(USE_CUBLAS "Build with cuBLAS" OFF)
-tvm_option(USE_MIOPEN "Build with ROCM:MIOpen" OFF)
-tvm_option(USE_ROCBLAS "Build with ROCM:RoCBLAS" OFF)
-tvm_option(USE_SORT "Build with sort support" OFF)
-tvm_option(USE_NNPACK "Build with nnpack support" OFF)
-tvm_option(USE_RANDOM "Build with random support" OFF)
-tvm_option(USE_ANTLR "Build with ANTLR for Relay parsing" OFF)
+cvm_option(USE_BLAS "The blas library to be linked" none)
+cvm_option(USE_MKL_PATH "MKL root path when use MKL blas" none)
+cvm_option(USE_CUDNN "Build with cuDNN" OFF)
+cvm_option(USE_CUBLAS "Build with cuBLAS" OFF)
+cvm_option(USE_MIOPEN "Build with ROCM:MIOpen" OFF)
+cvm_option(USE_ROCBLAS "Build with ROCM:RoCBLAS" OFF)
+cvm_option(USE_SORT "Build with sort support" OFF)
+cvm_option(USE_NNPACK "Build with nnpack support" OFF)
+cvm_option(USE_RANDOM "Build with random support" OFF)
+cvm_option(USE_ANTLR "Build with ANTLR for Relay parsing" OFF)
 
 # include directories
 include_directories("include")
 
 # initial variables
-set(TVM_LINKER_LIBS "")
-set(TVM_RUNTIME_LINKER_LIBS "")
+set(CVM_LINKER_LIBS "")
+set(CVM_RUNTIME_LINKER_LIBS "")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Generic compilation options
@@ -140,7 +136,7 @@ if(USE_GRAPH_RUNTIME)
     file(GLOB RUNTIME_GRAPH_DEBUG_SRCS src/runtime/graph/debug/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_GRAPH_DEBUG_SRCS})
     set_source_files_properties(${RUNTIME_GRAPH_SRCS}
-      PROPERTIES COMPILE_DEFINITIONS "TVM_GRAPH_RUNTIME_DEBUG")
+      PROPERTIES COMPILE_DEFINITIONS "CVM_GRAPH_RUNTIME_DEBUG")
   endif(USE_GRAPH_RUNTIME_DEBUG)
 endif(USE_GRAPH_RUNTIME)
 
@@ -148,25 +144,16 @@ endif(USE_GRAPH_RUNTIME)
 # Module rules
 # include(cmake/modules/VTA.cmake)
 include(cmake/modules/CUDA.cmake)
-include(cmake/modules/OpenCL.cmake)
-include(cmake/modules/OpenGL.cmake)
-include(cmake/modules/Vulkan.cmake)
-include(cmake/modules/Metal.cmake)
-include(cmake/modules/ROCM.cmake)
-include(cmake/modules/SGX.cmake)
-include(cmake/modules/LLVM.cmake)
-include(cmake/modules/ANTLR.cmake)
 
-add_library(tvm_runtime SHARED ${RUNTIME_SRCS})
-
-target_link_libraries(tvm_runtime ${TVM_RUNTIME_LINKER_LIBS})
+add_library(cvm_runtime SHARED ${RUNTIME_SRCS})
+target_link_libraries(cvm_runtime ${CVM_RUNTIME_LINKER_LIBS})
 
 # Tests
 # Custom targets
-add_custom_target(runtime DEPENDS tvm_runtime)
+add_custom_target(runtime DEPENDS cvm_runtime)
 
 # Installation rules
-install(TARGETS tvm_runtime DESTINATION lib${LIB_SUFFIX})
+install(TARGETS cvm_runtime DESTINATION lib${LIB_SUFFIX})
 
 if (INSTALL_DEV)
   install(
@@ -176,7 +163,7 @@ if (INSTALL_DEV)
   )
 else(INSTALL_DEV)
   install(
-    DIRECTORY "include/tvm/runtime/." DESTINATION "include/tvm/runtime"
+    DIRECTORY "include/cvm/runtime/." DESTINATION "include/cvm/runtime"
     FILES_MATCHING
     PATTERN "*.h"
     )
@@ -184,6 +171,6 @@ endif(INSTALL_DEV)
 
 # More target definitions
 if(MSVC)
-  target_compile_definitions(tvm_runtime PRIVATE -DHalide_EXPORTS)
-  target_compile_definitions(tvm_runtime PRIVATE -DTVM_EXPORTS)
+  target_compile_definitions(cvm_runtime PRIVATE -DHalide_EXPORTS)
+  target_compile_definitions(cvm_runtime PRIVATE -DCVM_EXPORTS)
 endif()

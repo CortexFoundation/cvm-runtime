@@ -15,74 +15,74 @@ namespace cvm {
 namespace top {
 
 // undefined op
-NNVM_REGISTER_ELEMWISE_UNARY_OP(__undef__)
+CVM_REGISTER_ELEMWISE_UNARY_OP(__undef__)
 .describe(R"code(undefined op.
 
 Used to produce invalide node during optimization.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_num_outputs(1)
 .set_num_inputs(0);
 
 // abs
-NNVM_REGISTER_ELEMWISE_UNARY_OP(abs)
+CVM_REGISTER_ELEMWISE_UNARY_OP(abs)
 .describe(R"code(Take absolute value of elements of the input.
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(3);
 
 // sigmoid
-NNVM_REGISTER_ELEMWISE_UNARY_OP(sigmoid)
+CVM_REGISTER_ELEMWISE_UNARY_OP(sigmoid)
 .describe(R"code(Computes sigmoid.
 
 .. math::
   Y = 1 / (1 + exp(-X))
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(1);
 
 // tanh
-NNVM_REGISTER_ELEMWISE_UNARY_OP(tanh)
+CVM_REGISTER_ELEMWISE_UNARY_OP(tanh)
 .describe(R"code(Computes hyperbolic tangent.
 
 .. math::
    Y = sinh(X) / cosh(X)
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(1);
 
 // log2
-NNVM_REGISTER_ELEMWISE_UNARY_OP(log2)
+CVM_REGISTER_ELEMWISE_UNARY_OP(log2)
 .describe(R"code(Returns the log input array, computed element-wise.
 
 .. math::
    log2(x)
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<5>)
 .set_support_level(1);
 
 // log
-NNVM_REGISTER_ELEMWISE_UNARY_OP(log)
+CVM_REGISTER_ELEMWISE_UNARY_OP(log)
 .describe(R"code(Returns the log input array, computed element-wise.
 
 .. math::
    log(x)
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<5>)
 .set_support_level(1);
 
 // sqrt
-NNVM_REGISTER_ELEMWISE_UNARY_OP(sqrt)
+CVM_REGISTER_ELEMWISE_UNARY_OP(sqrt)
 .describe(R"code(Returns the sqrt input array, computed element-wise.
 
 .. math::
    \sqrt(x)
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", 
     [](const NodeAttrs& attrs,
       std::vector<TShape>* shapes,
@@ -100,50 +100,50 @@ NNVM_REGISTER_ELEMWISE_UNARY_OP(sqrt)
 
 // binary ops
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_add)
+CVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_add)
 .describe(R"code(Element-wise add
 
 )code")
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePlusonePrecision)
 .set_support_level(1);
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_sub)
+CVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_sub)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePlusonePrecision)
 .describe(R"code(Element-wise substraction
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_support_level(1);
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_mul)
+CVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_mul)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSumPrecision)
 .describe(R"code(Element-wise multiplication
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_support_level(1);
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_div)
+CVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_div)
 .describe(R"code(Element-wise division
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseFirstPrecision)
 .set_support_level(1);
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_mod)
+CVM_REGISTER_ELEMWISE_BINARY_OP(elemwise_mod)
   .describe(R"code(Element-wise modulo
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseFirstPrecision)
 .set_support_level(1);
 
 // logical
-NNVM_REGISTER_ELEMWISE_BINARY_OP(logical_and)
+CVM_REGISTER_ELEMWISE_BINARY_OP(logical_and)
 .describe(R"code(Elementwise compute the logical AND
 
 )code")
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<1>)
 .set_support_level(4);
 
-NNVM_REGISTER_ELEMWISE_BINARY_OP(logical_or)
+CVM_REGISTER_ELEMWISE_BINARY_OP(logical_or)
 .describe(R"code(Elementwise compute the logical OR
 
 )code")
@@ -151,26 +151,26 @@ NNVM_REGISTER_ELEMWISE_BINARY_OP(logical_or)
 .set_support_level(4);
 
 // negative
-NNVM_REGISTER_ELEMWISE_UNARY_OP(negative)
+CVM_REGISTER_ELEMWISE_UNARY_OP(negative)
 .describe(R"code(Elemenwise numeric negative
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(3);
 
 // logical NOT
-NNVM_REGISTER_ELEMWISE_UNARY_OP(logical_not)
+CVM_REGISTER_ELEMWISE_UNARY_OP(logical_not)
 .describe(R"code(Elementwise compute the logical NOT
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<1>)
 .set_support_level(4);
 
 // copy
-NNVM_REGISTER_ELEMWISE_UNARY_OP(copy)
+CVM_REGISTER_ELEMWISE_UNARY_OP(copy)
 .describe(R"code(Copy tensor to another one.
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision)
 .set_support_level(3);
 
@@ -179,10 +179,10 @@ DMLC_REGISTER_PARAMETER(InitOpWithScalarParam);
 DMLC_REGISTER_PARAMETER(FillValueParam);
 
 // full
-NNVM_REGISTER_INIT_OP(full)
+CVM_REGISTER_INIT_OP(full)
 .describe(R"code(Fill array with scalar value
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr_parser(ParamParser<InitOpWithScalarParam>)
 .set_attr<FGetAttrDict>(
   "FGetAttrDict", ParamGetAttrDict<InitOpWithScalarParam>)
@@ -204,10 +204,10 @@ NNVM_REGISTER_INIT_OP(full)
   })
 .set_support_level(4);
 
-NNVM_REGISTER_INIT_OP(zeros)
+CVM_REGISTER_INIT_OP(zeros)
 .describe(R"code(Fill target with zeros
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr_parser(ParamParser<InitOpParam>)
 .set_attr<FGetAttrDict>(
   "FGetAttrDict", ParamGetAttrDict<InitOpParam>)
@@ -218,10 +218,10 @@ NNVM_REGISTER_INIT_OP(zeros)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<1>)
 .set_support_level(4);
 
-NNVM_REGISTER_INIT_OP(ones)
+CVM_REGISTER_INIT_OP(ones)
 .describe(R"code(Fill target with ones
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr_parser(ParamParser<InitOpParam>)
 .set_attr<FGetAttrDict>(
   "FGetAttrDict", ParamGetAttrDict<InitOpParam>)
@@ -233,11 +233,11 @@ NNVM_REGISTER_INIT_OP(ones)
 .set_support_level(4);
 
 // full_like
-NNVM_REGISTER_INIT_LIKE_OP(full_like)
+CVM_REGISTER_INIT_LIKE_OP(full_like)
 .describe(R"code(Return an scalar value array with the same shape and type
 as the input array
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .add_arguments(FillValueParam::__FIELDS__())
 .set_attr_parser(ParamParser<FillValueParam>)
 .set_attr<FGetAttrDict>("FGetAttrDict", ParamGetAttrDict<FillValueParam>)
@@ -255,7 +255,7 @@ as the input array
   })
 .set_support_level(4);
 
-NNVM_REGISTER_INIT_LIKE_OP(zeros_like)
+CVM_REGISTER_INIT_LIKE_OP(zeros_like)
 .describe(R"code(Return an array of zeros with the same shape and type
 as the input array.
 
@@ -263,7 +263,7 @@ as the input array.
 .set_attr<FInferPrecision>("FInferPrecision", ElemwisePrecision<1>)
 .set_support_level(4);
 
-NNVM_REGISTER_INIT_LIKE_OP(ones_like)
+CVM_REGISTER_INIT_LIKE_OP(ones_like)
 .describe(R"code(Return an array of ones with the same shape and type
 as the input array.
 
@@ -274,8 +274,8 @@ as the input array.
 // unary scalar op
 DMLC_REGISTER_PARAMETER(ScalarParam);
 
-#define NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(op)                        \
-  NNVM_REGISTER_ELEMWISE_UNARY_OP(op)                                   \
+#define CVM_REGISTER_ELEMWISE_BINARY_SCALAR(op)                        \
+  CVM_REGISTER_ELEMWISE_UNARY_OP(op)                                   \
   .add_arguments(ScalarParam::__FIELDS__())                             \
   .set_attr_parser(ParamParser<ScalarParam>)                            \
   .set_attr<FGetAttrDict>("FGetAttrDict", ParamGetAttrDict<ScalarParam>)
@@ -290,31 +290,31 @@ inline bool AddScalarInferPrecision(const NodeAttrs& attrs,
   return true;
 }
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__add_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__add_scalar__)
 .describe(R"code(Tensor add scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", AddScalarInferPrecision)
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__sub_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__sub_scalar__)
 .describe(R"code(Tensor substract scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", AddScalarInferPrecision)
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rsub_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rsub_scalar__)
 .describe(R"code(scalar substract Tensor
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", AddScalarInferPrecision)
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__lshift_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__lshift_scalar__)
 .describe(R"code(Tensor left shift by scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -326,10 +326,10 @@ NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__lshift_scalar__)
 })
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rshift_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rshift_scalar__)
 .describe(R"code(Tensor right shift by scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -341,10 +341,10 @@ NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rshift_scalar__)
 })
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__mul_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__mul_scalar__)
 .describe(R"code(Tensor multiplies scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -356,10 +356,10 @@ NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__mul_scalar__)
 })
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__div_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__div_scalar__)
 .describe(R"code(Tensor divides scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -371,10 +371,10 @@ NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__div_scalar__)
 })
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rdiv_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rdiv_scalar__)
 .describe(R"code(scalar divides Tensor
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -386,10 +386,10 @@ NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__rdiv_scalar__)
 })
 .set_support_level(3);
 
-NNVM_REGISTER_ELEMWISE_BINARY_SCALAR(__pow_scalar__)
+CVM_REGISTER_ELEMWISE_BINARY_SCALAR(__pow_scalar__)
 .describe(R"code(Tensor power scalar
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -417,21 +417,21 @@ inline bool ElemwiseSumInferPrecision(const NodeAttrs& attrs,
   return true;
 }
 
-NNVM_REGISTER_ELEMWISE_REDUCE_OP(elemwise_sum)
+CVM_REGISTER_ELEMWISE_REDUCE_OP(elemwise_sum)
 .describe(R"code(Adds all input arguments element-wise.
 
-)code"  NNVM_ADD_FILELINE)
+)code"  CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSumInferPrecision)
 .set_support_level(4);
 
 DMLC_REGISTER_PARAMETER(IndicatorParam);
 
 // indicator function
-NNVM_REGISTER_INDICATOR_OP(greater)
+CVM_REGISTER_INDICATOR_OP(greater)
 .describe(R"code(Greater function that returns a mask tensor
 with 1.0 if (left > right), otherwise 0.0 element-wise.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("lhs", "Tensor", "First input")
 .add_argument("rhs", "Tensor", "Second input")
 .set_num_inputs(2)
@@ -440,11 +440,11 @@ with 1.0 if (left > right), otherwise 0.0 element-wise.
 .set_support_level(4);
 
 
-NNVM_REGISTER_INDICATOR_OP(less)
+CVM_REGISTER_INDICATOR_OP(less)
   .describe(R"code(Less function that returns a mask tensor
 with 1.0 if (left < right), otherwise 0.0 element-wise.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("lhs", "Tensor", "First input")
 .add_argument("rhs", "Tensor", "Second input")
 .set_num_inputs(2)
@@ -454,7 +454,7 @@ with 1.0 if (left < right), otherwise 0.0 element-wise.
 
 DMLC_REGISTER_PARAMETER(ClipParam);
 
-NNVM_REGISTER_OP(clip)
+CVM_REGISTER_OP(clip)
 .describe(R"doc(Clips (limits) the values in an array.
 Given an interval, values outside the interval are clipped to the interval edges.
 Clipping ``x`` between `a_min` and `a_x` would be::
@@ -462,7 +462,7 @@ Clipping ``x`` between `a_min` and `a_x` would be::
 Example::
     x = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     clip(x,1,8) = [ 1.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  8.]
-)doc" NNVM_ADD_FILELINE)
+)doc" CVM_ADD_FILELINE)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr_parser(ParamParser<ClipParam>)
@@ -486,7 +486,7 @@ Example::
 
 DMLC_REGISTER_PARAMETER(CVMClipParam);
 
-NNVM_REGISTER_OP(cvm_clip)
+CVM_REGISTER_OP(cvm_clip)
 .describe(R"doc(CVM clip input with precision.
 
 .. math::
@@ -504,7 +504,7 @@ Example::
 
   cvm_clip(data, precision=8, is_sign=False)
   [255, 157, 0, 0, 0]
-)doc" NNVM_ADD_FILELINE)
+)doc" CVM_ADD_FILELINE)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr_parser(ParamParser<CVMClipParam>)
@@ -527,14 +527,14 @@ Example::
 
 DMLC_REGISTER_PARAMETER(CVMLeftShiftParam);
 
-NNVM_REGISTER_OP(cvm_left_shift)
+CVM_REGISTER_OP(cvm_left_shift)
 .describe(R"code(CVM left shift with precision-aware clip.
 
 .. math::
   assert shift_bit > 0
   tmp = X << shift_bit
   Y = cvm_clip(tmp, precision)
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr_parser(ParamParser<CVMLeftShiftParam>)
@@ -558,7 +558,7 @@ NNVM_REGISTER_OP(cvm_left_shift)
 
 DMLC_REGISTER_PARAMETER(CVMRightShiftParam);
 
-NNVM_REGISTER_OP(cvm_right_shift)
+CVM_REGISTER_OP(cvm_right_shift)
 .describe(R"code(CVM right shift with precision-aware clip.
 
 The right shift is equal to float number round divide operator,
@@ -570,7 +570,7 @@ which means to implement via tricky equation.
   tmp = tmp + 1
   tmp = tmp >> 1
   Y = cvm_clip(tmp, precision)
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_num_inputs(1)
 .set_num_outputs(1)
 .set_attr_parser(ParamParser<CVMRightShiftParam>)

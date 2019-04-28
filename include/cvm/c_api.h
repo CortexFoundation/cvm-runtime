@@ -1,22 +1,22 @@
 /*!
  *  Copyright (c) 2016 by Contributors
  * \file cvm/c_api.h
- * \brief C API of NNVM symbolic construction and pass.
+ * \brief C API of CVM symbolic construction and pass.
  *  Enables construction and transformation of Graph
  *  in any other host languages.
  */
-#ifndef NNVM_C_API_H_
-#define NNVM_C_API_H_
+#ifndef CVM_C_API_H_
+#define CVM_C_API_H_
 
-/*! \brief NNVM_DLL prefix for windows */
+/*! \brief CVM_DLL prefix for windows */
 #ifdef _WIN32
-#ifdef NNVM_EXPORTS
-#define NNVM_DLL __declspec(dllexport)
+#ifdef CVM_EXPORTS
+#define CVM_DLL __declspec(dllexport)
 #else
-#define NNVM_DLL __declspec(dllimport)
+#define CVM_DLL __declspec(dllimport)
 #endif
 #else
-#define NNVM_DLL __attribute__((visibility("default")))
+#define CVM_DLL __attribute__((visibility("default")))
 #endif
 
 /*! \brief manually define unsigned int */
@@ -36,7 +36,7 @@ extern "C" {
  * \brief Set the last error message needed by C API
  * \param msg The error message to set.
  */
-NNVM_DLL void NNAPISetLastError(const char* msg);
+CVM_DLL void NNAPISetLastError(const char* msg);
 
 /*!
  * \brief return str message of the last error
@@ -47,7 +47,7 @@ NNVM_DLL void NNAPISetLastError(const char* msg);
  *  this function is threadsafe and can be called by different thread
  *  \return error info
  */
-NNVM_DLL const char *NNGetLastError(void);
+CVM_DLL const char *NNGetLastError(void);
 
 /*!
  * \brief list all the available operator names, include entries.
@@ -55,7 +55,7 @@ NNVM_DLL const char *NNGetLastError(void);
  * \param out_array the output operator name array.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNListAllOpNames(nn_uint *out_size,
+CVM_DLL int NNListAllOpNames(nn_uint *out_size,
                               const char*** out_array);
 
 /*!
@@ -63,7 +63,7 @@ NNVM_DLL int NNListAllOpNames(nn_uint *out_size,
  * \param op_name The name of the operator.
  * \param op_out The returnning op handle.
  */
-NNVM_DLL int NNGetOpHandle(const char* op_name,
+CVM_DLL int NNGetOpHandle(const char* op_name,
                            OpHandle* op_out);
 
 /*!
@@ -75,7 +75,7 @@ NNVM_DLL int NNGetOpHandle(const char* op_name,
  * \param out_array the output AtomicSymbolCreator array
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNListUniqueOps(nn_uint *out_size,
+CVM_DLL int NNListUniqueOps(nn_uint *out_size,
                              OpHandle **out_array);
 
 /*!
@@ -91,7 +91,7 @@ NNVM_DLL int NNListUniqueOps(nn_uint *out_size,
  * \param return_type Return type of the function, if any.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGetOpInfo(OpHandle op,
+CVM_DLL int NNGetOpInfo(OpHandle op,
                          const char **real_name,
                          const char **description,
                          nn_uint *num_doc_args,
@@ -108,7 +108,7 @@ NNVM_DLL int NNGetOpInfo(OpHandle op,
  * \param out pointer to the created symbol handle
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolCreateAtomicSymbol(OpHandle op,
+CVM_DLL int NNSymbolCreateAtomicSymbol(OpHandle op,
                                         nn_uint num_param,
                                         const char **keys,
                                         const char **vals,
@@ -119,7 +119,7 @@ NNVM_DLL int NNSymbolCreateAtomicSymbol(OpHandle op,
  * \param out pointer to the created symbol handle
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolCreateVariable(const char *name, SymbolHandle *out);
+CVM_DLL int NNSymbolCreateVariable(const char *name, SymbolHandle *out);
 /*!
  * \brief Create a Symbol by grouping list of symbols together
  * \param num_symbols number of symbols to be grouped
@@ -127,7 +127,7 @@ NNVM_DLL int NNSymbolCreateVariable(const char *name, SymbolHandle *out);
  * \param out pointer to the created symbol handle
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolCreateGroup(nn_uint num_symbols,
+CVM_DLL int NNSymbolCreateGroup(nn_uint num_symbols,
                                  SymbolHandle *symbols,
                                  SymbolHandle *out);
 /*!
@@ -135,28 +135,28 @@ NNVM_DLL int NNSymbolCreateGroup(nn_uint num_symbols,
  * \param handle The symbol to add dependency edges on.
  * \param src_dep the source handles.
  */
-NNVM_DLL int NNAddControlDeps(SymbolHandle handle,
+CVM_DLL int NNAddControlDeps(SymbolHandle handle,
                               SymbolHandle src_dep);
 /*!
  * \brief Free the symbol handle.
  * \param symbol the symbol
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolFree(SymbolHandle symbol);
+CVM_DLL int NNSymbolFree(SymbolHandle symbol);
 /*!
  * \brief Copy the symbol to another handle
  * \param symbol the source symbol
  * \param out used to hold the result of copy
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolCopy(SymbolHandle symbol, SymbolHandle *out);
+CVM_DLL int NNSymbolCopy(SymbolHandle symbol, SymbolHandle *out);
 /*!
  * \brief Print the content of symbol, used for debug.
  * \param symbol the symbol
  * \param out_str pointer to hold the output string of the printing.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolPrint(SymbolHandle symbol, const char **out_str);
+CVM_DLL int NNSymbolPrint(SymbolHandle symbol, const char **out_str);
 /*!
  * \brief Get string attribute from symbol
  * \param symbol the source symbol
@@ -165,7 +165,7 @@ NNVM_DLL int NNSymbolPrint(SymbolHandle symbol, const char **out_str);
  * \param success Whether the result is contained in out.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolGetAttr(SymbolHandle symbol,
+CVM_DLL int NNSymbolGetAttr(SymbolHandle symbol,
                              const char* key,
                              const char** out,
                              int *success);
@@ -186,7 +186,7 @@ NNVM_DLL int NNSymbolGetAttr(SymbolHandle symbol,
  * \param values The value to be set
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolSetAttrs(SymbolHandle symbol,
+CVM_DLL int NNSymbolSetAttrs(SymbolHandle symbol,
                               nn_uint num_param,
                               const char** keys,
                               const char** values);
@@ -198,7 +198,7 @@ NNVM_DLL int NNSymbolSetAttrs(SymbolHandle symbol,
  * \param out 2*out_size strings representing key value pairs.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolListAttrs(SymbolHandle symbol,
+CVM_DLL int NNSymbolListAttrs(SymbolHandle symbol,
                                int recursive_option,
                                nn_uint *out_size,
                                const char*** out);
@@ -214,7 +214,7 @@ NNVM_DLL int NNSymbolListAttrs(SymbolHandle symbol,
  * \param out_sym_array the output array.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolListInputVariables(SymbolHandle symbol,
+CVM_DLL int NNSymbolListInputVariables(SymbolHandle symbol,
                                         int option,
                                         nn_uint *out_size,
                                         SymbolHandle** out_sym_array);
@@ -230,7 +230,7 @@ NNVM_DLL int NNSymbolListInputVariables(SymbolHandle symbol,
  * \param out_str_array pointer to hold the output string array
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolListInputNames(SymbolHandle symbol,
+CVM_DLL int NNSymbolListInputNames(SymbolHandle symbol,
                                     int option,
                                     nn_uint *out_size,
                                     const char ***out_str_array);
@@ -241,7 +241,7 @@ NNVM_DLL int NNSymbolListInputNames(SymbolHandle symbol,
  * \param out_str_array pointer to hold the output string array
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolListOutputNames(SymbolHandle symbol,
+CVM_DLL int NNSymbolListOutputNames(SymbolHandle symbol,
                                      nn_uint *out_size,
                                      const char ***out_str_array);
 
@@ -252,7 +252,7 @@ NNVM_DLL int NNSymbolListOutputNames(SymbolHandle symbol,
  * \param output_count number of outputs
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolGetNumOutputs(SymbolHandle symbol,
+CVM_DLL int NNSymbolGetNumOutputs(SymbolHandle symbol,
                                     nn_uint *output_count);
 
 /*!
@@ -261,7 +261,7 @@ NNVM_DLL int NNSymbolGetNumOutputs(SymbolHandle symbol,
  * \param out The output symbol whose outputs are all the internals.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolGetInternals(SymbolHandle symbol,
+CVM_DLL int NNSymbolGetInternals(SymbolHandle symbol,
                                   SymbolHandle *out);
 /*!
  * \brief Get a symbol that contains only direct children.
@@ -269,7 +269,7 @@ NNVM_DLL int NNSymbolGetInternals(SymbolHandle symbol,
  * \param out The output symbol whose outputs are the direct children.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolGetChildren(SymbolHandle symbol,
+CVM_DLL int NNSymbolGetChildren(SymbolHandle symbol,
                                  SymbolHandle *out);
 /*!
  * \brief Get index-th outputs of the symbol.
@@ -278,7 +278,7 @@ NNVM_DLL int NNSymbolGetChildren(SymbolHandle symbol,
  * \param out The output symbol whose outputs are the index-th symbol.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolGetOutput(SymbolHandle symbol,
+CVM_DLL int NNSymbolGetOutput(SymbolHandle symbol,
                                nn_uint index,
                                SymbolHandle *out);
 
@@ -296,7 +296,7 @@ NNVM_DLL int NNSymbolGetOutput(SymbolHandle symbol,
  * \param args arguments to sym
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNSymbolCompose(SymbolHandle sym,
+CVM_DLL int NNSymbolCompose(SymbolHandle sym,
                              const char* name,
                              nn_uint num_args,
                              const char** keys,
@@ -309,19 +309,19 @@ NNVM_DLL int NNSymbolCompose(SymbolHandle sym,
  * \param graph The graph handle created.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphCreate(SymbolHandle symbol, GraphHandle *graph);
+CVM_DLL int NNGraphCreate(SymbolHandle symbol, GraphHandle *graph);
 /*!
  * \brief free the graph handle
  * \param handle The handle to be freed.
  */
-NNVM_DLL int NNGraphFree(GraphHandle handle);
+CVM_DLL int NNGraphFree(GraphHandle handle);
 /*!
  * \brief Get a new symbol from the graph.
  * \param graph The graph handle.
  * \param symbol The corresponding symbol
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphGetSymbol(GraphHandle graph, SymbolHandle *symbol);
+CVM_DLL int NNGraphGetSymbol(GraphHandle graph, SymbolHandle *symbol);
 
 /*!
  * \brief Get Set a attribute in json format.
@@ -333,7 +333,7 @@ NNVM_DLL int NNGraphGetSymbol(GraphHandle graph, SymbolHandle *symbol);
  *  Where type_name is a registered type string in C++ side via DMLC_JSON_ENABLE_ANY.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphSetJSONAttr(GraphHandle handle,
+CVM_DLL int NNGraphSetJSONAttr(GraphHandle handle,
                                 const char* key,
                                 const char* json_value);
 
@@ -349,7 +349,7 @@ NNVM_DLL int NNGraphSetJSONAttr(GraphHandle handle,
  * \param success Whether the result is contained in out.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphGetJSONAttr(GraphHandle handle,
+CVM_DLL int NNGraphGetJSONAttr(GraphHandle handle,
                                 const char* key,
                                 const char** json_out,
                                 int *success);
@@ -365,7 +365,7 @@ NNVM_DLL int NNGraphGetJSONAttr(GraphHandle handle,
  * \param list The symbol whose outputs represents the list of NodeEntry to be passed.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphSetNodeEntryListAttr_(GraphHandle handle,
+CVM_DLL int NNGraphSetNodeEntryListAttr_(GraphHandle handle,
                                           const char* key,
                                           SymbolHandle list);
 /*!
@@ -376,7 +376,7 @@ NNVM_DLL int NNGraphSetNodeEntryListAttr_(GraphHandle handle,
  * \param dst The result graph.
  * \return 0 when success, -1 when failure happens
  */
-NNVM_DLL int NNGraphApplyPasses(GraphHandle src,
+CVM_DLL int NNGraphApplyPasses(GraphHandle src,
                                 nn_uint num_pass,
                                 const char** pass_names,
                                 GraphHandle *dst);
@@ -385,4 +385,4 @@ NNVM_DLL int NNGraphApplyPasses(GraphHandle src,
 } /* end extern "C" */
 #endif
 
-#endif  // NNVM_C_API_H_
+#endif  // CVM_C_API_H_

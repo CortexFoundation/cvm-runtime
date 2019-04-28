@@ -2,39 +2,39 @@
  *  Copyright (c) 2017 by Contributors
  *
  * \brief Tiny graph runtime that can run graph
- *        containing only tvm PackedFunc.
+ *        containing only cvm PackedFunc.
  * \file graph_runtime.h
  */
-#ifndef TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
-#define TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#ifndef CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#define CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
 
 #include <dlpack/dlpack.h>
 #include <dmlc/memory_io.h>
 #include <dmlc/json.h>
-#include <tvm/runtime/ndarray.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/ndarray.h>
+#include <cvm/runtime/packed_func.h>
 
 #include <memory>
 #include <utility>
 #include <vector>
 #include <string>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 /*! \brief macro to do C API call */
-#define TVM_CCALL(func)                                            \
+#define CVM_CCALL(func)                                            \
   {                                                                \
     int ret = (func);                                              \
     CHECK_EQ(ret, 0)                                               \
-        << TVMGetLastError();                                      \
+        << CVMGetLastError();                                      \
   }
 
 /*! \brief Magic number for NDArray list file  */
-constexpr uint64_t kTVMNDArrayListMagic = 0xF7E58D4F05049CB7;
+constexpr uint64_t kCVMNDArrayListMagic = 0xF7E58D4F05049CB7;
 
-/*! \brief operator attributes about tvm op */
-struct TVMOpParam {
+/*! \brief operator attributes about cvm op */
+struct CVMOpParam {
   std::string func_name;
   uint32_t num_inputs;
   uint32_t num_outputs;
@@ -45,7 +45,7 @@ struct TVMOpParam {
  * \brief Tiny graph runtime.
  *
  *  This runtime can be acccesibly in various language via
- *  TVM runtime PackedFunc API.
+ *  CVM runtime PackedFunc API.
  */
 class GraphRuntime : public ModuleNode {
  public:
@@ -76,8 +76,8 @@ class GraphRuntime : public ModuleNode {
    */
 
   void Init(const std::string& graph_json,
-            tvm::runtime::Module module,
-            const std::vector<TVMContext>& ctxs);
+            cvm::runtime::Module module,
+            const std::vector<CVMContext>& ctxs);
 
   /*!
    * \brief Get the input index given the name of input.
@@ -175,13 +175,13 @@ class GraphRuntime : public ModuleNode {
     // name of the op
     std::string name;
     // parameters
-    TVMOpParam param;
+    CVMOpParam param;
     // inputs
     std::vector<NodeEntry> inputs;
     // control deps
     std::vector<uint32_t> control_deps;
     // JSON Loader
-    void LoadAttrs(dmlc::JSONReader *reader, TVMOpParam* param) {
+    void LoadAttrs(dmlc::JSONReader *reader, CVMOpParam* param) {
       int bitmask = 0;
       std::string key, value;
       reader->BeginObject();
@@ -346,7 +346,7 @@ class GraphRuntime : public ModuleNode {
    * \param num_inputs Number of inputs.
    * \return The created executor.
    */
-  std::function<void()> CreateTVMOp(const TVMOpParam& attrs,
+  std::function<void()> CreateCVMOp(const CVMOpParam& attrs,
                                     const std::vector<DLTensor>& args,
                                     size_t num_inputs);
   // Get node entry index.
@@ -372,9 +372,9 @@ class GraphRuntime : public ModuleNode {
   /*! \brief Additional graph attributes. */
   GraphAttr attrs_;
   /*! \brief The code module that contains both host and device code. */
-  tvm::runtime::Module module_;
+  cvm::runtime::Module module_;
   /*! \brief Execution context of all devices including the host. */
-  std::vector<TVMContext> ctxs_;
+  std::vector<CVMContext> ctxs_;
   /*! \brief Common storage pool for all devices. */
   std::vector<NDArray> storage_pool_;
   /*! \brief Data entry of each node. */
@@ -383,8 +383,8 @@ class GraphRuntime : public ModuleNode {
   std::vector<std::function<void()> > op_execs_;
 };
 
-std::vector<TVMContext> GetAllContext(const TVMArgs& args);
+std::vector<CVMContext> GetAllContext(const CVMArgs& args);
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
-#endif  // TVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_
+#endif  // CVM_RUNTIME_GRAPH_GRAPH_RUNTIME_H_

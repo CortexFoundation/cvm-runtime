@@ -4,8 +4,8 @@
  */
 #include <dmlc/logging.h>
 #include <dmlc/thread_local.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/device_api.h>
 #include <cstdlib>
 #include <cstring>
 #include "workspace_pool.h"
@@ -14,20 +14,20 @@
 #include <android/api-level.h>
 #endif
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 class CPUDeviceAPI final : public DeviceAPI {
  public:
-  void SetDevice(TVMContext ctx) final {}
-  void GetAttr(TVMContext ctx, DeviceAttrKind kind, TVMRetValue* rv) final {
+  void SetDevice(CVMContext ctx) final {}
+  void GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) final {
     if (kind == kExist) {
       *rv = 1;
     }
   }
-  void* AllocDataSpace(TVMContext ctx,
+  void* AllocDataSpace(CVMContext ctx,
                        size_t nbytes,
                        size_t alignment,
-                       TVMType type_hint) final {
+                       CVMType type_hint) final {
     void* ptr;
 #if _MSC_VER
     ptr = _aligned_malloc(nbytes, alignment);
@@ -43,7 +43,7 @@ class CPUDeviceAPI final : public DeviceAPI {
     return ptr;
   }
 
-  void FreeDataSpace(TVMContext ctx, void* ptr) final {
+  void FreeDataSpace(CVMContext ctx, void* ptr) final {
 #if _MSC_VER
     _aligned_free(ptr);
 #else
@@ -56,20 +56,20 @@ class CPUDeviceAPI final : public DeviceAPI {
                       void* to,
                       size_t to_offset,
                       size_t size,
-                      TVMContext ctx_from,
-                      TVMContext ctx_to,
-                      TVMType type_hint,
-                      TVMStreamHandle stream) final {
+                      CVMContext ctx_from,
+                      CVMContext ctx_to,
+                      CVMType type_hint,
+                      CVMStreamHandle stream) final {
     memcpy(static_cast<char*>(to) + to_offset,
            static_cast<const char*>(from) + from_offset,
            size);
   }
 
-  void StreamSync(TVMContext ctx, TVMStreamHandle stream) final {
+  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
   }
 
-  void* AllocWorkspace(TVMContext ctx, size_t size, TVMType type_hint) final;
-  void FreeWorkspace(TVMContext ctx, void* data) final;
+  void* AllocWorkspace(CVMContext ctx, size_t size, CVMType type_hint) final;
+  void FreeWorkspace(CVMContext ctx, void* data) final;
 
   static const std::shared_ptr<CPUDeviceAPI>& Global() {
     static std::shared_ptr<CPUDeviceAPI> inst =
@@ -83,21 +83,21 @@ struct CPUWorkspacePool : public WorkspacePool {
       WorkspacePool(kDLCPU, CPUDeviceAPI::Global()) {}
 };
 
-void* CPUDeviceAPI::AllocWorkspace(TVMContext ctx,
+void* CPUDeviceAPI::AllocWorkspace(CVMContext ctx,
                                    size_t size,
-                                   TVMType type_hint) {
+                                   CVMType type_hint) {
   return dmlc::ThreadLocalStore<CPUWorkspacePool>::Get()
       ->AllocWorkspace(ctx, size);
 }
 
-void CPUDeviceAPI::FreeWorkspace(TVMContext ctx, void* data) {
+void CPUDeviceAPI::FreeWorkspace(CVMContext ctx, void* data) {
   dmlc::ThreadLocalStore<CPUWorkspacePool>::Get()->FreeWorkspace(ctx, data);
 }
 
-TVM_REGISTER_GLOBAL("device_api.cpu")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("device_api.cpu")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     DeviceAPI* ptr = CPUDeviceAPI::Global().get();
     *rv = static_cast<void*>(ptr);
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

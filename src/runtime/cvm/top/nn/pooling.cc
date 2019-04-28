@@ -75,7 +75,7 @@ inline bool Pool2DInferShape(const cvm::NodeAttrs& attrs,
     oshape[widx] = ((dshape[widx] + pad_w - param.pool_size[1] +
                     param.strides[1] - 1) / param.strides[1]) + 1;
   }
-	NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
+	CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
   return true;
 }
 
@@ -105,13 +105,13 @@ inline bool Pool2DCorrectLayout(const NodeAttrs& attrs,
     input = layout;
   }
 
-  NNVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
-  NNVM_ASSIGN_LAYOUT(*olayouts, 0, input);
+  CVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
+  CVM_ASSIGN_LAYOUT(*olayouts, 0, input);
 
   return true;
 }
 
-NNVM_REGISTER_OP(max_pool2d)
+CVM_REGISTER_OP(max_pool2d)
 .describe(R"code(Max pooling operation for one dimensional data.
 
 - **data**: This depends on the `layout` parameter. Input is 4D array of shape
@@ -131,7 +131,7 @@ NNVM_REGISTER_OP(max_pool2d)
            When `ceil_mode` is `True`, ceil will be used instead of floor in this
            equation.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "4D Tensor", "Input data.")
 .add_arguments(MaxPool2DParam::__FIELDS__())
 .set_attr_parser(ParamParser<MaxPool2DParam>)
@@ -171,7 +171,7 @@ inline bool GlobalPool2DInferShape(const cvm::NodeAttrs& attrs,
 
   TShape oshape = dshape;
   oshape[hidx] = oshape[widx] = 1;
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
   return true;
 }
 
@@ -200,13 +200,13 @@ inline bool GlobalPool2DCorrectLayout(const NodeAttrs& attrs,
     input = layout;
   }
 
-  NNVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
-  NNVM_ASSIGN_LAYOUT(*olayouts, 0, input);
+  CVM_ASSIGN_LAYOUT(*ilayouts, 0, input);
+  CVM_ASSIGN_LAYOUT(*olayouts, 0, input);
 
   return true;
 }
 
-NNVM_REGISTER_OP(global_max_pool2d)
+CVM_REGISTER_OP(global_max_pool2d)
 .describe(R"code(Global max pooling operation for 2D data.
 
 - **data**: This depends on the `layout` parameter. Input is 4D array of shape
@@ -214,7 +214,7 @@ NNVM_REGISTER_OP(global_max_pool2d)
 - **out**: This depends on the `layout` parameter. Output is 4D array of shape
            (batch_size, channels, 1, 1)  if `layout` is `NCHW`.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "4D Tensor", "Input data.")
 .add_arguments(GlobalPool2DParam::__FIELDS__())
 .set_attr_parser(ParamParser<GlobalPool2DParam>)

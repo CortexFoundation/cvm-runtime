@@ -3,15 +3,15 @@
  * \file cuda_common.h
  * \brief Common utilities for CUDA
  */
-#ifndef TVM_RUNTIME_CUDA_CUDA_COMMON_H_
-#define TVM_RUNTIME_CUDA_CUDA_COMMON_H_
+#ifndef CVM_RUNTIME_CUDA_CUDA_COMMON_H_
+#define CVM_RUNTIME_CUDA_CUDA_COMMON_H_
 
 #include <cuda_runtime.h>
-#include <tvm/runtime/packed_func.h>
+#include <cvm/runtime/packed_func.h>
 #include <string>
 #include "../workspace_pool.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 #define CUDA_DRIVER_CALL(x)                                             \
@@ -45,5 +45,5 @@ class CUDAThreadEntry {
   static CUDAThreadEntry* ThreadLocal();
 };
 }  // namespace runtime
-}  // namespace tvm
-#endif  // TVM_RUNTIME_CUDA_CUDA_COMMON_H_
+}  // namespace cvm
+#endif  // CVM_RUNTIME_CUDA_CUDA_COMMON_H_

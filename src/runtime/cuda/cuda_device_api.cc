@@ -3,22 +3,22 @@
  * \file cuda_device_api.cc
  * \brief GPU specific API
  */
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/device_api.h>
 
 #include <dmlc/thread_local.h>
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <cuda_runtime.h>
 #include "cuda_common.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class CUDADeviceAPI final : public DeviceAPI {
  public:
-  void SetDevice(TVMContext ctx) final {
+  void SetDevice(CVMContext ctx) final {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
   }
-  void GetAttr(TVMContext ctx, DeviceAttrKind kind, TVMRetValue* rv) final {
+  void GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) final {
     int value = 0;
     switch (kind) {
       case kExist:
@@ -86,10 +86,10 @@ class CUDADeviceAPI final : public DeviceAPI {
     }
     *rv = value;
   }
-  void* AllocDataSpace(TVMContext ctx,
+  void* AllocDataSpace(CVMContext ctx,
                        size_t nbytes,
                        size_t alignment,
-                       TVMType type_hint) final {
+                       CVMType type_hint) final {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     CHECK_EQ(256 % alignment, 0U)
         << "CUDA space is aligned at 256 bytes";
@@ -98,7 +98,7 @@ class CUDADeviceAPI final : public DeviceAPI {
     return ret;
   }
 
-  void FreeDataSpace(TVMContext ctx, void* ptr) final {
+  void FreeDataSpace(CVMContext ctx, void* ptr) final {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     CUDA_CALL(cudaFree(ptr));
   }
@@ -108,10 +108,10 @@ class CUDADeviceAPI final : public DeviceAPI {
                       void* to,
                       size_t to_offset,
                       size_t size,
-                      TVMContext ctx_from,
-                      TVMContext ctx_to,
-                      TVMType type_hint,
-                      TVMStreamHandle stream) final {
+                      CVMContext ctx_from,
+                      CVMContext ctx_to,
+                      CVMType type_hint,
+                      CVMStreamHandle stream) final {
     cudaStream_t cu_stream = static_cast<cudaStream_t>(stream);
     from = static_cast<const char*>(from) + from_offset;
     to = static_cast<char*>(to) + to_offset;
@@ -135,20 +135,20 @@ class CUDADeviceAPI final : public DeviceAPI {
     }
   }
 
-  TVMStreamHandle CreateStream(TVMContext ctx) {
+  CVMStreamHandle CreateStream(CVMContext ctx) {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     cudaStream_t retval;
     CUDA_CALL(cudaStreamCreate(&retval));
-    return static_cast<TVMStreamHandle>(retval);
+    return static_cast<CVMStreamHandle>(retval);
   }
 
-  void FreeStream(TVMContext ctx, TVMStreamHandle stream) {
+  void FreeStream(CVMContext ctx, CVMStreamHandle stream) {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     cudaStream_t cu_stream = static_cast<cudaStream_t>(stream);
     CUDA_CALL(cudaStreamDestroy(cu_stream));
   }
 
-  void SyncStreamFromTo(TVMContext ctx, TVMStreamHandle event_src, TVMStreamHandle event_dst) {
+  void SyncStreamFromTo(CVMContext ctx, CVMStreamHandle event_src, CVMStreamHandle event_dst) {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     cudaStream_t src_stream = static_cast<cudaStream_t>(event_src);
     cudaStream_t dst_stream = static_cast<cudaStream_t>(event_dst);
@@ -159,21 +159,21 @@ class CUDADeviceAPI final : public DeviceAPI {
     CUDA_CALL(cudaEventDestroy(evt));
   }
 
-  void StreamSync(TVMContext ctx, TVMStreamHandle stream) final {
+  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
     CUDA_CALL(cudaSetDevice(ctx.device_id));
     CUDA_CALL(cudaStreamSynchronize(static_cast<cudaStream_t>(stream)));
   }
 
-  void SetStream(TVMContext ctx, TVMStreamHandle stream) final {
+  void SetStream(CVMContext ctx, CVMStreamHandle stream) final {
     CUDAThreadEntry::ThreadLocal()
         ->stream = static_cast<cudaStream_t>(stream);
   }
 
-  void* AllocWorkspace(TVMContext ctx, size_t size, TVMType type_hint) final {
+  void* AllocWorkspace(CVMContext ctx, size_t size, CVMType type_hint) final {
     return CUDAThreadEntry::ThreadLocal()->pool.AllocWorkspace(ctx, size);
   }
 
-  void FreeWorkspace(TVMContext ctx, void* data) final {
+  void FreeWorkspace(CVMContext ctx, void* data) final {
     CUDAThreadEntry::ThreadLocal()->pool.FreeWorkspace(ctx, data);
   }
 
@@ -207,11 +207,11 @@ CUDAThreadEntry* CUDAThreadEntry::ThreadLocal() {
   return CUDAThreadStore::Get();
 }
 
-TVM_REGISTER_GLOBAL("device_api.gpu")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("device_api.gpu")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     DeviceAPI* ptr = CUDADeviceAPI::Global().get();
     *rv = static_cast<void*>(ptr);
   });
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

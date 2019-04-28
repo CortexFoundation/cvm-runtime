@@ -3,8 +3,8 @@
  * \file cvm/tuple.h
  * \brief Data structure Tuple and TShape to store dynamic sized shapes.
  */
-#ifndef NNVM_TUPLE_H_
-#define NNVM_TUPLE_H_
+#ifndef CVM_TUPLE_H_
+#define CVM_TUPLE_H_
 
 #include <vector>
 #include <type_traits>
@@ -630,4 +630,4 @@ struct type_name_helper<cvm::Tuple<T> > {
 };
 #endif
 }  // namespace dmlc
-#endif  // NNVM_TUPLE_H_
+#endif  // CVM_TUPLE_H_

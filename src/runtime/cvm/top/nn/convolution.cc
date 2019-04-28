@@ -71,7 +71,7 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
   wshape = ConvertLayout(wshape, kOIHW, kernel_layout);
 
   if (in_shape->at(Conv2DParam::kWeight).ndim() == 0) {
-    NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kWeight, wshape);
+    CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kWeight, wshape);
   }
   if (param.use_bias) {
     static const Layout default_bias_layout("C");
@@ -82,7 +82,7 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
       bias_shape = ConvertLayout(bias_shape, default_bias_layout,
                                  default_bias_layout.split('C', split_axis, oc_block));
     }
-    NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kBias, bias_shape);
+    CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kBias, bias_shape);
   }
   // dilation
   dim_t dilated_ksize_y = 1 + (param.kernel_size[0] - 1) * param.dilation[0];
@@ -94,7 +94,7 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
   if (dshape[3] != 0) {
     oshape[3] = (dshape[3] + param.padding[1] * 2 - dilated_ksize_x) / param.strides[1] + 1;
   }
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, ConvertLayout(oshape, kNCHW, out_layout));
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, ConvertLayout(oshape, kNCHW, out_layout));
   // Perform incomplete shape inference. Fill in the missing values in data shape.
   // 1) We can always fill in the batch_size.
   // 2) We can back-calculate the input height/width if the corresponding stride is 1.
@@ -106,7 +106,7 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
   if (oshape[3] && param.strides[1] == 1) {
     dshape[3] = oshape[3] + dilated_ksize_x - 1 - 2 * param.padding[1];
   }
-  NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kData,
+  CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DParam::kData,
                           ConvertLayout(dshape, kNCHW, in_layout));
   // Check whether the kernel sizes are valid
   if (dshape[2] != 0) {
@@ -135,9 +135,9 @@ inline bool Conv2DInferType(const cvm::NodeAttrs& attrs,
   if (param.out_dtype != -1) {
     CHECK(!type_is_none((*in_type)[0]));
     for (size_t i = 1; i < in_type->size(); ++i) {
-      NNVM_ASSIGN_INPUT_TYPE(attrs, *in_type, i, (*in_type)[0]);
+      CVM_ASSIGN_INPUT_TYPE(attrs, *in_type, i, (*in_type)[0]);
     }
-    NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_type, 0, param.out_dtype);
+    CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_type, 0, param.out_dtype);
   } else {
     ElemwiseType<-1, 1>(attrs, in_type, out_type);
   }
@@ -177,8 +177,8 @@ inline bool Conv2DCorrectLayout(const NodeAttrs& attrs,
   const Layout kernel_layout(param.kernel_layout);
   if (param.use_bias) {
     CHECK_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
     // automatically decide bias layout
     Layout bias_layout("C");
     auto oc_block = out_layout.subsizeof('C');
@@ -186,20 +186,20 @@ inline bool Conv2DCorrectLayout(const NodeAttrs& attrs,
       size_t split_axis = (out_layout.indexof('C') < out_layout.indexof('c')) ? 1 : 0;
       bias_layout = bias_layout.split('C', split_axis, oc_block);
     }
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 2, bias_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 2, bias_layout);
   } else {
     CHECK_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
   }
 
   CHECK_EQ(olayouts->size(), 1U);
-  NNVM_ASSIGN_LAYOUT(*olayouts, 0, out_layout);
+  CVM_ASSIGN_LAYOUT(*olayouts, 0, out_layout);
 
   return true;
 }
 
-NNVM_REGISTER_OP(conv2d)
+CVM_REGISTER_OP(conv2d)
 .describe(R"code(2D convolution layer (e.g. spatial convolution over images).
 
 This layer creates a convolution kernel that is convolved
@@ -214,7 +214,7 @@ a bias vector is created and added to the outputs.
 - **out**:  This depends on the `layout` parameter. Output is 4D array of shape
             (batch_size, channels, out_height, out_width) if `layout` is `NCHW`.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "4D Tensor", "Input data.")
 .add_argument("weight", "4D Tensor", "Weight matrix.")
 .add_argument("bias", "1D Tensor", "Bias parameter.")
@@ -230,9 +230,9 @@ a bias vector is created and added to the outputs.
 .set_num_inputs(UseBiasNumInputs<Conv2DParam>)
 .set_support_level(2);
 
-NNVM_REGISTER_OP(_contrib_conv2d_NCHWc)
+CVM_REGISTER_OP(_contrib_conv2d_NCHWc)
 .describe(R"code(2D convolution layer (e.g. spatial convolution over images).
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "5D Tensor", "Packed input data.")
 .add_argument("weight", "6D Tensor", "Packed weight matrix.")
 .add_argument("bias", "1D Tensor", "Bias parameter.")
@@ -285,10 +285,10 @@ inline bool Conv2DTransposeInferShape(const cvm::NodeAttrs& attrs,
                  param.kernel_size[0],
                  param.kernel_size[1]});
   wshape = ConvertLayout(wshape, kOIHW, kernel_layout);
-  NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DTransposeParam::kWeight, wshape);
+  CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, Conv2DTransposeParam::kWeight, wshape);
 
   if (param.use_bias) {
-    NNVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape,
+    CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape,
                             Conv2DTransposeParam::kBias,
                             TShape({param.channels}));
   }
@@ -302,7 +302,7 @@ inline bool Conv2DTransposeInferShape(const cvm::NodeAttrs& attrs,
 
   oshape[3] = (param.strides[1] * (dshape_nchw[3] - 1) + dilated_ksize_x -
                2 * param.padding[1] + param.output_padding[1]);
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0,
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0,
                            ConvertLayout(oshape, kNCHW, layout));
   return true;
 }
@@ -318,22 +318,22 @@ inline bool Conv2DTransposeCorrectLayout(const NodeAttrs& attrs,
   const Layout kernel_layout(param.kernel_layout);
   if (param.use_bias) {
     CHECK_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 2, Layout("C"));
+    CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 2, Layout("C"));
   } else {
     CHECK_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
-    NNVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
+    CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
   }
 
   CHECK_EQ(olayouts->size(), 1U);
-  NNVM_ASSIGN_LAYOUT(*olayouts, 0, in_layout);
+  CVM_ASSIGN_LAYOUT(*olayouts, 0, in_layout);
 
   return true;
 }
 
-NNVM_REGISTER_OP(conv2d_transpose)
+CVM_REGISTER_OP(conv2d_transpose)
 .describe(R"code(Transposed 2D convolution layer (sometimes called Deconvolution).
 
 The need for transposed convolutions generally arises
@@ -354,7 +354,7 @@ v            (batch_size, channels, out_height, out_width) if `layout` is `NCHW`
                 out_height = (height-1)*strides[0]-2*padding[0]+kernel_size[0]+output_padding[0]
                 out_width = (width-1)*strides[1]-2*padding[1]+kernel_size[1]+output_padding[1]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "4D Tensor", "Input data.")
 .add_argument("weight", "4D Tensor", "Weight matrix.")
 .add_argument("bias", "1D Tensor", "Bias parameter.")

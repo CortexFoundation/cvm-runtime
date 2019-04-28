@@ -5,14 +5,14 @@
  */
 #include <dmlc/logging.h>
 #include <dmlc/thread_local.h>
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <unordered_map>
 #include <mutex>
 #include <memory>
 #include <array>
 #include "runtime_base.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 struct Registry::Manager {
@@ -110,10 +110,10 @@ ExtTypeVTable* ExtTypeVTable::RegisterInternal(
   return pvt;
 }
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
 /*! \brief entry to to easily hold returning information */
-struct TVMFuncThreadLocalEntry {
+struct CVMFuncThreadLocalEntry {
   /*! \brief result holder for returning strings */
   std::vector<std::string> ret_vec_str;
   /*! \brief result holder for returning string pointers */
@@ -121,39 +121,39 @@ struct TVMFuncThreadLocalEntry {
 };
 
 /*! \brief Thread local store that can be used to hold return values. */
-typedef dmlc::ThreadLocalStore<TVMFuncThreadLocalEntry> TVMFuncThreadLocalStore;
+typedef dmlc::ThreadLocalStore<CVMFuncThreadLocalEntry> CVMFuncThreadLocalStore;
 
-int TVMExtTypeFree(void* handle, int type_code) {
+int CVMExtTypeFree(void* handle, int type_code) {
   API_BEGIN();
-  tvm::runtime::ExtTypeVTable::Get(type_code)->destroy(handle);
+  cvm::runtime::ExtTypeVTable::Get(type_code)->destroy(handle);
   API_END();
 }
 
-int TVMFuncRegisterGlobal(
-    const char* name, TVMFunctionHandle f, int override) {
+int CVMFuncRegisterGlobal(
+    const char* name, CVMFunctionHandle f, int override) {
   API_BEGIN();
-  tvm::runtime::Registry::Register(name, override != 0)
-      .set_body(*static_cast<tvm::runtime::PackedFunc*>(f));
+  cvm::runtime::Registry::Register(name, override != 0)
+      .set_body(*static_cast<cvm::runtime::PackedFunc*>(f));
   API_END();
 }
 
-int TVMFuncGetGlobal(const char* name, TVMFunctionHandle* out) {
+int CVMFuncGetGlobal(const char* name, CVMFunctionHandle* out) {
   API_BEGIN();
-  const tvm::runtime::PackedFunc* fp =
-      tvm::runtime::Registry::Get(name);
+  const cvm::runtime::PackedFunc* fp =
+      cvm::runtime::Registry::Get(name);
   if (fp != nullptr) {
-    *out = new tvm::runtime::PackedFunc(*fp);  // NOLINT(*)
+    *out = new cvm::runtime::PackedFunc(*fp);  // NOLINT(*)
   } else {
     *out = nullptr;
   }
   API_END();
 }
 
-int TVMFuncListGlobalNames(int *out_size,
+int CVMFuncListGlobalNames(int *out_size,
                            const char*** out_array) {
   API_BEGIN();
-  TVMFuncThreadLocalEntry *ret = TVMFuncThreadLocalStore::Get();
-  ret->ret_vec_str = tvm::runtime::Registry::ListNames();
+  CVMFuncThreadLocalEntry *ret = CVMFuncThreadLocalStore::Get();
+  ret->ret_vec_str = cvm::runtime::Registry::ListNames();
   ret->ret_vec_charp.clear();
   for (size_t i = 0; i < ret->ret_vec_str.size(); ++i) {
     ret->ret_vec_charp.push_back(ret->ret_vec_str[i].c_str());

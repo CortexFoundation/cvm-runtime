@@ -4,7 +4,7 @@
  */
 #include "cuda_module.h"
 
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <vector>
@@ -18,7 +18,7 @@
 #include "../meta_data.h"
 #include "../file_util.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 // Module to support thread-safe multi-GPU execution.
@@ -158,8 +158,8 @@ class CUDAWrappedFunc {
     thread_axis_cfg_.Init(num_void_args, thread_axis_tags);
   }
   // invoke the function with void arguments
-  void operator()(TVMArgs args,
-                  TVMRetValue* rv,
+  void operator()(CVMArgs args,
+                  CVMRetValue* rv,
                   void** void_args) const {
     int device_id;
     CUDA_CALL(cudaGetDevice(&device_id));
@@ -219,12 +219,12 @@ class CUDAPrepGlobalBarrier {
     std::fill(pcache_.begin(), pcache_.end(), 0);
   }
 
-  void operator()(const TVMArgs& args, TVMRetValue* rv) const {
+  void operator()(const CVMArgs& args, CVMRetValue* rv) const {
     int device_id;
     CUDA_CALL(cudaGetDevice(&device_id));
     if (pcache_[device_id] == 0) {
       pcache_[device_id] = m_->GetGlobal(
-          device_id, runtime::symbol::tvm_global_barrier_state, sizeof(unsigned));
+          device_id, runtime::symbol::cvm_global_barrier_state, sizeof(unsigned));
     }
     CUDA_DRIVER_CALL(cuMemsetD32(pcache_[device_id], 0, 1));
   }
@@ -242,9 +242,9 @@ PackedFunc CUDAModuleNode::GetFunction(
       const std::string& name,
       const std::shared_ptr<ModuleNode>& sptr_to_self) {
   CHECK_EQ(sptr_to_self.get(), this);
-  CHECK_NE(name, symbol::tvm_module_main)
+  CHECK_NE(name, symbol::cvm_module_main)
       << "Device function do not have main";
-  if (name == symbol::tvm_prepare_global_barrier) {
+  if (name == symbol::cvm_prepare_global_barrier) {
     return PackedFunc(CUDAPrepGlobalBarrier(this, sptr_to_self));
   }
   auto it = fmap_.find(name);
@@ -288,19 +288,19 @@ Module CUDAModuleLoadBinary(void* strm) {
   return CUDAModuleCreate(data, fmt, fmap, std::string());
 }
 
-TVM_REGISTER_GLOBAL("module.loadfile_cubin")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadfile_cubin")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = CUDAModuleLoadFile(args[0], args[1]);
   });
 
-TVM_REGISTER_GLOBAL("module.loadfile_ptx")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadfile_ptx")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = CUDAModuleLoadFile(args[0], args[1]);
   });
 
-TVM_REGISTER_GLOBAL("module.loadbinary_cuda")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("module.loadbinary_cuda")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = CUDAModuleLoadBinary(args[0]);
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

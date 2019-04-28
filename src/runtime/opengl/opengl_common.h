@@ -3,12 +3,12 @@
  * \file opengl_common.h
  * \brief OpenGL common header
  */
-#ifndef TVM_RUNTIME_OPENGL_OPENGL_COMMON_H_
-#define TVM_RUNTIME_OPENGL_OPENGL_COMMON_H_
+#ifndef CVM_RUNTIME_OPENGL_OPENGL_COMMON_H_
+#define CVM_RUNTIME_OPENGL_OPENGL_COMMON_H_
 
-#include <tvm/runtime/c_runtime_api.h>
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/c_runtime_api.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/device_api.h>
 #include <dmlc/logging.h>
 #if defined(__APPLE__)
 #define GLFW_INCLUDE_GLCOREARB
@@ -20,7 +20,7 @@
 #include <vector>
 #include <memory>
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 namespace gl {
 
@@ -161,23 +161,23 @@ class OpenGLWorkspace final : public DeviceAPI {
   ~OpenGLWorkspace() final;
 
   // override device API
-  void SetDevice(TVMContext ctx) final;
-  void GetAttr(TVMContext ctx, DeviceAttrKind kind, TVMRetValue* rv) final;
-  void* AllocDataSpace(TVMContext ctx,
+  void SetDevice(CVMContext ctx) final;
+  void GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) final;
+  void* AllocDataSpace(CVMContext ctx,
                        size_t nbytes,
                        size_t alignment,
-                       TVMType type_hint) final;
-  void FreeDataSpace(TVMContext ctx, void* ptr) final;
+                       CVMType type_hint) final;
+  void FreeDataSpace(CVMContext ctx, void* ptr) final;
   void CopyDataFromTo(const void* from,
                       size_t from_offset,
                       void* to,
                       size_t to_offset,
                       size_t size,
-                      TVMContext ctx_from,
-                      TVMContext ctx_to,
-                      TVMType type_hint,
-                      TVMStreamHandle stream) final;
-  void StreamSync(TVMContext ctx, TVMStreamHandle stream) final;
+                      CVMContext ctx_from,
+                      CVMContext ctx_to,
+                      CVMType type_hint,
+                      CVMStreamHandle stream) final;
+  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final;
 
   /*!
    * \brief Get the global OpenGL workspace.
@@ -198,7 +198,7 @@ class OpenGLWorkspace final : public DeviceAPI {
    * \param nbytes Number of bytes in the array.
    * \return The OpenGL texture.
    */
-  Texture CreateTexture(TVMType type, size_t nbytes);
+  Texture CreateTexture(CVMType type, size_t nbytes);
 
   /*!
    * \brief Upload user data into a sub-region of an OpenGL texture.
@@ -238,7 +238,7 @@ class OpenGLWorkspace final : public DeviceAPI {
    */
   void SetUniform(const Program& program,
                   const std::string& name,
-                  TVMType type,
+                  CVMType type,
                   void* value);
 
   /*!
@@ -328,7 +328,7 @@ class OpenGLWorkspace final : public DeviceAPI {
 
 /*!
  * \brief An OpenGL program, composed of a vertex shader and a fragment shader.
- * In TVM, every program has the same vertex shader.
+ * In CVM, every program has the same vertex shader.
  * So a program just corresponds to a fragment shader.
  * A program can only be created by the workspace.
  * This class is just a wrapper over an OpenGL program ID.
@@ -491,6 +491,6 @@ class Texture {
 
 }  // namespace gl
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm
 
-#endif  // TVM_RUNTIME_OPENGL_OPENGL_COMMON_H_
+#endif  // CVM_RUNTIME_OPENGL_OPENGL_COMMON_H_

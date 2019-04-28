@@ -89,7 +89,7 @@ inline bool ReduceShape(const cvm::NodeAttrs& attrs,
   CHECK_EQ(out_attrs->size(), 1U);
   if ((*in_attrs)[0].ndim() == 0) return false;
   const ReduceParam& param = cvm::get<ReduceParam>(attrs.parsed);
-  NNVM_ASSIGN_OUTPUT_SHAPE(
+  CVM_ASSIGN_OUTPUT_SHAPE(
       attrs, *out_attrs, 0,
       ReduceShapeImpl((*in_attrs)[0], param.axis,
                       param.keepdims, param.exclude));
@@ -102,7 +102,7 @@ inline bool CollapseShape(const cvm::NodeAttrs& attrs,
   CHECK_EQ(in_attrs->size(), 2U);
   CHECK_EQ(out_attrs->size(), 1U);
   if ((*in_attrs)[0].ndim() == 1) return false;
-  NNVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, (*in_attrs)[1]);
+  CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, (*in_attrs)[1]);
   return true;
 }
 
@@ -114,15 +114,15 @@ inline void AxesParamParser(cvm::NodeAttrs* attrs) {
   attrs->parsed = std::move(param);
 }
 
-#define NNVM_REGISTER_BASE_REDUCE_OP(op)                                 \
-  NNVM_REGISTER_OP(op)                                                   \
+#define CVM_REGISTER_BASE_REDUCE_OP(op)                                 \
+  CVM_REGISTER_OP(op)                                                   \
   .add_arguments(ReduceParam::__FIELDS__())                              \
   .set_attr_parser(AxesParamParser<ReduceParam>)                         \
   .set_attr<FGetAttrDict>("FGetAttrDict", ParamGetAttrDict<ReduceParam>) \
   .set_num_outputs(1)
 
-#define NNVM_REGISTER_REDUCE_OP(op)                                     \
-  NNVM_REGISTER_BASE_REDUCE_OP(op)                                      \
+#define CVM_REGISTER_REDUCE_OP(op)                                     \
+  CVM_REGISTER_BASE_REDUCE_OP(op)                                      \
   .add_argument("data", "Tensor", "The input")                          \
   .set_attr<FInferShape>("FInferShape", ReduceShape)                    \
   .set_attr<FInferType>("FInferType", ElemwiseType<1, 1>)               \
@@ -130,7 +130,7 @@ inline void AxesParamParser(cvm::NodeAttrs* attrs) {
     ElemwiseFixedLayoutUnknownOut<1, 1>)                                \
   .set_num_inputs(1)
 
-NNVM_REGISTER_REDUCE_OP(sum)
+CVM_REGISTER_REDUCE_OP(sum)
 .describe(R"code(Computes the sum of array elements over given axes.
 
 Example::
@@ -147,7 +147,7 @@ Example::
   sum(data, axis=[1,2])
   [ 12.  19.  27.]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision",
   [](const NodeAttrs& attrs,
    std::vector<TShape>* shapes,
@@ -160,26 +160,26 @@ Example::
   return true;
 });
 
-NNVM_REGISTER_REDUCE_OP(max)
+CVM_REGISTER_REDUCE_OP(max)
 .describe(R"code(Computes the max of array elements over given axes.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision);
 
-NNVM_REGISTER_REDUCE_OP(min)
+CVM_REGISTER_REDUCE_OP(min)
 .describe(R"code(Computes the min of array elements over given axes.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision);
 
-NNVM_REGISTER_BASE_REDUCE_OP(collapse_sum)
+CVM_REGISTER_BASE_REDUCE_OP(collapse_sum)
 .add_argument("data", "Tensor", "The input")
 .add_argument("as", "Tensor", "The reference")
 .set_attr<FInferShape>("FInferShape", CollapseShape)
 .set_attr<FInferType>("FInferType", ElemwiseType<2, 1>)
 .set_attr<FCorrectLayout>("FCorrectLayout", ElemwiseFixedLayoutUnknownOut<2, 1>)
 .set_num_inputs(2)
-.describe(R"code(Reduces lhs to the shape of rhs via sum)code" NNVM_ADD_FILELINE);
+.describe(R"code(Reduces lhs to the shape of rhs via sum)code" CVM_ADD_FILELINE);
 
 inline bool InferFixedType(const NodeAttrs& attrs,
                           std::vector<int>* in_attrs,
@@ -187,33 +187,33 @@ inline bool InferFixedType(const NodeAttrs& attrs,
   CHECK_EQ(in_attrs->size(), 1U);
   CHECK_EQ(out_attrs->size(), 1U);
   const ReduceParam& param = cvm::get<ReduceParam>(attrs.parsed);
-  NNVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
+  CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
   return true;
 }
 
-NNVM_REGISTER_BASE_REDUCE_OP(argmax)
+CVM_REGISTER_BASE_REDUCE_OP(argmax)
 .describe(R"code(Creates an operation that finds the indices of the maximum
 values over a given axis.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "The input")
 .set_attr<FInferShape>("FInferShape", ReduceShape)
 .set_attr<FInferType>("FInferType", InferFixedType)
 .set_attr<FCorrectLayout>("FCorrectLayout", ElemwiseFixedLayoutUnknownOut<1, 1>)
 .set_num_inputs(1);
 
-NNVM_REGISTER_BASE_REDUCE_OP(argmin)
+CVM_REGISTER_BASE_REDUCE_OP(argmin)
 .describe(R"code(Creates an operation that finds the indices of the minimum
 values over a given axis.
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .add_argument("data", "Tensor", "The input")
 .set_attr<FInferShape>("FInferShape", ReduceShape)
 .set_attr<FInferType>("FInferType", InferFixedType)
 .set_attr<FCorrectLayout>("FCorrectLayout", ElemwiseFixedLayoutUnknownOut<1, 1>)
 .set_num_inputs(1);
 
-NNVM_REGISTER_REDUCE_OP(mean)
+CVM_REGISTER_REDUCE_OP(mean)
   .describe(R"code(Computes the mean of array elements over given axes.
 
 Example::
@@ -228,10 +228,10 @@ Example::
   mean(data, axis=[1,2])
   [ 2.  3.16666667  4.5]
 
-)code" NNVM_ADD_FILELINE)
+)code" CVM_ADD_FILELINE)
 .set_attr<FInferPrecision>("FInferPrecision", ElemwiseSamePrecision);
 
-NNVM_REGISTER_REDUCE_OP(prod)
+CVM_REGISTER_REDUCE_OP(prod)
   .describe(R"code(Computes the products of array elements over given axes.
 
 Example::
@@ -246,7 +246,7 @@ Example::
   mean(data, axis=[1,2])
   [ 36  480  2058]
 
-)code" NNVM_ADD_FILELINE);
+)code" CVM_ADD_FILELINE);
 
 
 }  // namespace top

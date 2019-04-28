@@ -5,8 +5,8 @@
  * \brief data stream support to input and output from/to base64 stream
  *   base64 is easier to store and pass as text format in mapreduce
  */
-#ifndef TVM_COMMON_BASE64_H_
-#define TVM_COMMON_BASE64_H_
+#ifndef CVM_COMMON_BASE64_H_
+#define CVM_COMMON_BASE64_H_
 
 #include <dmlc/logging.h>
 #include <dmlc/logging.h>
@@ -14,7 +14,7 @@
 #include <cstdio>
 #include <string>
 
-namespace tvm {
+namespace cvm {
 namespace common {
 /*! \brief namespace of base64 decoding and encoding table */
 namespace base64 {
@@ -280,5 +280,5 @@ class Base64OutStream: public dmlc::Stream {
   }
 };
 }  // namespace common
-}  // namespace tvm
-#endif  // TVM_COMMON_BASE64_H_
+}  // namespace cvm
+#endif  // CVM_COMMON_BASE64_H_

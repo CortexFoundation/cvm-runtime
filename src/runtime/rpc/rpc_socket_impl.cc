@@ -3,12 +3,12 @@
  * \file rpc_socket_impl.cc
  * \brief Socket based RPC implementation.
  */
-#include <tvm/runtime/registry.h>
+#include <cvm/runtime/registry.h>
 #include <memory>
 #include "rpc_session.h"
 #include "../../common/socket.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class SockChannel final : public RPCChannel {
@@ -66,7 +66,7 @@ RPCConnect(std::string url, int port, std::string key) {
                << " server already have key=" << key;
   } else if (code != kRPCMagic) {
     sock.Close();
-    LOG(FATAL) << "URL " << url << ":" << port << " is not TVM RPC server";
+    LOG(FATAL) << "URL " << url << ":" << port << " is not CVM RPC server";
   }
   CHECK_EQ(sock.RecvAll(&keylen, sizeof(keylen)), sizeof(keylen));
   std::string remote_key;
@@ -90,14 +90,14 @@ void RPCServerLoop(int sockfd) {
       "SockServerLoop", "")->ServerLoop();
 }
 
-TVM_REGISTER_GLOBAL("rpc._Connect")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._Connect")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     *rv = RPCClientConnect(args[0], args[1], args[2]);
   });
 
-TVM_REGISTER_GLOBAL("rpc._ServerLoop")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("rpc._ServerLoop")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     RPCServerLoop(args[0]);
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

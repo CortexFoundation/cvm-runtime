@@ -3,27 +3,27 @@
  * \file rpc_device_api.cc
  */
 #include <dmlc/logging.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/device_api.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/device_api.h>
 #include "rpc_session.h"
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 class RPCDeviceAPI final : public DeviceAPI {
  public:
-  void SetDevice(TVMContext ctx) final {
+  void SetDevice(CVMContext ctx) final {
     GetSess(ctx)->CallRemote(
         RPCCode::kDevSetDevice, ctx);
   }
-  void GetAttr(TVMContext ctx, DeviceAttrKind kind, TVMRetValue* rv) final {
+  void GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) final {
     *rv = GetSess(ctx)->CallRemote(
         RPCCode::kDevGetAttr, ctx, static_cast<int>(kind));
   }
-  void* AllocDataSpace(TVMContext ctx,
+  void* AllocDataSpace(CVMContext ctx,
                        size_t nbytes,
                        size_t alignment,
-                       TVMType type_hint) final {
+                       CVMType type_hint) final {
     auto sess = GetSess(ctx);
     void *data = sess->CallRemote(
             RPCCode::kDevAllocData, ctx, nbytes, alignment, type_hint);
@@ -32,7 +32,7 @@ class RPCDeviceAPI final : public DeviceAPI {
     space->sess = std::move(sess);
     return space;
   }
-  void FreeDataSpace(TVMContext ctx, void* ptr) final {
+  void FreeDataSpace(CVMContext ctx, void* ptr) final {
     RemoteSpace* space = static_cast<RemoteSpace*>(ptr);
     try {
       GetSess(ctx)->CallRemote(
@@ -47,10 +47,10 @@ class RPCDeviceAPI final : public DeviceAPI {
                       void* to,
                       size_t to_offset,
                       size_t size,
-                      TVMContext ctx_from,
-                      TVMContext ctx_to,
-                      TVMType type_hint,
-                      TVMStreamHandle stream) final {
+                      CVMContext ctx_from,
+                      CVMContext ctx_to,
+                      CVMType type_hint,
+                      CVMStreamHandle stream) final {
     int from_dev_type = ctx_from.device_type;
     int to_dev_type = ctx_to.device_type;
     if (from_dev_type > kRPCSessMask &&
@@ -77,13 +77,13 @@ class RPCDeviceAPI final : public DeviceAPI {
       LOG(FATAL) << "expect copy from/to remote or between remote";
     }
   }
-  void StreamSync(TVMContext ctx, TVMStreamHandle stream) final {
+  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
     GetSess(ctx)->CallRemote(
         RPCCode::kDevStreamSync, ctx, stream);
   }
 
  private:
-  std::shared_ptr<RPCSession> GetSess(TVMContext ctx) {
+  std::shared_ptr<RPCSession> GetSess(CVMContext ctx) {
     int dev_type = ctx.device_type;
     CHECK_GE(dev_type, kRPCSessMask);
     int tbl_index = dev_type / kRPCSessMask -  1;
@@ -91,11 +91,11 @@ class RPCDeviceAPI final : public DeviceAPI {
   }
 };
 
-TVM_REGISTER_GLOBAL("device_api.rpc")
-.set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("device_api.rpc")
+.set_body([](CVMArgs args, CVMRetValue* rv) {
     static RPCDeviceAPI inst;
     DeviceAPI* ptr = &inst;
     *rv = static_cast<void*>(ptr);
   });
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

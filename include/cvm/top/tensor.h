@@ -3,8 +3,8 @@
  * \file cvm/top/tensor.h
  * \brief Auxiliary param for tensor primitive.
  */
-#ifndef NNVM_TOP_TENSOR_H_
-#define NNVM_TOP_TENSOR_H_
+#ifndef CVM_TOP_TENSOR_H_
+#define CVM_TOP_TENSOR_H_
 
 #include <dmlc/base.h>
 #include <dmlc/parameter.h>
@@ -301,4 +301,4 @@ struct SliceLikeParam : public dmlc::Parameter<SliceLikeParam> {
 }  // namespace top
 }  // namespace cvm
 
-#endif  // NNVM_TOP_TENSOR_H_
+#endif  // CVM_TOP_TENSOR_H_

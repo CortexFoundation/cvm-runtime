@@ -9,8 +9,8 @@
  *        [batch_size, channel, height, width, channel_block].
  *        Here sub-dimension channel_block=16 is the split of super-dimension C (channel).
  */
-#ifndef NNVM_LAYOUT_H_
-#define NNVM_LAYOUT_H_
+#ifndef CVM_LAYOUT_H_
+#define CVM_LAYOUT_H_
 
 #include <dmlc/parameter.h>
 #include <string>
@@ -452,4 +452,4 @@ class Layout {
 
 }  // namespace cvm
 
-#endif  // NNVM_LAYOUT_H_
+#endif  // CVM_LAYOUT_H_

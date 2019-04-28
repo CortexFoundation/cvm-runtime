@@ -4,10 +4,10 @@
  */
 #include "graph_runtime.h"
 
-#include <tvm/runtime/ndarray.h>
-#include <tvm/runtime/packed_func.h>
-#include <tvm/runtime/registry.h>
-#include <tvm/runtime/serializer.h>
+#include <cvm/runtime/ndarray.h>
+#include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/runtime/serializer.h>
 
 #include <algorithm>
 #include <functional>
@@ -19,21 +19,21 @@
 
 namespace std {
   template<>
-  struct hash<TVMContext>{
-    size_t operator()(const TVMContext &ctx) const {
+  struct hash<CVMContext>{
+    size_t operator()(const CVMContext &ctx) const {
       return (ctx.device_type << 8) + ctx.device_id;
     }
   };
 
   template<>
-  struct equal_to<TVMContext>{
-    bool operator()(const TVMContext &c1, const TVMContext &c2) const {
+  struct equal_to<CVMContext>{
+    bool operator()(const CVMContext &c1, const CVMContext &c2) const {
       return c1.device_type == c2.device_type && c1.device_id == c2.device_id;
     }
   };
 }
 
-namespace tvm {
+namespace cvm {
 namespace runtime {
 
 template<class T>
@@ -63,8 +63,8 @@ void CvmRuntime::Run() {
  * executed on.
  */
 void CvmRuntime::Init(const std::string& graph_json,
-                        tvm::runtime::Module module,
-                        const std::vector<TVMContext>& ctxs) {
+                        cvm::runtime::Module module,
+                        const std::vector<CVMContext>& ctxs) {
 #ifndef _LIBCPP_SGX_NO_IOSTREAMS
   std::istringstream is(graph_json);
 #else
@@ -174,7 +174,7 @@ void CvmRuntime::LoadParams(dmlc::Stream* strm) {
   uint64_t header, reserved;
   CHECK(strm->Read(&header))
       << "Invalid parameters file format";
-  CHECK(header == kTVMNDArrayListMagic)
+  CHECK(header == kCVMNDArrayListMagic)
       << "Invalid parameters file format";
   CHECK(strm->Read(&reserved))
       << "Invalid parameters file format";
@@ -201,15 +201,15 @@ void CvmRuntime::LoadParams(dmlc::Stream* strm) {
 }
 
 std::unordered_map<
-  TVMContext,
+  CVMContext,
   std::vector<std::pair<int64_t, NDArray>>
 >  CvmRuntime::history_storage_pool_;
 
 void CvmRuntime::SetupStorage() {
   // Grab saved optimization plan from graph.
-  std::vector<TVMType> vtype;
+  std::vector<CVMType> vtype;
   for (const std::string& s_type : attrs_.dltype) {
-    vtype.push_back(tvm::runtime::String2TVMType(s_type));
+    vtype.push_back(cvm::runtime::String2CVMType(s_type));
   }
 
   // Size and device type of each storage pool entry.
@@ -244,10 +244,10 @@ void CvmRuntime::SetupStorage() {
     pool_entry[sid].device_type = device_type;
   }
   std::unordered_map<
-    TVMContext,
-    std::vector<std::tuple<int64_t, TVMContext, int, int> >
+    CVMContext,
+    std::vector<std::tuple<int64_t, CVMContext, int, int> >
     >  pool_elements;
-  std::vector<TVMContext> pool_contexts;
+  std::vector<CVMContext> pool_contexts;
 
   // Allocate the space.
   for (auto i = 0; i < pool_entry.size(); ++i) {
@@ -255,12 +255,12 @@ void CvmRuntime::SetupStorage() {
     // This for loop is very fast since there are usually only a couple of
     // devices available on the same hardware.
     const auto& cit =
-        std::find_if(ctxs_.begin(), ctxs_.end(), [&pit](const TVMContext& c) {
+        std::find_if(ctxs_.begin(), ctxs_.end(), [&pit](const CVMContext& c) {
           return pit.device_type == static_cast<int>(c.device_type);
         });
-    TVMContext ctx = cit == ctxs_.end() ? ctxs_[0] : *cit;
+    CVMContext ctx = cit == ctxs_.end() ? ctxs_[0] : *cit;
     if (pool_elements.find(ctx) == pool_elements.end()) {
-      pool_elements[ctx] = std::vector<std::tuple<int64_t, TVMContext, int, int> >();
+      pool_elements[ctx] = std::vector<std::tuple<int64_t, CVMContext, int, int> >();
       pool_contexts.push_back(ctx);
     }
     pool_elements[ctx].push_back(std::make_tuple(static_cast<int64_t>((pit.size + 3) / 4), ctx, i, -1));
@@ -268,8 +268,8 @@ void CvmRuntime::SetupStorage() {
 
   for (auto ctx: pool_contexts) {
     std::sort(pool_elements[ctx].begin(), pool_elements[ctx].end(), [](
-        const std::tuple<int64_t, TVMContext, int, int> &a,
-        const std::tuple<int64_t, TVMContext, int, int> &b){
+        const std::tuple<int64_t, CVMContext, int, int> &a,
+        const std::tuple<int64_t, CVMContext, int, int> &b){
         return std::get<0>(a) > std::get<0>(b);
       });
   }
@@ -290,8 +290,8 @@ void CvmRuntime::SetupStorage() {
       }
     }
     std::sort(pool_elements[ctx].begin(), pool_elements[ctx].end(), [](
-          const std::tuple<int64_t, TVMContext, int, int> &a,
-          const std::tuple<int64_t, TVMContext, int, int> &b){
+          const std::tuple<int64_t, CVMContext, int, int> &a,
+          const std::tuple<int64_t, CVMContext, int, int> &b){
           return std::get<2>(a) < std::get<2>(b);
         });
   }
@@ -347,7 +347,7 @@ void CvmRuntime::SetupOpExecs() {
       uint32_t eid = this->entry_id(nid, index);
       args.push_back(*(data_entry_[eid].operator->()));
     }
-    CHECK(inode.op_type == "cvm_op") << "Can only take tvm_op as op";
+    CHECK(inode.op_type == "cvm_op") << "Can only take cvm_op as op";
 
     op_execs_[nid] = CreateCVMOp(inode.param, attrs_.op_attrs[nid], args, inode.inputs.size());
   }
@@ -360,7 +360,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     size_t num_inputs) {
   struct OpArgs {
     std::vector<DLTensor> args;
-    std::vector<TVMValue> arg_values;
+    std::vector<CVMValue> arg_values;
     std::vector<int> arg_tcodes;
     std::vector<int64_t> shape_data;
   };
@@ -371,7 +371,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     arg_ptr->shape_data.resize(arg_ptr->args.size());
   }
   for (size_t i = 0; i < arg_ptr->args.size(); ++i) {
-    TVMValue v;
+    CVMValue v;
     DLTensor* t = &(arg_ptr->args[i]);
     v.v_handle = t;
     arg_ptr->arg_values.push_back(v);
@@ -393,7 +393,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
       std::string val;
       reader.Read(&val);
   //    std::cout << kv << " " << val << "\n";
-      TVMValue v;
+      CVMValue v;
       //TODO leak
     auto tmp = new char[val.size()  + 1];
     strcpy(tmp, val.c_str());
@@ -410,7 +410,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     auto fexec = [arg_ptr]() {
       DLTensor* from = static_cast<DLTensor*>(arg_ptr->arg_values[0].v_handle);
       DLTensor* to = static_cast<DLTensor*>(arg_ptr->arg_values[1].v_handle);
-      TVM_CCALL(TVMArrayCopyFromTo(from, to, nullptr));
+      CVM_CCALL(CVMArrayCopyFromTo(from, to, nullptr));
     };
     return fexec;
   }
@@ -424,16 +424,16 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     if (param.func_name.size() >= op.size() && param.func_name.substr(0, op.size()) == op) {
         int device_type = static_cast<int>(ctxs_[0].device_type);
     return [arg_ptr, op, device_type](){
-      TVMRetValue rv;
-      TVMArgs targs(arg_ptr->arg_values.data(),
+      CVMRetValue rv;
+      CVMArgs targs(arg_ptr->arg_values.data(),
           arg_ptr->arg_tcodes.data(),
           static_cast<int>(arg_ptr->arg_values.size()));
-//          std::cout << "tvm.runtime.cvm_cuda." + op << std::endl;
-          std::string module_name = "tvm.runtime.cvm";
+//          std::cout << "cvm.runtime.cvm_cuda." + op << std::endl;
+          std::string module_name = "cvm.runtime.cvm";
           if(device_type == kDLGPU)
             module_name += "_cuda";
           module_name += ".";
-          auto func = tvm::runtime::Registry::Get(module_name + op);
+          auto func = cvm::runtime::Registry::Get(module_name + op);
           assert(func != NULL);
           func->CallPacked(targs, &rv);
 
@@ -451,7 +451,7 @@ PackedFunc CvmRuntime::GetFunction(
     const std::shared_ptr<ModuleNode>& sptr_to_self) {
   // Return member functions during query.
   if (name == "set_input") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         if (args[0].type_code() == kStr) {
           int in_idx = this->GetInputIndex(args[0]);
           if (in_idx >= 0) this->SetInput(in_idx, args[1]);
@@ -460,7 +460,7 @@ PackedFunc CvmRuntime::GetFunction(
         }
       });
   } else if (name == "get_output") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         if (args.num_args == 2) {
           this->CopyOutputTo(args[0], args[1]);
         } else {
@@ -468,7 +468,7 @@ PackedFunc CvmRuntime::GetFunction(
         }
       });
   } else if (name == "get_input") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         int in_idx = 0;
         if (args[0].type_code() == kStr) {
           in_idx = this->GetInputIndex(args[0]);
@@ -479,15 +479,15 @@ PackedFunc CvmRuntime::GetFunction(
         *rv = this->GetInput(in_idx);
       });
   } else if (name == "get_num_outputs") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         *rv = this->NumOutputs();
       });
   } else if (name == "run") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         this->Run();
       });
   } else if (name == "load_params") {
-    return PackedFunc([sptr_to_self, this](TVMArgs args, TVMRetValue* rv) {
+    return PackedFunc([sptr_to_self, this](CVMArgs args, CVMRetValue* rv) {
         this->LoadParams(args[0].operator std::string());
       });
   } else {
@@ -496,18 +496,18 @@ PackedFunc CvmRuntime::GetFunction(
 }
 
 Module CvmRuntimeCreate(const std::string& sym_json,
-                          const tvm::runtime::Module& m,
-                          const std::vector<TVMContext>& ctxs) {
+                          const cvm::runtime::Module& m,
+                          const std::vector<CVMContext>& ctxs) {
   std::shared_ptr<CvmRuntime> exec = std::make_shared<CvmRuntime>();
   exec->Init(sym_json, m, ctxs);
   return Module(exec);
 }
 
 // Get all context for the host and other runtime devices.
-std::vector<TVMContext> CVMGetAllContext(const TVMArgs& args) {
+std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args) {
   // Reserve the first item as the fallback device.
-  std::vector<TVMContext> ret;
-  TVMContext ctx;
+  std::vector<CVMContext> ret;
+  CVMContext ctx;
   for (int i = 2; i < args.num_args; i += 2) {
     int dev_type = args[i];
     ctx.device_type = static_cast<DLDeviceType>(dev_type);
@@ -518,12 +518,12 @@ std::vector<TVMContext> CVMGetAllContext(const TVMArgs& args) {
 }
 
 // 4-argument version is currently reserved to keep support of calling
-// from tvm4j and javascript, since they don't have heterogeneous
+// from cvm4j and javascript, since they don't have heterogeneous
 // execution support yet. For heterogenenous execution, at least 5 arguments will
 // be passed in. The third one is the number of devices.
-// Eventually, we will only probably pass TVMContext for all the languages.
-TVM_REGISTER_GLOBAL("tvm.cvm_runtime.create")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+// Eventually, we will only probably pass CVMContext for all the languages.
+CVM_REGISTER_GLOBAL("cvm.cvm_runtime.create")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     CHECK_GE(args.num_args, 4)
         << "The expected number of arguments for graph_runtime.create is "
            "at least 4, but it has "
@@ -533,8 +533,8 @@ TVM_REGISTER_GLOBAL("tvm.cvm_runtime.create")
     *rv = CvmRuntimeCreate(args[0], args[1], contexts);
   });
 
-TVM_REGISTER_GLOBAL("tvm.cvm_runtime.remote_create")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.cvm_runtime.remote_create")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     CHECK_GE(args.num_args, 4) << "The expected number of arguments for "
                                   "graph_runtime.remote_create is "
                                   "at least 4, but it has "
@@ -542,11 +542,11 @@ TVM_REGISTER_GLOBAL("tvm.cvm_runtime.remote_create")
     void* mhandle = args[1];
     const auto& contexts = CVMGetAllContext(args);
     *rv = CvmRuntimeCreate(
-        args[0], *static_cast<tvm::runtime::Module*>(mhandle), contexts);
+        args[0], *static_cast<cvm::runtime::Module*>(mhandle), contexts);
   });
 
-TVM_REGISTER_GLOBAL("tvm.cvm_runtime.estimate_ops")
-  .set_body([](TVMArgs args, TVMRetValue* rv) {
+CVM_REGISTER_GLOBAL("cvm.cvm_runtime.estimate_ops")
+  .set_body([](CVMArgs args, CVMRetValue* rv) {
     CHECK_GE(args.num_args, 1) << "The expected number of arguments for "
                                   "graph_runtime.estimate_ops is "
                                   "at least 1, but it has "
@@ -556,4 +556,4 @@ TVM_REGISTER_GLOBAL("tvm.cvm_runtime.estimate_ops")
 
 
 }  // namespace runtime
-}  // namespace tvm
+}  // namespace cvm

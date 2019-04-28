@@ -26,7 +26,7 @@ IRMutator::FMutateExpr &IRVar2Const::vtable_expr() {  // NOLINT(*)
   static FMutateExpr inst; return inst;
 }
 
-TVM_STATIC_IR_FUNCTOR(IRVar2Const, vtable_expr)
+CVM_STATIC_IR_FUNCTOR(IRVar2Const, vtable_expr)
 .set_dispatch<Variable>([](const Variable* op, const Expr &e, IRMutator* m) {
     IRVar2Const* vm = static_cast<IRVar2Const*>(m);
     if (e.same_as(vm->var)) {
