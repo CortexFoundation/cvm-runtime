@@ -116,6 +116,58 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten").set_body([]
      }
 
 });
+void matrix_mul(const int32_t *a, const int32_t *b, const int32_t *bias,
+        int32_t *c, const int M, const int K, const int N){
+    for(int i = 0; i < M; i++){
+        for(int j = 0; j < N; j++){
+            int32_t sum = 0;
+            for(int k = 0; k < K; k++){
+                sum += a[i * K + k] * b[k * N + j];
+            }
+            c[i * N + j] = sum + bias[i];
+        }
+    }
+}
+inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
+    return static_cast<unsigned>(a) < static_cast<unsigned>(b);
+}
+void im2col_cpu(const int32_t* data_im, const int channels,
+        const int height, const int width, const int kernel_h, const int kernel_w,
+        const int pad_h, const int pad_w,
+        const int stride_h, const int stride_w,
+        const int dilation_h, const int dilation_w,
+        int32_t* data_col) {
+    const int output_h = (height + 2 * pad_h -
+            (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
+    const int output_w = (width + 2 * pad_w -
+            (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+    const int channel_size = height * width;
+    for (int channel = channels; channel--; data_im += channel_size) {
+        for (int kernel_row = 0; kernel_row < kernel_h; kernel_row++) {
+            for (int kernel_col = 0; kernel_col < kernel_w; kernel_col++) {
+                int input_row = -pad_h + kernel_row * dilation_h;
+                for (int output_rows = output_h; output_rows; output_rows--) {
+                    if (!is_a_ge_zero_and_a_lt_b(input_row, height)) {
+                        for (int output_cols = output_w; output_cols; output_cols--) {
+                            *(data_col++) = 0;
+                        }
+                    } else {
+                        int input_col = -pad_w + kernel_col * dilation_w;
+                        for (int output_col = output_w; output_col; output_col--) {
+                            if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
+                                *(data_col++) = data_im[input_row * width + input_col];
+                            } else {
+                                *(data_col++) = 0;
+                            }
+                            input_col += stride_w;
+                        }
+                    }
+                    input_row += stride_h;
+                }
+            }
+        }
+    }
+}
 inline void depthwise_conv2d(
         int32_t *x_data, int32_t n_batch, int32_t in_channels, int32_t x_h, int32_t x_w,
         int32_t *w_data, int32_t filter_c, int32_t filter_h, int32_t filter_w,
@@ -239,6 +291,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
                 padding, stride_h, stride_w, dilation[0], dilation[1],
                 groups);
     }else{
+        /*
         const int y_n_offset = out_channels * o_h * o_w;
         const int y_c_offset = o_h * o_w;
         const int y_h_offset = o_w;
@@ -367,6 +420,14 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
                 }
             }
         }
+ */
+        int32_t *data_col = new int[in_channels * filter_h * filter_w * o_h * o_w];
+        for(int i = 0; i < n_batch; i++){
+            im2col_cpu(x_data, in_channels, x_h, x_w, filter_h, filter_w, padding[0], padding[1],
+                    stride_h, stride_w, dilation_h, dilation_w, data_col);
+            matrix_mul(w_data, data_col, b_data, y_data, out_channels, in_channels * filter_h * filter_w, o_h * o_w);
+        }
+        delete data_col;
     }
 
 //    std::cout << o_h << " " << o_w << " (" << filter_h << "," << " " << filter_w << ")"

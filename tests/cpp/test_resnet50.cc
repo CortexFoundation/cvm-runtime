@@ -114,12 +114,12 @@ int main()
         clock_t delta = 0;
         clock_t last;
         for (int i = 0; i < 1; i++) {
-            delta += RunCVM(gpu_x, params_arr, json_data, mod_syslib, "cvm_runtime", gpu_y, (int)kDLGPU);
+            delta += RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
         }
         clock_t cvm_end = clock();
         std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
         std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
-        CVMArrayCopyFromTo(gpu_y, y2, stream1);
+//        CVMArrayCopyFromTo(gpu_y, y2, stream1);
         //cvmArrayFree(y_cpu);
         for(int i = 0; i < 10; i++){
             std::cout << static_cast<int32_t*>(y2->data)[i] << " ";
