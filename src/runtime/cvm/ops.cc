@@ -420,7 +420,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] + b[b_index];
@@ -439,7 +439,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_sub")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] - b[b_index];
@@ -457,7 +457,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_mul")
         int32_t *c = static_cast<int32_t*>(args2->data);
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] * b[b_index];
@@ -477,7 +477,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
             o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
-            int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
+            int32_t a_index = i;//broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             CHECK(b[b_index] != 0);
             c[i] = a[a_index] / b[b_index];
@@ -495,7 +495,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_right_shift")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] >> b[b_index];
@@ -513,7 +513,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_left_shift")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(args0); ++i){
-            o_index = broadcast_o_index(args2->shape, args2->ndim, o_index);
+            o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             int32_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             int32_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] << b[b_index];
@@ -798,7 +798,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
 
         int o_index = -1;
         for(uint32_t i = 0; i < getSize(a); i++){
-            o_index = broadcast_o_index(c->shape, c->ndim, o_index);
+            o_index = i;//broadcast_o_index(c->shape, c->ndim, o_index);
             int32_t a_index = broadcast_i_index(c->shape, o_index, a->shape, a->ndim);
             int32_t b_index = broadcast_i_index(c->shape, o_index, b->shape, b->ndim);
             //c_data[i] = (a_data[i] > b_data[i] ? a_data[i] : b_data[i]);
@@ -819,18 +819,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
         if(axis < 0) axis += ndim;
         CHECK(axis < input0->ndim) << "axis out of bounds.";
 
- //       std::cout << "call concatenate: " << args.num_args << " " << axis  << " " << input0->shape[1] << " " << out->shape[1]<< std::endl;
- //       for(int i = 0; i < args.num_args-1; i++){
- //           DLTensor* dl = args[i];
- //           for(int j = 0; j < dl->ndim; j++){
- //               std::cout << dl->shape[j] << " ";
- //           }
- //           std::cout << std::endl;
- //       }
-
         int32_t *out_data = static_cast<int32_t*>(out->data);
-        int tmpi = 0;
-        for(int i = 0; i < getSize(out); i++){
+        for(uint32_t i = 0; i < getSize(out); i++){
             int32_t o_i = i, in_i = 0, in_i2 = 0, shapeSize = 0;
             for(int j = out->ndim-1; j >= 0; j--){
                 int32_t col = o_i % out->shape[j];
@@ -852,7 +842,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
                 DLTensor* input = args[in_i];
                 shapeSize = (j == out->ndim-1 ? input->shape[j] : shapeSize * input->shape[j]);
             }
-//            if(tmpi != in_i) {std::cout << in_i << " " << in_i2<< std::endl; tmpi = in_i;}
             DLTensor *input = args[in_i];
             int32_t *input_data = static_cast<int32_t*>(input->data);
             out_data[i] = input_data[in_i2];
@@ -995,32 +984,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cuda_max_pool2d")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.dense")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
-  CHECK(args.num_args == 6 || args.num_args == 5);
-  int ndim = args.num_args;
-  DLTensor *x = args[0];
-  DLTensor *w = args[1];
-  DLTensor *b = nullptr;
-  DLTensor *y = nullptr;
-  int32_t* db = nullptr;
-  if(ndim == 6){
-	b = args[2];
-	y = args[3];
-    db = static_cast<int32_t*>(b->data);
-  }else{
-	y = args[2];
-  }
-  auto dx = static_cast<int32_t*>(x->data);
-  auto dy = static_cast<int32_t*>(y->data);
-  auto dw = static_cast<int32_t*>(w->data);
+        CHECK(args.num_args == 6 || args.num_args == 5);
+        int ndim = args.num_args;
+        DLTensor *x = args[0];
+        DLTensor *w = args[1];
+        DLTensor *b = nullptr;
+        DLTensor *y = nullptr;
+        int32_t* db = nullptr;
+        if(ndim == 6){
+            b = args[2];
+            y = args[3];
+            db = static_cast<int32_t*>(b->data);
+        }else{
+            y = args[2];
+        }
+        auto dx = static_cast<int32_t*>(x->data);
+        auto dy = static_cast<int32_t*>(y->data);
+        auto dw = static_cast<int32_t*>(w->data);
 
-  const char* errorStr = cuda_dense(
-          dx, dw, dy,
-          static_cast<int32_t>(x->shape[0]),
-          static_cast<int32_t>(x->shape[1]),
-          static_cast<int32_t>(y->shape[1]),
-          db,
-          DEBUG_OP);
-    CHECK_EQ(errorStr == NULL, true) << errorStr;
+        const char* errorStr = cuda_dense(
+                dx, dw, dy,
+                static_cast<int32_t>(x->shape[0]),
+                static_cast<int32_t>(x->shape[1]),
+                static_cast<int32_t>(y->shape[1]),
+                db,
+                DEBUG_OP);
+        CHECK_EQ(errorStr == NULL, true) << errorStr;
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.clip").set_body([](CVMArgs args, CVMRetValue* rv) {
@@ -1073,17 +1062,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_add")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
 
-        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_add(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
         CHECK_EQ(errorStr == NULL, true) << errorStr;
     });
@@ -1097,17 +1086,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_sub")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
 
-        const char* errorStr = cuda_broadcast_sub(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_sub(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
 
         CHECK_EQ(errorStr == NULL, true) << errorStr;
@@ -1121,17 +1110,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_mul")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
 
-        const char* errorStr = cuda_broadcast_mul(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_mul(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
 
         CHECK_EQ(errorStr == NULL, true) << errorStr;
@@ -1145,17 +1134,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_div")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
 
-        const char* errorStr = cuda_broadcast_div(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_div(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
 
         CHECK_EQ(errorStr == NULL, true) << errorStr;
@@ -1169,16 +1158,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_right_shift")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-        const char* errorStr = cuda_broadcast_right_shift(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_right_shift(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
 
         CHECK_EQ(errorStr == NULL, true) << errorStr;
@@ -1192,16 +1181,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_left_shift")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
-	int64_t *ashape = static_cast<int64_t*>(args0->shape);
-	int32_t adim = static_cast<int32_t>(args0->ndim);
-	int64_t *bshape = static_cast<int64_t*>(args1->shape);
-	int32_t bdim = static_cast<int32_t>(args1->ndim);
-	int64_t *cshape = static_cast<int64_t*>(args2->shape);
-	int32_t cdim = static_cast<int32_t>(args2->ndim);
+        int64_t *ashape = static_cast<int64_t*>(args0->shape);
+        int32_t adim = static_cast<int32_t>(args0->ndim);
+        int64_t *bshape = static_cast<int64_t*>(args1->shape);
+        int32_t bdim = static_cast<int32_t>(args1->ndim);
+        int64_t *cshape = static_cast<int64_t*>(args2->shape);
+        int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-        const char* errorStr = cuda_broadcast_left_shift(a, b, c, getSize(args0), 
+        const char* errorStr = cuda_broadcast_left_shift(a, b, c, getSize(args0),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
 
         CHECK_EQ(errorStr == NULL, true) << errorStr;
@@ -1382,6 +1371,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.abs")
         const char* errorStr = cuda_abs(x, y_data, getSize(dlx), DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
+
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 2);
@@ -1392,6 +1382,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max")
         const char* errorStr = cuda_max(x, y_data, getSize(dlx), DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
+
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
@@ -1401,19 +1392,55 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
         int32_t *a_data = static_cast<int32_t*>(a->data);
         int32_t* b_data = static_cast<int32_t*>(b->data);
         int32_t* c_data = static_cast<int32_t*>(c->data);
-	int64_t *ashape = static_cast<int64_t*>(a->shape);
-	int32_t adim = static_cast<int32_t>(a->ndim);
-	int64_t *bshape = static_cast<int64_t*>(b->shape);
-	int32_t bdim = static_cast<int32_t>(b->ndim);
-	int64_t *cshape = static_cast<int64_t*>(b->shape);
-	int32_t cdim = static_cast<int32_t>(b->ndim);
+        int64_t *ashape = static_cast<int64_t*>(a->shape);
+        int32_t adim = static_cast<int32_t>(a->ndim);
+        int64_t *bshape = static_cast<int64_t*>(b->shape);
+        int32_t bdim = static_cast<int32_t>(b->ndim);
+        int64_t *cshape = static_cast<int64_t*>(c->shape);
+        int32_t cdim = static_cast<int32_t>(c->ndim);
 
-        const char* errorStr = cuda_broadcast_max(a_data, b_data, c_data, getSize(a), 
+        const char* errorStr = cuda_broadcast_max(a_data, b_data, c_data, getSize(a),
 		ashape, adim,
-		bshape, bdim, 
+		bshape, bdim,
 		cshape, cdim, DEBUG_OP);
         CHECK(errorStr == NULL) << errorStr;
     });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
+.set_body([](CVMArgs args, CVMRetValue *ret){
+        int len = args.num_args;
+        CHECK(len >= 3);
+        DLTensor *input0 = args[0];
+        std::string str_axis = args[--len];
+        DLTensor *output = args[--len];
+        int32_t axis = std::atoi(str_axis.c_str());
+        int32_t ndim = static_cast<int32_t>(input0->ndim);
+        CHECK(-ndim <= axis && axis < ndim);
+        if(axis < 0) axis += ndim;
+        CHECK(axis < input0->ndim) << "axis out of bounds.";
+
+        int32_t *out_data = static_cast<int32_t*>(output->data);
+        int64_t preSize = 0;
+        for(int i = 0; i < len; i++){
+            DLTensor *input  = args[i];
+            const char* errorStr = cuda_concatenate(
+                    static_cast<int32_t*>(input->data),
+                    input->shape,
+                    input->ndim,
+                    getSize(input),
+                    out_data,
+                    output->shape,
+                    output->ndim,
+                    getSize(output),
+                    preSize,
+                    preSize + input->shape[axis],
+                    axis,
+                    DEBUG_OP
+            );
+            CHECK(errorStr == NULL) << errorStr;
+            preSize += input->shape[axis];
+        }
+});
 #endif // end of CVM_RUNTIME_CUDA
 }
 }

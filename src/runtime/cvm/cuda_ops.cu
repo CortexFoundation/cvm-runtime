@@ -1354,7 +1354,7 @@ __global__ void kernel_max(const int32_t *x, int32_t *y, int32_t n){
    int32_t tid = threadIdx.x;
    int32_t maxValue = (int32_t)1 << 31;
    for (int i = tid; i < n; i += blockDim.x){
-       int32_t tmp = x[tid];
+       int32_t tmp = x[i];
        if(maxValue < tmp) maxValue = tmp;
    }
 
@@ -1488,3 +1488,58 @@ const char* cuda_cvm_left_shift(const int32_t *a, const int32_t b, const int32_t
     return check_cuda_error(cudaGetLastError());
 }
 
+__global__ void kernel_concatenate(const int32_t *input, const int64_t *ishape, int32_t *output, 
+        int64_t* oshape, const int32_t odim, const int32_t n,  
+        const int64_t preShapeSize, const int64_t curShapeSize, const int32_t axis){
+	int i = threadIdx.x + blockDim.x * blockIdx.x;
+	if(i < n){
+        int32_t o_i = i, in_i2 = 0, shapeSize = 0;
+        for(int j = odim-1; j >= 0; j--){
+            int64_t col = o_i % oshape[j];
+            o_i /= oshape[j];
+            int64_t tmpcol = col;
+            if(j == axis){
+                if(col >= preShapeSize && col < curShapeSize) {
+                    tmpcol = col - preShapeSize;
+                }else{
+                    return;
+                }
+            }
+            in_i2 += (j == odim-1 ? tmpcol : tmpcol * shapeSize);
+            shapeSize = (j == odim-1 ? ishape[j] : shapeSize * ishape[j]);
+        }
+        output[i] = input[in_i2];
+	}
+}
+const char* cuda_concatenate(const int32_t *input, const int64_t *ishape, const int32_t idim, const int32_t in, 
+        int32_t *output, int64_t* oshape, const int32_t odim, const int32_t on,  
+        const int64_t preShapeSize, const int64_t curShapeSize, const int32_t axis, bool debug){
+    const int32_t *dev_input = input;
+    int32_t *tmp_input, *dev_output = output;
+    if(debug){
+        cudaMalloc((void**)&tmp_input, sizeof(int32_t) * in);
+        cudaMalloc((void**)&dev_output, sizeof(int32_t) * on);
+        cudaMemcpy(tmp_input, input, sizeof(int32_t) * in, cudaMemcpyHostToDevice);
+        dev_input = tmp_input;
+    }
+
+    int64_t* dev_ishape, *dev_oshape;
+    cudaMalloc((void**)&dev_ishape, sizeof(int64_t) * idim);
+    cudaMalloc((void**)&dev_oshape, sizeof(int64_t) * odim);
+    cudaMemcpy(dev_ishape, ishape, sizeof(int64_t)*idim, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_oshape, oshape, sizeof(int64_t)*odim, cudaMemcpyHostToDevice);
+    int bSize = 256;
+    int gSize = (on + bSize - 1) / bSize;
+    kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_ishape, dev_output, dev_oshape, odim, on,
+            preShapeSize, curShapeSize, axis);
+
+    cudaFree(dev_ishape);
+    cudaFree(dev_oshape);
+
+    if(debug){
+        cudaMemcpy(output, dev_output, sizeof(int32_t) * on, cudaMemcpyDeviceToHost);
+        cudaFree(tmp_input);
+        cudaFree(dev_output);
+    }
+    return check_cuda_error(cudaGetLastError());
+}

@@ -42,27 +42,27 @@ const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, c
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_sub(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_sub(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_mul(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_mul(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_div(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_div(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_right_shift(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_right_shift(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_left_shift(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_left_shift(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
-const char* cuda_broadcast_max(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n, 
+const char* cuda_broadcast_max(const int32_t *a, const int32_t *b, int32_t* c, const int32_t n,
         int64_t* ashape, int32_t adim,
         int64_t* bshape, int32_t bdim,
         int64_t* cshape, int32_t cdim, bool debug);
@@ -77,4 +77,7 @@ const char* cuda_max(const int32_t *x, int32_t *y, const int32_t n, bool debug);
 const char* cuda_cvm_clip(const int32_t* x, const int32_t precision, int32_t *y, const int32_t n, bool debug);
 const char* cuda_cvm_right_shift(const int32_t *a, const int32_t b, const int32_t precision, int32_t *c, const int32_t n, bool debug);
 const char* cuda_cvm_left_shift(const int32_t *a, const int32_t b, const int32_t precision, int32_t *c, const int32_t n, bool debug);
+const char* cuda_concatenate(const int32_t *input, const int64_t *ishape, const int32_t idim, const int32_t in,
+        int32_t *output, int64_t* oshape, const int32_t odim, const int32_t on,
+        const int64_t preShapeSize, const int64_t curShapeSize, const int32_t axis, bool debug);
 #endif

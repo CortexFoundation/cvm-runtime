@@ -97,46 +97,19 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-//        std::ifstream json_in2("/tmp/imagenet_llvm.org.json", std::ios::in);
-//        std::string json_data_org((std::istreambuf_iterator<char>(json_in2)), std::istreambuf_iterator<char>());
-//        json_in2.close();
-//        // json graph
-//        std::cout << "loadfromfile time" << (clock() - read_t1) * 1000 / CLOCKS_PER_SEC << std::endl;
-
-        DLTensor* y1;
         int out_ndim = 2;
         int64_t out_shape[2] = {1, 1000, };
-//        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y1);
-
-        //    DLTensor* t_gpu_x, *t_gpu_y;
-        //    CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_x);
-        //    CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &t_gpu_y);
-        //    CVMStreamHandle stream;
-        //    CVMStreamCreate(kDLGPU, device_id, &stream);
-        //    CVMArrayCopyFromTo(x, t_gpu_x, stream);
-//        clock_t start = clock();
-//        for(int i = 0; i < 10; i++){
-//            RunCVM(x, params_arr, json_data_org, mod_org, "graph_runtime", y1,(int)kDLCPU);
-//        }
-//        clock_t end = clock();
-//
-//        //    CVMArrayCopyFromTo(t_gpu_y, y1, stream);
-//        std::cout << "graph runtime : " << (end-start)*1.0/CLOCKS_PER_SEC << " s" << std::endl;
-//        for(int i = 0; i < 10; i++){
-//            std::cout << static_cast<int32_t*>(y1->data)[i] << " ";
-//        }
-//        std::cout << std::endl;
 
         std::ifstream json_in("/tmp/inception_v3/symbol.json", std::ios::in);
         std::string json_data((std::istreambuf_iterator<char>(json_in)), std::istreambuf_iterator<char>());
         json_in.close();
 
-//        DLTensor* gpu_x, *gpu_y;
-//        CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);
-//        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_y);
-//        CVMStreamHandle stream1;
-//        CVMStreamCreate(kDLGPU, device_id, &stream1);
-//        CVMArrayCopyFromTo(x, gpu_x, stream1);
+        DLTensor* gpu_x, *gpu_y;
+        CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);
+        CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_y);
+        CVMStreamHandle stream1;
+        CVMStreamCreate(kDLGPU, device_id, &stream1);
+        CVMArrayCopyFromTo(x, gpu_x, stream1);
 
         DLTensor* y2;
         CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y2);
@@ -144,12 +117,12 @@ int main()
         clock_t delta = 0;
         clock_t last;
         for (int i = 0; i < 1; i++) {
-            delta += RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
+            delta += RunCVM(gpu_x, params_arr, json_data, mod_syslib, "cvm_runtime", gpu_y, (int)kDLGPU);
         }
         clock_t cvm_end = clock();
         std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
         std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
-//        CVMArrayCopyFromTo(gpu_y, y2, stream1);
+        CVMArrayCopyFromTo(gpu_y, y2, stream1);
         //CVMArrayFree(y_cpu);
         for(int i = 0; i < 10; i++){
             std::cout << static_cast<int32_t*>(y2->data)[i] << " ";
