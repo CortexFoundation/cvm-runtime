@@ -118,13 +118,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten").set_body([]
 });
 void matrix_mul(const int32_t *a, const int32_t *b, const int32_t *bias,
         int32_t *c, const int M, const int K, const int N){
+    std::memset(c, 0, sizeof(int32_t) * M * N);
     for(int i = 0; i < M; i++){
-        for(int j = 0; j < N; j++){
-            int32_t sum = 0;
-            for(int k = 0; k < K; k++){
-                sum += a[i * K + k] * b[k * N + j];
+        for(int k = 0; k < K; k++){
+           int32_t aV = a[i * K + k];
+            for(int j = 0; j < N; j++){
+                c[i*N + j] += aV * b[k*N + j];
             }
-            c[i * N + j] = sum + bias[i];
+        }
+    }
+    for(int i = 0; i < M; i++){
+        int32_t biasV = bias[i];
+        for(int j = 0; j < N; j++){
+            c[i*N+j] += biasV;
         }
     }
 }
@@ -291,7 +297,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
                 padding, stride_h, stride_w, dilation[0], dilation[1],
                 groups);
     }else{
-        /*
+/*
         const int y_n_offset = out_channels * o_h * o_w;
         const int y_c_offset = o_h * o_w;
         const int y_h_offset = o_w;
@@ -329,7 +335,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
             }
             return y_sum;
         };
-        if (filter_w == 100) {
+        if (filter_w == 1 && filter_h == 1) {
             for (int n = 0; n < n_batch; ++n) {
                 for (int k = 0; k < out_channels; ++k) {
                     for (int p = 0; p < o_h; ++p) {
@@ -345,7 +351,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
                     }
                 }
             }
-        } else if (filter_w == 300) {
+        } else if (filter_w == 3 && filter_h == 3) {
             std::vector<int32_t> y_sum(in_channels * o_h * o_w, 0);
 //            std::cout << "buff " << y_sum.size() << "\n";
             for (int n = 0; n < n_batch; ++n) {
@@ -428,6 +434,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
             matrix_mul(w_data, data_col, b_data, y_data, out_channels, in_channels * filter_h * filter_w, o_h * o_w);
         }
         delete data_col;
+
     }
 
 //    std::cout << o_h << " " << o_w << " (" << filter_h << "," << " " << filter_w << ")"

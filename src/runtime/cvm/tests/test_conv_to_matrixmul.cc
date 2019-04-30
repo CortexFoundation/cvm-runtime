@@ -5,14 +5,15 @@ using namespace std;
 
 void matrix_mul(const int32_t *a, const int32_t *b, const int32_t *bias,
         int32_t *c, const int M, const int K, const int N){
+    memset(c, 0, sizeof(int32_t) * N * M);
     for(int i = 0; i < M; i++){
-        for(int j = 0; j < N; j++){
-            int32_t sum = 0;
-            for(int k = 0; k < K; k++){
-                sum += a[i * K + k] * b[k * N + j];
+        for(int k = 0; k < K; k++){
+            int32_t aV = a[i * K + k];
+            for(int j = 0; j < N; j++){
+                c[i * N + j] += aV * b[k * N + j] + (k == 0 ? bias[i] : 0);
             }
-            c[i * N + j] = sum + bias[i];
         }
+
     }
 }
 inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
@@ -160,6 +161,7 @@ int main(){
 
         int ret = memcmp(output, output2, sizeof(int32_t) * s_o);
         cout << (ret == 0 ? "success" : "failed") << std::endl;
+        if(ret != 0) return 0;
         delete input;
         delete filter;
         delete b_data;
