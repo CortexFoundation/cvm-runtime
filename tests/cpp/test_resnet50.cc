@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include <time.h>
+#include "omp.h"
 
 int dtype_code = kDLInt;
 int dtype_bits = 32;
@@ -37,8 +38,6 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
     cvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
     load_params(params_arr);
 
-
-		auto t2 = clock();
     // get the function from the module(run it)
     cvm::runtime::PackedFunc run = mod.GetFunction("run");
     run();
@@ -65,10 +64,13 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
 int main()
 {
 //    cvm::runtime::Module mod_org = cvm::runtime::Module::LoadFromFile("/tmp/imagenet_llvm.org.so");///tmp/imagenet_llvm.org.so
+    std::cout << "get system lib" << std::endl;
     cvm::runtime::Module mod_syslib = (*cvm::runtime::Registry::Get("module._GetSystemLib"))();
 
     for(int in = 0; in < 1; in++){
 
+        std::cout << "load data and params \n";
+        clock_t load_start = clock();
         std::vector<unsigned long> tshape;
         std::vector<unsigned char> tdata;
 
@@ -80,9 +82,6 @@ int main()
         for (auto i = 0; i < 3*224*224; i++) {
             x_iter[i] = i % 225 - 127;
         }
-
-            std::cout << "\n";
-        clock_t read_t1 = clock();
         // parameters in binary
         std::ifstream params_in("/tmp/imagenet_cuda_cvm.params", std::ios::binary);
         std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
@@ -93,32 +92,32 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-        DLTensor* y1;
+  //      DLTensor* y1;
         int out_ndim = 2;
         int64_t out_shape[2] = {1, 1000, };
 
         std::ifstream json_in("/tmp/imagenet_cuda_cvm.json", std::ios::in);
         std::string json_data((std::istreambuf_iterator<char>(json_in)), std::istreambuf_iterator<char>());
         json_in.close();
-
+/*
         DLTensor* gpu_x, *gpu_y;
         CVMArrayAlloc(in_shape, in_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_x);
         CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, kDLGPU, device_id, &gpu_y);
         CVMStreamHandle stream1;
         CVMStreamCreate(kDLGPU, device_id, &stream1);
         CVMArrayCopyFromTo(x, gpu_x, stream1);
-
+*/
         DLTensor* y2;
         CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y2);
-        clock_t cvm_start = clock();
-        clock_t delta = 0;
-        clock_t last;
+        clock_t load_end = clock();
+        std::cout << "load data and params use: " << (load_end - load_start)*1.0/CLOCKS_PER_SEC << "s" << std::endl;
+        std::cout << "start run..\n";
+        double cvm_start = omp_get_wtime();
         for (int i = 0; i < 1; i++) {
-            delta += RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
+            RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
         }
-        clock_t cvm_end = clock();
-        std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
-        std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
+        double cvm_end = omp_get_wtime();
+        std::cout << (cvm_end - cvm_start) << "s" << std::endl;
 //        CVMArrayCopyFromTo(gpu_y, y2, stream1);
         //cvmArrayFree(y_cpu);
         for(int i = 0; i < 10; i++){
@@ -128,8 +127,8 @@ int main()
         int32_t ret[] = {-47, -6, -28, 95, -34, 66, -54, -8, -83, -35};
 //        std::cout << (memcmp(y1->data, y2->data, 1000*sizeof(int32_t)) == 0 ? "pass" : "failed") << std::endl;
         CVMArrayFree(x);
-        CVMArrayFree(gpu_x);
-        CVMArrayFree(gpu_y);
+//        CVMArrayFree(gpu_x);
+//        CVMArrayFree(gpu_y);
         //    cvmArrayFree(t_gpu_x);
         //    cvmArrayFree(t_gpu_y);
         CVMArrayFree(y2);

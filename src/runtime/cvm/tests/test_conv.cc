@@ -3,8 +3,7 @@
 #include <time.h>
 #include "../cuda_ops.h"
 
-void conv_cpu(int* x_data, int n_batch, int x_h, int x_w, int in_channels,
-        int *w_data, int filter_h, int filter_w,
+void conv_cpu(int* x_data, int n_batch, int x_h, int x_w, int in_channels, int *w_data, int filter_h, int filter_w,
         int *b_data,
         int *y_data, int o_h, int o_w, int out_channels,
         int stride_h, int stride_w,
@@ -156,13 +155,13 @@ int main(){
     int dilation_h = 1;
     int dilation_w= 1;
 
-    for(i_n = 1; i_n < 4; i_n++){
-    for(i_c = 1; i_c < 2; i_c++){
-    for(f_w = 1; i_h < 64; i_h++){
+    for(i_n = 1; i_n <= 256; i_n++){
+    for(i_c = 1; i_c <= 256; i_c++){
+    for(i_h =256; i_h <= 256; i_h++){
         i_w = i_h;
-    for(f_h = 1; f_h <= 11; f_h+=2){
+    for(f_h = 7; f_h <=11; f_h+=2){
         f_w = f_h;
-    for(o_c = 1; o_c <= 16; o_c++){
+    for(o_c = 32; o_c <= 512; o_c+=32){
         int tmp_f_h = (f_h - 1) * dilation_h + 1;
         int tmp_f_w = (f_w - 1) * dilation_w + 1;
         int o_h = (i_h + 2 * padding_h - tmp_f_h) / stride_h + 1;
@@ -184,7 +183,7 @@ int main(){
             b_data[i] = 1;
     //    print(input, i_c, i_h, i_w);
         clock_t start = clock();
-        for(int i = 0; i < 1; i++){
+/*        for(int i = 0; i < 1; i++){
             conv_cpu(input, i_n, i_h, i_w, i_c,
                     filter, f_h, f_w,
                     b_data,
@@ -192,11 +191,10 @@ int main(){
                     stride_h, stride_w,
                     padding_h, padding_w,
                     dilation_h, dilation_w);
-        }
+        }*/
         clock_t end = clock();
     //    print(output, i_n, o_c, o_h, o_w);
-        std::cout << "cpu time: " << end-start << std::endl;
-
+//        std::cout << "cpu time: " << end-start << std::endl;
     //    int *output3 = new int[s_o];
     //    clock_t start2 = clock();
     //    for(int i = 0; i < 10; i++){
@@ -232,14 +230,14 @@ int main(){
         }
     //    print(output2, i_n, o_c, o_h, o_w);
         int ret2 = memcmp(output, output2, sizeof(int) * s_o);
-        std::cout << (ret2 == 0 ? "pass" : "failed") << std::endl;
+ /*       std::cout << (ret2 == 0 ? "pass" : "failed") << std::endl;
         if(ret2 != 0){
             std::cout << "cpu output:\n";
             print(output, i_n, i_c, i_h, i_w);
             std::cout << "cuda output:\n";
             print(output2, i_n, o_c, o_h, o_w);
             return 0;
-        }
+        }*/
         delete input;
         delete filter;
         delete b_data;

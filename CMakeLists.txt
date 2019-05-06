@@ -5,6 +5,7 @@ set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 # Utility functions
 include(cmake/util/Util.cmake)
 include(cmake/util/FindCUDA.cmake)
+include(cmake/util/FindOpenmp.cmake)
 
 if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/config.cmake)
   include(${CMAKE_CURRENT_BINARY_DIR}/config.cmake)

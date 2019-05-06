@@ -11,6 +11,7 @@
 
 #include <time.h>
 #include "npy.hpp"
+#include "omp.h"
 
 int dtype_code = kDLInt;
 int dtype_bits = 32;
@@ -71,6 +72,8 @@ int main()
 
     for(int in = 0; in < 1; in++){
 
+        std::cout << "start load data and params\n";
+        clock_t load_start = clock();
         std::vector<unsigned long> tshape;
         std::vector<char> tdata;
         npy::LoadArrayFromNumpy("/tmp/resnet18/data.npy", tshape, tdata);
@@ -84,8 +87,6 @@ int main()
             x_iter[i] = (int)((int8_t)tdata[i]);
         }
 
-            std::cout << "\n";
-        clock_t read_t1 = clock();
         // parameters in binary
         std::ifstream params_in("/tmp/resnet18/params", std::ios::binary);
         std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
@@ -100,7 +101,6 @@ int main()
         std::string json_data_org((std::istreambuf_iterator<char>(json_in2)), std::istreambuf_iterator<char>());
         json_in2.close();
         // json graph
-        std::cout << "loadfromfile time" << (clock() - read_t1) * 1000 / CLOCKS_PER_SEC << std::endl;
 
         DLTensor* y1;
         int out_ndim = 2;
@@ -139,16 +139,16 @@ int main()
 
         DLTensor* y2;
         CVMArrayAlloc(out_shape, out_ndim, dtype_code, dtype_bits, dtype_lanes, device_type, device_id, &y2);
-        clock_t cvm_start = clock();
-        clock_t delta = 0;
-        clock_t last;
+        clock_t load_end = clock();
+        std::cout << "load data and params use: " << (load_end - load_start)*1.0/CLOCKS_PER_SEC << "s" << std::endl;
+        std::cout << "start run..\n";
+        double cvm_start = omp_get_wtime();
         for (int i = 0; i < 1; i++) {
-            delta += RunCVM(gpu_x, params_arr, json_data, mod_syslib, "cvm_runtime", gpu_y, (int)kDLGPU);
+            RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
         }
-        clock_t cvm_end = clock();
-        std::cout << (cvm_end - cvm_start - delta) * 1000 / CLOCKS_PER_SEC << "ms" << std::endl;
-        std::cout << "cvm runtime: " << (cvm_end - cvm_start)*1.0 / CLOCKS_PER_SEC << " s" << std::endl;
-        CVMArrayCopyFromTo(gpu_y, y2, stream1);
+        double cvm_end = omp_get_wtime();
+        std::cout << (cvm_end - cvm_start) << "s" << std::endl;
+//        CVMArrayCopyFromTo(gpu_y, y2, stream1);
         //CVMArrayFree(y_cpu);
         std::cout << std::endl;
         npy::LoadArrayFromNumpy("/tmp/resnet18/result.npy", tshape, tdata);

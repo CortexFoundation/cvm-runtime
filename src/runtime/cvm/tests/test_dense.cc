@@ -28,9 +28,9 @@ void print(int *data, int h, int w, char *label){
     }
 }
 int main(){
-    int m = 10;
-    int n = 32;
-    int k = 1;
+    int m = 1024;
+    int n = 1024;
+    int k = 1024;
     int32_t *a = new int[m*k];
     int32_t *b = new int[k*n];
     int32_t *c = new int[m*n];
@@ -49,7 +49,7 @@ int main(){
 //    print(c, m, n, "cpu");
 
     int32_t *c2 = new int[m*n];
-    cuda_dense(a, b, c2, m, k, n, bias);
+    cuda_dense(a, b, c2, m, k, n, bias, true);
 //    print(c2, m, n, "cuda");
     int ret = memcmp(c, c2, sizeof(int32_t) * m * n);
     std::cout << (ret == 0 ? "pass" : "failed") << std::endl;

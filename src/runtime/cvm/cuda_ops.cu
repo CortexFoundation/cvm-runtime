@@ -228,6 +228,7 @@ const char* cuda_conv2d(
     size_t s_f = f_n * f_c * f_h * f_w * sizeof(int32_t);
     size_t s_b = o_c * sizeof(int32_t); 
     size_t s_o = o_n * o_c * o_h * o_w * sizeof(int32_t);
+    cudaEvent_t start, stop;
     if(debug){
         cudaMalloc((void**)&dev_i, s_i);
         cudaMalloc((void**)&dev_f, s_f);
@@ -238,8 +239,11 @@ const char* cuda_conv2d(
             cudaMalloc((void**)&dev_b, s_b);
             cudaMemcpy(dev_b, bias, s_b, cudaMemcpyHostToDevice);
         }
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
     }
-//    clock_t start = clock();
+
     int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
     int tmp_f_w = (f_w - 1) * dilation_w + 1;
     int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; //for stride > 1 , TODO to be optimized
@@ -281,9 +285,13 @@ const char* cuda_conv2d(
                 dev_o, o_n, o_c, o_h, o_w);
     }
 //    cudaDeviceSynchronize();
-//    clock_t end = clock();
-//    printf("gpu cal time: %d\n", end-start);
     if(debug){
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        double ops = (double)((double)1.0*i_n * o_c * o_h * o_w * f_h * f_w * f_c * 3.0);
+        printf("gpu cal time:%.4f, %f, %.4f\n", milliseconds, ops, ops / (milliseconds / 1000.0) / 1024.0/1024.0/1024.0);
         cudaMemcpy(output, dev_o, s_o, cudaMemcpyDeviceToHost);
         cudaFree(dev_i);
         cudaFree(dev_f);

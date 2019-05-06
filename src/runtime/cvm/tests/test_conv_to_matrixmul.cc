@@ -6,14 +6,29 @@ using namespace std;
 void matrix_mul(const int32_t *a, const int32_t *b, const int32_t *bias,
         int32_t *c, const int M, const int K, const int N){
     memset(c, 0, sizeof(int32_t) * N * M);
+    cout << "m=" << M << ", k=" << K << ", n=" << N << endl;
     for(int i = 0; i < M; i++){
-        for(int k = 0; k < K; k++){
-            int32_t aV = a[i * K + k];
+        for(int k = 0; k < K; k+=4){
+            register int32_t aV[4] = {0};
+            aV[0] = a[i*K + k + 0];
+            aV[1] = k+1 < K ? a[i*K + k + 1] : 0;
+            aV[2] = k+2 < K ? a[i*K + k + 2] : 0;
+            aV[3] = k+3 < K ? a[i*K + k + 3] : 0;
             for(int j = 0; j < N; j++){
-                c[i * N + j] += aV * b[k * N + j] + (k == 0 ? bias[i] : 0);
+                register int tc = c[i*N+j];
+                tc += aV[0] * b[(k + 0) * N + j];
+                tc += k+1 < K ? aV[1] * b[(k + 1) * N + j] : 0;
+                tc += k+2 < K ? aV[2] * b[(k + 2) * N + j] : 0;
+                tc += k+3 < K ? aV[3] * b[(k + 3) * N + j] : 0;
+                c[i*N + j] = tc;
             }
         }
-
+    }
+    for(int i = 0; i < M; i++){
+        int biasV = bias[i];
+        for(int j = 0; j < N; j++){
+            c[i*N+j] += biasV;
+        }
     }
 }
 inline bool is_a_ge_zero_and_a_lt_b(int a, int b) {
@@ -102,25 +117,25 @@ int main(){
     int f_h = 3;
     int f_w = 3;
     int o_c = 1024;
-    int padding_h = 1;
-    int padding_w = 1;
+    int padding_h = 0;
+    int padding_w = 0;
     int stride_h = 1;
     int stride_w = 1;
     int dilation_h = 1;
     int dilation_w= 1;
 
-    for(i_n = 1; i_n < 4; i_n++){
-    for(i_c = 1; i_c < 2; i_c++){
-    for(f_w = 1; i_h < 64; i_h++){
+    for(i_n = 1; i_n <= 1; i_n++){
+    for(i_c = 1024; i_c <= 1024; i_c++){
+    for(i_h = 32; i_h <= 32; i_h++){
         i_w = i_h;
-    for(f_h = 1; f_h <= 11; f_h+=2){
+    for(f_h = 1; f_h <= 1; f_h+=2){
         f_w = f_h;
-    for(o_c = 1; o_c <= 16; o_c++){
+    for(o_c = 1024; o_c <= 1024; o_c++){
         int tmp_f_h = (f_h - 1) * dilation_h + 1;
         int tmp_f_w = (f_w - 1) * dilation_w + 1;
         int o_h = (i_h + 2 * padding_h - tmp_f_h) / stride_h + 1;
         int o_w = (i_w + 2 * padding_w - tmp_f_w) / stride_w + 1;
-        if(o_h <= 0 || o_w <= 0) continue;
+//        if(o_h <= 0 || o_w <= 0) continue;
         std::cout << i_n << " " << i_c << " " << i_h << " " << i_w << " " << f_h << " " << f_w << " " << o_c << std::endl;
         size_t s_i = i_n * i_c * i_h * i_w;
         size_t s_f = o_c * i_c * f_h * f_w;
