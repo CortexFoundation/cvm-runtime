@@ -467,7 +467,20 @@ inline bool NDArray::Load(utils::Stream* strm) {
   if (!CVMUTIL_IO_NO_ENDIAN_SWAP) {
     utils::ByteSwap(ret->data, elem_bytes, num_elems);
   }
-  *this = ret;
+
+  if(dtype.bits == 8){
+      DLDataType dtype32 = dtype;
+      dtype32.bits = 32;
+      NDArray ret32 = NDArray::Empty(shape, dtype32, ctx);
+      int8_t *data8 = static_cast<int8_t*>(ret->data);
+      int32_t *data32 = static_cast<int32_t*>(ret32->data);
+      for(int i = 0; i < num_elems; i++){
+        data32[i] = static_cast<int32_t>(data8[i]);
+      }
+      *this = ret32;
+  }else{
+      *this = ret;
+  }
   return true;
 }
 
