@@ -44,11 +44,11 @@ inline bool DenseInferShape(const cvm::NodeAttrs& attrs,
                             std::vector<TShape>* out_shape) {
   const DenseParam& param = cvm::get<DenseParam>(attrs.parsed);
   if (param.use_bias) {
-    CHECK_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
   } else {
-    CHECK_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
   }
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
   // reverse infer
   if ((*out_shape)[0].ndim() != 0) {
     TShape dshape = (*out_shape)[0];
@@ -118,12 +118,12 @@ inline bool BatchNormInferShape(const cvm::NodeAttrs& attrs,
                                 std::vector<TShape>* in_shape,
                                 std::vector<TShape>* out_shape) {
   const BatchNormParam& param = cvm::get<BatchNormParam>(attrs.parsed);
-  CHECK_EQ(in_shape->size(), 5U)
+  VERIFY_EQ(in_shape->size(), 5U)
       << "Input:[data, gamma, beta, moving_mean, moving_var]";
-  CHECK_EQ(out_shape->size(), 3U);
+  VERIFY_EQ(out_shape->size(), 3U);
   const TShape &dshape = in_shape->at(0);
   if (dshape.ndim() == 0) return false;
-  CHECK((size_t)param.axis < dshape.Size());
+  VERIFY((size_t)param.axis < dshape.Size());
 
   TShape bshape({dshape[param.axis]});
   if (in_shape->at(1).ndim() == 0) in_shape->at(1) = bshape;
@@ -141,16 +141,16 @@ inline bool BatchNormCorrectLayout(const NodeAttrs& attrs,
                                    const std::vector<Layout> *last_in_layouts,
                                    std::vector<Layout> *out_layouts) {
   const BatchNormParam& param = cvm::get<BatchNormParam>(attrs.parsed);
-  CHECK_EQ(in_layouts->size(), 5U);
-  CHECK_EQ(last_in_layouts->size(), 5U);
-  CHECK_EQ(out_layouts->size(), 3U);
+  VERIFY_EQ(in_layouts->size(), 5U);
+  VERIFY_EQ(last_in_layouts->size(), 5U);
+  VERIFY_EQ(out_layouts->size(), 3U);
 
   Layout data_layout = in_layouts->at(0);
   const Layout& origin_data_layout = last_in_layouts->at(0);
   Layout param_layout("C");
   if (data_layout.defined()) {
     if (data_layout.indexof('C') != param.axis) {
-      CHECK(origin_data_layout.defined())
+      VERIFY(origin_data_layout.defined())
         << "Channel in data layout " << data_layout
         << " is not at index " << param.axis;
       // convert it to the original one.
@@ -158,7 +158,7 @@ inline bool BatchNormCorrectLayout(const NodeAttrs& attrs,
       CVM_ASSIGN_LAYOUT(*in_layouts, 0, origin_data_layout);
     } else if (data_layout.indexof('c') >= 0 &&
                static_cast<uint32_t>(data_layout.indexof('c')) != (data_layout.ndim()-1)) {
-      CHECK(origin_data_layout.defined())
+      VERIFY(origin_data_layout.defined())
         << "sub-channel c in data layout " << data_layout
         << " does not at the final dimension";
       // convert it to the original one.
@@ -167,7 +167,7 @@ inline bool BatchNormCorrectLayout(const NodeAttrs& attrs,
     } else {
       for (Layout::LayoutDim axis : data_layout) {
         if (Layout::is_subdim(axis) && axis != 'c') {
-          CHECK(origin_data_layout.defined())
+          VERIFY(origin_data_layout.defined())
             << "sub-axis other than c appears in data layout " << data_layout;
           // convert it to the original one.
           data_layout = origin_data_layout;
@@ -274,8 +274,8 @@ inline bool PReluInferShape(const cvm::NodeAttrs &attrs,
   CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 0, dshape);
 
   // The case of parametric relu
-  CHECK_EQ(dshape.ndim(), 4) << "Input data should be 4D, but got " << dshape.ndim();
-  CHECK(size_t(param.axis) < dshape.Size())
+  VERIFY_EQ(dshape.ndim(), 4) << "Input data should be 4D, but got " << dshape.ndim();
+  VERIFY(size_t(param.axis) < dshape.Size())
       << "Wrong axis ("  << param.axis << ")value.";
 
   CVM_ASSIGN_INPUT_SHAPE(attrs, *in_shape, 1, TShape({dshape[param.axis]}));
@@ -290,14 +290,14 @@ inline bool PReluCorrectLayout(const NodeAttrs& attrs,
                                const std::vector<Layout> *last_in_layouts,
                                std::vector<Layout> *out_layouts) {
   const PReLUParam& param = cvm::get<PReLUParam>(attrs.parsed);
-  CHECK_EQ(in_layouts->size(), 2U);
-  CHECK_EQ(last_in_layouts->size(), 2U);
-  CHECK_EQ(out_layouts->size(), 1U);
+  VERIFY_EQ(in_layouts->size(), 2U);
+  VERIFY_EQ(last_in_layouts->size(), 2U);
+  VERIFY_EQ(out_layouts->size(), 1U);
 
   const Layout& data_layout = last_in_layouts->at(0).defined() ?
                               last_in_layouts->at(0) : in_layouts->at(0);
   if (data_layout.defined()) {
-    CHECK(data_layout.indexof('C') == param.axis && !data_layout.contains('c'))
+    VERIFY(data_layout.indexof('C') == param.axis && !data_layout.contains('c'))
       << "Channel in data layout " << data_layout
       << " is not at index " << param.axis;
   }
@@ -334,14 +334,14 @@ inline bool PadInferShape(const cvm::NodeAttrs& attrs,
                           std::vector<TShape>* in_shape,
                           std::vector<TShape>* out_shape) {
   const PadParam& param = cvm::get<PadParam>(attrs.parsed);
-  CHECK_EQ(in_shape->size(), 1U);
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(in_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
   TShape dshape = (*in_shape)[0];
   if (dshape.ndim() == 0) return false;
-  CHECK_EQ(param.pad_width.ndim(), dshape.ndim());
+  VERIFY_EQ(param.pad_width.ndim(), dshape.ndim());
   TShape oshape = dshape;
   for (uint32_t i = 0; i < dshape.ndim(); i++) {
-    CHECK_EQ(param.pad_width[i].ndim(), 2U);
+    VERIFY_EQ(param.pad_width[i].ndim(), 2U);
     int pad_before = param.pad_width[i][0];
     int pad_after = param.pad_width[i][1];
     oshape[i] = dshape[i] + pad_before + pad_after;
@@ -371,8 +371,8 @@ CVMUTIL_REGISTER_PARAMETER(LayoutTransformParam);
 inline bool LayoutTransformInferShape(const NodeAttrs& attrs,
                                       std::vector<TShape>* in_attrs,
                                       std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U) << "Input: [data]";
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U) << "Input: [data]";
+  VERIFY_EQ(out_attrs->size(), 1U);
   const LayoutTransformParam& param = cvm::get<LayoutTransformParam>(attrs.parsed);
   const TShape &dshape = (*in_attrs)[0];
   if (dshape.ndim() == 0) return false;
@@ -403,8 +403,8 @@ the input array by output[n, c, h, w, C] = data[n, C*16+c, h, w]
                      const std::vector<Layout> *last_ilayouts,
                      std::vector<Layout> *olayouts) {
     const LayoutTransformParam& param = cvm::get<LayoutTransformParam>(attrs.parsed);
-    CHECK_EQ(ilayouts->size(), 1U);
-    CHECK_EQ(olayouts->size(), 1U);
+    VERIFY_EQ(ilayouts->size(), 1U);
+    VERIFY_EQ(olayouts->size(), 1U);
     CVM_ASSIGN_LAYOUT(*ilayouts, 0, Layout(param.src_layout));
     CVM_ASSIGN_LAYOUT(*olayouts, 0, Layout(param.dst_layout));
     return true;

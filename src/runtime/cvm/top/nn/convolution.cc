@@ -28,39 +28,39 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
 
   const Layout in_layout(param.layout);
   const Layout kernel_layout(param.kernel_layout);
-  CHECK(in_layout.convertible(kNCHW))
+  VERIFY(in_layout.convertible(kNCHW))
     << "Conv only support input layouts that are convertible from NCHW."
     << " But got " << in_layout;
-  CHECK(kernel_layout.convertible(kOIHW))
+  VERIFY(kernel_layout.convertible(kOIHW))
     << "Conv only support kernel layouts that are convertible from OIHW."
     << " But got "<< kernel_layout;
 
   Layout out_layout(param.out_layout);
   if (!out_layout.defined()) out_layout = in_layout;
-  CHECK(out_layout.convertible(kNCHW))
+  VERIFY(out_layout.convertible(kNCHW))
     << "Conv only support output layouts that are convertible from NCHW."
     << " But got " << out_layout;
 
   if (param.use_bias) {
-    CHECK_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
   } else {
-    CHECK_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
   }
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
 
   TShape dshape = in_shape->at(0);
   if (dshape.ndim() == 0) return false;
   dshape = ConvertLayout(dshape, in_layout, kNCHW);
 
-  CHECK_EQ(dshape.ndim(), 4U) << "Input data should be 4D";
-  CHECK_EQ(param.kernel_size.ndim(), 2U);
-  CHECK_EQ(param.strides.ndim(), 2U)
+  VERIFY_EQ(dshape.ndim(), 4U) << "Input data should be 4D";
+  VERIFY_EQ(param.kernel_size.ndim(), 2U);
+  VERIFY_EQ(param.strides.ndim(), 2U)
       << "incorrect stride size: " << param.strides;
-  CHECK_EQ(param.dilation.ndim(), 2U)
+  VERIFY_EQ(param.dilation.ndim(), 2U)
       << "incorrect dilate size: " << param.dilation;
-  CHECK_EQ(dshape[1] % param.groups, 0U)
+  VERIFY_EQ(dshape[1] % param.groups, 0U)
       << "input channels must divide group size";
-  CHECK_EQ(param.channels % param.groups, 0U)
+  VERIFY_EQ(param.channels % param.groups, 0U)
       << "output channels must divide group size";
 
   TShape wshape({param.channels,
@@ -110,11 +110,11 @@ inline bool Conv2DInferShape(const cvm::NodeAttrs& attrs,
                           ConvertLayout(dshape, kNCHW, in_layout));
   // Check whether the kernel sizes are valid
   if (dshape[2] != 0) {
-    CHECK_LE(dilated_ksize_y, dshape[2] + 2 * param.padding[0])
+    VERIFY_LE(dilated_ksize_y, dshape[2] + 2 * param.padding[0])
       << "kernel size exceed input";
   }
   if (dshape[3] != 0) {
-    CHECK_LE(dilated_ksize_x, dshape[3] + 2 * param.padding[1])
+    VERIFY_LE(dilated_ksize_x, dshape[3] + 2 * param.padding[1])
         << "kernel size exceed input";
   }
   return true;
@@ -127,13 +127,13 @@ inline bool Conv2DInferType(const cvm::NodeAttrs& attrs,
                             std::vector<int>* out_type) {
   const PARAM& param = cvm::get<PARAM>(attrs.parsed);
   if (param.use_bias) {
-    CHECK_EQ(in_type->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(in_type->size(), 3U) << "Input:[data, weight, bias]";
   } else {
-    CHECK_EQ(in_type->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(in_type->size(), 2U) << "Input:[data, weight]";
   }
-  CHECK_EQ(out_type->size(), 1U);
+  VERIFY_EQ(out_type->size(), 1U);
   if (param.out_dtype != -1) {
-    CHECK(!type_is_none((*in_type)[0]));
+    VERIFY(!type_is_none((*in_type)[0]));
     for (size_t i = 1; i < in_type->size(); ++i) {
       CVM_ASSIGN_INPUT_TYPE(attrs, *in_type, i, (*in_type)[0]);
     }
@@ -176,7 +176,7 @@ inline bool Conv2DCorrectLayout(const NodeAttrs& attrs,
 
   const Layout kernel_layout(param.kernel_layout);
   if (param.use_bias) {
-    CHECK_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
     CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
     CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
     // automatically decide bias layout
@@ -188,12 +188,12 @@ inline bool Conv2DCorrectLayout(const NodeAttrs& attrs,
     }
     CVM_ASSIGN_LAYOUT(*ilayouts, 2, bias_layout);
   } else {
-    CHECK_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
     CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
     CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
   }
 
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(olayouts->size(), 1U);
   CVM_ASSIGN_LAYOUT(*olayouts, 0, out_layout);
 
   return true;
@@ -259,25 +259,25 @@ inline bool Conv2DTransposeInferShape(const cvm::NodeAttrs& attrs,
   const Layout layout(param.layout);
   const Layout kernel_layout(param.kernel_layout);
   if (param.use_bias) {
-    CHECK_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(in_shape->size(), 3U) << "Input:[data, weight, bias]";
   } else {
-    CHECK_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(in_shape->size(), 2U) << "Input:[data, weight]";
   }
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
 
   const TShape& dshape = (*in_shape)[Conv2DTransposeParam::kData];
   if (dshape.ndim() ==  0) return false;
   TShape dshape_nchw = ConvertLayout(dshape, layout, kNCHW);
 
-  CHECK_EQ(dshape_nchw[1] % param.groups, 0U)
+  VERIFY_EQ(dshape_nchw[1] % param.groups, 0U)
       << "input num_filter must divide group size";
-  CHECK_EQ(param.channels % param.groups, 0U)
+  VERIFY_EQ(param.channels % param.groups, 0U)
       << "output num_filter must divide group size";
-  CHECK_EQ(param.kernel_size.ndim(), 2U)
+  VERIFY_EQ(param.kernel_size.ndim(), 2U)
       << "incorrect kernel size: " << param.kernel_size;
-  CHECK_EQ(param.strides.ndim(), 2U)
+  VERIFY_EQ(param.strides.ndim(), 2U)
       << "incorrect stride size: " << param.strides;
-  CHECK_EQ(param.dilation.ndim(), 2U)
+  VERIFY_EQ(param.dilation.ndim(), 2U)
       << "incorrect dilate size: " << param.dilation;
 
   TShape wshape({dshape_nchw[1],
@@ -317,17 +317,17 @@ inline bool Conv2DTransposeCorrectLayout(const NodeAttrs& attrs,
 
   const Layout kernel_layout(param.kernel_layout);
   if (param.use_bias) {
-    CHECK_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
+    VERIFY_EQ(ilayouts->size(), 3U) << "Input:[data, weight, bias]";
     CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
     CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
     CVM_ASSIGN_LAYOUT(*ilayouts, 2, Layout("C"));
   } else {
-    CHECK_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
+    VERIFY_EQ(ilayouts->size(), 2U) << "Input:[data, weight]";
     CVM_ASSIGN_LAYOUT(*ilayouts, 0, in_layout);
     CVM_ASSIGN_LAYOUT(*ilayouts, 1, kernel_layout);
   }
 
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(olayouts->size(), 1U);
   CVM_ASSIGN_LAYOUT(*olayouts, 0, in_layout);
 
   return true;

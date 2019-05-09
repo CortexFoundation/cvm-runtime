@@ -9,11 +9,7 @@
 #include "top/elemwise_op_common.h"
 #include <cvm/graph_attr_types.h>
 
-//#define CHECK_ATTR_DEBUG
-
-#ifdef CHECK_ATTR_DEBUG
 #include <iostream>
-#endif
 
 using cvm::Op;
 using cvm::TShape;
@@ -22,30 +18,15 @@ namespace cvm {
 namespace runtime {
 
 bool CvmRuntime::CheckAttr() {
-  try {
-    SetupShape();
-#ifdef CHECK_ATTR_DEBUG
-    std::cout << "check shape pass" << std::endl;
-#endif
-
-    SetupType();
-#ifdef CHECK_ATTR_DEBUG
-    std::cout << "check type pass" << std::endl;
-#endif
-
-    SetupPrecision();
-#ifdef CHECK_ATTR_DEBUG
-    std::cout << "infer precision pass" << std::endl;
-    for (auto p:  attrs_.precision) {
-      std::cout << p << ' ';
-    }
-    std::cout << std::endl;
-#endif
-    return true;
-  } catch (utils::Error &e) {
-    std::cout << e.what();
-    return false;
+  SetupShape();
+  SetupType();
+  SetupPrecision();
+  std::cout << "infer precision pass" << std::endl;
+  for (auto p:  attrs_.precision) {
+    std::cout << p << ' ';
   }
+  std::cout << std::endl;
+  return true;
 }
 
 std::vector<TShape> GetTShapeArray(const std::vector<std::vector<int64_t> > &shapes) {
@@ -95,7 +76,7 @@ void CvmRuntime::SetupPrecision() {
         iprec[i] = precision[entry_id(inode.inputs[i])];
         shapes[i] = rshape[entry_id(inode.inputs[i])];
       }
-      CHECK_GE(num_outputs, 1) << "an operator has at least 1 outputs";
+      VERIFY_GE(num_outputs, 1) << "an operator has at least 1 outputs";
       oprec.resize(num_outputs, -1);
       auto finfer = finfer_prec.get(inode.attrs.op, nullptr);
       // Call inference function of the operator.
@@ -108,7 +89,7 @@ void CvmRuntime::SetupPrecision() {
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {
-          CHECK(iprec[i] <= 32)
+          VERIFY(precision[entry_id(inode.inputs[i])] <= iprec[i] && iprec[i] <= 32)
              << "Check precision failed, "
              << "expected to be at most " << iprec[i]
              << " but " << precision[entry_id(inode.inputs[i])];
@@ -164,11 +145,6 @@ int64_t CvmRuntime::GetOps() {
       opcount[op] += t;
     }
   }
-#ifdef CHECK_ATTR_DEBUG
-  for (auto op: ops) {
-    std::cout << op << ' ' << opcount[op] << std::endl;
-  }
-#endif
   return ret;
 }
 
@@ -186,7 +162,7 @@ void CvmRuntime::SetupShape() {
     const auto& inode = idx[nid];
     if (inode.op_type == "null") {
       // Variable node. No operator. Only one output entry.
-      CHECK(rshape[nid].ndim()) << "Invalid variable shape";
+      VERIFY(rshape[nid].ndim()) << "Invalid variable shape";
     } else {
       const uint32_t num_inputs = inode.param.num_inputs;
       const uint32_t num_outputs = inode.param.num_outputs;
@@ -213,13 +189,13 @@ void CvmRuntime::SetupShape() {
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {
-        CHECK_EQ(ishape[i], rshape[entry_id(inode.inputs[i])])
+        VERIFY_EQ(ishape[i], rshape[entry_id(inode.inputs[i])])
           << "Check input shape failed, "
           << "expected to be " << ishape[i]
           << " but " << rshape[entry_id(inode.inputs[i])];
       }
       for (uint32_t i = 0; i < num_outputs; ++i) {
-        CHECK_EQ(oshape[i], rshape[entry_id(nid, i)])
+        VERIFY_EQ(oshape[i], rshape[entry_id(nid, i)])
           << "Check output shape failed, "
           << "expected to be " << oshape[i]
           << " but " << rshape[entry_id(nid, i)];
@@ -301,13 +277,13 @@ void CvmRuntime::SetupType() {
       }
       // Save to the result map.
       for (uint32_t i = 0; i < num_inputs; ++i) {
-        CHECK_EQ(itype[i], rtype[entry_id(inode.inputs[i])])
+        VERIFY_EQ(itype[i], rtype[entry_id(inode.inputs[i])])
           << "Check type failed, "
           << "expected to be " << itype[i]
           << " but " << rtype[entry_id(inode.inputs[i])];
       }
       for (uint32_t i = 0; i < num_outputs; ++i) {
-        CHECK_EQ(otype[i], rtype[entry_id(nid, i)])
+        VERIFY_EQ(otype[i], rtype[entry_id(nid, i)])
           << "Check type failed, "
           << "expected to be " << otype[i]
           << " but " << rtype[entry_id(nid, i)];
@@ -319,97 +295,6 @@ void CvmRuntime::SetupType() {
     infer_type(nid);
   }
 }
-/*
- * assign
- * avg_pool2d
- * batch_norm
- * cast
- * clip
- * concatenate
- * conv2d
- * conv2d_transpose
- * dense
- * dropout
- * elemwise_add
- * exp
- * expand_dims
- * expand_like
- * flatten
- * flip
- * gather_nd
- * global_avg_pool2d
- * global_max_pool2d
- * l2_normalize
- * leaky_relu
- * log_softmax
- * lrn
- * matmul
- * max_pool2d
- * multibox_prior
- * multibox_transform_loc
- * non_max_suppression
- * pad
- * prelu
- * relu
- * reshape
- * reshape_like
- * resize
- * slice_like
- * softmax
- * split
- * squeeze
- * strided_slice
- * take
- * transpose
- * upsampling
- * where
- * yolo_reorg
- * broadcast_add
- * broadcast_sub
- * broadcast_mul
- * broadcast_div
- * broadcast_mod
- * broadcast_max
- * broadcast_min
- * broadcast_pow
- * broadcast_left_shift
- * broadcast_right_shift
- * broadcast_greater
- * broadcast_less
- * broadcast_equal
- * broadcast_not_equal
- * broadcast_greater_equal
- * broadcast_less_equal
- * floor
- * ceil
-* trunc
-* round
-* abs
-* sigmoid
-* tanh
-* exp
-* log2
-* log
-* sqrt
-* negative
-* logical_not
-* copy
-* elemwise_add
-* elemwise_sub
-* elemwise_mul
-* elemwise_div
-* elemwise_mod
-* elemwise_pow
-* logical_and
-* logical_or
-* full
-* zeros
-* ones
-* elemwise_sum
-* greater
-* less
- * */
-
 
 }
 }

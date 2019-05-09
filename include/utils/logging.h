@@ -35,18 +35,6 @@ struct Error : public std::runtime_error {
 }  // namespace utils
 
 #if CVMUTIL_USE_GLOG
-#include <glog/logging.h>
-
-namespace utils {
-/*!
- * \brief optionally redirect to google's init log
- * \param argv0 The arguments.
- */
-inline void InitLogging(const char* argv0) {
-  google::InitGoogleLogging(argv0);
-}
-}  // namespace utils
-
 #else
 // use a light version of glog
 #include <assert.h>
@@ -75,7 +63,48 @@ class LogCheckError {
 
 #ifndef CVMUTIL_GLOG_DEFINED
 
-#ifndef _LIBCPP_SGX_NO_IOSTREAMS
+#define DEFINE_VERIFY_FUNC(name, op)                                    \
+  template <typename X, typename Y>                                     \
+  inline LogCheckError ValueVerify##name(const X& x, const Y& y) {      \
+    if (x op y) return LogCheckError();                                 \
+    std::ostringstream os;                                              \
+    os << " (" << x << " vs. " << y << ") ";  /* CHECK_XX(x, y) requires x and y can be serialized to string. Use CHECK(x OP y) otherwise. NOLINT(*) */ \
+    return LogCheckError(os.str());                                     \
+  }                                                                     \
+  inline LogCheckError ValueVerify##name(int x, int y) {                \
+    return ValueVerify##name<int, int>(x, y);                           \
+  }
+
+#define VERIFY_BINARY_OP(name, op, x, y)                                     \
+  if (utils::LogCheckError _check_err = utils::ValueVerify##name(x, y))      \
+    utils::ValueVerifyFatal(__FILE__, __LINE__).stream()                     \
+      << "Check failed: " << #x " " #op " " #y << *(_check_err.str)                                    
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+DEFINE_VERIFY_FUNC(_LT, <)
+DEFINE_VERIFY_FUNC(_GT, >)
+DEFINE_VERIFY_FUNC(_LE, <=)
+DEFINE_VERIFY_FUNC(_GE, >=)
+DEFINE_VERIFY_FUNC(_EQ, ==)
+DEFINE_VERIFY_FUNC(_NE, !=)
+#pragma GCC diagnostic pop
+
+// Always-on checking
+#define VERIFY(x)                                            \
+  if (!(x))                                                  \
+    utils::ValueVerifyFatal(__FILE__, __LINE__).stream()     \
+      << "Check failed: " #x << ' '
+
+#define VERIFY_LT(x, y) VERIFY_BINARY_OP(_LT, <, x, y)
+#define VERIFY_GT(x, y) VERIFY_BINARY_OP(_GT, >, x, y)
+#define VERIFY_LE(x, y) VERIFY_BINARY_OP(_LE, <=, x, y)
+#define VERIFY_GE(x, y) VERIFY_BINARY_OP(_GE, >=, x, y)
+#define VERIFY_EQ(x, y) VERIFY_BINARY_OP(_EQ, ==, x, y)
+#define VERIFY_NE(x, y) VERIFY_BINARY_OP(_NE, !=, x, y)
+#define VERIFY_NOTNULL(x) \
+  ((x) == NULL ? utils::ValueVerifyFatal(__FILE__, __LINE__).stream() << "Check  notnull: "  #x << ' ', (x) : (x)) // NOLINT(*)
+
 #define DEFINE_CHECK_FUNC(name, op)                               \
   template <typename X, typename Y>                               \
   inline LogCheckError LogCheck##name(const X& x, const Y& y) {   \
@@ -87,22 +116,11 @@ class LogCheckError {
   inline LogCheckError LogCheck##name(int x, int y) {             \
     return LogCheck##name<int, int>(x, y);                        \
   }
-#else
-#define DEFINE_CHECK_FUNC(name, op)                               \
-  template <typename X, typename Y>                               \
-  inline LogCheckError LogCheck##name(const X& x, const Y& y) {   \
-    if (x op y) return LogCheckError();                           \
-    return LogCheckError("Error.");                               \
-  }                                                               \
-  inline LogCheckError LogCheck##name(int x, int y) {             \
-    return LogCheck##name<int, int>(x, y);                        \
-  }
-#endif
 
-#define CHECK_BINARY_OP(name, op, x, y)                               \
-  if (utils::LogCheckError _check_err = utils::LogCheck##name(x, y))    \
+#define CHECK_BINARY_OP(name, op, x, y)                                \
+  if (utils::LogCheckError _check_err = utils::LogCheck##name(x, y))   \
     utils::LogMessageFatal(__FILE__, __LINE__).stream()                \
-      << "Check failed: " << #x " " #op " " #y << *(_check_err.str)
+      << "Check failed: " << #x " " #op " " #y << *(_check_err.str)                                    
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-compare"
@@ -115,10 +133,11 @@ DEFINE_CHECK_FUNC(_NE, !=)
 #pragma GCC diagnostic pop
 
 // Always-on checking
-#define CHECK(x)                                           \
-  if (!(x))                                                \
+#define CHECK(x)                                            \
+  if (!(x))                                                 \
     utils::LogMessageFatal(__FILE__, __LINE__).stream()     \
       << "Check failed: " #x << ' '
+
 #define CHECK_LT(x, y) CHECK_BINARY_OP(_LT, <, x, y)
 #define CHECK_GT(x, y) CHECK_BINARY_OP(_GT, >, x, y)
 #define CHECK_LE(x, y) CHECK_BINARY_OP(_LE, <=, x, y)
@@ -198,7 +217,6 @@ class DateLogger {
   char buffer_[9];
 };
 
-#ifndef _LIBCPP_SGX_NO_IOSTREAMS
 class LogMessage {
  public:
   LogMessage(const char* file, int line)
@@ -245,28 +263,6 @@ class CustomLogMessage {
  private:
   std::ostringstream log_stream_;
 };
-#else
-class DummyOStream {
- public:
-  template <typename T>
-  DummyOStream& operator<<(T _) { return *this; }
-  inline std::string str() { return ""; }
-};
-class LogMessage {
- public:
-  LogMessage(const char* file, int line) : log_stream_() {}
-  DummyOStream& stream() { return log_stream_; }
-
- protected:
-  DummyOStream log_stream_;
-
- private:
-  LogMessage(const LogMessage&);
-  void operator=(const LogMessage&);
-};
-#endif
-
-
 
 #if CVMUTIL_LOG_STACK_TRACE
 inline std::string Demangle(char const *msg_str) {
@@ -325,20 +321,29 @@ inline std::string StackTrace(const size_t stack_size = 0) {
 }
 
 #endif  // CVMUTIL_LOG_STACK_TRACE
-#if CVMUTIL_LOG_FATAL_THROW == 0
-class LogMessageFatal : public LogMessage {
+
+class ValueVerifyFatal {
  public:
-  LogMessageFatal(const char* file, int line) : LogMessage(file, line) {}
-  ~LogMessageFatal() {
-    log_stream_ << "\n\n" << StackTrace() << "\n";
-    abort();
+  ValueVerifyFatal(const char* file, int line) {
+    log_stream_ << "[" << pretty_date_.HumanDate() << "] " << file << ":"
+                << line << ": ";
+  }
+  std::ostringstream &stream() { return log_stream_; }
+  ~ValueVerifyFatal() {
+    // throwing out of destructor is evil
+    // hopefully we can do it here
+    // also log the message before throw
+    LOG(ERROR) << log_stream_.str();
+    throw std::logic_error(log_stream_.str());
   }
 
  private:
-  LogMessageFatal(const LogMessageFatal&);
-  void operator=(const LogMessageFatal&);
+  std::ostringstream log_stream_;
+  DateLogger pretty_date_;
+  ValueVerifyFatal(const ValueVerifyFatal&);
+  void operator=(const ValueVerifyFatal&);
 };
-#else
+
 class LogMessageFatal {
  public:
   LogMessageFatal(const char* file, int line) {
@@ -346,17 +351,13 @@ class LogMessageFatal {
                 << line << ": ";
   }
   std::ostringstream &stream() { return log_stream_; }
-  ~LogMessageFatal() CVMUTIL_THROW_EXCEPTION {
-#if CVMUTIL_LOG_STACK_TRACE
+  ~LogMessageFatal() {
     log_stream_ << "\n\n" << StackTrace() << "\n";
-#endif
 
     // throwing out of destructor is evil
     // hopefully we can do it here
     // also log the message before throw
-#if CVMUTIL_LOG_BEFORE_THROW
     LOG(ERROR) << log_stream_.str();
-#endif
     throw Error(log_stream_.str());
   }
 
@@ -366,7 +367,6 @@ class LogMessageFatal {
   LogMessageFatal(const LogMessageFatal&);
   void operator=(const LogMessageFatal&);
 };
-#endif
 
 // This class is used to explicitly ignore values in the conditional
 // logging macros.  This avoids compiler warnings like "value computed
@@ -376,9 +376,7 @@ class LogMessageVoidify {
   LogMessageVoidify() {}
   // This has to be an operator with a precedence lower than << but
   // higher than "?:". See its usage.
-#if !defined(_LIBCPP_SGX_NO_IOSTREAMS)
   void operator&(std::ostream&) {}
-#endif
 };
 
 }  // namespace utils

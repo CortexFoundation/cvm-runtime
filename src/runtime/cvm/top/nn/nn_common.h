@@ -50,7 +50,7 @@ inline TShape ConvertLayout(TShape src, const Layout& src_layout, const Layout& 
     LOG(FATAL) << "cannot convert " << src_layout << " to undefined layout";
   }
 
-  CHECK(src_layout.convertible(dst_layout)) << "cannot convert from "
+  VERIFY(src_layout.convertible(dst_layout)) << "cannot convert from "
                                             << src_layout << " to " << dst_layout;
 
   TShape dst(dst_layout.ndim());
@@ -65,15 +65,15 @@ inline TShape ConvertLayout(TShape src, const Layout& src_layout, const Layout& 
 
       uint32_t src_dim_size = src[i];
       if (src_minor_pos >= 0) {
-        CHECK_EQ(src_factor, src[src_minor_pos]) << "src shape " << src
+        VERIFY_EQ(src_factor, src[src_minor_pos]) << "src shape " << src
                                                  << " does not agree with layout " << src_layout;
         src_dim_size *= src_factor;
       }
 
       dst[dst_major_pos] = src_dim_size;
       if (dst_minor_pos >= 0) {
-        CHECK_GT(dst_factor, 0);
-        CHECK_LE(dst_factor, src_dim_size) << "Converting " << src
+        VERIFY_GT(dst_factor, 0);
+        VERIFY_LE(dst_factor, src_dim_size) << "Converting " << src
                                            << " from " << src_layout
                                            << " to " << dst_layout
                                            << ": cannot split dimension size of "

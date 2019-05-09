@@ -27,15 +27,15 @@ inline TShape GetReduceAxes(const uint32_t indim,
     return r_axes;
   }
 
-  CHECK_LT(axis[axis.ndim() - 1], indim)
+  VERIFY_LT(axis[axis.ndim() - 1], indim)
     << "Reduction axis " << axis[axis.ndim() - 1]
     << " exceeds input dimensions " << indim;
 
   TShape in_axis = axis;
   for (auto& i : in_axis) {
     i = i < 0 ? i + indim : i;
-    CHECK_GE(i, 0) << "axis out of bounds in reduce operator";
-    CHECK_LT(i, indim) << "axis out of bounds in reduce operator";
+    VERIFY_GE(i, 0) << "axis out of bounds in reduce operator";
+    VERIFY_LT(i, indim) << "axis out of bounds in reduce operator";
   }
   std::sort(in_axis.begin(), in_axis.end());
   if (!exclude) return in_axis;
@@ -60,7 +60,7 @@ inline TShape ReduceShapeImpl(const TShape& ishape,
   if (r_axes.ndim() == indim)
     return TShape(keepdims ? indim : 1);
 
-  CHECK(r_axes.ndim() < indim);
+  VERIFY(r_axes.ndim() < indim);
   if (keepdims) {
     TShape oshape(ishape);
     for (unsigned i = 0, j = 0; i < indim; ++i) {
@@ -85,8 +85,8 @@ inline TShape ReduceShapeImpl(const TShape& ishape,
 inline bool ReduceShape(const cvm::NodeAttrs& attrs,
                         std::vector<TShape>* in_attrs,
                         std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   if ((*in_attrs)[0].ndim() == 0) return false;
   const ReduceParam& param = cvm::get<ReduceParam>(attrs.parsed);
   CVM_ASSIGN_OUTPUT_SHAPE(
@@ -99,8 +99,8 @@ inline bool ReduceShape(const cvm::NodeAttrs& attrs,
 inline bool CollapseShape(const cvm::NodeAttrs& attrs,
                           std::vector<TShape>* in_attrs,
                           std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   if ((*in_attrs)[0].ndim() == 1) return false;
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, (*in_attrs)[1]);
   return true;
@@ -184,8 +184,8 @@ CVM_REGISTER_BASE_REDUCE_OP(collapse_sum)
 inline bool InferFixedType(const NodeAttrs& attrs,
                           std::vector<int>* in_attrs,
                           std::vector<int>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const ReduceParam& param = cvm::get<ReduceParam>(attrs.parsed);
   CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
   return true;

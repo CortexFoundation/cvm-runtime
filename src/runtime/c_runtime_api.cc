@@ -294,11 +294,7 @@ int CVMAPIHandleException(const std::runtime_error &e) {
 }
 
 void CVMAPISetLastError(const char* msg) {
-#ifndef _LIBCPP_SGX_CONFIG
   CVMAPIRuntimeStore::Get()->last_error = msg;
-#else
-  sgx::OCallPackedFunc("__sgx_set_last_error__", msg);
-#endif
 }
 
 int CVMModLoadFromFile(const char* file_name,
