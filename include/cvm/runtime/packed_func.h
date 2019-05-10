@@ -968,7 +968,13 @@ inline int CVMArgs::size() const {
 }
 
 inline void PackedFunc::CallPacked(CVMArgs args, CVMRetValue* rv) const {
-  body_(args, rv);
+  try {
+    body_(args, rv);
+  } catch (std::logic_error &e) {
+    *rv = -1;
+  } catch (std::runtime_error &e) {
+    *rv = -2;
+  }
 }
 
 inline PackedFunc::FType PackedFunc::body() const {

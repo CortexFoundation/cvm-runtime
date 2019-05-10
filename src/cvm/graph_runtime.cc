@@ -250,7 +250,7 @@ void CvmRuntime::SetupStorage() {
   std::vector<CVMContext> pool_contexts;
 
   // Allocate the space.
-  for (auto i = 0; i < pool_entry.size(); ++i) {
+  for (unsigned i = 0; i < pool_entry.size(); ++i) {
     PoolEntry& pit = pool_entry[i];
     // This for loop is very fast since there are usually only a couple of
     // devices available on the same hardware.
@@ -275,7 +275,7 @@ void CvmRuntime::SetupStorage() {
   }
 
   for (auto ctx: pool_contexts) {
-    int it = 0;
+    unsigned it = 0;
     auto &history_pool_map = CvmRuntime::history_storage_pool_;
     if (history_pool_map.find(ctx) == history_pool_map.end()) {
       history_pool_map[ctx] = std::vector<std::pair<int64_t, NDArray> >();
@@ -390,16 +390,15 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   reader.BeginObject();
 // std::cout << param.func_name << std::endl;
   while (reader.NextObjectItem(&kv)) {
-      std::string val;
-      reader.Read(&val);
-  //    std::cout << kv << " " << val << "\n";
-      CVMValue v;
-      //TODO leak
+    std::string val;
+    reader.Read(&val);
+    CVMValue v;
+    //TODO leak
     auto tmp = new char[val.size()  + 1];
     strcpy(tmp, val.c_str());
-      v.v_str = const_cast<const char*>(tmp);
-      arg_ptr->arg_values.push_back(v);
-      arg_ptr->arg_tcodes.push_back(kStr);
+    v.v_str = const_cast<const char*>(tmp);
+    arg_ptr->arg_values.push_back(v);
+    arg_ptr->arg_tcodes.push_back(kStr);
   }
 
   if (param.func_name == "__nop") {
@@ -425,18 +424,23 @@ std::function<void()> CvmRuntime::CreateCVMOp(
         int device_type = static_cast<int>(ctxs_[0].device_type);
     return [arg_ptr, op, device_type](){
       CVMRetValue rv;
-      CVMArgs targs(arg_ptr->arg_values.data(),
+      CVMArgs targs(
+          arg_ptr->arg_values.data(),
           arg_ptr->arg_tcodes.data(),
-          static_cast<int>(arg_ptr->arg_values.size()));
-          std::string module_name = "cvm.runtime.cvm";
-          if(device_type == kDLGPU)
-            module_name += "_cuda";
-          module_name += ".";
-          auto func = cvm::runtime::Registry::Get(module_name + op);
-          assert(func != NULL);
-          func->CallPacked(targs, &rv);
-
-      };
+          static_cast<int>(arg_ptr->arg_values.size())
+      );
+      std::string module_name = "cvm.runtime.cvm";
+      if(device_type == kDLGPU)
+        module_name += "_cuda";
+      module_name += ".";
+      auto func = cvm::runtime::Registry::Get(module_name + op);
+      
+      if (func == nullptr) {
+        rv = -1;
+      } else {
+        func->CallPacked(targs, &rv);
+      }
+    };
     }
   }
   std::cout << "param.func_name not found : " << param.func_name << std::endl;
