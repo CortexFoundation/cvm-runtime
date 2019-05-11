@@ -96,9 +96,6 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-        std::ifstream json_in2("/tmp/imagenet_llvm.org.json", std::ios::in);
-        std::string json_data_org((std::istreambuf_iterator<char>(json_in2)), std::istreambuf_iterator<char>());
-        json_in2.close();
         // json graph
         std::cout << "loadfromfile time" << (clock() - read_t1) * 1000 / CLOCKS_PER_SEC << std::endl;
 

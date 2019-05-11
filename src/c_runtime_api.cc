@@ -290,6 +290,11 @@ const char *CVMGetLastError() {
 
 int CVMAPIHandleException(const std::runtime_error &e) {
   CVMAPISetLastError(NormalizeError(e.what()).c_str());
+  return -2;
+}
+
+int CVMAPIHandleLogicException(const std::logic_error &e) {
+  CVMAPISetLastError(NormalizeError(e.what()).c_str());
   return -1;
 }
 

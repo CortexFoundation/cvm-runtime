@@ -91,29 +91,12 @@ list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 # include(cmake/modules/VTA.cmake)
 include(cmake/modules/CUDA.cmake)
 
+add_library(runtime ${RUNTIME_SRCS})
 add_library(cvm_runtime SHARED ${RUNTIME_SRCS})
 target_link_libraries(cvm_runtime ${CVM_RUNTIME_LINKER_LIBS})
 
-# Tests
-# Custom targets
-add_custom_target(runtime DEPENDS cvm_runtime)
-
 # Installation rules
 install(TARGETS cvm_runtime DESTINATION lib${LIB_SUFFIX})
-
-if (INSTALL_DEV)
-  install(
-    DIRECTORY "include/." DESTINATION "include"
-    FILES_MATCHING
-    PATTERN "*.h"
-  )
-else(INSTALL_DEV)
-  install(
-    DIRECTORY "include/cvm/runtime/." DESTINATION "include/cvm/runtime"
-    FILES_MATCHING
-    PATTERN "*.h"
-    )
-endif(INSTALL_DEV)
 
 # More target definitions
 if(MSVC)
