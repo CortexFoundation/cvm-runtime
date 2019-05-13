@@ -384,7 +384,6 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     }
   }
   std::stringstream ss; ss << op_attrs;
-// std::cout << "op_attr = " << op_attrs << "\n";
   utils::JSONReader reader(&ss);
   std::string kv;
   reader.BeginObject();
@@ -416,35 +415,23 @@ std::function<void()> CvmRuntime::CreateCVMOp(
 
   // Get compiled function from the module that contains both host and device
   // code.
-  auto ops = std::vector<std::string>{"dense", "conv2d", "flatten", "broadcast_add", "broadcast_sub", "broadcast_mul", "broadcast_div",
-      "broadcast_right_shift", "broadcast_left_shift", "clip", "relu", "max_pool2d", "sum", "elemwise_add", "reshape", "__div_scalar__", "log",
-  "max", "broadcast_max", "abs", "cvm_clip", "cvm_right_shift", "cvm_left_shift"};
-  for (auto& op : ops) {
-    if (param.func_name.size() >= op.size() && param.func_name.substr(0, op.size()) == op) {
-        int device_type = static_cast<int>(ctxs_[0].device_type);
-    return [arg_ptr, op, device_type](){
-      CVMRetValue rv;
-      CVMArgs targs(
-          arg_ptr->arg_values.data(),
-          arg_ptr->arg_tcodes.data(),
-          static_cast<int>(arg_ptr->arg_values.size())
-      );
-      std::string module_name = "cvm.runtime.cvm";
-      if(device_type == kDLGPU)
-        module_name += "_cuda";
-      module_name += ".";
-      auto func = cvm::runtime::Registry::Get(module_name + op);
-      
-      if (func == nullptr) {
-        rv = -1;
-      } else {
-        func->CallPacked(targs, &rv);
-      }
-    };
-    }
-  }
-  std::cout << "param.func_name not found : " << param.func_name << std::endl;
-  //  std::cout << param.func_name << " " << param.attrs << "\n";
+  auto op = param.func_name;
+  int device_type = static_cast<int>(ctxs_[0].device_type);
+  std::string module_name = "cvm.runtime.cvm";
+  if (device_type == kDLGPU) module_name += "_cuda";
+  module_name += ".";
+  auto func = cvm::runtime::Registry::Get(module_name + op);
+  VERIFY(func != nullptr) << "function undefined";
+  return [arg_ptr, op, func, device_type](){
+    CVMRetValue rv;
+    CVMArgs targs(
+      arg_ptr->arg_values.data(),
+      arg_ptr->arg_tcodes.data(),
+      static_cast<int>(arg_ptr->arg_values.size())
+    );
+    func->CallPacked(targs, &rv);
+  };
+  
   return [](){};
 }
 

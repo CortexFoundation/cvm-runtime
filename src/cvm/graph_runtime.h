@@ -262,6 +262,7 @@ class CvmRuntime : public ModuleNode {
     void LoadOp() {
       if (op_type == "null") return;
       attrs.name = GetOpName(param.func_name);
+      param.func_name = attrs.name;
       attrs.op = cvm::Op::Get(attrs.name);
     }
 
@@ -273,6 +274,7 @@ class CvmRuntime : public ModuleNode {
         attrs.op->attr_parser(&attrs);        
       }
     }
+
   };
   struct GraphAttr {
     size_t storage_num_not_alloctaed{0};
@@ -456,13 +458,6 @@ class CvmRuntime : public ModuleNode {
 };
 
 std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args);
-
-
-// void CVMClip(CVMArgs args, CVMRetValue* rv);
-// void CVMAdd(CVMArgs args, CVMRetValue* rv);
-// void CVMDense(CVMArgs args, CVMRetValue* rv);
-// void CVMFlat(CVMArgs args, CVMRetValue* rv);
-// void CVMConv(CVMArgs args, CVMRetValue* rv);
 
 }  // namespace runtime
 }  // namespace cvm
