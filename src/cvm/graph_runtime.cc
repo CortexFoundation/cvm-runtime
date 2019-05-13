@@ -523,6 +523,8 @@ CVM_REGISTER_GLOBAL("cvm.cvm_runtime.create")
       *rv = CvmRuntimeCreate(args[0], args[1], contexts);
     } catch (std::logic_error &err) {
       *rv = -1;
+    } catch (std::runtime_error &err) {
+      *rv = -2;  
     }
   });
 
@@ -538,6 +540,8 @@ CVM_REGISTER_GLOBAL("cvm.cvm_runtime.estimate_ops")
       *rv = CvmRuntime::EstimateOps(args[0]); 
     } catch (std::logic_error &err) {
       *rv = -1;
+    } catch (std::runtime_error &err) {
+      *rv = -2;
     }
   });
 }  // namespace runtime
