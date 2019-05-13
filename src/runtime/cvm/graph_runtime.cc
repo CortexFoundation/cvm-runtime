@@ -419,7 +419,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   // code.
   auto ops = std::vector<std::string>{"dense", "conv2d", "flatten", "broadcast_add", "broadcast_sub", "broadcast_mul", "broadcast_div",
       "broadcast_right_shift", "broadcast_left_shift", "clip", "relu", "max_pool2d", "sum", "elemwise_add", "reshape", "__div_scalar__", "log2",
-  "max", "broadcast_max", "abs", "cvm_clip", "cvm_right_shift", "cvm_left_shift", "concatenate"};
+  "max", "broadcast_max", "abs", "cvm_clip", "cvm_right_shift", "cvm_left_shift", "concatenate", "repeat", "negative", "slice_like"};
   for (auto& op : ops) {
     if (param.func_name.size() >= op.size() && param.func_name.substr(0, op.size()) == op) {
         int device_type = static_cast<int>(ctxs_[0].device_type);

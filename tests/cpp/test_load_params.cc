@@ -8,7 +8,7 @@ using namespace std;
 
 
 int main(){
-    std::ifstream params_in("/tmp/inception_v3/params", std::ios::binary);
+    std::ifstream params_in("/tmp/imagenet_cuda_cvm.params", std::ios::binary);
     std::string params_data((std::istreambuf_iterator<char>(params_in)), std::istreambuf_iterator<char>());
     params_in.close();
 

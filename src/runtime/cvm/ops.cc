@@ -117,18 +117,210 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten").set_body([]
      }
 
 });
-void matrix_mul(const int32_t *a, const int32_t *b, const int32_t *bias,
+void transpose(int32_t *input, int32_t *output, int h, int w){
+    double start = omp_get_wtime();
+    for(int i = 0; i < h; i++){
+        for(int j = 0; j < w; j++){
+            output[j * h + i] = input[i * w + j];
+        }
+    }
+    double end = omp_get_wtime();
+    std::cout << "transpose time : " << end-start << std::endl;
+}
+
+void matrix_mul_transpose(const int32_t *a, const int32_t *b, const int32_t *bias,
         int32_t *c, const int M, const int K, const int N){
-    std::memset(c, 0, sizeof(int32_t) * M * N);
+    double start = omp_get_wtime();
 #pragma omp parallel for
     for(int i = 0; i < M; i++){
-        for(int k = 0; k < K; k++){
-           int32_t aV = a[i * K + k];
-            for(int j = 0; j < N; j++){
-                c[i*N + j] += aV * b[k*N + j];
+        int32_t biasV = bias[i];
+        for(int j = 0; j < N; j++){
+            int32_t sum = 0;
+            for(int k = 0; k < K; k++){
+                sum += a[i*K + k] * b[j*K + k];
+            }
+            c[i*N+j] = sum + biasV;
+        }
+    }
+    double end = omp_get_wtime();
+    std::cout << "matrix mul transpose time : " << end-start << std::endl;
+}
+void transpose_int8_avx256(const int8_t *a, const int8_t *b, const int32_t *bias,
+        int32_t *c, const int M, const int K, const int N){
+//    static double use_time = 0.0f;
+//    double start = omp_get_wtime();
+    int8_t *tr_b = (int8_t*)malloc(sizeof(int8_t) * K*N);
+    int32_t *tr_c = (int32_t*)malloc(sizeof(int32_t) * N * M);
+    //#pragma omp parallel for
+    int i = 0, j = 0;
+    int tK = K / 32 * 32;
+    int tN = N / 32 * 32;
+    for(i = 0; i < tK; i+=32){
+        for(j = 0; j < tN; j+=32){
+            int8_t tile[32][32];
+            for(int ti = 0; ti < 32; ti++){
+                for(int tj = 0; tj < 32; tj++){
+                    tile[tj][ti] = b[(i+ti)*N + j+tj];
+                }
+            }
+            for(int ti = 0; ti < 32; ti++){
+                for(int tj = 0; tj < 32; tj++){
+                    tr_b[(j+ti) * K + i + tj] = tile[ti][tj];
+                }
+            }
+        }
+        for(int ti = 0; ti < 32; ti++){
+            for(int tj = j; tj < N; tj++){
+                tr_b[tj * K + i+ti] = b[(i+ti) * N + tj];
             }
         }
     }
+    for(; i < K; i++){
+        for(j = 0; j < N; j++){
+            tr_b[j * K + i] = b[i * N + j];
+        }
+    }
+    int16_t int16[16];
+    for(int i = 0; i < 16; i++) int16[i] = 1;
+    __m256i vint16 = _mm256_loadu_si256((__m256i*)&int16);
+
+    int blocks = K / 64 * 64;
+#pragma omp parallel for private(blocks, vint16)
+    for(int i = 0; i < N; i++){
+        for(int j = 0; j < M; j++){
+            //                int sum = 0;
+            __m256i vc = _mm256_setzero_si256();
+            int k = 0;
+            for(k = 0; k < blocks; k+=32){
+                __m256i va = _mm256_loadu_si256((__m256i*)&a[j*K+k]);
+                __m256i vb = _mm256_loadu_si256((__m256i*)&tr_b[i*K+k]);
+                __m256i vresult1 = _mm256_maddubs_epi16(vb, va);
+                __m256i vresult2 = _mm256_madd_epi16(vresult1, vint16);
+                vc = _mm256_add_epi32(vresult2, vc);
+            }
+            int32_t sum = 0;
+            for(int ti = 0; ti < 8; ti++){
+                sum += ((int32_t*)&vc)[ti];
+            }
+            for(; k < K; k++){
+                sum += a[j * K + k] * tr_b[i * K + k];
+            }
+            tr_c[i*M+j] = sum;
+        }
+    }
+
+    i = 0, j = 0;
+    int tM = M / 32 * 32;
+    tN = N / 32 * 32;
+    for(i = 0; i < tN; i+=32){
+        for(j = 0; j < tM; j+=32){
+            int32_t tile[32][32];
+            for(int ti = 0; ti < 32; ti++){
+                for(int tj = 0; tj < 32; tj++){
+                    tile[tj][ti] = tr_c[(i+ti)*M + j+tj];
+                }
+            }
+            for(int ti = 0; ti < 32; ti++){
+                for(int tj = 0; tj < 32; tj++){
+                    c[(j+ti) * N + i + tj] = tile[ti][tj];
+                }
+            }
+        }
+        for(int ti = 0; ti < 32; ti++){
+            for(int tj = j; tj < M; tj++){
+                c[tj * N + i+ti] = tr_c[(i+ti) * M + tj];
+            }
+        }
+    }
+    for(; i < N; i++){
+        for(j = 0; j < M; j++){
+            c[j * N + i] = tr_c[i * M + j];
+        }
+    }
+    for(int i = 0; i < M; i++){
+        int32_t bV = bias[i];
+        for(int j = 0; j < N; j++){
+            c[i*N+j] += bV;
+        }
+    }
+    free(tr_b);
+    free(tr_c);
+//    double end = omp_get_wtime();
+//    use_time += (end-start);
+//    printf("transpose int8 avx256 : %.4fs, %.4fs\n", (end-start), use_time);
+}
+void matrix_mul(const int8_t *a, const int8_t *b, const int32_t *bias,
+        int32_t *c, const int M, const int K, const int N){
+    static double use_time = 0.0;
+    double start = omp_get_wtime();
+    std::memset(c, 0, sizeof(int32_t) * M * N);
+//#pragma omp parallel for
+    for(int i = 0; i < M; i++){
+        for(int k = 0; k < K; k++){
+           int32_t aV = static_cast<int32_t>(a[i * K + k]);
+            for(int j = 0; j < N; j++){
+                c[i*N + j] += aV * static_cast<int32_t>(b[k*N + j]);
+            }
+        }
+    }
+    for(int i = 0; i < M; i++){
+        register int32_t biasV = bias[i];
+        for(int j = 0; j < N; j++){
+            c[i*N+j] += biasV;
+        }
+    }
+    double end = omp_get_wtime();
+    use_time += end - start;
+//    std::cout << "matrix mul time : " << use_time << std::endl;
+    std::cout <<  M << "," << K << "," << N << " : " << end-start  << "," << use_time << std::endl;
+}
+void matrix_mul_opt(const int32_t *a, const int32_t *b, const int32_t *bias,
+        int32_t *c, const int M, const int K, const int N){
+    memset(c, 0, sizeof(int)*M*N);
+    int32_t ta[8][8] = {0}, tb[8][8] = {0};
+#pragma omp parallel for private(ta, tb)
+    for(int i = 0; i < M; i+=8){
+        for(int j = 0; j < N; j+=8){
+            for(int k = 0; k < K; k+=8){
+                for(int ti = 0; ti < 8; ti++){
+                    for(int tj = 0; tj < 8; tj++){
+                        ta[ti][tj] = a[(i+ti)*K + k+tj];
+                        tb[ti][tj] = b[(k+ti)*N + j+tj];
+                    }
+                }
+                for(int ti = 0; ti < 8; ti++){
+                    register int32_t tc0 = c[(i+ti)*N+ j];
+                    register int32_t tc1 = c[(i+ti)*N+ j+1];
+                    register int32_t tc2 = c[(i+ti)*N+ j+2];
+                    register int32_t tc3 = c[(i+ti)*N+ j+3];
+                    register int32_t tc4 = c[(i+ti)*N+ j+4];
+                    register int32_t tc5 = c[(i+ti)*N+ j+5];
+                    register int32_t tc6 = c[(i+ti)*N+ j+6];
+                    register int32_t tc7 = c[(i+ti)*N+ j+7];
+                    for(int tk = 0; tk < 8; tk++){
+                        register int tta = ta[ti][tk];
+                        tc0 += tta * tb[tk][0];
+                        tc1 += tta * tb[tk][1];
+                        tc2 += tta * tb[tk][2];
+                        tc3 += tta * tb[tk][3];
+                        tc4 += tta * tb[tk][4];
+                        tc5 += tta * tb[tk][5];
+                        tc6 += tta * tb[tk][6];
+                        tc7 += tta * tb[tk][7];
+                    }
+                    c[(i+ti)*N +j+0] = tc0;
+                    c[(i+ti)*N +j+1] = tc1;
+                    c[(i+ti)*N +j+2] = tc2;
+                    c[(i+ti)*N +j+3] = tc3;
+                    c[(i+ti)*N +j+4] = tc4;
+                    c[(i+ti)*N +j+5] = tc5;
+                    c[(i+ti)*N +j+6] = tc6;
+                    c[(i+ti)*N +j+7] = tc7;
+                }
+            }
+        }
+    }
+
     for(int i = 0; i < M; i++){
         register int32_t biasV = bias[i];
         for(int j = 0; j < N; j++){
@@ -144,7 +336,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
         const int pad_h, const int pad_w,
         const int stride_h, const int stride_w,
         const int dilation_h, const int dilation_w,
-        int32_t* data_col) {
+        int8_t* data_col, bool &flag) {
     const int output_h = (height + 2 * pad_h -
             (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     const int output_w = (width + 2 * pad_w -
@@ -163,7 +355,9 @@ void im2col_cpu(const int32_t* data_im, const int channels,
                         int input_col = -pad_w + kernel_col * dilation_w;
                         for (int output_col = output_w; output_col; output_col--) {
                             if (is_a_ge_zero_and_a_lt_b(input_col, width)) {
-                                *(data_col++) = data_im[input_row * width + input_col];
+                                int32_t tv = static_cast<int8_t>(data_im[input_row * width + input_col]);
+                                if(tv < 0) flag = true;
+                                *(data_col++) = tv;
                             } else {
                                 *(data_col++) = 0;
                             }
@@ -176,6 +370,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
         }
     }
 }
+
 inline void depthwise_conv2d(
         int32_t *x_data, int32_t n_batch, int32_t in_channels, int32_t x_h, int32_t x_w,
         int32_t *w_data, int32_t filter_c, int32_t filter_h, int32_t filter_w,
@@ -430,13 +625,38 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
         }
  */
         double conv_start = omp_get_wtime();
-        int32_t *data_col = new int[in_channels * filter_h * filter_w * o_h * o_w];
+        int8_t *data_col = new int8_t[in_channels * filter_h * filter_w * o_h * o_w];
+        int fn = out_channels * in_channels * filter_h * filter_w;
+        int8_t *int8_filter = new int8_t[fn];
+//        int32_t *tmp_out = new int32_t[out_channels * o_h * o_w];
+        for(int i = 0; i < fn; i++){
+            int8_filter[i] = static_cast<int8_t>(w_data[i]);
+        }
+        //int32_t *data_transpose = new int32_t[in_channels * filter_h * filter_w * o_h * o_w];
         for(int i = 0; i < n_batch; i++){
+            bool flag = false;
             im2col_cpu(x_data + i * in_channels * x_h * x_w, in_channels, x_h, x_w, filter_h, filter_w, padding[0], padding[1],
-                    stride_h, stride_w, dilation_h, dilation_w, data_col);
-            matrix_mul(w_data, data_col, b_data, y_data + i * out_channels * o_h * o_w, out_channels, in_channels * filter_h * filter_w, o_h * o_w);
+                    stride_h, stride_w, dilation_h, dilation_w, data_col, flag);
+            const int M = out_channels;
+            const int K = in_channels * filter_h * filter_w;
+            const int N = o_h * o_w;
+          //  if(M % 8 == 0 && K % 8 == 0 && N %8 ==0){
+          //      matrix_mul_opt(w_data, data_col, b_data, y_data + i * out_channels * o_h * o_w,
+          //          M, K, N);
+          //  }else{
+          //transpose(data_col, data_transpose, K, N);
+            if(flag){
+                matrix_mul(int8_filter, data_col, b_data, y_data + i * out_channels * o_h * o_w,
+                    M, K, N);
+            }else{
+                transpose_int8_avx256(int8_filter, data_col, b_data, y_data + i * out_channels * o_h * o_w,
+                    M, K, N);
+            }
+          //  }
         }
         delete data_col;
+        delete int8_filter;
+//        delete data_transpose;
 
     }
 
@@ -488,12 +708,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
 
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] + b[0];
+            }
+        }else{
 #pragma omp parallel for
-        for(uint64_t i = 0; i < getSize(args0); ++i){
-            uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
-            int64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
-            int64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
-            c[i] = a[a_index] + b[b_index];
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
+                int64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
+                int64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
+                c[i] = a[a_index] + b[b_index];
+            }
         }
     });
 
@@ -506,12 +732,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_sub")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] - b[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(args0); ++i){
             uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             uint64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             uint64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] - b[b_index];
+        }
         }
     });
 
@@ -524,12 +756,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_mul")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] * b[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(args0); ++i){
             uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             uint64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             uint64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] * b[b_index];
+        }
         }
     });
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
@@ -541,6 +779,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] / b[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(args0); ++i){
             uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
@@ -548,6 +791,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
             uint64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             CHECK(b[b_index] != 0);
             c[i] = a[a_index] / b[b_index];
+        }
         }
     });
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_right_shift")
@@ -560,12 +804,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_right_shift")
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
 
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] >> b[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(args0); ++i){
             uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             uint64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             uint64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] >> b[b_index];
+        }
         }
     });
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_left_shift")
@@ -577,12 +827,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_left_shift")
         int32_t *a = static_cast<int32_t*>(args0->data);
         int32_t *b = static_cast<int32_t*>(args1->data);
         int32_t *c = static_cast<int32_t*>(args2->data);
+        if(args1->ndim == 1){
+            for(uint64_t i = 0; i < getSize(args0); ++i){
+                c[i] = a[i] << b[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(args0); ++i){
             uint64_t o_index = i;//broadcast_o_index(args2->shape, args2->ndim, o_index);
             uint64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim);
             uint64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim);
             c[i] = a[a_index] << b[b_index];
+        }
         }
     });
 
@@ -854,6 +1110,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
         int32_t *a_data = static_cast<int32_t*>(a->data);
         int32_t* b_data = static_cast<int32_t*>(b->data);
         int32_t* c_data = static_cast<int32_t*>(c->data);
+        if(b->ndim == 1){
+            for(uint64_t i = 0; i < getSize(a); i++){
+                c_data[i] = a_data[i] > b_data[0] ? a_data[i] : b_data[0];
+            }
+        }else{
 #pragma omp parallel for
         for(uint64_t i = 0; i < getSize(a); i++){
             uint64_t o_index = i;//broadcast_o_index(c->shape, c->ndim, o_index);
@@ -861,6 +1122,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
             uint64_t b_index = broadcast_i_index(c->shape, o_index, b->shape, b->ndim);
             //c_data[i] = (a_data[i] > b_data[i] ? a_data[i] : b_data[i]);
             c_data[i] = a_data[a_index] > b_data[b_index] ? a_data[a_index] : b_data[b_index];
+        }
         }
     });
 
@@ -906,6 +1168,65 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
         }
 });
 
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.repeat")
+.set_body([](CVMArgs args, CVMRetValue *ret){
+    DLTensor *x = args[0];
+    DLTensor *y = args[1];
+    int32_t *x_data = static_cast<int32_t*>(x->data);
+    int32_t *y_data = static_cast<int32_t*>(y->data);
+    std::string str_axis = args[2];
+    std::string str_repeat = args[3];
+    int axis = std::atoi(str_axis.c_str());
+    int repeat = std::atoi(str_repeat.c_str());
+    int ndim = x->ndim;
+    if(axis < 0) axis = axis + ndim;
+
+    for(int i = 0; i < getSize(y); i++){
+        int o_i = i, in_i = 0, shapeSize = 0;
+        for(int j = ndim-1; j >= 0; j--){
+            int col = o_i % y->shape[j];
+            o_i /= y->shape[j];
+            int tmpcol = col;
+            if(j == axis) tmpcol = col / repeat;
+            in_i += (j == ndim-1 ? tmpcol : tmpcol * shapeSize);
+            shapeSize = (j == ndim-1 ? x->shape[j] : shapeSize * x->shape[j]);
+        }
+        y_data[i] = x_data[in_i];
+    }
+});
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.negative")
+.set_body([](CVMArgs args, CVMRetValue *ret){
+    DLTensor *x = args[0];
+    DLTensor *y = args[1];
+    int32_t *x_data = static_cast<int32_t*>(x->data);
+    int32_t *y_data = static_cast<int32_t*>(y->data);
+
+    for(int i = 0; i < getSize(x); i++){
+        y_data[i] = -x_data[i];
+    }
+});
+CVM_REGISTER_GLOBAL("cvm.runtime.cvm.slice_like")
+.set_body([](CVMArgs args, CVMRetValue *ret){
+    DLTensor *x = args[0];
+    DLTensor *shape = args[1];
+    DLTensor *y = args[2];
+    std::string str_axis = args[3];
+    int32_t *x_data = static_cast<int32_t*>(x->data);
+    int32_t *shape_like = static_cast<int32_t*>(shape->data);
+    int32_t *y_data = static_cast<int32_t*>(y->data);
+    int ndim = x->ndim;
+
+   for(int i = 0; i < getSize(y); i++){
+       int o_i = i, in_i = 0, shapeSize = 0;
+       for(int j = ndim-1; j >= 0; j--){
+           int col = o_i % y->shape[j];
+           o_i /= y->shape[j];
+           in_i += (j == ndim-1 ? col : col * shapeSize);
+           shapeSize = (j == ndim-1 ? x->shape[j] : shapeSize * x->shape[j]);
+       }
+       y_data[i] = x_data[in_i];
+   }
+});
 /*********************************cuda op*********************************************/
 #ifdef CVM_RUNTIME_CUDA
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_add")
