@@ -1,0 +1,13 @@
+header:uint64
+reserved:uint64
+nodes_names:size, vector<string> [size, string]
+nodes_names_size:uint64
+dataList:NDArray
+    header:uint64
+    reserved:uint64
+    ctx:DLContext {device_type:int, device_id:int}
+    ndim:int
+    dtype:DLDataType {code:int8, bits:int8, lanes:int16}
+    shape:vector<int64>
+    data_byte_size:int64
+    data:
