@@ -20,7 +20,6 @@ int device_id = 0;
 
 long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
         cvm::runtime::Module &mod_syslib  ,  std::string runtime_name, DLTensor *y, int devicetype) {
-		auto t1 = clock();
 	// get global function module for graph runtime
     auto mf =  (*cvm::runtime::Registry::Get("cvm." + runtime_name + ".create"));
     cvm::runtime::Module mod = mf(json_data, mod_syslib, static_cast<int>(x->ctx.device_type), device_id);
@@ -29,22 +28,34 @@ long RunCVM(DLTensor* x, CVMByteArray& params_arr, std::string json_data,
     // std::ifstream data_fin("cat.bin", std::ios::binary);
     // data_fin.read(static_cast<char*>(x->data), 3 * 224 * 224 * 4);
 
+    double t1 = omp_get_wtime();
     // get the function from the module(set input data)
     cvm::runtime::PackedFunc set_input = mod.GetFunction("set_input");
     set_input("data", x);
 
+    double t2 = omp_get_wtime();
+    std::cout << "set_input time: " << t2-t1 << " s"<< std::endl;
 
     // get the function from the module(load patameters)
     cvm::runtime::PackedFunc load_params = mod.GetFunction("load_params");
     load_params(params_arr);
 
+    double t3 = omp_get_wtime();
+    std::cout << "parse params time: " << t3 - t2 << " s" << std::endl;
+
     // get the function from the module(run it)
     cvm::runtime::PackedFunc run = mod.GetFunction("run");
     run();
+
+    double t4 = omp_get_wtime();
+    std::cout << "run time : " << t4-t3 << " s" << std::endl;
+
     // get the function from the module(get output data)
     cvm::runtime::PackedFunc get_output = mod.GetFunction("get_output");
     get_output(0, y);
 
+    double t5 = omp_get_wtime();
+    std::cout << "get output time : " << t5 - t4 << " s" << std::endl;
 //    auto y_iter = static_cast<int*>(y->data);
 //    // get the maximum position in output vector
 //    auto max_iter = std::max_element(y_iter, y_iter + out_shape[1]);
@@ -113,7 +124,7 @@ int main()
         std::cout << "load data and params use: " << (load_end - load_start)*1.0/CLOCKS_PER_SEC << "s" << std::endl;
         std::cout << "start run..\n";
         double cvm_start = omp_get_wtime();
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 100; i++) {
             RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
         }
         double cvm_end = omp_get_wtime();
