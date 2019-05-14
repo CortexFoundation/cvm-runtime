@@ -116,7 +116,9 @@ int64_t CvmRuntime::GetOps() {
   for (uint32_t nid = 0; nid < idx.size(); ++nid) {
     auto inode = idx[nid];
     if (inode.op_type == "null") {
-      ret += rshape[nid].Size();
+      int64_t osize = rshape[nid].Size();
+      osize /= rshape[nid][0];
+      ret += osize;
     } else {
       auto op = idx[nid].attrs.op->name;
       if (opcount.find(op) == opcount.end()) {
@@ -124,27 +126,47 @@ int64_t CvmRuntime::GetOps() {
         ops.push_back(op);
       }
 
-      int64_t t;
+      int64_t t = 0;
       if (op == "dense") {
         auto shape1 = rshape[inode.inputs[0].node_id];
         auto shape2 = rshape[inode.inputs[1].node_id];
-        t = static_cast<int64_t>(shape1[0]) * shape1[1] * shape2[0];
+        t = static_cast<int64_t>(shape2[1]) * 2;
+        auto& param = cvm::get<cvm::top::DenseParam>(inode.attrs.parsed);
+        if (param.use_bias) {
+          t += 1;
+        }
       } else if (op == "conv2d") {
         auto shape1 = rshape[inode.inputs[0].node_id];
         auto shape2 = rshape[inode.inputs[1].node_id];
-        t = (static_cast<int64_t>(shape2[1]) * shape2[2] * shape2[3] + 1)
-           * static_cast<int64_t>(shape1[2]) * shape1[3] * shape2[0] * 2;
-      } else if (op == "max_pool2d") {
+        t = (static_cast<int64_t>(shape2[1]) * shape2[2] * shape2[3] * 2);
+        auto& param = cvm::get<cvm::top::Conv2DParam>(inode.attrs.parsed);
+        if (param.use_bias) {
+          t += 1;
+        }
+     } else if (op == "max_pool2d") {
         t = rshape[nid].Size();
+        t /= rshape[nid][0];
         auto& param = cvm::get<cvm::top::MaxPool2DParam>(inode.attrs.parsed);
-        t *= param.pool_size.Size();
+        t = param.pool_size.Size();
       } else {
-         t = rshape[nid].Size();
+        t = 1;
       }
+      int64_t osize = rshape[nid].Size();
+      osize /= rshape[nid][0];
+      t *= osize;
+/*
+      std::cout << op << "    ";
+      for (int i = op.length(); i < 20; ++i) std::cout << ' ';
+      for (auto n : inode.inputs) {
+        std::cout << rshape[n.node_id] << "    ";
+      }
+      std::cout << rshape[nid] << ' ' << t << std::endl;
+*/
       ret += t;
       opcount[op] += t;
     }
   }
+  std::cout << ret << std::endl;
   return ret;
 }
 

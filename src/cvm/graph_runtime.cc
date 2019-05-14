@@ -511,7 +511,7 @@ std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args) {
 // execution support yet. For heterogenenous execution, at least 5 arguments will
 // be passed in. The third one is the number of devices.
 // Eventually, we will only probably pass CVMContext for all the languages.
-CVM_REGISTER_GLOBAL("cvm.cvm_runtime.create")
+CVM_REGISTER_GLOBAL("cvm.runtime.create")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
     try {
       VERIFY_GE(args.num_args, 4)
@@ -529,7 +529,7 @@ CVM_REGISTER_GLOBAL("cvm.cvm_runtime.create")
   });
 
 
-CVM_REGISTER_GLOBAL("cvm.cvm_runtime.estimate_ops")
+CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
     try {
       VERIFY_GE(args.num_args, 1) << "The expected number of arguments for "
