@@ -19,19 +19,19 @@ CVMUTIL_REGISTER_PARAMETER(BroadcastToParam);
 inline bool BroadcastToInferShape(const NodeAttrs& attrs,
                                   std::vector<TShape>* in_attrs,
                                   std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& ishape = (*in_attrs)[0];
   if (ishape.ndim() == 0) return false;
 
   const BroadcastToParam& param = cvm::get<BroadcastToParam>(attrs.parsed);
-  CHECK_EQ(ishape.ndim(), param.shape.ndim())
+  VERIFY_EQ(ishape.ndim(), param.shape.ndim())
       << "Operand of shape " << ishape
       << " cannot be broadcasted to " << param.shape;
   TShape oshape = param.shape;
   for (dim_t i = 0; i < ishape.ndim(); ++i) {
     if (oshape[i] != 0) {
-      CHECK(ishape[i] == oshape[i] || ishape[i] == 1)
+      VERIFY(ishape[i] == oshape[i] || ishape[i] == 1)
         << "Array cannot be broadcasted from " <<
           ishape << " to " << param.shape;
     } else {
@@ -77,8 +77,8 @@ So with `shape=(2,0)`, we will obtain the same result as in the above example.
 inline bool BinaryBroadcastShape(const cvm::NodeAttrs& attrs,
                                  std::vector<TShape>* in_attrs,
                                  std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& lhs = (*in_attrs)[0];
   const TShape& rhs = (*in_attrs)[1];
 
@@ -100,7 +100,7 @@ inline bool BinaryBroadcastShape(const cvm::NodeAttrs& attrs,
       if (l == 0 || r == 0) {
         out[i] = 0;
       } else {
-        CHECK(l == 1 || r == 1)
+        VERIFY(l == 1 || r == 1)
           << "operands could not be broadcast together with shapes "
           << lhs << " " << rhs << ", l=" << l << ", r=" << r;
         out[i] = std::max(l, r);
@@ -117,8 +117,8 @@ inline bool BinaryBroadcastCorrectLayout(const NodeAttrs& attrs,
                                          std::vector<Layout> *ilayouts,
                                          const std::vector<Layout> *last_ilayouts,
                                          std::vector<Layout> *olayouts) {
-  CHECK_EQ(ilayouts->size(), 2U);
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), 2U);
+  VERIFY_EQ(olayouts->size(), 1U);
   Layout lhs = (*ilayouts)[0];
   Layout rhs = (*ilayouts)[1];
   Layout out(Layout::Undef());
@@ -139,10 +139,10 @@ inline bool BinaryBroadcastCorrectLayout(const NodeAttrs& attrs,
     bool find_first_match = false;
     while (l < lhs.ndim() && r < rhs.ndim()) {
       if (!rhs.contains(Layout::to_superdim(lhs[l]))) {
-        CHECK(!find_first_match) << lhs << " and " << rhs << " are not broadcast-convertible";
+        VERIFY(!find_first_match) << lhs << " and " << rhs << " are not broadcast-convertible";
         l_start = ++l;
       } else if (!lhs.contains(Layout::to_superdim(rhs[r]))) {
-        CHECK(!find_first_match) << lhs << " and " << rhs << " are not broadcast-convertible";
+        VERIFY(!find_first_match) << lhs << " and " << rhs << " are not broadcast-convertible";
         r_start = ++r;
       } else {
         find_first_match = true;
@@ -165,7 +165,7 @@ inline bool BinaryBroadcastCorrectLayout(const NodeAttrs& attrs,
   } else if (lhs.defined()) {
     const Layout& last_lhs = last_ilayouts->at(0);
     if (last_lhs.defined()) {
-      CHECK(lhs.convertible(last_lhs)) << "current lhs layout " << lhs
+      VERIFY(lhs.convertible(last_lhs)) << "current lhs layout " << lhs
                                        << " cannot be converted to the original one " << last_lhs;
       lhs = last_lhs;
       // cannot decide output layout
@@ -173,7 +173,7 @@ inline bool BinaryBroadcastCorrectLayout(const NodeAttrs& attrs,
   } else if (rhs.defined()) {
     const Layout& last_rhs = last_ilayouts->at(1);
     if (last_rhs.defined()) {
-      CHECK(rhs.convertible(last_rhs)) << "current rhs layout " << rhs
+      VERIFY(rhs.convertible(last_rhs)) << "current rhs layout " << rhs
                                        << " cannot be converted to the original one " << last_rhs;
       rhs = last_rhs;
       // cannot decide output layout

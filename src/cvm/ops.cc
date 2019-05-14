@@ -22,7 +22,7 @@ namespace runtime {
 #define CVM_RUNTIME_CUDA
 #define DEBUG_OP false
 inline void parseToIntPair(std::string str, int* ret){
-	char a,b;
+  char a,b;
     sscanf(str.c_str(), "%c%d,%d%c", &a,ret, ret + 1, &b);
 }
 
@@ -83,7 +83,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense").set_body([](CVMArgs args, CVMRetVal
 	y = args[3];
     db = static_cast<int32_t*>(b->data);
   }else{
-	y = args[2];
+  y = args[2];
   }
   CHECK(x->ndim == 2) << "dense requires 2-D data";
   CHECK(w->ndim == 2) << "dense reuqires 2-D weight";
@@ -98,9 +98,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense").set_body([](CVMArgs args, CVMRetVal
           for (uint32_t xi = 0; xi < x->shape[1]; xi++) {
               sum += dx[di * y->shape[1] + xi] * dw[oi * w->shape[1] + xi];
           }
-		  if(db != nullptr){
-			  sum += db[oi];
-		  }
+      if(db != nullptr){
+        sum += db[oi];
+      }
           dy[di * y->shape[1] + oi] = sum;
       }
   }
@@ -332,8 +332,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d").set_body([]
     int filter_c = static_cast<int>(w->shape[1]);
     int filter_h = static_cast<int>(w->shape[2]);
     int filter_w = static_cast<int>(w->shape[3]);
-	filter_h = (filter_h - 1) * dilation[0] + 1;
-	filter_w = (filter_w - 1) * dilation[1] + 1;
+  filter_h = (filter_h - 1) * dilation[0] + 1;
+  filter_w = (filter_w - 1) * dilation[1] + 1;
 
     int n_batch = static_cast<int>(x->shape[0]);
     int in_channels = static_cast<int>(x->shape[1]);
@@ -577,31 +577,31 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
 
     int n_batch = static_cast<int>(x->shape[0]);
     int in_channels = static_cast<int>(x->shape[1]);
-	int out_channels = in_channels;
+  int out_channels = in_channels;
     int x_h = static_cast<int>(x->shape[2]);
     int x_w = static_cast<int>(x->shape[3]);
-//	int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
-//	int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
-	int o_h = static_cast<int>(y->shape[2]);
-	int o_w = static_cast<int>(y->shape[3]);
-	#define GETX(n, c, h, w) x_data[(n) * in_channels * x_h * x_w + (c) * x_h * x_w + (h) * x_w + (w)]
-	#define GETW(o, i, h, w) w_data[(o) * in_channels * filter_h * filter_w + (i) * filter_h * filter_w + (h) * filter_w + (w)]
-	#define GETY(n, c, h, w) y_data[(n) * out_channels * o_h * o_w + (c) * o_h * o_w + (h) * o_w + (w)]
-	auto calc_func = [&](int n, int k, int p, int q) {
-		int y_sum = int(1)<<31;
-		for (int r = 0; r < filter_h; ++r) {
-			for (int s = 0; s < filter_w; ++s) {
-				auto tp = p * stride_h + r - padding[0];
-				auto tq = q * stride_w + s - padding[1];
-				int32_t x_tmp = 0;
-				if (!(tp < 0 || tq < 0 || tp >= x_h || tq >= x_w))
-					x_tmp = GETX(n, k, tp, tq);
-				y_sum = std::max(x_tmp, y_sum);
-			}
-		}
-		return y_sum;
+//  int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
+//  int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
+  int o_h = static_cast<int>(y->shape[2]);
+  int o_w = static_cast<int>(y->shape[3]);
+  #define GETX(n, c, h, w) x_data[(n) * in_channels * x_h * x_w + (c) * x_h * x_w + (h) * x_w + (w)]
+  #define GETW(o, i, h, w) w_data[(o) * in_channels * filter_h * filter_w + (i) * filter_h * filter_w + (h) * filter_w + (w)]
+  #define GETY(n, c, h, w) y_data[(n) * out_channels * o_h * o_w + (c) * o_h * o_w + (h) * o_w + (w)]
+  auto calc_func = [&](int n, int k, int p, int q) {
+    int y_sum = int(1)<<31;
+    for (int r = 0; r < filter_h; ++r) {
+      for (int s = 0; s < filter_w; ++s) {
+        auto tp = p * stride_h + r - padding[0];
+        auto tq = q * stride_w + s - padding[1];
+        int32_t x_tmp = 0;
+        if (!(tp < 0 || tq < 0 || tp >= x_h || tq >= x_w))
+          x_tmp = GETX(n, k, tp, tq);
+        y_sum = std::max(x_tmp, y_sum);
+      }
+    }
+    return y_sum;
 
-	};
+  };
     for (int n = 0; n < n_batch; ++n) {
         for (int k = 0; k < out_channels; ++k) {
             for (int p = 0; p < o_h; ++p) {
@@ -680,7 +680,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
     .set_body([](CVMArgs args, CVMRetValue *ret){
          CHECK(args.num_args == 3);
          DLTensor *x = args[0];
-		 DLTensor *y = args[1];
+     DLTensor *y = args[1];
          int32_t *x_data = static_cast<int32_t*>(x->data);
          int32_t *y_data = static_cast<int32_t*>(y->data);
          std::string str_precision = args[2];
@@ -984,17 +984,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
     int out_channels = static_cast<int>(w->shape[0]);
     int filter_h = static_cast<int>(w->shape[2]);
     int filter_w = static_cast<int>(w->shape[3]);
-	filter_h = (filter_h - 1) * dilation[0] + 1;
-	filter_w = (filter_w - 1) * dilation[1] + 1;
+  filter_h = (filter_h - 1) * dilation[0] + 1;
+  filter_w = (filter_w - 1) * dilation[1] + 1;
 
     int n_batch = static_cast<int>(x->shape[0]);
     int in_channels = static_cast<int>(x->shape[1]);
     int x_h = static_cast<int>(x->shape[2]);
     int x_w = static_cast<int>(x->shape[3]);
-	int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
-	int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
-//	int o_h = static_cast<int>(y->shape[2]);
-//	int o_w = static_cast<int>(y->shape[3]);
+  int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
+  int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
+//  int o_h = static_cast<int>(y->shape[2]);
+//  int o_w = static_cast<int>(y->shape[3]);
 
     if(groups == 1){
         const char* errorStr = cuda_conv2d(
@@ -1046,13 +1046,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cuda_max_pool2d")
 
     int n_batch = static_cast<int>(x->shape[0]);
     int in_channels = static_cast<int>(x->shape[1]);
-	int out_channels = in_channels;
+  int out_channels = in_channels;
     int x_h = static_cast<int>(x->shape[2]);
     int x_w = static_cast<int>(x->shape[3]);
-//	int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
-//	int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
-	int o_h = static_cast<int>(y->shape[2]);
-	int o_w = static_cast<int>(y->shape[3]);
+//  int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
+//  int o_w = (x_w + 2 * padding[1] - filter_w) / strides[1] + 1;
+  int o_h = static_cast<int>(y->shape[2]);
+  int o_w = static_cast<int>(y->shape[3]);
 
     const char* errorStr = cuda_max_pool(
             x_data, n_batch, in_channels, x_h, x_w,
@@ -1367,7 +1367,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_clip")
     .set_body([](CVMArgs args, CVMRetValue *ret){
         CHECK(args.num_args == 3);
          DLTensor *x = args[0];
-		 DLTensor *y = args[1];
+     DLTensor *y = args[1];
          int32_t *x_data = static_cast<int32_t*>(x->data);
          int32_t *y_data = static_cast<int32_t*>(y->data);
          std::string str_precision = args[2];

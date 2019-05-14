@@ -157,19 +157,6 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named cvm_runtime
-
-# Build rule for target.
-cvm_runtime: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 cvm_runtime
-.PHONY : cvm_runtime
-
-# fast build rule for target.
-cvm_runtime/fast:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/build
-.PHONY : cvm_runtime/fast
-
-#=============================================================================
 # Target rules for targets named runtime
 
 # Build rule for target.
@@ -182,923 +169,858 @@ runtime/fast:
 	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/build
 .PHONY : runtime/fast
 
-src/runtime/c_dsl_api.o: src/runtime/c_dsl_api.cc.o
+#=============================================================================
+# Target rules for targets named cvm_runtime
 
-.PHONY : src/runtime/c_dsl_api.o
+# Build rule for target.
+cvm_runtime: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 cvm_runtime
+.PHONY : cvm_runtime
 
-# target to build an object file
-src/runtime/c_dsl_api.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_dsl_api.cc.o
-.PHONY : src/runtime/c_dsl_api.cc.o
+# fast build rule for target.
+cvm_runtime/fast:
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/build
+.PHONY : cvm_runtime/fast
 
-src/runtime/c_dsl_api.i: src/runtime/c_dsl_api.cc.i
+src/c_dsl_api.o: src/c_dsl_api.cc.o
 
-.PHONY : src/runtime/c_dsl_api.i
-
-# target to preprocess a source file
-src/runtime/c_dsl_api.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_dsl_api.cc.i
-.PHONY : src/runtime/c_dsl_api.cc.i
-
-src/runtime/c_dsl_api.s: src/runtime/c_dsl_api.cc.s
-
-.PHONY : src/runtime/c_dsl_api.s
-
-# target to generate assembly for a file
-src/runtime/c_dsl_api.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_dsl_api.cc.s
-.PHONY : src/runtime/c_dsl_api.cc.s
-
-src/runtime/c_runtime_api.o: src/runtime/c_runtime_api.cc.o
-
-.PHONY : src/runtime/c_runtime_api.o
+.PHONY : src/c_dsl_api.o
 
 # target to build an object file
-src/runtime/c_runtime_api.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_runtime_api.cc.o
-.PHONY : src/runtime/c_runtime_api.cc.o
+src/c_dsl_api.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_dsl_api.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_dsl_api.cc.o
+.PHONY : src/c_dsl_api.cc.o
 
-src/runtime/c_runtime_api.i: src/runtime/c_runtime_api.cc.i
+src/c_dsl_api.i: src/c_dsl_api.cc.i
 
-.PHONY : src/runtime/c_runtime_api.i
+.PHONY : src/c_dsl_api.i
 
 # target to preprocess a source file
-src/runtime/c_runtime_api.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_runtime_api.cc.i
-.PHONY : src/runtime/c_runtime_api.cc.i
+src/c_dsl_api.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_dsl_api.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_dsl_api.cc.i
+.PHONY : src/c_dsl_api.cc.i
 
-src/runtime/c_runtime_api.s: src/runtime/c_runtime_api.cc.s
+src/c_dsl_api.s: src/c_dsl_api.cc.s
 
-.PHONY : src/runtime/c_runtime_api.s
+.PHONY : src/c_dsl_api.s
 
 # target to generate assembly for a file
-src/runtime/c_runtime_api.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/c_runtime_api.cc.s
-.PHONY : src/runtime/c_runtime_api.cc.s
+src/c_dsl_api.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_dsl_api.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_dsl_api.cc.s
+.PHONY : src/c_dsl_api.cc.s
 
-src/runtime/cpu_device_api.o: src/runtime/cpu_device_api.cc.o
+src/c_runtime_api.o: src/c_runtime_api.cc.o
 
-.PHONY : src/runtime/cpu_device_api.o
+.PHONY : src/c_runtime_api.o
 
 # target to build an object file
-src/runtime/cpu_device_api.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cpu_device_api.cc.o
-.PHONY : src/runtime/cpu_device_api.cc.o
+src/c_runtime_api.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_runtime_api.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_runtime_api.cc.o
+.PHONY : src/c_runtime_api.cc.o
 
-src/runtime/cpu_device_api.i: src/runtime/cpu_device_api.cc.i
+src/c_runtime_api.i: src/c_runtime_api.cc.i
 
-.PHONY : src/runtime/cpu_device_api.i
+.PHONY : src/c_runtime_api.i
 
 # target to preprocess a source file
-src/runtime/cpu_device_api.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cpu_device_api.cc.i
-.PHONY : src/runtime/cpu_device_api.cc.i
+src/c_runtime_api.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_runtime_api.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_runtime_api.cc.i
+.PHONY : src/c_runtime_api.cc.i
 
-src/runtime/cpu_device_api.s: src/runtime/cpu_device_api.cc.s
+src/c_runtime_api.s: src/c_runtime_api.cc.s
 
-.PHONY : src/runtime/cpu_device_api.s
+.PHONY : src/c_runtime_api.s
 
 # target to generate assembly for a file
-src/runtime/cpu_device_api.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cpu_device_api.cc.s
-.PHONY : src/runtime/cpu_device_api.cc.s
+src/c_runtime_api.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/c_runtime_api.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/c_runtime_api.cc.s
+.PHONY : src/c_runtime_api.cc.s
 
-src/runtime/cuda/cuda_device_api.o: src/runtime/cuda/cuda_device_api.cc.o
+src/cpu_device_api.o: src/cpu_device_api.cc.o
 
-.PHONY : src/runtime/cuda/cuda_device_api.o
+.PHONY : src/cpu_device_api.o
 
 # target to build an object file
-src/runtime/cuda/cuda_device_api.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_device_api.cc.o
-.PHONY : src/runtime/cuda/cuda_device_api.cc.o
+src/cpu_device_api.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cpu_device_api.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cpu_device_api.cc.o
+.PHONY : src/cpu_device_api.cc.o
 
-src/runtime/cuda/cuda_device_api.i: src/runtime/cuda/cuda_device_api.cc.i
+src/cpu_device_api.i: src/cpu_device_api.cc.i
 
-.PHONY : src/runtime/cuda/cuda_device_api.i
+.PHONY : src/cpu_device_api.i
 
 # target to preprocess a source file
-src/runtime/cuda/cuda_device_api.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_device_api.cc.i
-.PHONY : src/runtime/cuda/cuda_device_api.cc.i
+src/cpu_device_api.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cpu_device_api.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cpu_device_api.cc.i
+.PHONY : src/cpu_device_api.cc.i
 
-src/runtime/cuda/cuda_device_api.s: src/runtime/cuda/cuda_device_api.cc.s
+src/cpu_device_api.s: src/cpu_device_api.cc.s
 
-.PHONY : src/runtime/cuda/cuda_device_api.s
+.PHONY : src/cpu_device_api.s
 
 # target to generate assembly for a file
-src/runtime/cuda/cuda_device_api.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_device_api.cc.s
-.PHONY : src/runtime/cuda/cuda_device_api.cc.s
+src/cpu_device_api.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cpu_device_api.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cpu_device_api.cc.s
+.PHONY : src/cpu_device_api.cc.s
 
-src/runtime/cuda/cuda_module.o: src/runtime/cuda/cuda_module.cc.o
+src/cuda/cuda_device_api.o: src/cuda/cuda_device_api.cc.o
 
-.PHONY : src/runtime/cuda/cuda_module.o
+.PHONY : src/cuda/cuda_device_api.o
 
 # target to build an object file
-src/runtime/cuda/cuda_module.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_module.cc.o
-.PHONY : src/runtime/cuda/cuda_module.cc.o
+src/cuda/cuda_device_api.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_device_api.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_device_api.cc.o
+.PHONY : src/cuda/cuda_device_api.cc.o
 
-src/runtime/cuda/cuda_module.i: src/runtime/cuda/cuda_module.cc.i
+src/cuda/cuda_device_api.i: src/cuda/cuda_device_api.cc.i
 
-.PHONY : src/runtime/cuda/cuda_module.i
+.PHONY : src/cuda/cuda_device_api.i
 
 # target to preprocess a source file
-src/runtime/cuda/cuda_module.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_module.cc.i
-.PHONY : src/runtime/cuda/cuda_module.cc.i
+src/cuda/cuda_device_api.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_device_api.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_device_api.cc.i
+.PHONY : src/cuda/cuda_device_api.cc.i
 
-src/runtime/cuda/cuda_module.s: src/runtime/cuda/cuda_module.cc.s
+src/cuda/cuda_device_api.s: src/cuda/cuda_device_api.cc.s
 
-.PHONY : src/runtime/cuda/cuda_module.s
+.PHONY : src/cuda/cuda_device_api.s
 
 # target to generate assembly for a file
-src/runtime/cuda/cuda_module.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cuda/cuda_module.cc.s
-.PHONY : src/runtime/cuda/cuda_module.cc.s
+src/cuda/cuda_device_api.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_device_api.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_device_api.cc.s
+.PHONY : src/cuda/cuda_device_api.cc.s
 
-src/runtime/cvm/graph_runtime.o: src/runtime/cvm/graph_runtime.cc.o
+src/cuda/cuda_module.o: src/cuda/cuda_module.cc.o
 
-.PHONY : src/runtime/cvm/graph_runtime.o
+.PHONY : src/cuda/cuda_module.o
 
 # target to build an object file
-src/runtime/cvm/graph_runtime.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/graph_runtime.cc.o
-.PHONY : src/runtime/cvm/graph_runtime.cc.o
+src/cuda/cuda_module.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_module.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_module.cc.o
+.PHONY : src/cuda/cuda_module.cc.o
 
-src/runtime/cvm/graph_runtime.i: src/runtime/cvm/graph_runtime.cc.i
+src/cuda/cuda_module.i: src/cuda/cuda_module.cc.i
 
-.PHONY : src/runtime/cvm/graph_runtime.i
+.PHONY : src/cuda/cuda_module.i
 
 # target to preprocess a source file
-src/runtime/cvm/graph_runtime.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/graph_runtime.cc.i
-.PHONY : src/runtime/cvm/graph_runtime.cc.i
+src/cuda/cuda_module.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_module.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_module.cc.i
+.PHONY : src/cuda/cuda_module.cc.i
 
-src/runtime/cvm/graph_runtime.s: src/runtime/cvm/graph_runtime.cc.s
+src/cuda/cuda_module.s: src/cuda/cuda_module.cc.s
 
-.PHONY : src/runtime/cvm/graph_runtime.s
+.PHONY : src/cuda/cuda_module.s
 
 # target to generate assembly for a file
-src/runtime/cvm/graph_runtime.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/graph_runtime.cc.s
-.PHONY : src/runtime/cvm/graph_runtime.cc.s
+src/cuda/cuda_module.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cuda/cuda_module.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cuda/cuda_module.cc.s
+.PHONY : src/cuda/cuda_module.cc.s
 
-src/runtime/cvm/infer_attr.o: src/runtime/cvm/infer_attr.cc.o
+src/cvm/graph_runtime.o: src/cvm/graph_runtime.cc.o
 
-.PHONY : src/runtime/cvm/infer_attr.o
+.PHONY : src/cvm/graph_runtime.o
 
 # target to build an object file
-src/runtime/cvm/infer_attr.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/infer_attr.cc.o
-.PHONY : src/runtime/cvm/infer_attr.cc.o
+src/cvm/graph_runtime.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/graph_runtime.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/graph_runtime.cc.o
+.PHONY : src/cvm/graph_runtime.cc.o
 
-src/runtime/cvm/infer_attr.i: src/runtime/cvm/infer_attr.cc.i
+src/cvm/graph_runtime.i: src/cvm/graph_runtime.cc.i
 
-.PHONY : src/runtime/cvm/infer_attr.i
+.PHONY : src/cvm/graph_runtime.i
 
 # target to preprocess a source file
-src/runtime/cvm/infer_attr.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/infer_attr.cc.i
-.PHONY : src/runtime/cvm/infer_attr.cc.i
+src/cvm/graph_runtime.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/graph_runtime.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/graph_runtime.cc.i
+.PHONY : src/cvm/graph_runtime.cc.i
 
-src/runtime/cvm/infer_attr.s: src/runtime/cvm/infer_attr.cc.s
+src/cvm/graph_runtime.s: src/cvm/graph_runtime.cc.s
 
-.PHONY : src/runtime/cvm/infer_attr.s
+.PHONY : src/cvm/graph_runtime.s
 
 # target to generate assembly for a file
-src/runtime/cvm/infer_attr.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/infer_attr.cc.s
-.PHONY : src/runtime/cvm/infer_attr.cc.s
+src/cvm/graph_runtime.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/graph_runtime.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/graph_runtime.cc.s
+.PHONY : src/cvm/graph_runtime.cc.s
 
-src/runtime/cvm/ops.o: src/runtime/cvm/ops.cc.o
+src/cvm/infer_attr.o: src/cvm/infer_attr.cc.o
 
-.PHONY : src/runtime/cvm/ops.o
+.PHONY : src/cvm/infer_attr.o
 
 # target to build an object file
-src/runtime/cvm/ops.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/ops.cc.o
-.PHONY : src/runtime/cvm/ops.cc.o
+src/cvm/infer_attr.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/infer_attr.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/infer_attr.cc.o
+.PHONY : src/cvm/infer_attr.cc.o
 
-src/runtime/cvm/ops.i: src/runtime/cvm/ops.cc.i
+src/cvm/infer_attr.i: src/cvm/infer_attr.cc.i
 
-.PHONY : src/runtime/cvm/ops.i
+.PHONY : src/cvm/infer_attr.i
 
 # target to preprocess a source file
-src/runtime/cvm/ops.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/ops.cc.i
-.PHONY : src/runtime/cvm/ops.cc.i
+src/cvm/infer_attr.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/infer_attr.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/infer_attr.cc.i
+.PHONY : src/cvm/infer_attr.cc.i
 
-src/runtime/cvm/ops.s: src/runtime/cvm/ops.cc.s
+src/cvm/infer_attr.s: src/cvm/infer_attr.cc.s
 
-.PHONY : src/runtime/cvm/ops.s
+.PHONY : src/cvm/infer_attr.s
 
 # target to generate assembly for a file
-src/runtime/cvm/ops.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/ops.cc.s
-.PHONY : src/runtime/cvm/ops.cc.s
+src/cvm/infer_attr.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/infer_attr.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/infer_attr.cc.s
+.PHONY : src/cvm/infer_attr.cc.s
 
-src/runtime/cvm/top/nn/convolution.o: src/runtime/cvm/top/nn/convolution.cc.o
+src/cvm/ops.o: src/cvm/ops.cc.o
 
-.PHONY : src/runtime/cvm/top/nn/convolution.o
+.PHONY : src/cvm/ops.o
 
 # target to build an object file
-src/runtime/cvm/top/nn/convolution.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/convolution.cc.o
-.PHONY : src/runtime/cvm/top/nn/convolution.cc.o
+src/cvm/ops.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/ops.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/ops.cc.o
+.PHONY : src/cvm/ops.cc.o
 
-src/runtime/cvm/top/nn/convolution.i: src/runtime/cvm/top/nn/convolution.cc.i
+src/cvm/ops.i: src/cvm/ops.cc.i
 
-.PHONY : src/runtime/cvm/top/nn/convolution.i
+.PHONY : src/cvm/ops.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/nn/convolution.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/convolution.cc.i
-.PHONY : src/runtime/cvm/top/nn/convolution.cc.i
+src/cvm/ops.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/ops.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/ops.cc.i
+.PHONY : src/cvm/ops.cc.i
 
-src/runtime/cvm/top/nn/convolution.s: src/runtime/cvm/top/nn/convolution.cc.s
+src/cvm/ops.s: src/cvm/ops.cc.s
 
-.PHONY : src/runtime/cvm/top/nn/convolution.s
+.PHONY : src/cvm/ops.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/nn/convolution.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/convolution.cc.s
-.PHONY : src/runtime/cvm/top/nn/convolution.cc.s
+src/cvm/ops.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/ops.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/ops.cc.s
+.PHONY : src/cvm/ops.cc.s
 
-src/runtime/cvm/top/nn/nn.o: src/runtime/cvm/top/nn/nn.cc.o
+src/cvm/top/nn/convolution.o: src/cvm/top/nn/convolution.cc.o
 
-.PHONY : src/runtime/cvm/top/nn/nn.o
+.PHONY : src/cvm/top/nn/convolution.o
 
 # target to build an object file
-src/runtime/cvm/top/nn/nn.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/nn.cc.o
-.PHONY : src/runtime/cvm/top/nn/nn.cc.o
+src/cvm/top/nn/convolution.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/convolution.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/convolution.cc.o
+.PHONY : src/cvm/top/nn/convolution.cc.o
 
-src/runtime/cvm/top/nn/nn.i: src/runtime/cvm/top/nn/nn.cc.i
+src/cvm/top/nn/convolution.i: src/cvm/top/nn/convolution.cc.i
 
-.PHONY : src/runtime/cvm/top/nn/nn.i
+.PHONY : src/cvm/top/nn/convolution.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/nn/nn.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/nn.cc.i
-.PHONY : src/runtime/cvm/top/nn/nn.cc.i
+src/cvm/top/nn/convolution.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/convolution.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/convolution.cc.i
+.PHONY : src/cvm/top/nn/convolution.cc.i
 
-src/runtime/cvm/top/nn/nn.s: src/runtime/cvm/top/nn/nn.cc.s
+src/cvm/top/nn/convolution.s: src/cvm/top/nn/convolution.cc.s
 
-.PHONY : src/runtime/cvm/top/nn/nn.s
+.PHONY : src/cvm/top/nn/convolution.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/nn/nn.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/nn.cc.s
-.PHONY : src/runtime/cvm/top/nn/nn.cc.s
+src/cvm/top/nn/convolution.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/convolution.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/convolution.cc.s
+.PHONY : src/cvm/top/nn/convolution.cc.s
 
-src/runtime/cvm/top/nn/pooling.o: src/runtime/cvm/top/nn/pooling.cc.o
+src/cvm/top/nn/nn.o: src/cvm/top/nn/nn.cc.o
 
-.PHONY : src/runtime/cvm/top/nn/pooling.o
+.PHONY : src/cvm/top/nn/nn.o
 
 # target to build an object file
-src/runtime/cvm/top/nn/pooling.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/pooling.cc.o
-.PHONY : src/runtime/cvm/top/nn/pooling.cc.o
+src/cvm/top/nn/nn.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/nn.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/nn.cc.o
+.PHONY : src/cvm/top/nn/nn.cc.o
 
-src/runtime/cvm/top/nn/pooling.i: src/runtime/cvm/top/nn/pooling.cc.i
+src/cvm/top/nn/nn.i: src/cvm/top/nn/nn.cc.i
 
-.PHONY : src/runtime/cvm/top/nn/pooling.i
+.PHONY : src/cvm/top/nn/nn.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/nn/pooling.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/pooling.cc.i
-.PHONY : src/runtime/cvm/top/nn/pooling.cc.i
+src/cvm/top/nn/nn.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/nn.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/nn.cc.i
+.PHONY : src/cvm/top/nn/nn.cc.i
 
-src/runtime/cvm/top/nn/pooling.s: src/runtime/cvm/top/nn/pooling.cc.s
+src/cvm/top/nn/nn.s: src/cvm/top/nn/nn.cc.s
 
-.PHONY : src/runtime/cvm/top/nn/pooling.s
+.PHONY : src/cvm/top/nn/nn.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/nn/pooling.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/nn/pooling.cc.s
-.PHONY : src/runtime/cvm/top/nn/pooling.cc.s
+src/cvm/top/nn/nn.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/nn.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/nn.cc.s
+.PHONY : src/cvm/top/nn/nn.cc.s
 
-src/runtime/cvm/top/node.o: src/runtime/cvm/top/node.cc.o
+src/cvm/top/nn/pooling.o: src/cvm/top/nn/pooling.cc.o
 
-.PHONY : src/runtime/cvm/top/node.o
+.PHONY : src/cvm/top/nn/pooling.o
 
 # target to build an object file
-src/runtime/cvm/top/node.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/node.cc.o
-.PHONY : src/runtime/cvm/top/node.cc.o
+src/cvm/top/nn/pooling.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/pooling.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/pooling.cc.o
+.PHONY : src/cvm/top/nn/pooling.cc.o
 
-src/runtime/cvm/top/node.i: src/runtime/cvm/top/node.cc.i
+src/cvm/top/nn/pooling.i: src/cvm/top/nn/pooling.cc.i
 
-.PHONY : src/runtime/cvm/top/node.i
+.PHONY : src/cvm/top/nn/pooling.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/node.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/node.cc.i
-.PHONY : src/runtime/cvm/top/node.cc.i
+src/cvm/top/nn/pooling.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/pooling.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/pooling.cc.i
+.PHONY : src/cvm/top/nn/pooling.cc.i
 
-src/runtime/cvm/top/node.s: src/runtime/cvm/top/node.cc.s
+src/cvm/top/nn/pooling.s: src/cvm/top/nn/pooling.cc.s
 
-.PHONY : src/runtime/cvm/top/node.s
+.PHONY : src/cvm/top/nn/pooling.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/node.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/node.cc.s
-.PHONY : src/runtime/cvm/top/node.cc.s
+src/cvm/top/nn/pooling.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/nn/pooling.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/nn/pooling.cc.s
+.PHONY : src/cvm/top/nn/pooling.cc.s
 
-src/runtime/cvm/top/op.o: src/runtime/cvm/top/op.cc.o
+src/cvm/top/node.o: src/cvm/top/node.cc.o
 
-.PHONY : src/runtime/cvm/top/op.o
+.PHONY : src/cvm/top/node.o
 
 # target to build an object file
-src/runtime/cvm/top/op.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/op.cc.o
-.PHONY : src/runtime/cvm/top/op.cc.o
+src/cvm/top/node.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/node.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/node.cc.o
+.PHONY : src/cvm/top/node.cc.o
 
-src/runtime/cvm/top/op.i: src/runtime/cvm/top/op.cc.i
+src/cvm/top/node.i: src/cvm/top/node.cc.i
 
-.PHONY : src/runtime/cvm/top/op.i
+.PHONY : src/cvm/top/node.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/op.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/op.cc.i
-.PHONY : src/runtime/cvm/top/op.cc.i
+src/cvm/top/node.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/node.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/node.cc.i
+.PHONY : src/cvm/top/node.cc.i
 
-src/runtime/cvm/top/op.s: src/runtime/cvm/top/op.cc.s
+src/cvm/top/node.s: src/cvm/top/node.cc.s
 
-.PHONY : src/runtime/cvm/top/op.s
+.PHONY : src/cvm/top/node.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/op.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/op.cc.s
-.PHONY : src/runtime/cvm/top/op.cc.s
+src/cvm/top/node.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/node.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/node.cc.s
+.PHONY : src/cvm/top/node.cc.s
 
-src/runtime/cvm/top/tensor/broadcast.o: src/runtime/cvm/top/tensor/broadcast.cc.o
+src/cvm/top/op.o: src/cvm/top/op.cc.o
 
-.PHONY : src/runtime/cvm/top/tensor/broadcast.o
+.PHONY : src/cvm/top/op.o
 
 # target to build an object file
-src/runtime/cvm/top/tensor/broadcast.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/broadcast.cc.o
-.PHONY : src/runtime/cvm/top/tensor/broadcast.cc.o
+src/cvm/top/op.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/op.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/op.cc.o
+.PHONY : src/cvm/top/op.cc.o
 
-src/runtime/cvm/top/tensor/broadcast.i: src/runtime/cvm/top/tensor/broadcast.cc.i
+src/cvm/top/op.i: src/cvm/top/op.cc.i
 
-.PHONY : src/runtime/cvm/top/tensor/broadcast.i
+.PHONY : src/cvm/top/op.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/tensor/broadcast.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/broadcast.cc.i
-.PHONY : src/runtime/cvm/top/tensor/broadcast.cc.i
+src/cvm/top/op.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/op.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/op.cc.i
+.PHONY : src/cvm/top/op.cc.i
 
-src/runtime/cvm/top/tensor/broadcast.s: src/runtime/cvm/top/tensor/broadcast.cc.s
+src/cvm/top/op.s: src/cvm/top/op.cc.s
 
-.PHONY : src/runtime/cvm/top/tensor/broadcast.s
+.PHONY : src/cvm/top/op.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/tensor/broadcast.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/broadcast.cc.s
-.PHONY : src/runtime/cvm/top/tensor/broadcast.cc.s
+src/cvm/top/op.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/op.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/op.cc.s
+.PHONY : src/cvm/top/op.cc.s
 
-src/runtime/cvm/top/tensor/elemwise.o: src/runtime/cvm/top/tensor/elemwise.cc.o
+src/cvm/top/tensor/broadcast.o: src/cvm/top/tensor/broadcast.cc.o
 
-.PHONY : src/runtime/cvm/top/tensor/elemwise.o
+.PHONY : src/cvm/top/tensor/broadcast.o
 
 # target to build an object file
-src/runtime/cvm/top/tensor/elemwise.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/elemwise.cc.o
-.PHONY : src/runtime/cvm/top/tensor/elemwise.cc.o
+src/cvm/top/tensor/broadcast.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/broadcast.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/broadcast.cc.o
+.PHONY : src/cvm/top/tensor/broadcast.cc.o
 
-src/runtime/cvm/top/tensor/elemwise.i: src/runtime/cvm/top/tensor/elemwise.cc.i
+src/cvm/top/tensor/broadcast.i: src/cvm/top/tensor/broadcast.cc.i
 
-.PHONY : src/runtime/cvm/top/tensor/elemwise.i
+.PHONY : src/cvm/top/tensor/broadcast.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/tensor/elemwise.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/elemwise.cc.i
-.PHONY : src/runtime/cvm/top/tensor/elemwise.cc.i
+src/cvm/top/tensor/broadcast.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/broadcast.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/broadcast.cc.i
+.PHONY : src/cvm/top/tensor/broadcast.cc.i
 
-src/runtime/cvm/top/tensor/elemwise.s: src/runtime/cvm/top/tensor/elemwise.cc.s
+src/cvm/top/tensor/broadcast.s: src/cvm/top/tensor/broadcast.cc.s
 
-.PHONY : src/runtime/cvm/top/tensor/elemwise.s
+.PHONY : src/cvm/top/tensor/broadcast.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/tensor/elemwise.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/elemwise.cc.s
-.PHONY : src/runtime/cvm/top/tensor/elemwise.cc.s
+src/cvm/top/tensor/broadcast.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/broadcast.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/broadcast.cc.s
+.PHONY : src/cvm/top/tensor/broadcast.cc.s
 
-src/runtime/cvm/top/tensor/matrix_op.o: src/runtime/cvm/top/tensor/matrix_op.cc.o
+src/cvm/top/tensor/elemwise.o: src/cvm/top/tensor/elemwise.cc.o
 
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.o
+.PHONY : src/cvm/top/tensor/elemwise.o
 
 # target to build an object file
-src/runtime/cvm/top/tensor/matrix_op.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/matrix_op.cc.o
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.cc.o
+src/cvm/top/tensor/elemwise.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/elemwise.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/elemwise.cc.o
+.PHONY : src/cvm/top/tensor/elemwise.cc.o
 
-src/runtime/cvm/top/tensor/matrix_op.i: src/runtime/cvm/top/tensor/matrix_op.cc.i
+src/cvm/top/tensor/elemwise.i: src/cvm/top/tensor/elemwise.cc.i
 
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.i
+.PHONY : src/cvm/top/tensor/elemwise.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/tensor/matrix_op.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/matrix_op.cc.i
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.cc.i
+src/cvm/top/tensor/elemwise.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/elemwise.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/elemwise.cc.i
+.PHONY : src/cvm/top/tensor/elemwise.cc.i
 
-src/runtime/cvm/top/tensor/matrix_op.s: src/runtime/cvm/top/tensor/matrix_op.cc.s
+src/cvm/top/tensor/elemwise.s: src/cvm/top/tensor/elemwise.cc.s
 
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.s
+.PHONY : src/cvm/top/tensor/elemwise.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/tensor/matrix_op.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/matrix_op.cc.s
-.PHONY : src/runtime/cvm/top/tensor/matrix_op.cc.s
+src/cvm/top/tensor/elemwise.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/elemwise.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/elemwise.cc.s
+.PHONY : src/cvm/top/tensor/elemwise.cc.s
 
-src/runtime/cvm/top/tensor/reduce.o: src/runtime/cvm/top/tensor/reduce.cc.o
+src/cvm/top/tensor/matrix_op.o: src/cvm/top/tensor/matrix_op.cc.o
 
-.PHONY : src/runtime/cvm/top/tensor/reduce.o
+.PHONY : src/cvm/top/tensor/matrix_op.o
 
 # target to build an object file
-src/runtime/cvm/top/tensor/reduce.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/reduce.cc.o
-.PHONY : src/runtime/cvm/top/tensor/reduce.cc.o
+src/cvm/top/tensor/matrix_op.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/matrix_op.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/matrix_op.cc.o
+.PHONY : src/cvm/top/tensor/matrix_op.cc.o
 
-src/runtime/cvm/top/tensor/reduce.i: src/runtime/cvm/top/tensor/reduce.cc.i
+src/cvm/top/tensor/matrix_op.i: src/cvm/top/tensor/matrix_op.cc.i
 
-.PHONY : src/runtime/cvm/top/tensor/reduce.i
+.PHONY : src/cvm/top/tensor/matrix_op.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/tensor/reduce.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/reduce.cc.i
-.PHONY : src/runtime/cvm/top/tensor/reduce.cc.i
+src/cvm/top/tensor/matrix_op.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/matrix_op.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/matrix_op.cc.i
+.PHONY : src/cvm/top/tensor/matrix_op.cc.i
 
-src/runtime/cvm/top/tensor/reduce.s: src/runtime/cvm/top/tensor/reduce.cc.s
+src/cvm/top/tensor/matrix_op.s: src/cvm/top/tensor/matrix_op.cc.s
 
-.PHONY : src/runtime/cvm/top/tensor/reduce.s
+.PHONY : src/cvm/top/tensor/matrix_op.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/tensor/reduce.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/reduce.cc.s
-.PHONY : src/runtime/cvm/top/tensor/reduce.cc.s
+src/cvm/top/tensor/matrix_op.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/matrix_op.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/matrix_op.cc.s
+.PHONY : src/cvm/top/tensor/matrix_op.cc.s
 
-src/runtime/cvm/top/tensor/transform.o: src/runtime/cvm/top/tensor/transform.cc.o
+src/cvm/top/tensor/reduce.o: src/cvm/top/tensor/reduce.cc.o
 
-.PHONY : src/runtime/cvm/top/tensor/transform.o
+.PHONY : src/cvm/top/tensor/reduce.o
 
 # target to build an object file
-src/runtime/cvm/top/tensor/transform.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/transform.cc.o
-.PHONY : src/runtime/cvm/top/tensor/transform.cc.o
+src/cvm/top/tensor/reduce.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/reduce.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/reduce.cc.o
+.PHONY : src/cvm/top/tensor/reduce.cc.o
 
-src/runtime/cvm/top/tensor/transform.i: src/runtime/cvm/top/tensor/transform.cc.i
+src/cvm/top/tensor/reduce.i: src/cvm/top/tensor/reduce.cc.i
 
-.PHONY : src/runtime/cvm/top/tensor/transform.i
+.PHONY : src/cvm/top/tensor/reduce.i
 
 # target to preprocess a source file
-src/runtime/cvm/top/tensor/transform.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/transform.cc.i
-.PHONY : src/runtime/cvm/top/tensor/transform.cc.i
+src/cvm/top/tensor/reduce.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/reduce.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/reduce.cc.i
+.PHONY : src/cvm/top/tensor/reduce.cc.i
 
-src/runtime/cvm/top/tensor/transform.s: src/runtime/cvm/top/tensor/transform.cc.s
+src/cvm/top/tensor/reduce.s: src/cvm/top/tensor/reduce.cc.s
 
-.PHONY : src/runtime/cvm/top/tensor/transform.s
+.PHONY : src/cvm/top/tensor/reduce.s
 
 # target to generate assembly for a file
-src/runtime/cvm/top/tensor/transform.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/cvm/top/tensor/transform.cc.s
-.PHONY : src/runtime/cvm/top/tensor/transform.cc.s
+src/cvm/top/tensor/reduce.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/reduce.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/reduce.cc.s
+.PHONY : src/cvm/top/tensor/reduce.cc.s
 
-src/runtime/dso_module.o: src/runtime/dso_module.cc.o
+src/cvm/top/tensor/transform.o: src/cvm/top/tensor/transform.cc.o
 
-.PHONY : src/runtime/dso_module.o
+.PHONY : src/cvm/top/tensor/transform.o
 
 # target to build an object file
-src/runtime/dso_module.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/dso_module.cc.o
-.PHONY : src/runtime/dso_module.cc.o
+src/cvm/top/tensor/transform.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/transform.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/transform.cc.o
+.PHONY : src/cvm/top/tensor/transform.cc.o
 
-src/runtime/dso_module.i: src/runtime/dso_module.cc.i
+src/cvm/top/tensor/transform.i: src/cvm/top/tensor/transform.cc.i
 
-.PHONY : src/runtime/dso_module.i
+.PHONY : src/cvm/top/tensor/transform.i
 
 # target to preprocess a source file
-src/runtime/dso_module.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/dso_module.cc.i
-.PHONY : src/runtime/dso_module.cc.i
+src/cvm/top/tensor/transform.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/transform.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/transform.cc.i
+.PHONY : src/cvm/top/tensor/transform.cc.i
 
-src/runtime/dso_module.s: src/runtime/dso_module.cc.s
+src/cvm/top/tensor/transform.s: src/cvm/top/tensor/transform.cc.s
 
-.PHONY : src/runtime/dso_module.s
+.PHONY : src/cvm/top/tensor/transform.s
 
 # target to generate assembly for a file
-src/runtime/dso_module.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/dso_module.cc.s
-.PHONY : src/runtime/dso_module.cc.s
+src/cvm/top/tensor/transform.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/cvm/top/tensor/transform.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/cvm/top/tensor/transform.cc.s
+.PHONY : src/cvm/top/tensor/transform.cc.s
 
-src/runtime/file_util.o: src/runtime/file_util.cc.o
+src/dso_module.o: src/dso_module.cc.o
 
-.PHONY : src/runtime/file_util.o
+.PHONY : src/dso_module.o
 
 # target to build an object file
-src/runtime/file_util.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/file_util.cc.o
-.PHONY : src/runtime/file_util.cc.o
+src/dso_module.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/dso_module.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/dso_module.cc.o
+.PHONY : src/dso_module.cc.o
 
-src/runtime/file_util.i: src/runtime/file_util.cc.i
+src/dso_module.i: src/dso_module.cc.i
 
-.PHONY : src/runtime/file_util.i
+.PHONY : src/dso_module.i
 
 # target to preprocess a source file
-src/runtime/file_util.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/file_util.cc.i
-.PHONY : src/runtime/file_util.cc.i
+src/dso_module.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/dso_module.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/dso_module.cc.i
+.PHONY : src/dso_module.cc.i
 
-src/runtime/file_util.s: src/runtime/file_util.cc.s
+src/dso_module.s: src/dso_module.cc.s
 
-.PHONY : src/runtime/file_util.s
+.PHONY : src/dso_module.s
 
 # target to generate assembly for a file
-src/runtime/file_util.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/file_util.cc.s
-.PHONY : src/runtime/file_util.cc.s
+src/dso_module.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/dso_module.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/dso_module.cc.s
+.PHONY : src/dso_module.cc.s
 
-src/runtime/module.o: src/runtime/module.cc.o
+src/file_util.o: src/file_util.cc.o
 
-.PHONY : src/runtime/module.o
+.PHONY : src/file_util.o
 
 # target to build an object file
-src/runtime/module.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module.cc.o
-.PHONY : src/runtime/module.cc.o
+src/file_util.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/file_util.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/file_util.cc.o
+.PHONY : src/file_util.cc.o
 
-src/runtime/module.i: src/runtime/module.cc.i
+src/file_util.i: src/file_util.cc.i
 
-.PHONY : src/runtime/module.i
+.PHONY : src/file_util.i
 
 # target to preprocess a source file
-src/runtime/module.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module.cc.i
-.PHONY : src/runtime/module.cc.i
+src/file_util.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/file_util.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/file_util.cc.i
+.PHONY : src/file_util.cc.i
 
-src/runtime/module.s: src/runtime/module.cc.s
+src/file_util.s: src/file_util.cc.s
 
-.PHONY : src/runtime/module.s
+.PHONY : src/file_util.s
 
 # target to generate assembly for a file
-src/runtime/module.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module.cc.s
-.PHONY : src/runtime/module.cc.s
+src/file_util.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/file_util.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/file_util.cc.s
+.PHONY : src/file_util.cc.s
 
-src/runtime/module_util.o: src/runtime/module_util.cc.o
+src/module.o: src/module.cc.o
 
-.PHONY : src/runtime/module_util.o
+.PHONY : src/module.o
 
 # target to build an object file
-src/runtime/module_util.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module_util.cc.o
-.PHONY : src/runtime/module_util.cc.o
+src/module.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module.cc.o
+.PHONY : src/module.cc.o
 
-src/runtime/module_util.i: src/runtime/module_util.cc.i
+src/module.i: src/module.cc.i
 
-.PHONY : src/runtime/module_util.i
+.PHONY : src/module.i
 
 # target to preprocess a source file
-src/runtime/module_util.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module_util.cc.i
-.PHONY : src/runtime/module_util.cc.i
+src/module.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module.cc.i
+.PHONY : src/module.cc.i
 
-src/runtime/module_util.s: src/runtime/module_util.cc.s
+src/module.s: src/module.cc.s
 
-.PHONY : src/runtime/module_util.s
+.PHONY : src/module.s
 
 # target to generate assembly for a file
-src/runtime/module_util.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/module_util.cc.s
-.PHONY : src/runtime/module_util.cc.s
+src/module.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module.cc.s
+.PHONY : src/module.cc.s
 
-src/runtime/ndarray.o: src/runtime/ndarray.cc.o
+src/module_util.o: src/module_util.cc.o
 
-.PHONY : src/runtime/ndarray.o
+.PHONY : src/module_util.o
 
 # target to build an object file
-src/runtime/ndarray.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/ndarray.cc.o
-.PHONY : src/runtime/ndarray.cc.o
+src/module_util.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module_util.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module_util.cc.o
+.PHONY : src/module_util.cc.o
 
-src/runtime/ndarray.i: src/runtime/ndarray.cc.i
+src/module_util.i: src/module_util.cc.i
 
-.PHONY : src/runtime/ndarray.i
+.PHONY : src/module_util.i
 
 # target to preprocess a source file
-src/runtime/ndarray.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/ndarray.cc.i
-.PHONY : src/runtime/ndarray.cc.i
+src/module_util.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module_util.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module_util.cc.i
+.PHONY : src/module_util.cc.i
 
-src/runtime/ndarray.s: src/runtime/ndarray.cc.s
+src/module_util.s: src/module_util.cc.s
 
-.PHONY : src/runtime/ndarray.s
+.PHONY : src/module_util.s
 
 # target to generate assembly for a file
-src/runtime/ndarray.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/ndarray.cc.s
-.PHONY : src/runtime/ndarray.cc.s
+src/module_util.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/module_util.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/module_util.cc.s
+.PHONY : src/module_util.cc.s
 
-src/runtime/registry.o: src/runtime/registry.cc.o
+src/ndarray.o: src/ndarray.cc.o
 
-.PHONY : src/runtime/registry.o
+.PHONY : src/ndarray.o
 
 # target to build an object file
-src/runtime/registry.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/registry.cc.o
-.PHONY : src/runtime/registry.cc.o
+src/ndarray.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/ndarray.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/ndarray.cc.o
+.PHONY : src/ndarray.cc.o
 
-src/runtime/registry.i: src/runtime/registry.cc.i
+src/ndarray.i: src/ndarray.cc.i
 
-.PHONY : src/runtime/registry.i
+.PHONY : src/ndarray.i
 
 # target to preprocess a source file
-src/runtime/registry.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/registry.cc.i
-.PHONY : src/runtime/registry.cc.i
+src/ndarray.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/ndarray.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/ndarray.cc.i
+.PHONY : src/ndarray.cc.i
 
-src/runtime/registry.s: src/runtime/registry.cc.s
+src/ndarray.s: src/ndarray.cc.s
 
-.PHONY : src/runtime/registry.s
+.PHONY : src/ndarray.s
 
 # target to generate assembly for a file
-src/runtime/registry.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/registry.cc.s
-.PHONY : src/runtime/registry.cc.s
+src/ndarray.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/ndarray.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/ndarray.cc.s
+.PHONY : src/ndarray.cc.s
 
-src/runtime/rpc/rpc_device_api.o: src/runtime/rpc/rpc_device_api.cc.o
+src/registry.o: src/registry.cc.o
 
-.PHONY : src/runtime/rpc/rpc_device_api.o
+.PHONY : src/registry.o
 
 # target to build an object file
-src/runtime/rpc/rpc_device_api.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_device_api.cc.o
-.PHONY : src/runtime/rpc/rpc_device_api.cc.o
+src/registry.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/registry.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/registry.cc.o
+.PHONY : src/registry.cc.o
 
-src/runtime/rpc/rpc_device_api.i: src/runtime/rpc/rpc_device_api.cc.i
+src/registry.i: src/registry.cc.i
 
-.PHONY : src/runtime/rpc/rpc_device_api.i
+.PHONY : src/registry.i
 
 # target to preprocess a source file
-src/runtime/rpc/rpc_device_api.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_device_api.cc.i
-.PHONY : src/runtime/rpc/rpc_device_api.cc.i
+src/registry.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/registry.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/registry.cc.i
+.PHONY : src/registry.cc.i
 
-src/runtime/rpc/rpc_device_api.s: src/runtime/rpc/rpc_device_api.cc.s
+src/registry.s: src/registry.cc.s
 
-.PHONY : src/runtime/rpc/rpc_device_api.s
+.PHONY : src/registry.s
 
 # target to generate assembly for a file
-src/runtime/rpc/rpc_device_api.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_device_api.cc.s
-.PHONY : src/runtime/rpc/rpc_device_api.cc.s
+src/registry.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/registry.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/registry.cc.s
+.PHONY : src/registry.cc.s
 
-src/runtime/rpc/rpc_event_impl.o: src/runtime/rpc/rpc_event_impl.cc.o
+src/system_lib_module.o: src/system_lib_module.cc.o
 
-.PHONY : src/runtime/rpc/rpc_event_impl.o
+.PHONY : src/system_lib_module.o
 
 # target to build an object file
-src/runtime/rpc/rpc_event_impl.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_event_impl.cc.o
-.PHONY : src/runtime/rpc/rpc_event_impl.cc.o
+src/system_lib_module.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/system_lib_module.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/system_lib_module.cc.o
+.PHONY : src/system_lib_module.cc.o
 
-src/runtime/rpc/rpc_event_impl.i: src/runtime/rpc/rpc_event_impl.cc.i
+src/system_lib_module.i: src/system_lib_module.cc.i
 
-.PHONY : src/runtime/rpc/rpc_event_impl.i
+.PHONY : src/system_lib_module.i
 
 # target to preprocess a source file
-src/runtime/rpc/rpc_event_impl.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_event_impl.cc.i
-.PHONY : src/runtime/rpc/rpc_event_impl.cc.i
+src/system_lib_module.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/system_lib_module.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/system_lib_module.cc.i
+.PHONY : src/system_lib_module.cc.i
 
-src/runtime/rpc/rpc_event_impl.s: src/runtime/rpc/rpc_event_impl.cc.s
+src/system_lib_module.s: src/system_lib_module.cc.s
 
-.PHONY : src/runtime/rpc/rpc_event_impl.s
+.PHONY : src/system_lib_module.s
 
 # target to generate assembly for a file
-src/runtime/rpc/rpc_event_impl.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_event_impl.cc.s
-.PHONY : src/runtime/rpc/rpc_event_impl.cc.s
+src/system_lib_module.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/system_lib_module.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/system_lib_module.cc.s
+.PHONY : src/system_lib_module.cc.s
 
-src/runtime/rpc/rpc_module.o: src/runtime/rpc/rpc_module.cc.o
+src/thread_pool.o: src/thread_pool.cc.o
 
-.PHONY : src/runtime/rpc/rpc_module.o
+.PHONY : src/thread_pool.o
 
 # target to build an object file
-src/runtime/rpc/rpc_module.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_module.cc.o
-.PHONY : src/runtime/rpc/rpc_module.cc.o
+src/thread_pool.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/thread_pool.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/thread_pool.cc.o
+.PHONY : src/thread_pool.cc.o
 
-src/runtime/rpc/rpc_module.i: src/runtime/rpc/rpc_module.cc.i
+src/thread_pool.i: src/thread_pool.cc.i
 
-.PHONY : src/runtime/rpc/rpc_module.i
+.PHONY : src/thread_pool.i
 
 # target to preprocess a source file
-src/runtime/rpc/rpc_module.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_module.cc.i
-.PHONY : src/runtime/rpc/rpc_module.cc.i
+src/thread_pool.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/thread_pool.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/thread_pool.cc.i
+.PHONY : src/thread_pool.cc.i
 
-src/runtime/rpc/rpc_module.s: src/runtime/rpc/rpc_module.cc.s
+src/thread_pool.s: src/thread_pool.cc.s
 
-.PHONY : src/runtime/rpc/rpc_module.s
+.PHONY : src/thread_pool.s
 
 # target to generate assembly for a file
-src/runtime/rpc/rpc_module.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_module.cc.s
-.PHONY : src/runtime/rpc/rpc_module.cc.s
+src/thread_pool.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/thread_pool.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/thread_pool.cc.s
+.PHONY : src/thread_pool.cc.s
 
-src/runtime/rpc/rpc_server_env.o: src/runtime/rpc/rpc_server_env.cc.o
+src/threading_backend.o: src/threading_backend.cc.o
 
-.PHONY : src/runtime/rpc/rpc_server_env.o
+.PHONY : src/threading_backend.o
 
 # target to build an object file
-src/runtime/rpc/rpc_server_env.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_server_env.cc.o
-.PHONY : src/runtime/rpc/rpc_server_env.cc.o
+src/threading_backend.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/threading_backend.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/threading_backend.cc.o
+.PHONY : src/threading_backend.cc.o
 
-src/runtime/rpc/rpc_server_env.i: src/runtime/rpc/rpc_server_env.cc.i
+src/threading_backend.i: src/threading_backend.cc.i
 
-.PHONY : src/runtime/rpc/rpc_server_env.i
+.PHONY : src/threading_backend.i
 
 # target to preprocess a source file
-src/runtime/rpc/rpc_server_env.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_server_env.cc.i
-.PHONY : src/runtime/rpc/rpc_server_env.cc.i
+src/threading_backend.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/threading_backend.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/threading_backend.cc.i
+.PHONY : src/threading_backend.cc.i
 
-src/runtime/rpc/rpc_server_env.s: src/runtime/rpc/rpc_server_env.cc.s
+src/threading_backend.s: src/threading_backend.cc.s
 
-.PHONY : src/runtime/rpc/rpc_server_env.s
+.PHONY : src/threading_backend.s
 
 # target to generate assembly for a file
-src/runtime/rpc/rpc_server_env.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_server_env.cc.s
-.PHONY : src/runtime/rpc/rpc_server_env.cc.s
+src/threading_backend.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/threading_backend.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/threading_backend.cc.s
+.PHONY : src/threading_backend.cc.s
 
-src/runtime/rpc/rpc_session.o: src/runtime/rpc/rpc_session.cc.o
+src/workspace_pool.o: src/workspace_pool.cc.o
 
-.PHONY : src/runtime/rpc/rpc_session.o
+.PHONY : src/workspace_pool.o
 
 # target to build an object file
-src/runtime/rpc/rpc_session.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_session.cc.o
-.PHONY : src/runtime/rpc/rpc_session.cc.o
+src/workspace_pool.cc.o:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/workspace_pool.cc.o
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/workspace_pool.cc.o
+.PHONY : src/workspace_pool.cc.o
 
-src/runtime/rpc/rpc_session.i: src/runtime/rpc/rpc_session.cc.i
+src/workspace_pool.i: src/workspace_pool.cc.i
 
-.PHONY : src/runtime/rpc/rpc_session.i
-
-# target to preprocess a source file
-src/runtime/rpc/rpc_session.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_session.cc.i
-.PHONY : src/runtime/rpc/rpc_session.cc.i
-
-src/runtime/rpc/rpc_session.s: src/runtime/rpc/rpc_session.cc.s
-
-.PHONY : src/runtime/rpc/rpc_session.s
-
-# target to generate assembly for a file
-src/runtime/rpc/rpc_session.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_session.cc.s
-.PHONY : src/runtime/rpc/rpc_session.cc.s
-
-src/runtime/rpc/rpc_socket_impl.o: src/runtime/rpc/rpc_socket_impl.cc.o
-
-.PHONY : src/runtime/rpc/rpc_socket_impl.o
-
-# target to build an object file
-src/runtime/rpc/rpc_socket_impl.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_socket_impl.cc.o
-.PHONY : src/runtime/rpc/rpc_socket_impl.cc.o
-
-src/runtime/rpc/rpc_socket_impl.i: src/runtime/rpc/rpc_socket_impl.cc.i
-
-.PHONY : src/runtime/rpc/rpc_socket_impl.i
+.PHONY : src/workspace_pool.i
 
 # target to preprocess a source file
-src/runtime/rpc/rpc_socket_impl.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_socket_impl.cc.i
-.PHONY : src/runtime/rpc/rpc_socket_impl.cc.i
+src/workspace_pool.cc.i:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/workspace_pool.cc.i
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/workspace_pool.cc.i
+.PHONY : src/workspace_pool.cc.i
 
-src/runtime/rpc/rpc_socket_impl.s: src/runtime/rpc/rpc_socket_impl.cc.s
+src/workspace_pool.s: src/workspace_pool.cc.s
 
-.PHONY : src/runtime/rpc/rpc_socket_impl.s
-
-# target to generate assembly for a file
-src/runtime/rpc/rpc_socket_impl.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/rpc/rpc_socket_impl.cc.s
-.PHONY : src/runtime/rpc/rpc_socket_impl.cc.s
-
-src/runtime/system_lib_module.o: src/runtime/system_lib_module.cc.o
-
-.PHONY : src/runtime/system_lib_module.o
-
-# target to build an object file
-src/runtime/system_lib_module.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/system_lib_module.cc.o
-.PHONY : src/runtime/system_lib_module.cc.o
-
-src/runtime/system_lib_module.i: src/runtime/system_lib_module.cc.i
-
-.PHONY : src/runtime/system_lib_module.i
-
-# target to preprocess a source file
-src/runtime/system_lib_module.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/system_lib_module.cc.i
-.PHONY : src/runtime/system_lib_module.cc.i
-
-src/runtime/system_lib_module.s: src/runtime/system_lib_module.cc.s
-
-.PHONY : src/runtime/system_lib_module.s
+.PHONY : src/workspace_pool.s
 
 # target to generate assembly for a file
-src/runtime/system_lib_module.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/system_lib_module.cc.s
-.PHONY : src/runtime/system_lib_module.cc.s
-
-src/runtime/thread_pool.o: src/runtime/thread_pool.cc.o
-
-.PHONY : src/runtime/thread_pool.o
-
-# target to build an object file
-src/runtime/thread_pool.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/thread_pool.cc.o
-.PHONY : src/runtime/thread_pool.cc.o
-
-src/runtime/thread_pool.i: src/runtime/thread_pool.cc.i
-
-.PHONY : src/runtime/thread_pool.i
-
-# target to preprocess a source file
-src/runtime/thread_pool.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/thread_pool.cc.i
-.PHONY : src/runtime/thread_pool.cc.i
-
-src/runtime/thread_pool.s: src/runtime/thread_pool.cc.s
-
-.PHONY : src/runtime/thread_pool.s
-
-# target to generate assembly for a file
-src/runtime/thread_pool.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/thread_pool.cc.s
-.PHONY : src/runtime/thread_pool.cc.s
-
-src/runtime/threading_backend.o: src/runtime/threading_backend.cc.o
-
-.PHONY : src/runtime/threading_backend.o
-
-# target to build an object file
-src/runtime/threading_backend.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/threading_backend.cc.o
-.PHONY : src/runtime/threading_backend.cc.o
-
-src/runtime/threading_backend.i: src/runtime/threading_backend.cc.i
-
-.PHONY : src/runtime/threading_backend.i
-
-# target to preprocess a source file
-src/runtime/threading_backend.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/threading_backend.cc.i
-.PHONY : src/runtime/threading_backend.cc.i
-
-src/runtime/threading_backend.s: src/runtime/threading_backend.cc.s
-
-.PHONY : src/runtime/threading_backend.s
-
-# target to generate assembly for a file
-src/runtime/threading_backend.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/threading_backend.cc.s
-.PHONY : src/runtime/threading_backend.cc.s
-
-src/runtime/workspace_pool.o: src/runtime/workspace_pool.cc.o
-
-.PHONY : src/runtime/workspace_pool.o
-
-# target to build an object file
-src/runtime/workspace_pool.cc.o:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/workspace_pool.cc.o
-.PHONY : src/runtime/workspace_pool.cc.o
-
-src/runtime/workspace_pool.i: src/runtime/workspace_pool.cc.i
-
-.PHONY : src/runtime/workspace_pool.i
-
-# target to preprocess a source file
-src/runtime/workspace_pool.cc.i:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/workspace_pool.cc.i
-.PHONY : src/runtime/workspace_pool.cc.i
-
-src/runtime/workspace_pool.s: src/runtime/workspace_pool.cc.s
-
-.PHONY : src/runtime/workspace_pool.s
-
-# target to generate assembly for a file
-src/runtime/workspace_pool.cc.s:
-	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/runtime/workspace_pool.cc.s
-.PHONY : src/runtime/workspace_pool.cc.s
+src/workspace_pool.cc.s:
+	$(MAKE) -f CMakeFiles/runtime.dir/build.make CMakeFiles/runtime.dir/src/workspace_pool.cc.s
+	$(MAKE) -f CMakeFiles/cvm_runtime.dir/build.make CMakeFiles/cvm_runtime.dir/src/workspace_pool.cc.s
+.PHONY : src/workspace_pool.cc.s
 
 # Help Target
 help:
@@ -1110,112 +1032,94 @@ help:
 	@echo "... install/local"
 	@echo "... install"
 	@echo "... list_install_components"
-	@echo "... cvm_runtime"
 	@echo "... runtime"
 	@echo "... rebuild_cache"
+	@echo "... cvm_runtime"
 	@echo "... edit_cache"
-	@echo "... src/runtime/c_dsl_api.o"
-	@echo "... src/runtime/c_dsl_api.i"
-	@echo "... src/runtime/c_dsl_api.s"
-	@echo "... src/runtime/c_runtime_api.o"
-	@echo "... src/runtime/c_runtime_api.i"
-	@echo "... src/runtime/c_runtime_api.s"
-	@echo "... src/runtime/cpu_device_api.o"
-	@echo "... src/runtime/cpu_device_api.i"
-	@echo "... src/runtime/cpu_device_api.s"
-	@echo "... src/runtime/cuda/cuda_device_api.o"
-	@echo "... src/runtime/cuda/cuda_device_api.i"
-	@echo "... src/runtime/cuda/cuda_device_api.s"
-	@echo "... src/runtime/cuda/cuda_module.o"
-	@echo "... src/runtime/cuda/cuda_module.i"
-	@echo "... src/runtime/cuda/cuda_module.s"
-	@echo "... src/runtime/cvm/graph_runtime.o"
-	@echo "... src/runtime/cvm/graph_runtime.i"
-	@echo "... src/runtime/cvm/graph_runtime.s"
-	@echo "... src/runtime/cvm/infer_attr.o"
-	@echo "... src/runtime/cvm/infer_attr.i"
-	@echo "... src/runtime/cvm/infer_attr.s"
-	@echo "... src/runtime/cvm/ops.o"
-	@echo "... src/runtime/cvm/ops.i"
-	@echo "... src/runtime/cvm/ops.s"
-	@echo "... src/runtime/cvm/top/nn/convolution.o"
-	@echo "... src/runtime/cvm/top/nn/convolution.i"
-	@echo "... src/runtime/cvm/top/nn/convolution.s"
-	@echo "... src/runtime/cvm/top/nn/nn.o"
-	@echo "... src/runtime/cvm/top/nn/nn.i"
-	@echo "... src/runtime/cvm/top/nn/nn.s"
-	@echo "... src/runtime/cvm/top/nn/pooling.o"
-	@echo "... src/runtime/cvm/top/nn/pooling.i"
-	@echo "... src/runtime/cvm/top/nn/pooling.s"
-	@echo "... src/runtime/cvm/top/node.o"
-	@echo "... src/runtime/cvm/top/node.i"
-	@echo "... src/runtime/cvm/top/node.s"
-	@echo "... src/runtime/cvm/top/op.o"
-	@echo "... src/runtime/cvm/top/op.i"
-	@echo "... src/runtime/cvm/top/op.s"
-	@echo "... src/runtime/cvm/top/tensor/broadcast.o"
-	@echo "... src/runtime/cvm/top/tensor/broadcast.i"
-	@echo "... src/runtime/cvm/top/tensor/broadcast.s"
-	@echo "... src/runtime/cvm/top/tensor/elemwise.o"
-	@echo "... src/runtime/cvm/top/tensor/elemwise.i"
-	@echo "... src/runtime/cvm/top/tensor/elemwise.s"
-	@echo "... src/runtime/cvm/top/tensor/matrix_op.o"
-	@echo "... src/runtime/cvm/top/tensor/matrix_op.i"
-	@echo "... src/runtime/cvm/top/tensor/matrix_op.s"
-	@echo "... src/runtime/cvm/top/tensor/reduce.o"
-	@echo "... src/runtime/cvm/top/tensor/reduce.i"
-	@echo "... src/runtime/cvm/top/tensor/reduce.s"
-	@echo "... src/runtime/cvm/top/tensor/transform.o"
-	@echo "... src/runtime/cvm/top/tensor/transform.i"
-	@echo "... src/runtime/cvm/top/tensor/transform.s"
-	@echo "... src/runtime/dso_module.o"
-	@echo "... src/runtime/dso_module.i"
-	@echo "... src/runtime/dso_module.s"
-	@echo "... src/runtime/file_util.o"
-	@echo "... src/runtime/file_util.i"
-	@echo "... src/runtime/file_util.s"
-	@echo "... src/runtime/module.o"
-	@echo "... src/runtime/module.i"
-	@echo "... src/runtime/module.s"
-	@echo "... src/runtime/module_util.o"
-	@echo "... src/runtime/module_util.i"
-	@echo "... src/runtime/module_util.s"
-	@echo "... src/runtime/ndarray.o"
-	@echo "... src/runtime/ndarray.i"
-	@echo "... src/runtime/ndarray.s"
-	@echo "... src/runtime/registry.o"
-	@echo "... src/runtime/registry.i"
-	@echo "... src/runtime/registry.s"
-	@echo "... src/runtime/rpc/rpc_device_api.o"
-	@echo "... src/runtime/rpc/rpc_device_api.i"
-	@echo "... src/runtime/rpc/rpc_device_api.s"
-	@echo "... src/runtime/rpc/rpc_event_impl.o"
-	@echo "... src/runtime/rpc/rpc_event_impl.i"
-	@echo "... src/runtime/rpc/rpc_event_impl.s"
-	@echo "... src/runtime/rpc/rpc_module.o"
-	@echo "... src/runtime/rpc/rpc_module.i"
-	@echo "... src/runtime/rpc/rpc_module.s"
-	@echo "... src/runtime/rpc/rpc_server_env.o"
-	@echo "... src/runtime/rpc/rpc_server_env.i"
-	@echo "... src/runtime/rpc/rpc_server_env.s"
-	@echo "... src/runtime/rpc/rpc_session.o"
-	@echo "... src/runtime/rpc/rpc_session.i"
-	@echo "... src/runtime/rpc/rpc_session.s"
-	@echo "... src/runtime/rpc/rpc_socket_impl.o"
-	@echo "... src/runtime/rpc/rpc_socket_impl.i"
-	@echo "... src/runtime/rpc/rpc_socket_impl.s"
-	@echo "... src/runtime/system_lib_module.o"
-	@echo "... src/runtime/system_lib_module.i"
-	@echo "... src/runtime/system_lib_module.s"
-	@echo "... src/runtime/thread_pool.o"
-	@echo "... src/runtime/thread_pool.i"
-	@echo "... src/runtime/thread_pool.s"
-	@echo "... src/runtime/threading_backend.o"
-	@echo "... src/runtime/threading_backend.i"
-	@echo "... src/runtime/threading_backend.s"
-	@echo "... src/runtime/workspace_pool.o"
-	@echo "... src/runtime/workspace_pool.i"
-	@echo "... src/runtime/workspace_pool.s"
+	@echo "... src/c_dsl_api.o"
+	@echo "... src/c_dsl_api.i"
+	@echo "... src/c_dsl_api.s"
+	@echo "... src/c_runtime_api.o"
+	@echo "... src/c_runtime_api.i"
+	@echo "... src/c_runtime_api.s"
+	@echo "... src/cpu_device_api.o"
+	@echo "... src/cpu_device_api.i"
+	@echo "... src/cpu_device_api.s"
+	@echo "... src/cuda/cuda_device_api.o"
+	@echo "... src/cuda/cuda_device_api.i"
+	@echo "... src/cuda/cuda_device_api.s"
+	@echo "... src/cuda/cuda_module.o"
+	@echo "... src/cuda/cuda_module.i"
+	@echo "... src/cuda/cuda_module.s"
+	@echo "... src/cvm/graph_runtime.o"
+	@echo "... src/cvm/graph_runtime.i"
+	@echo "... src/cvm/graph_runtime.s"
+	@echo "... src/cvm/infer_attr.o"
+	@echo "... src/cvm/infer_attr.i"
+	@echo "... src/cvm/infer_attr.s"
+	@echo "... src/cvm/ops.o"
+	@echo "... src/cvm/ops.i"
+	@echo "... src/cvm/ops.s"
+	@echo "... src/cvm/top/nn/convolution.o"
+	@echo "... src/cvm/top/nn/convolution.i"
+	@echo "... src/cvm/top/nn/convolution.s"
+	@echo "... src/cvm/top/nn/nn.o"
+	@echo "... src/cvm/top/nn/nn.i"
+	@echo "... src/cvm/top/nn/nn.s"
+	@echo "... src/cvm/top/nn/pooling.o"
+	@echo "... src/cvm/top/nn/pooling.i"
+	@echo "... src/cvm/top/nn/pooling.s"
+	@echo "... src/cvm/top/node.o"
+	@echo "... src/cvm/top/node.i"
+	@echo "... src/cvm/top/node.s"
+	@echo "... src/cvm/top/op.o"
+	@echo "... src/cvm/top/op.i"
+	@echo "... src/cvm/top/op.s"
+	@echo "... src/cvm/top/tensor/broadcast.o"
+	@echo "... src/cvm/top/tensor/broadcast.i"
+	@echo "... src/cvm/top/tensor/broadcast.s"
+	@echo "... src/cvm/top/tensor/elemwise.o"
+	@echo "... src/cvm/top/tensor/elemwise.i"
+	@echo "... src/cvm/top/tensor/elemwise.s"
+	@echo "... src/cvm/top/tensor/matrix_op.o"
+	@echo "... src/cvm/top/tensor/matrix_op.i"
+	@echo "... src/cvm/top/tensor/matrix_op.s"
+	@echo "... src/cvm/top/tensor/reduce.o"
+	@echo "... src/cvm/top/tensor/reduce.i"
+	@echo "... src/cvm/top/tensor/reduce.s"
+	@echo "... src/cvm/top/tensor/transform.o"
+	@echo "... src/cvm/top/tensor/transform.i"
+	@echo "... src/cvm/top/tensor/transform.s"
+	@echo "... src/dso_module.o"
+	@echo "... src/dso_module.i"
+	@echo "... src/dso_module.s"
+	@echo "... src/file_util.o"
+	@echo "... src/file_util.i"
+	@echo "... src/file_util.s"
+	@echo "... src/module.o"
+	@echo "... src/module.i"
+	@echo "... src/module.s"
+	@echo "... src/module_util.o"
+	@echo "... src/module_util.i"
+	@echo "... src/module_util.s"
+	@echo "... src/ndarray.o"
+	@echo "... src/ndarray.i"
+	@echo "... src/ndarray.s"
+	@echo "... src/registry.o"
+	@echo "... src/registry.i"
+	@echo "... src/registry.s"
+	@echo "... src/system_lib_module.o"
+	@echo "... src/system_lib_module.i"
+	@echo "... src/system_lib_module.s"
+	@echo "... src/thread_pool.o"
+	@echo "... src/thread_pool.i"
+	@echo "... src/thread_pool.s"
+	@echo "... src/threading_backend.o"
+	@echo "... src/threading_backend.i"
+	@echo "... src/threading_backend.s"
+	@echo "... src/workspace_pool.o"
+	@echo "... src/workspace_pool.i"
+	@echo "... src/workspace_pool.s"
 .PHONY : help
 
 

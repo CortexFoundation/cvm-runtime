@@ -18,8 +18,8 @@ inline bool DotShape(const cvm::NodeAttrs& attrs,
                      std::vector<TShape> *in_attrs,
                      std::vector<TShape> *out_attrs) {
   const MatMulParam& param = cvm::get<MatMulParam>(attrs.parsed);
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   TShape lshape = (*in_attrs)[0];
   TShape rshape = (*in_attrs)[1];
 
@@ -29,7 +29,7 @@ inline bool DotShape(const cvm::NodeAttrs& attrs,
   if (param.transpose_a) std::reverse(lshape.begin(), lshape.end());
   if (param.transpose_b) std::reverse(rshape.begin(), rshape.end());
 
-  CHECK_EQ(lshape[lshape.ndim() - 1], rshape[0])
+  VERIFY_EQ(lshape[lshape.ndim() - 1], rshape[0])
     << "dot shape inconsistent: " << lshape << " X " << rshape;
 
   TShape oshape(lshape.ndim() + rshape.ndim() - 2);
@@ -45,8 +45,8 @@ inline bool DotCorrectLayout(const NodeAttrs& attrs,
                              const std::vector<Layout> *last_ilayouts,
                              std::vector<Layout> *olayouts) {
   const MatMulParam& param = cvm::get<MatMulParam>(attrs.parsed);
-  CHECK_EQ(ilayouts->size(), 2U);
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), 2U);
+  VERIFY_EQ(olayouts->size(), 1U);
   const Layout& lhs = last_ilayouts->at(0).defined() ? last_ilayouts->at(0)
                                                      : ilayouts->at(0);
   const Layout& rhs = last_ilayouts->at(1).defined() ? last_ilayouts->at(1)

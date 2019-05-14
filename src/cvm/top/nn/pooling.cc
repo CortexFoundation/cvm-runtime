@@ -22,17 +22,17 @@ inline bool Pool2DInferShape(const cvm::NodeAttrs& attrs,
                              std::vector<TShape>* in_shape,
                              std::vector<TShape>* out_shape) {
   const T& param = cvm::get<T>(attrs.parsed);
-  CHECK_EQ(in_shape->size(), 1U);
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(in_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
 
   TShape dshape = (*in_shape)[0];
   if (dshape.ndim() ==  0) return false;
 
-  CHECK_GE(dshape.ndim(), 2U)
+  VERIFY_GE(dshape.ndim(), 2U)
     << "Pool2D only support input >= 2-D: input must have height and width";
 
   Layout layout(param.layout);
-  CHECK(layout.contains('H') && layout.contains('W') &&
+  VERIFY(layout.contains('H') && layout.contains('W') &&
         !layout.contains('h') && !layout.contains('w'))
     << "Invalid layout " << layout
     << ". Pool2D layout must have H and W, which cannot be split";
@@ -57,10 +57,10 @@ inline bool Pool2DInferShape(const cvm::NodeAttrs& attrs,
   }
 
   TShape oshape = dshape;
-  CHECK(param.pool_size[0] <= dshape[hidx] + pad_h)
+  VERIFY(param.pool_size[0] <= dshape[hidx] + pad_h)
       << "pool size (" << param.pool_size[0] << ") exceeds input (" << dshape[hidx]
       << " padded to " << (dshape[hidx] + pad_h) << ")";
-  CHECK(param.pool_size[1] <= dshape[widx] + pad_w)
+  VERIFY(param.pool_size[1] <= dshape[widx] + pad_w)
       << "pool size (" << param.pool_size[1] << ") exceeds input (" << dshape[widx]
       << " padded to " << (dshape[widx] + pad_w) << ")";
 
@@ -85,15 +85,15 @@ inline bool Pool2DCorrectLayout(const NodeAttrs& attrs,
                                 const std::vector<Layout> *last_ilayouts,
                                 std::vector<Layout> *olayouts) {
   const T &param = cvm::get<T>(attrs.parsed);
-  CHECK_EQ(ilayouts->size(), 1);
-  CHECK_EQ(last_ilayouts->size(), 1);
-  CHECK_EQ(olayouts->size(), 1);
+  VERIFY_EQ(ilayouts->size(), 1);
+  VERIFY_EQ(last_ilayouts->size(), 1);
+  VERIFY_EQ(olayouts->size(), 1);
 
   Layout input = (*ilayouts)[0];
   const Layout layout(param.layout);
 
   if (input.defined()) {
-    CHECK(input.convertible(layout)) << "Invalid input layout " << input;
+    VERIFY(input.convertible(layout)) << "Invalid input layout " << input;
     if (input.indexof('W') != layout.indexof('W') ||
         input.indexof('H') != layout.indexof('H') ||
         input.contains('w') || input.contains('h')) {
@@ -151,17 +151,17 @@ inline bool GlobalPool2DInferShape(const cvm::NodeAttrs& attrs,
                                    std::vector<TShape>* out_shape) {
   static const Layout kNCHW("NCHW");
   const GlobalPool2DParam& param = cvm::get<GlobalPool2DParam>(attrs.parsed);
-  CHECK_EQ(in_shape->size(), 1U);
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(in_shape->size(), 1U);
+  VERIFY_EQ(out_shape->size(), 1U);
 
   TShape dshape = (*in_shape)[0];
   if (dshape.ndim() ==  0) return false;
 
-  CHECK_GE(dshape.ndim(), 2U)
+  VERIFY_GE(dshape.ndim(), 2U)
     << "Pool2D only support input >= 2-D: input must have height and width";
 
   Layout layout(param.layout);
-  CHECK(layout.contains('H') && layout.contains('W') &&
+  VERIFY(layout.contains('H') && layout.contains('W') &&
         !layout.contains('h') && !layout.contains('w'))
     << "Invalid layout " << layout
     << ". Pool2D layout must have H and W, which cannot be split";
@@ -180,15 +180,15 @@ inline bool GlobalPool2DCorrectLayout(const NodeAttrs& attrs,
                                       const std::vector<Layout> *last_ilayouts,
                                       std::vector<Layout> *olayouts) {
   const GlobalPool2DParam &param = cvm::get<GlobalPool2DParam>(attrs.parsed);
-  CHECK_EQ(ilayouts->size(), 1);
-  CHECK_EQ(last_ilayouts->size(), 1);
-  CHECK_EQ(olayouts->size(), 1);
+  VERIFY_EQ(ilayouts->size(), 1);
+  VERIFY_EQ(last_ilayouts->size(), 1);
+  VERIFY_EQ(olayouts->size(), 1);
 
   Layout input = (*ilayouts)[0];
   const Layout layout(param.layout);
 
   if (input.defined()) {
-    CHECK(input.convertible(layout)) << "Invalid input layout " << input;
+    VERIFY(input.convertible(layout)) << "Invalid input layout " << input;
     if (input.indexof('W') != layout.indexof('W') ||
         input.indexof('H') != layout.indexof('H') ||
         input.contains('w') || input.contains('h')) {

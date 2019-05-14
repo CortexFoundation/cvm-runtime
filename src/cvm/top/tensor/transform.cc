@@ -18,8 +18,8 @@ namespace top {
 inline bool FlattenInferShape(const NodeAttrs& attrs,
                               std::vector<TShape>* in_attrs,
                               std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 1U) << "Input: [data]";
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U) << "Input: [data]";
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape &dshape = (*in_attrs)[0];
   if (dshape.ndim() == 0) return false;
   uint32_t target_dim = 1;
@@ -76,7 +76,7 @@ inline bool ConcatenateInferShape(const NodeAttrs& attrs,
   for (size_t i = 0; i < in_shape->size(); ++i) {
     TShape tmp = (*in_shape)[i];
     if (tmp.ndim()) {
-      CHECK_LT(static_cast<dim_t>(axis), tmp.ndim())
+      VERIFY_LT(static_cast<dim_t>(axis), tmp.ndim())
           << "concat dim " << axis << " out of range of input shape " << tmp;
       has_zero = tmp[axis] == 0 || has_zero;
       size += tmp[axis];
@@ -87,7 +87,7 @@ inline bool ConcatenateInferShape(const NodeAttrs& attrs,
 
   TShape tmp = (*out_shape)[0];
   if (tmp.ndim()) {
-    CHECK_LT(static_cast<dim_t>(axis), tmp.ndim())
+    VERIFY_LT(static_cast<dim_t>(axis), tmp.ndim())
         << "concat dim " << axis << " out of range of input shape " << tmp;
     tmp[axis] = 0;
     shape_assign(&dshape, tmp);
@@ -109,14 +109,14 @@ inline bool ConcatenateCorrectLayout(const NodeAttrs& attrs,
                                      const std::vector<Layout> *last_ilayouts,
                                      std::vector<Layout> *olayouts) {
   const ConcatenateParam& param = cvm::get<ConcatenateParam>(attrs.parsed);
-  CHECK_EQ(ilayouts->size(), last_ilayouts->size());
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), last_ilayouts->size());
+  VERIFY_EQ(olayouts->size(), 1U);
 
   Layout layout;
   if (!ilayouts->at(0).defined()) {
     layout = last_ilayouts->at(0);
   } else if (param.axis >= static_cast<int>(ilayouts->at(0).ndim())) {
-    CHECK(last_ilayouts->at(0).defined())
+    VERIFY(last_ilayouts->at(0).defined())
       << "Current input layout " << ilayouts->at(0)
       << " is invalid but last input layout is not "
          "defined for the first input.";
@@ -186,10 +186,10 @@ inline bool ExpandDimsInferShape(const NodeAttrs& attrs,
                                  std::vector<TShape>* in_shape,
                                  std::vector<TShape>* out_shape) {
   const ExpandDimsParam& param = cvm::get<ExpandDimsParam>(attrs.parsed);
-  CHECK_EQ(in_shape->size(), 1U);
+  VERIFY_EQ(in_shape->size(), 1U);
   const TShape& dshape = in_shape->at(0);
   int ndim = static_cast<int>(dshape.ndim());
-  CHECK(param.axis >= -ndim - 1 && param.axis <= ndim)
+  VERIFY(param.axis >= -ndim - 1 && param.axis <= ndim)
     << "with axis = " << param.axis << " ndim = " << ndim;
   int axis = param.axis < 0 ? ndim + param.axis + 1 : param.axis;
   std::vector<dim_t> oshape;
@@ -265,7 +265,7 @@ inline void SplitParamParser(cvm::NodeAttrs* attrs) {
   if (!std::isdigit(attrs->dict.at("indices_or_sections")[0])) {
     param.equal_split = false;
   } else {
-    CHECK_EQ(param.indices_or_sections.ndim(), 1);
+    VERIFY_EQ(param.indices_or_sections.ndim(), 1);
     param.equal_split = true;
   }
   attrs->parsed = std::move(param);
@@ -282,16 +282,16 @@ inline bool SplitInferShape(const NodeAttrs& attrs,
   if (axis < 0) {
     axis += dshape.ndim();
   }
-  CHECK_LT(axis, dshape.ndim())
+  VERIFY_LT(axis, dshape.ndim())
     << "axis should be within input dimension range but got " <<  axis;
-  CHECK_GT(axis, -1)
+  VERIFY_GT(axis, -1)
     << "axis should be within input dimension range but got " <<  axis;
 
   if (param.equal_split) {
     int num_outputs = param.indices_or_sections[0];
-    CHECK_EQ(out_shape->size(), static_cast<size_t>(num_outputs));
+    VERIFY_EQ(out_shape->size(), static_cast<size_t>(num_outputs));
     TShape oshape = dshape;
-    CHECK_EQ(oshape[axis] % num_outputs, 0)
+    VERIFY_EQ(oshape[axis] % num_outputs, 0)
         << "indices_or_sections need to be able to divide input.shape[axis] got sections "
         << num_outputs << " and dimension " << oshape[axis];
     oshape[axis] /= num_outputs;
@@ -301,18 +301,18 @@ inline bool SplitInferShape(const NodeAttrs& attrs,
     }
   } else {
     dim_t num_outputs = param.indices_or_sections.ndim() + 1;
-    CHECK_EQ(out_shape->size(), static_cast<size_t>(num_outputs));
+    VERIFY_EQ(out_shape->size(), static_cast<size_t>(num_outputs));
     TShape oshape = dshape;
     dim_t begin = 0;
     for (dim_t i = 0; i < num_outputs - 1; ++i) {
-      CHECK_GT(param.indices_or_sections[i], begin)
+      VERIFY_GT(param.indices_or_sections[i], begin)
           << "indices_or_sections need to be a sorted ascending list got "
           << param.indices_or_sections;
       oshape[axis] = param.indices_or_sections[i] - begin;
       begin = param.indices_or_sections[i];
       CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, i, oshape);
     }
-    CHECK_LT(begin, dshape[axis])
+    VERIFY_LT(begin, dshape[axis])
         << "The sum of sections must match the input.shape[axis]";
     oshape[axis] = dshape[axis] - begin;
     CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, num_outputs - 1, oshape);
@@ -355,7 +355,7 @@ inline bool CastInferType(const NodeAttrs& attrs,
                           std::vector<int>* in_attrs,
                           std::vector<int>* out_attrs) {
   const CastParam& param = cvm::get<CastParam>(attrs.parsed);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, param.dtype);
   return true;
 }
@@ -402,9 +402,9 @@ inline bool ReshapeInferShape(const NodeAttrs& attrs,
                               std::vector<TShape>* in_attrs,
                               std::vector<TShape>* out_attrs) {
   const ReshapeParam& param = cvm::get<ReshapeParam>(attrs.parsed);
-  CHECK_GT(param.shape.ndim(), 0);
-  CHECK_EQ(in_attrs->size(), 1U) << "Input: [data]";
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_GT(param.shape.ndim(), 0);
+  VERIFY_EQ(in_attrs->size(), 1U) << "Input: [data]";
+  VERIFY_EQ(out_attrs->size(), 1U);
 
   const TShape &dshape = (*in_attrs)[0];
   if (dshape.ndim() == 0) return false;
@@ -422,11 +422,11 @@ inline bool ReshapeInferShape(const NodeAttrs& attrs,
       ++src_idx;
     } else if (svalue == 0) {
       // keep same
-      CHECK_LT(src_idx, dshape.ndim());
+      VERIFY_LT(src_idx, dshape.ndim());
       oshape.push_back(dshape[src_idx++]);
     } else if (svalue == -1) {
       // inference based on rest
-      CHECK_LT(infer_idx, 0)
+      VERIFY_LT(infer_idx, 0)
           << "One and only one dim can be inferred";
       infer_idx = i;
       oshape.push_back(1);
@@ -438,22 +438,22 @@ inline bool ReshapeInferShape(const NodeAttrs& attrs,
       }
     } else if (svalue == -3) {
       // merge two dims from source
-      CHECK_LT(src_idx + 1, dshape.ndim());
+      VERIFY_LT(src_idx + 1, dshape.ndim());
       dim_t d1 = dshape[src_idx++];
       dim_t d2 = dshape[src_idx++];
       oshape.push_back(d1 * d2);
     } else if (svalue == -4) {
       // split the source dim s into two dims
       // read the left dim and then the right dim (either can be -1)
-      CHECK_LT(i + 2, target_shape.ndim());
-      CHECK_LT(src_idx, dshape.ndim());
+      VERIFY_LT(i + 2, target_shape.ndim());
+      VERIFY_LT(src_idx, dshape.ndim());
       dim_t d0 = dshape[src_idx++];
       int d1 = target_shape[++i];
       int d2 = target_shape[++i];
-      CHECK(d1 != -1 || d2 != -1) << "Split dims cannot both be -1.";
+      VERIFY(d1 != -1 || d2 != -1) << "Split dims cannot both be -1.";
       if (d1 == -1) d1 = d0 / d2;
       if (d2 == -1) d2 = d0 / d1;
-      CHECK_EQ(d1 * d2, static_cast<int>(d0)) <<
+      VERIFY_EQ(d1 * d2, static_cast<int>(d0)) <<
           "Split dims " << d1 << ", " << d2 << " do not divide original dim " << d0;
       oshape.push_back(d1);
       oshape.push_back(d2);
@@ -472,7 +472,7 @@ inline bool ReshapeInferShape(const NodeAttrs& attrs,
     }
   }
   TShape out_shape(oshape.begin(), oshape.end());
-  CHECK_EQ(out_shape.Size(), dshape.Size())
+  VERIFY_EQ(out_shape.Size(), dshape.Size())
       << "Target shape size is different to source. "
       << "Target: " << out_shape
       << "\nSource: " << dshape;
@@ -551,8 +551,8 @@ The significance of each is explained below:
 inline bool ReshapeLikeInferType(const NodeAttrs &attrs,
                                  std::vector<int> *in_attrs,
                                  std::vector<int> *out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
   return true;
 }
@@ -581,8 +581,8 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,
                            std::vector<TShape>* out_attrs) {
   const SqueezeParam& param = cvm::get<SqueezeParam>(attrs.parsed);
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& shp = (*in_attrs)[0];
   if (shp.ndim() == 0) return false;
 
@@ -602,14 +602,14 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
       } else {
         real_axis = param.axis[i];
       }
-      CHECK(real_axis < static_cast<int>(shp.ndim()) && real_axis >= 0);
+      VERIFY(real_axis < static_cast<int>(shp.ndim()) && real_axis >= 0);
       axis_checker.insert(real_axis);
     }
     for (size_t i = 0; i < shp.ndim(); ++i) {
       if (axis_checker.find(i) == axis_checker.end()) {
         oshape.emplace_back(shp[i]);
       } else {
-        CHECK_EQ(shp[i], 1) << "The squeezed axis must have shape 1!"
+        VERIFY_EQ(shp[i], 1) << "The squeezed axis must have shape 1!"
                             << "Want to squeeze " << i
                             << ", which has shape" << shp[i];
       }
@@ -620,7 +620,7 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
     oshape.push_back(1);
   }
   TShape out_shape(oshape.begin(), oshape.end());
-  CHECK_EQ(out_shape.Size(), shp.Size())
+  VERIFY_EQ(out_shape.Size(), shp.Size())
       << "Target shape size is different to source. "
       << "Target: " << out_shape
       << "\nSource: " << shp;
@@ -662,8 +662,8 @@ inline bool TransposeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,
                            std::vector<TShape>* out_attrs) {
   const TransposeParam& param = cvm::get<TransposeParam>(attrs.parsed);
-  CHECK_EQ(in_attrs->size(), 1U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 1U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& shp = (*in_attrs)[0];
   if (shp.ndim() == 0) return false;
 
@@ -673,9 +673,9 @@ inline bool TransposeShape(const cvm::NodeAttrs& attrs,
       ret[i] = shp[shp.ndim() - 1 - i];
     }
   } else {
-    CHECK_EQ(shp.ndim(), param.axes.ndim());
+    VERIFY_EQ(shp.ndim(), param.axes.ndim());
     for (size_t i = 0; i < shp.ndim(); ++i) {
-      CHECK(param.axes[i] < shp.ndim());
+      VERIFY(param.axes[i] < shp.ndim());
       ret[i] = shp[param.axes[i]];
     }
   }
@@ -688,8 +688,8 @@ inline bool TransposeCorrectLayout(const NodeAttrs& attrs,
                                    const std::vector<Layout> *last_ilayouts,
                                    std::vector<Layout> *olayouts) {
   const TransposeParam& param = cvm::get<TransposeParam>(attrs.parsed);
-  CHECK_EQ(ilayouts->size(), 1U);
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), 1U);
+  VERIFY_EQ(olayouts->size(), 1U);
 
   const Layout& input = last_ilayouts->at(0).defined()
                         ? last_ilayouts->at(0)
@@ -704,9 +704,9 @@ inline bool TransposeCorrectLayout(const NodeAttrs& attrs,
         new_layout << input.at(input.ndim() - 1 - i);
       }
     } else {
-      CHECK_EQ(input.ndim(), param.axes.ndim());
+      VERIFY_EQ(input.ndim(), param.axes.ndim());
       for (size_t i = 0; i < input.ndim(); ++i) {
-        CHECK(param.axes[i] < static_cast<int>(input.ndim()));
+        VERIFY(param.axes[i] < static_cast<int>(input.ndim()));
         new_layout << input.at(param.axes[i]);
       }
     }
@@ -804,7 +804,7 @@ inline bool StridedSliceInferShape(const NodeAttrs& attrs,
       int interval = std::abs(end - begin);
       int slice_size = static_cast<int>((interval
                                        + std::abs(stride_vec[i]) - 1) / std::abs(stride_vec[i]));
-      CHECK(stride_vec[i] < 0 ? (end < begin) : (begin < end))
+      VERIFY(stride_vec[i] < 0 ? (end < begin) : (begin < end))
         << ": Input [Begin=" << begin_vec[i] << ", End=" << end_vec[i]
         << "] is invalid for axis=" << i;
       oshape[i] = slice_size;
@@ -898,8 +898,8 @@ CVMUTIL_REGISTER_PARAMETER(TakeParam);
 inline bool TakeInferShape(const NodeAttrs& attrs,
                            std::vector<TShape>* in_shape,
                            std::vector<TShape>* out_shape) {
-  CHECK_EQ(in_shape->size(), 2U);
-  CHECK_EQ(out_shape->size(), 1U);
+  VERIFY_EQ(in_shape->size(), 2U);
+  VERIFY_EQ(out_shape->size(), 1U);
   const TShape& dshape = (*in_shape)[0];
   const TShape& indicesshape = (*in_shape)[1];
   if (dshape.ndim() == 0) return false;
@@ -916,7 +916,7 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
     if (axis < 0) {
       axis += dshape.ndim();
     }
-    CHECK_LT(axis, dshape.ndim());
+    VERIFY_LT(axis, dshape.ndim());
 
     size_t posi = 0;
     for (size_t i = 0; i < dshape.ndim(); ++i) {
@@ -938,9 +938,9 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
 inline bool TakeInferType(const NodeAttrs& attrs,
                           std::vector<int>* in_attrs,
                           std::vector<int>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
-  CHECK_EQ((*in_attrs)[1], kInt32);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ((*in_attrs)[1], kInt32);
   CVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 0, (*in_attrs)[0]);
   CVM_ASSIGN_INPUT_TYPE(attrs, *in_attrs, 1, static_cast<int>(kInt32));
   CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
@@ -951,8 +951,8 @@ inline bool TakeCorrectLayout(const NodeAttrs& attrs,
                               std::vector<Layout> *ilayouts,
                               const std::vector<Layout> *last_ilayouts,
                               std::vector<Layout> *olayouts) {
-  CHECK_EQ(ilayouts->size(), last_ilayouts->size());
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), last_ilayouts->size());
+  VERIFY_EQ(olayouts->size(), 1U);
 
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?
@@ -1005,8 +1005,8 @@ CVMUTIL_REGISTER_PARAMETER(SliceLikeParam);
 inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
                            std::vector<TShape>* in_attrs,
                            std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const SliceLikeParam& param = cvm::get<SliceLikeParam>(attrs.parsed);
   const TShape& src_shape = in_attrs->at(0);
   const TShape& target_shape = in_attrs->at(1);
@@ -1016,7 +1016,7 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
     for (size_t i = 0; i < src_shape.ndim(); ++i) {
       if (i < target_shape.ndim()) {
         end_idx[i] = target_shape[i];
-        CHECK_LE(end_idx[i], src_shape[i])
+        VERIFY_LE(end_idx[i], src_shape[i])
           << "End index of axis " << i << " exceeds input shape: "
           << end_idx[i] << " vs " << src_shape[i];
       }
@@ -1026,11 +1026,11 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
       if (i < 0) {
         i = src_shape.ndim() + i;
       }
-      CHECK_LT(i, target_shape.ndim())
+      VERIFY_LT(i, target_shape.ndim())
         << "Axis " << i << " exceeds dimension "
         << target_shape.ndim()<< " of target_shape.";
       end_idx[i] = target_shape[i];
-      CHECK_LE(end_idx[i], src_shape[i])
+      VERIFY_LE(end_idx[i], src_shape[i])
         << "End index of axis " << i << " exceeds input shape: "
         << end_idx[i] << " vs " << src_shape[i];
     }
@@ -1063,15 +1063,15 @@ CVM_REGISTER_OP(slice_like)
 inline bool WhereShape(const cvm::NodeAttrs& attrs,
                        std::vector<TShape>* in_attrs,
                        std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 3U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 3U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& cond_shape = in_attrs->at(0);
   const TShape& x_shape = in_attrs->at(1);
   const TShape& y_shape = in_attrs->at(2);
-  CHECK_EQ(x_shape, y_shape) << "x and y must have the same shape: "
+  VERIFY_EQ(x_shape, y_shape) << "x and y must have the same shape: "
                              << x_shape << " vs " << y_shape;
   if (cond_shape != x_shape) {
-    CHECK_EQ(cond_shape.ndim(), 1)
+    VERIFY_EQ(cond_shape.ndim(), 1)
       << "Shape of condition " << cond_shape
       << " must be either equal to x or has dimension of 1.";
   }
@@ -1090,8 +1090,8 @@ inline bool WhereCorrectLayout(const NodeAttrs& attrs,
                                std::vector<Layout> *ilayouts,
                                const std::vector<Layout> *last_ilayouts,
                                std::vector<Layout> *olayouts) {
-  CHECK_EQ(ilayouts->size(), last_ilayouts->size());
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), last_ilayouts->size());
+  VERIFY_EQ(olayouts->size(), 1U);
 
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?
@@ -1149,12 +1149,12 @@ Examples::
 inline bool GatherNDInferShape(const cvm::NodeAttrs& attrs,
                                std::vector<TShape>* in_attrs,
                                std::vector<TShape>* out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   const TShape& data_shape = in_attrs->at(0);
   const TShape& indices_shape = in_attrs->at(1);
-  CHECK_GT(indices_shape.ndim(), 1) << "indices must have at least 2 dimensions";
-  CHECK_LE(indices_shape[0], data_shape.ndim()) <<
+  VERIFY_GT(indices_shape.ndim(), 1) << "indices must have at least 2 dimensions";
+  VERIFY_LE(indices_shape[0], data_shape.ndim()) <<
       "dim 0 of indices must be no more than rank of data";
   std::vector<dim_t> oshape;
   for (size_t i = 1; i < indices_shape.ndim(); ++i) {
@@ -1174,8 +1174,8 @@ inline bool GatherNDInferShape(const cvm::NodeAttrs& attrs,
 inline bool GatherNDInferType(const NodeAttrs &attrs,
                               std::vector<int> *in_attrs,
                               std::vector<int> *out_attrs) {
-  CHECK_EQ(in_attrs->size(), 2U);
-  CHECK_EQ(out_attrs->size(), 1U);
+  VERIFY_EQ(in_attrs->size(), 2U);
+  VERIFY_EQ(out_attrs->size(), 1U);
   CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0, (*in_attrs)[0]);
   return true;
 }
@@ -1184,8 +1184,8 @@ inline bool GatherNDCorrectLayout(const NodeAttrs& attrs,
                                   std::vector<Layout> *ilayouts,
                                   const std::vector<Layout> *last_ilayouts,
                                   std::vector<Layout> *olayouts) {
-  CHECK_EQ(ilayouts->size(), last_ilayouts->size());
-  CHECK_EQ(olayouts->size(), 1U);
+  VERIFY_EQ(ilayouts->size(), last_ilayouts->size());
+  VERIFY_EQ(olayouts->size(), 1U);
 
   for (size_t i = 0; i < ilayouts->size(); ++i) {
     const Layout& input = last_ilayouts->at(i).defined() ?

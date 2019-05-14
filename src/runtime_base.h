@@ -13,7 +13,10 @@
 #define API_BEGIN() try {
 /*! \brief every function starts with API_BEGIN();
      and finishes with API_END() or API_END_HANDLE_ERROR */
-#define API_END() } catch(std::runtime_error &_except_) { return CVMAPIHandleException(_except_); } return 0;  // NOLINT(*)
+#define API_END() } \
+  catch(std::runtime_error &_except_) { return CVMAPIHandleException(_except_); } \
+  catch(std::logic_error &_except_) { return CVMAPIHandleLogicException(_except_); \
+  } return 0;  // NOLINT(*)
 /*!
  * \brief every function starts with API_BEGIN();
  *   and finishes with API_END() or API_END_HANDLE_ERROR
@@ -27,5 +30,6 @@
  * \return the return value of API after exception is handled
  */
 int CVMAPIHandleException(const std::runtime_error &e);
+int CVMAPIHandleLogicException(const std::logic_error &e);
 
 #endif  // CVM_RUNTIME_RUNTIME_BASE_H_

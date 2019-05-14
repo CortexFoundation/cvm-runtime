@@ -103,7 +103,8 @@ int main()
         params_arr.data = params_data.c_str();
         params_arr.size = params_data.length();
 
-  //      DLTensor* y1;
+        // json graph
+        DLTensor* y1;
         int out_ndim = 2;
         int64_t out_shape[2] = {1, 1000, };
 
@@ -124,7 +125,7 @@ int main()
         std::cout << "load data and params use: " << (load_end - load_start)*1.0/CLOCKS_PER_SEC << "s" << std::endl;
         std::cout << "start run..\n";
         double cvm_start = omp_get_wtime();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1; i++) {
             RunCVM(x, params_arr, json_data, mod_syslib, "cvm_runtime", y2, (int)kDLCPU);
         }
         double cvm_end = omp_get_wtime();

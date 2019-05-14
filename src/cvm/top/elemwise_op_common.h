@@ -37,7 +37,7 @@ inline bool ElemwiseAttr(const cvm::NodeAttrs& attrs,
 
   auto deduce = [&](std::vector<AttrType> *vec, size_t size, const char *name) {
       for (size_t i = 0; i < size; ++i) {
-        CHECK(assign(&dattr, (*vec)[i]))
+        VERIFY(assign(&dattr, (*vec)[i]))
           << "Incompatible attr in node " << attrs.name << " at " << i << "-th "
           << name << ": " << "expected " << attr_string(dattr)
           << ", got " << attr_string((*vec)[i]);
@@ -48,7 +48,7 @@ inline bool ElemwiseAttr(const cvm::NodeAttrs& attrs,
 
   auto write = [&](std::vector<AttrType> *vec, size_t size, const char *name) {
       for (size_t i = 0; i < size; ++i) {
-        CHECK(assign(&(*vec)[i], dattr))
+        VERIFY(assign(&(*vec)[i], dattr))
           << "Incompatible attr in node " << attrs.name << " at " << i << "-th "
           << name << ": " << "expected " << attr_string(dattr)
           << ", got " << attr_string((*vec)[i]);
@@ -66,10 +66,10 @@ inline bool ElemwiseShape(const NodeAttrs& attrs,
                           std::vector<TShape> *in_attrs,
                           std::vector<TShape> *out_attrs) {
   if (n_in != -1) {
-    CHECK_EQ(in_attrs->size(), static_cast<size_t>(n_in)) << " in operator " << attrs.name;
+    VERIFY_EQ(in_attrs->size(), static_cast<size_t>(n_in)) << " in operator " << attrs.name;
   }
   if (n_out != -1) {
-    CHECK_EQ(out_attrs->size(), static_cast<size_t>(n_out)) << " in operator " << attrs.name;
+    VERIFY_EQ(out_attrs->size(), static_cast<size_t>(n_out)) << " in operator " << attrs.name;
   }
   return ElemwiseAttr<TShape, shape_is_none, shape_assign, true, shape_string>(
     attrs, in_attrs, out_attrs, TShape());
@@ -200,10 +200,10 @@ inline bool ElemwiseType(const NodeAttrs& attrs,
                          std::vector<int> *in_attrs,
                          std::vector<int> *out_attrs) {
   if (n_in != -1) {
-    CHECK_EQ(in_attrs->size(), static_cast<size_t>(n_in)) << " in operator " << attrs.name;
+    VERIFY_EQ(in_attrs->size(), static_cast<size_t>(n_in)) << " in operator " << attrs.name;
   }
   if (n_out != -1) {
-    CHECK_EQ(out_attrs->size(), static_cast<size_t>(n_out)) << " in operator " << attrs.name;
+    VERIFY_EQ(out_attrs->size(), static_cast<size_t>(n_out)) << " in operator " << attrs.name;
   }
   return ElemwiseAttr<int, type_is_none, type_assign, true, type_string>(
     attrs, in_attrs, out_attrs, -1);
@@ -212,7 +212,7 @@ inline bool ElemwiseType(const NodeAttrs& attrs,
 inline bool ElementWiseReduceShape(const NodeAttrs& attrs,
                                    std::vector<TShape> *in_attrs,
                                    std::vector<TShape> *out_attrs) {
-  CHECK_EQ(out_attrs->size(), 1);
+  VERIFY_EQ(out_attrs->size(), 1);
   return ElemwiseAttr<TShape, shape_is_none, shape_assign, true, shape_string>(
     attrs, in_attrs, out_attrs, TShape());
 }
@@ -220,7 +220,7 @@ inline bool ElementWiseReduceShape(const NodeAttrs& attrs,
 inline bool ElementWiseReduceType(const NodeAttrs& attrs,
                                   std::vector<int> *in_attrs,
                                   std::vector<int> *out_attrs) {
-  CHECK_EQ(out_attrs->size(), 1);
+  VERIFY_EQ(out_attrs->size(), 1);
   return ElemwiseAttr<int, type_is_none, type_assign, true, type_string>(
     attrs, in_attrs, out_attrs, -1);
 }
@@ -241,7 +241,7 @@ inline bool ElemwiseFixedLayout(const NodeAttrs& attrs,
         if (!target->defined()) {
           *target = vec->at(i);
         }
-        CHECK_EQ(*target, vec->at(i))
+        VERIFY_EQ(*target, vec->at(i))
           << "Incompatible attr in node " << attrs.name << " at " << i << "-th "
           << name << ": " << "expected " << *target
           << ", got " << vec->at(i);
@@ -312,7 +312,7 @@ inline bool ElemwiseArbitraryLayout(const NodeAttrs& attrs,
   Layout in;
   for (size_t i = 0; i < in_size; ++i) {
     if (!in.defined()) in = in_layouts->at(i);
-    CHECK_EQ(in, in_layouts->at(i))
+    VERIFY_EQ(in, in_layouts->at(i))
       << "Incompatible attr in node " << attrs.name << " at " << i
       << "-th input: expected " << in
       << ", got " << in_layouts->at(i);
@@ -335,30 +335,30 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
                                          std::vector<Layout> *in_layouts,
                                          const std::vector<Layout> *last_in_layouts,
                                          std::vector<Layout> *out_layouts) {
-  CHECK_EQ(in_layouts->size(), 2U);
-  CHECK_EQ(last_in_layouts->size(), 2U);
-  CHECK_EQ(out_layouts->size(), 1U);
+  VERIFY_EQ(in_layouts->size(), 2U);
+  VERIFY_EQ(last_in_layouts->size(), 2U);
+  VERIFY_EQ(out_layouts->size(), 1U);
 
   const Layout& lhs_last = (*last_in_layouts)[0];
   const Layout& rhs_last = (*last_in_layouts)[1];
-  CHECK((lhs_last.defined() && rhs_last.defined()) ||
+  VERIFY((lhs_last.defined() && rhs_last.defined()) ||
         (!lhs_last.defined() && !rhs_last.defined()));
 
   const Layout& lhs = (*in_layouts)[0];
   const Layout& rhs = (*in_layouts)[1];
 
   if (!lhs.defined() && !rhs.defined()) {
-    CHECK(!lhs_last.defined() && !rhs_last.defined())
+    VERIFY(!lhs_last.defined() && !rhs_last.defined())
       << "Lost input layouts in node " << attrs.name
       << ": last inferred lhs=" << lhs_last << ", rhs=" << rhs_last;
     return true;
   } else if (!lhs.defined()) {
-    CHECK(!lhs_last.defined() && !rhs_last.defined());
+    VERIFY(!lhs_last.defined() && !rhs_last.defined());
     in_layouts->at(0) = rhs;
     out_layouts->at(0) = rhs;
     return true;
   } else if (!rhs.defined()) {
-    CHECK(!lhs_last.defined() && !rhs_last.defined());
+    VERIFY(!lhs_last.defined() && !rhs_last.defined());
     in_layouts->at(1) = lhs;
     out_layouts->at(0) = lhs;
     return true;
@@ -375,10 +375,10 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
     in_layouts->at(1) = lhs;
     out_layouts->at(0) = lhs;
   } else {
-    CHECK(lhs_last.defined() && rhs_last.defined())
+    VERIFY(lhs_last.defined() && rhs_last.defined())
       << "Incompatible input layouts in node " << attrs.name
       << ". lhs: " << lhs << ", rhs: " << rhs;
-    CHECK(lhs_last == rhs_last);
+    VERIFY(lhs_last == rhs_last);
     in_layouts->at(0) = lhs_last;
     in_layouts->at(1) = rhs_last;
     out_layouts->at(0) = lhs_last;
@@ -453,7 +453,7 @@ inline bool ElemwiseBinaryKeepLeftLayout(const NodeAttrs& attrs,
     "FInferType", [](const NodeAttrs& attrs,                        \
                      std::vector<int>* in_attrs,                    \
                      std::vector<int>* out_attrs) {                 \
-      CHECK_EQ(out_attrs->size(), 1U);                              \
+      VERIFY_EQ(out_attrs->size(), 1U);                              \
       CVM_ASSIGN_OUTPUT_TYPE(attrs, *out_attrs, 0,                 \
         static_cast<int>(kInt32));                                  \
       return true;                                                  \

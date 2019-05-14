@@ -108,7 +108,7 @@ int CvmRuntime::GetInputIndex(const std::string& name) {
  * \param data_in The input data.
  */
 void CvmRuntime::SetInput(int index, DLTensor* data_in) {
-  CHECK_LT(static_cast<size_t>(index), input_nodes_.size());
+  VERIFY_LT(static_cast<size_t>(index), input_nodes_.size());
   uint32_t eid = this->entry_id(input_nodes_[index], 0);
   data_entry_[eid].CopyFrom(data_in);
 }
@@ -127,7 +127,7 @@ int CvmRuntime::NumOutputs() const {
  * \return NDArray corresponding to given input node index.
  */
 NDArray CvmRuntime::GetInput(int index) const {
-  CHECK_LT(static_cast<size_t>(index), input_nodes_.size());
+  VERIFY_LT(static_cast<size_t>(index), input_nodes_.size());
   uint32_t eid = this->entry_id(input_nodes_[index], 0);
   return data_entry_[eid];
 }
@@ -138,7 +138,7 @@ NDArray CvmRuntime::GetInput(int index) const {
  * \return NDArray corresponding to given output node index.
  */
 NDArray CvmRuntime::GetOutput(int index) const {
-  CHECK_LT(static_cast<size_t>(index), outputs_.size());
+  VERIFY_LT(static_cast<size_t>(index), outputs_.size());
   uint32_t eid = this->entry_id(outputs_[index]);
   return data_entry_[eid];
 }
@@ -148,14 +148,14 @@ NDArray CvmRuntime::GetOutput(int index) const {
  * \param data_out the output data.
  */
 void CvmRuntime::CopyOutputTo(int index, DLTensor* data_out) {
-  CHECK_LT(static_cast<size_t>(index), outputs_.size());
+  VERIFY_LT(static_cast<size_t>(index), outputs_.size());
   uint32_t eid = this->entry_id(outputs_[index]);
 
   // Check the shapes to avoid receiving in different dimension but same size.
   const NDArray& data = data_entry_[eid];
-  CHECK_EQ(data->ndim, data_out->ndim);
+  VERIFY_EQ(data->ndim, data_out->ndim);
   for (int32_t j = 0; j < data->ndim; ++j) {
-    CHECK_EQ(data->shape[j], data_out->shape[j]);
+    VERIFY_EQ(data->shape[j], data_out->shape[j]);
   }
 
   data_entry_[eid].CopyTo(data_out);
@@ -172,26 +172,26 @@ void CvmRuntime::LoadParams(const std::string& param_blob) {
 
 void CvmRuntime::LoadParams(utils::Stream* strm) {
   uint64_t header, reserved;
-  CHECK(strm->Read(&header))
+  VERIFY(strm->Read(&header))
       << "Invalid parameters file format";
-  CHECK(header == kCVMNDArrayListMagic)
+  VERIFY(header == kCVMNDArrayListMagic)
       << "Invalid parameters file format";
-  CHECK(strm->Read(&reserved))
+  VERIFY(strm->Read(&reserved))
       << "Invalid parameters file format";
 
   std::vector<std::string> names;
-  CHECK(strm->Read(&names))
+  VERIFY(strm->Read(&names))
       << "Invalid parameters file format";
   uint64_t sz;
   strm->Read(&sz);
   size_t size = static_cast<size_t>(sz);
-  CHECK(size == names.size())
+  VERIFY(size == names.size())
       << "Invalid parameters file format";
   for (size_t i = 0; i < size; ++i) {
     int in_idx = GetInputIndex(names[i]);
-    CHECK_GE(in_idx, 0) << "Found param for non-existent input: " << names[i];
+    VERIFY_GE(in_idx, 0) << "Found param for non-existent input: " << names[i];
     uint32_t eid = this->entry_id(input_nodes_[in_idx], 0);
-    CHECK_LT(eid, data_entry_.size());
+    VERIFY_LT(eid, data_entry_.size());
 
     // The data_entry is allocated on device, NDArray.load always load the array into CPU.
     NDArray temp;
@@ -226,17 +226,17 @@ void CvmRuntime::SetupStorage() {
     for (int64_t sz : attrs_.shape[i]) {
       size *= static_cast<size_t>(sz);
     }
-    CHECK_GE(storage_id, 0) << "Do not support runtime shape op";
+    VERIFY_GE(storage_id, 0) << "Do not support runtime shape op";
     DLDataType t = vtype[i];
     size_t bits = t.bits * t.lanes;
-    CHECK(bits % 8U ==  0U || bits ==1U);
+    VERIFY(bits % 8U ==  0U || bits ==1U);
     size_t bytes = ((bits + 7U) / 8U) * size;
 
     uint32_t sid = static_cast<uint32_t>(storage_id);
     if (sid >= pool_entry.size()) {
       pool_entry.resize(sid + 1, {0, -1});
     } else {
-      CHECK(pool_entry[sid].device_type == -1 ||
+      VERIFY(pool_entry[sid].device_type == -1 ||
             pool_entry[sid].device_type == device_type)
           << "The same pool entry cannot be assigned to multiple devices";
     }
@@ -250,7 +250,7 @@ void CvmRuntime::SetupStorage() {
   std::vector<CVMContext> pool_contexts;
 
   // Allocate the space.
-  for (auto i = 0; i < pool_entry.size(); ++i) {
+  for (unsigned i = 0; i < pool_entry.size(); ++i) {
     PoolEntry& pit = pool_entry[i];
     // This for loop is very fast since there are usually only a couple of
     // devices available on the same hardware.
@@ -275,7 +275,7 @@ void CvmRuntime::SetupStorage() {
   }
 
   for (auto ctx: pool_contexts) {
-    int it = 0;
+    unsigned it = 0;
     auto &history_pool_map = CvmRuntime::history_storage_pool_;
     if (history_pool_map.find(ctx) == history_pool_map.end()) {
       history_pool_map[ctx] = std::vector<std::pair<int64_t, NDArray> >();
@@ -327,7 +327,7 @@ void CvmRuntime::SetupStorage() {
   data_entry_.resize(num_node_entries());
   for (size_t i = 0; i < data_entry_.size(); ++i) {
     int storage_id = attrs_.storage_id[i];
-    CHECK_LT(static_cast<size_t>(storage_id), storage_pool_.size());
+    VERIFY_LT(static_cast<size_t>(storage_id), storage_pool_.size());
     data_entry_[i] =
         storage_pool_[storage_id].CreateView(attrs_.shape[i], vtype[i]);
   }
@@ -347,7 +347,7 @@ void CvmRuntime::SetupOpExecs() {
       uint32_t eid = this->entry_id(nid, index);
       args.push_back(*(data_entry_[eid].operator->()));
     }
-    CHECK(inode.op_type == "cvm_op") << "Can only take cvm_op as op";
+    VERIFY(inode.op_type == "cvm_op") << "Can only take cvm_op as op";
 
     op_execs_[nid] = CreateCVMOp(inode.param, attrs_.op_attrs[nid], args, inode.inputs.size());
   }
@@ -384,22 +384,20 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     }
   }
   std::stringstream ss; ss << op_attrs;
-// std::cout << "op_attr = " << op_attrs << "\n";
   utils::JSONReader reader(&ss);
   std::string kv;
   reader.BeginObject();
 // std::cout << param.func_name << std::endl;
   while (reader.NextObjectItem(&kv)) {
-      std::string val;
-      reader.Read(&val);
-  //    std::cout << kv << " " << val << "\n";
-      CVMValue v;
-      //TODO leak
+    std::string val;
+    reader.Read(&val);
+    CVMValue v;
+    //TODO leak
     auto tmp = new char[val.size()  + 1];
     strcpy(tmp, val.c_str());
-      v.v_str = const_cast<const char*>(tmp);
-      arg_ptr->arg_values.push_back(v);
-      arg_ptr->arg_tcodes.push_back(kStr);
+    v.v_str = const_cast<const char*>(tmp);
+    arg_ptr->arg_values.push_back(v);
+    arg_ptr->arg_tcodes.push_back(kStr);
   }
 
   if (param.func_name == "__nop") {
@@ -475,7 +473,7 @@ PackedFunc CvmRuntime::GetFunction(
         } else {
           in_idx = args[0];
         }
-        CHECK_GE(in_idx, 0);
+        VERIFY_GE(in_idx, 0);
         *rv = this->GetInput(in_idx);
       });
   } else if (name == "get_num_outputs") {
@@ -524,36 +522,36 @@ std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args) {
 // Eventually, we will only probably pass CVMContext for all the languages.
 CVM_REGISTER_GLOBAL("cvm.cvm_runtime.create")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
-    CHECK_GE(args.num_args, 4)
-        << "The expected number of arguments for graph_runtime.create is "
-           "at least 4, but it has "
-        << args.num_args;
-    const auto& contexts = CVMGetAllContext(args);
-
-    *rv = CvmRuntimeCreate(args[0], args[1], contexts);
+    try {
+      VERIFY_GE(args.num_args, 4)
+          << "The expected number of arguments for graph_runtime.create is "
+             "at least 4, but it has "
+          << args.num_args;
+      const auto& contexts = CVMGetAllContext(args);
+      std::cout << "args: " << args.num_args << std::endl;
+      *rv = CvmRuntimeCreate(args[0], args[1], contexts);
+    } catch (std::logic_error &err) {
+      *rv = -1;
+    } catch (std::runtime_error &err) {
+      *rv = -2;
+    }
   });
 
-CVM_REGISTER_GLOBAL("cvm.cvm_runtime.remote_create")
-  .set_body([](CVMArgs args, CVMRetValue* rv) {
-    CHECK_GE(args.num_args, 4) << "The expected number of arguments for "
-                                  "graph_runtime.remote_create is "
-                                  "at least 4, but it has "
-                               << args.num_args;
-    void* mhandle = args[1];
-    const auto& contexts = CVMGetAllContext(args);
-    *rv = CvmRuntimeCreate(
-        args[0], *static_cast<cvm::runtime::Module*>(mhandle), contexts);
-  });
 
 CVM_REGISTER_GLOBAL("cvm.cvm_runtime.estimate_ops")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
-    CHECK_GE(args.num_args, 1) << "The expected number of arguments for "
-                                  "graph_runtime.estimate_ops is "
-                                  "at least 1, but it has "
-                               << args.num_args;
-    *rv = CvmRuntime::EstimateOps(args[0]);
+    try {
+      VERIFY_GE(args.num_args, 1) << "The expected number of arguments for "
+                                    "graph_runtime.estimate_ops is "
+                                    "at least 1, but it has "
+                                  << args.num_args;
+
+      *rv = CvmRuntime::EstimateOps(args[0]);
+    } catch (std::logic_error &err) {
+      *rv = -1;
+    } catch (std::runtime_error &err) {
+      *rv = -2;
+    }
   });
-
-
 }  // namespace runtime
 }  // namespace cvm
