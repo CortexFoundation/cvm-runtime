@@ -74,7 +74,7 @@ void compare_result(const char *filename, vector<char>& data){
     for(int i = 0; i < data.size(); i++){
       int value;
       fscanf(fp, "%d ", &value);
-      assert((int)data[i] == value);
+      assert((int8_t)data[i] == value);
     }
     fclose(fp);
     printf("compare result: success\n\n");
@@ -279,12 +279,12 @@ int run_LIF(string model_root, int device_type = 0) {
   } else {
     std::cout << "output size = " << output.size() << "\n";
     for (auto i = 0; i < std::min(6UL * 10, output.size()); i++) {
-      std::cout << (int32_t)output[i] << " ";
+      std::cout << (int8_t)output[i] << " ";
     }
     std::cout << "\n";
     if (output.size() > 60) {
       for (auto i = (size_t)(std::max(0, ((int)(output.size()) - 6 * 10))); i < output.size(); i++) {
-        std::cout << (int32_t)output[i] << " ";
+        std::cout << (int8_t)output[i] << " ";
       }
       std::cout << "\n";
     }
@@ -331,12 +331,12 @@ void test_thread() {
 
 int test_models(int device_type = 0) {
   auto model_roots = {
-    "/data/std_out/null",
-    "/data/std_out/resnet50_mxg",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/trec",
-    "/data/new_cvm/yolo3_darknet53_voc/data",
+//    "/data/std_out/null",
+//    "/data/std_out/resnet50_mxg",
+//    "/data/std_out/resnet50_v2",
+//    "/data/std_out/qd10_resnet20_v2",
+//    "/data/std_out/trec",
+//    "/data/new_cvm/yolo3_darknet53_voc/data",
     "/data/lz_model_storage/dcnet_mnist_v1/data",
     "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
     "/data/lz_model_storage/resnet50_v1_imagenet/data",
@@ -348,32 +348,32 @@ int test_models(int device_type = 0) {
     "/data/lz_model_storage/squeezenet_gcv1.1/data",
     "/data/lz_model_storage/squeezenet_gcv1.0/data",
     // invalid has strange attribute in operator elemwise_add.
-    //"/data/lz_model_storage/octconv_resnet26_0.250/data",
-    "/data/std_out/resnet50_mxg/",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/random_3_0/",
-    "/data/std_out/random_3_1/",
-    "/data/std_out/random_3_2/",
-    "/data/std_out/random_3_3/",
-    "/data/std_out/random_3_4/",
-    "/data/std_out/random_3_5/",
-    "/data/std_out/random_4_0/",
-    "/data/std_out/random_4_1/",
-    // "/data/std_out/random_4_2/",
-    // "/data/std_out/random_4_3/",
-    // "/data/std_out/random_4_4/",
-    "/data/std_out/random_4_5/",
-    "/data/std_out/random_4_6/",
-    "/data/std_out/random_4_7/",
-    "/data/std_out/random_4_8/",
-    "/data/std_out/random_4_9/",
-    "/data/std_out/log2",
-    "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
-    "/data/std_out/lr_attr",
-   // "/data/std_out/non_in",
-    "/data/std_out/shufflenet",
-    "/data/std_out/ssd",
+//    //"/data/lz_model_storage/octconv_resnet26_0.250/data",
+//    "/data/std_out/resnet50_mxg/",
+//    "/data/std_out/resnet50_v2",
+//    "/data/std_out/qd10_resnet20_v2",
+//    "/data/std_out/random_3_0/",
+//    "/data/std_out/random_3_1/",
+//    "/data/std_out/random_3_2/",
+//    "/data/std_out/random_3_3/",
+//    "/data/std_out/random_3_4/",
+//    "/data/std_out/random_3_5/",
+//    "/data/std_out/random_4_0/",
+//    "/data/std_out/random_4_1/",
+//    // "/data/std_out/random_4_2/",
+//    // "/data/std_out/random_4_3/",
+//    // "/data/std_out/random_4_4/",
+//    "/data/std_out/random_4_5/",
+//    "/data/std_out/random_4_6/",
+//    "/data/std_out/random_4_7/",
+//    "/data/std_out/random_4_8/",
+//    "/data/std_out/random_4_9/",
+//    "/data/std_out/log2",
+//    "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
+//    "/data/std_out/lr_attr",
+//   // "/data/std_out/non_in",
+//    "/data/std_out/shufflenet",
+//    "/data/std_out/ssd",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);
