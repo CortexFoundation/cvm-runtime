@@ -2,7 +2,9 @@
 #include "nms.h"
 
 #include "omp.h"
-//#include <immintrin.h>
+#ifdef AVX2
+#include <immintrin.h>
+#endif
 
 #define CVM_PROFILING
 
@@ -99,66 +101,68 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense")
 #endif
 });
 
-//void transpose_int8_avx256(const int8_t *a, const int8_t *b, const int32_t *bias,
-//    int32_t *c, const int M, const int K, const int N){
-//  std::shared_ptr<int8_t> tr_b(new int8_t[K*N]);
-//
-//  int i = 0, j = 0;
-//  const int32_t tK = K / 32 * 32;
-//  const int32_t tN = N / 32 * 32;
-//  for(i = 0; i < tK; i+=32){
-//    for(j = 0; j < tN; j+=32){
-//      int8_t tile[32][32];
-//      for(int ti = 0; ti < 32; ti++){
-//        for(int tj = 0; tj < 32; tj++){
-//          tile[tj][ti] = b[(i+ti)*N + j+tj];
-//        }
-//      }
-//      for(int ti = 0; ti < 32; ti++){
-//        for(int tj = 0; tj < 32; tj++){
-//          tr_b.get()[(j+ti) * K + i + tj] = tile[ti][tj];
-//        }
-//      }
-//    }
-//    for(int ti = 0; ti < 32; ti++){
-//      for(int tj = j; tj < N; tj++){
-//        tr_b.get()[tj * K + i+ti] = b[(i+ti) * N + tj];
-//      }
-//    }
-//  }
-//  for(; i < K; i++){
-//    for(j = 0; j < N; j++){
-//      tr_b.get()[j * K + i] = b[i * N + j];
-//    }
-//  }
-//  int16_t int16[16];
-//  for(int i = 0; i < 16; i++) int16[i] = 1;
-//  __m256i vint16 = _mm256_loadu_si256((__m256i*)&int16);
-//
-//  int blocks = K / 32 * 32;
-//  for(int i = 0; i < M; i++){
-//    int32_t bV = bias != NULL ? bias[i] : 0;
-//    for(int j = 0; j < N; j++){
-//      __m256i vc = _mm256_setzero_si256();
-//      int k = 0;
-//      for(k = 0; k < blocks; k+=32){
-//        __m256i va = _mm256_loadu_si256((__m256i*)&a[i*K+k]);
-//        __m256i vb = _mm256_loadu_si256((__m256i*)&tr_b.get()[j*K+k]);
-//        __m256i vresult1 = _mm256_maddubs_epi16(vb, va);
-//        __m256i vresult2 = _mm256_madd_epi16(vresult1, vint16);
-//        vc = _mm256_add_epi32(vresult2, vc);
-//      }
-//      int32_t sum = 0;
-//      for(int ti = 0; ti < 8; ti++){
-//        sum += ((int32_t*)&vc)[ti];
-//      }
-//      for(; k < K; k++){
-//        sum += a[i * K + k] * tr_b.get()[j * K + k];
-//      }
-//      c[i*N+j] = sum + bV;
-//    }
-//  }
-//}
+#ifdef AVX2
+void transpose_int8_avx256(const int8_t *a, const int8_t *b, const int32_t *bias,
+    int32_t *c, const int M, const int K, const int N){
+  std::shared_ptr<int8_t> tr_b(new int8_t[K*N]);
+
+  int i = 0, j = 0;
+  const int32_t tK = K / 32 * 32;
+  const int32_t tN = N / 32 * 32;
+  for(i = 0; i < tK; i+=32){
+    for(j = 0; j < tN; j+=32){
+      int8_t tile[32][32];
+      for(int ti = 0; ti < 32; ti++){
+        for(int tj = 0; tj < 32; tj++){
+          tile[tj][ti] = b[(i+ti)*N + j+tj];
+        }
+      }
+      for(int ti = 0; ti < 32; ti++){
+        for(int tj = 0; tj < 32; tj++){
+          tr_b.get()[(j+ti) * K + i + tj] = tile[ti][tj];
+        }
+      }
+    }
+    for(int ti = 0; ti < 32; ti++){
+      for(int tj = j; tj < N; tj++){
+        tr_b.get()[tj * K + i+ti] = b[(i+ti) * N + tj];
+      }
+    }
+  }
+  for(; i < K; i++){
+    for(j = 0; j < N; j++){
+      tr_b.get()[j * K + i] = b[i * N + j];
+    }
+  }
+  int16_t int16[16];
+  for(int i = 0; i < 16; i++) int16[i] = 1;
+  __m256i vint16 = _mm256_loadu_si256((__m256i*)&int16);
+
+  int blocks = K / 32 * 32;
+  for(int i = 0; i < M; i++){
+    int32_t bV = bias != NULL ? bias[i] : 0;
+    for(int j = 0; j < N; j++){
+      __m256i vc = _mm256_setzero_si256();
+      int k = 0;
+      for(k = 0; k < blocks; k+=32){
+        __m256i va = _mm256_loadu_si256((__m256i*)&a[i*K+k]);
+        __m256i vb = _mm256_loadu_si256((__m256i*)&tr_b.get()[j*K+k]);
+        __m256i vresult1 = _mm256_maddubs_epi16(vb, va);
+        __m256i vresult2 = _mm256_madd_epi16(vresult1, vint16);
+        vc = _mm256_add_epi32(vresult2, vc);
+      }
+      int32_t sum = 0;
+      for(int ti = 0; ti < 8; ti++){
+        sum += ((int32_t*)&vc)[ti];
+      }
+      for(; k < K; k++){
+        sum += a[i * K + k] * tr_b.get()[j * K + k];
+      }
+      c[i*N+j] = sum + bV;
+    }
+  }
+}
+#endif
 
 void transpose(const int8_t *A, int8_t *B, int K, int N) {
     for(int i = 0; i < N; i++) {
@@ -484,13 +488,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
       const int32_t M = out_channels;
       const int32_t K = in_channels * filter_h * filter_w;
       const int32_t N = o_h * o_w;
-      //if(has_negetive) {
+      if(has_negetive) {
         matrix_mul(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
             M, K, N);
-      //}else{
-        //transpose_int8_avx256(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
-       //     M, K, N);
-      //}
+      }else{
+#if AVX2
+        transpose_int8_avx256(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
+            M, K, N);
+#else
+        matrix_mul(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
+            M, K, N);
+#endif
+      }
     }
 #ifdef CVM_PROFILING
     cvm_op_chnwise_conv_cnt += omp_get_wtime() - start;
