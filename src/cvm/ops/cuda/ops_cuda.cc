@@ -13,7 +13,6 @@
 #include <string>
 #include <memory>
 #include <utility>
-//#include <immintrin.h>
 #include "../../graph_runtime.h"
 
 #ifdef CVM_RUNTIME_CUDA
