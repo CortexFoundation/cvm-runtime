@@ -6,8 +6,6 @@
 #include <immintrin.h>
 #endif
 
-#define CVM_PROFILING
-
 namespace cvm {
 namespace runtime {
 
@@ -24,6 +22,9 @@ double cvm_op_chnwise_conv_cnt = 0;
 double cvm_op_chnwise_conv1x1_cnt = 0;
 double cvm_op_depthwise_conv_cnt = 0;
 double cvm_op_depthwise_conv1x1_cnt = 0;
+double cvm_op_clip_cnt = 0;
+double cvm_op_cvm_shift_cnt = 0;
+double cvm_op_broadcast_cnt = 0;
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
