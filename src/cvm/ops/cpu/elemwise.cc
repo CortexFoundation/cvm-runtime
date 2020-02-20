@@ -2,10 +2,8 @@
 
 namespace cvm {
 namespace runtime {
-
-extern double cvm_op_elemwise_cnt;
-double cvm_op_clip_cnt = 0;
-double cvm_op_cvm_shift_cnt = 0;
+  
+//extern double cvm_op_elemwise_cnt;
 
 typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
 
@@ -195,6 +193,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
+#ifdef CVM_PROFILING
+    double start = omp_get_wtime();
+#endif
     DLTensor *a = args[0];
     DLTensor *c = args[1];
     void *_attr = args[2];
@@ -211,6 +212,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
       int32_t shift_a = a_data[i] << b;
       c_data[i] = std::max(std::min(shift_a, max), min);
     }
+#ifdef CVM_PROFILING
+    cvm_op_cvm_shift_cnt += omp_get_wtime() - start;
+#endif
 });
 }
 }
