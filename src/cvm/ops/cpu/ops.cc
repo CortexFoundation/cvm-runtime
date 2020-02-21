@@ -2,9 +2,9 @@
 #include "nms.h"
 
 #include "omp.h"
+#ifdef AVX2
 #include <immintrin.h>
-
-#define CVM_PROFILING
+#endif
 
 namespace cvm {
 namespace runtime {
@@ -22,6 +22,9 @@ double cvm_op_chnwise_conv_cnt = 0;
 double cvm_op_chnwise_conv1x1_cnt = 0;
 double cvm_op_depthwise_conv_cnt = 0;
 double cvm_op_depthwise_conv1x1_cnt = 0;
+double cvm_op_clip_cnt = 0;
+double cvm_op_cvm_shift_cnt = 0;
+double cvm_op_broadcast_cnt = 0;
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
@@ -99,6 +102,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense")
 #endif
 });
 
+#ifdef AVX2
 void transpose_int8_avx256(const int8_t *a, const int8_t *b, const int32_t *bias,
     int32_t *c, const int M, const int K, const int N){
   std::shared_ptr<int8_t> tr_b(new int8_t[K*N]);
@@ -159,6 +163,7 @@ void transpose_int8_avx256(const int8_t *a, const int8_t *b, const int32_t *bias
     }
   }
 }
+#endif
 
 void transpose(const int8_t *A, int8_t *B, int K, int N) {
     for(int i = 0; i < N; i++) {
@@ -488,8 +493,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
         matrix_mul(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
             M, K, N);
       }else{
+#if AVX2
         transpose_int8_avx256(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
             M, K, N);
+#else
+        matrix_mul(int8_filter.get(), data_col.get(), b_data, y_data + i * out_channels * o_h * o_w,
+            M, K, N);
+#endif
       }
     }
 #ifdef CVM_PROFILING

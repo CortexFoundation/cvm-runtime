@@ -1,4 +1,4 @@
-#include "cuda_ops.h"
+#include "./cuda_ops.h"
 
 template<typename F>
 __global__ void kernel_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64_t n, F const &op){
