@@ -1561,4 +1561,6 @@ const char* cuda_where(const int32_t *x_data, const int32_t *y_data, const int32
     const int32_t blockSize = shape0;
     kernel_where_shape0<<<blockSize, threadSize>>>(x_data, y_data, condition_data, result_data, shape0, n);
   }
+  cudaError_t error = cudaGetLastError();
+  return check_cuda_error(error);
 }
