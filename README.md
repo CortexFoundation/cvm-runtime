@@ -5,8 +5,8 @@ CVM Runtime
 
 ## Performance
 
-model  Cortex\-A57(s) | intel E5\-2650(s) | 
--|-
+model|  Cortex\-A57(s) | intel E5\-2650(s) | 
+-|-|-
 resnet50_mxg | 1.2076| 0.3807
 resnet50_v2 |1.4674| 0.5005
 qd10_resnet20_v2|0.2944|0.1605
