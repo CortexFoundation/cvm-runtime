@@ -4,7 +4,6 @@ CVM Runtime
 
 
 ## Performance
-cpu: multi cpu > avx2 > 1 cpu
 
 model|  Jetson Nano \- Cortex\-A57(s) | Intel E5\-2650(s) |  Jetson Nano \- GPU(128 CUDA Cores)(s) | 1080Ti(3584 CUDA Cores)(s)
 -|-|-|-|-
