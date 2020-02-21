@@ -74,7 +74,7 @@ void compare_result(const char *filename, vector<char>& data){
     for(int i = 0; i < data.size(); i++){
       int value;
       fscanf(fp, "%d ", &value);
-      assert((int)data[i] == value);
+      assert((int32_t)data[i] == value);
     }
     fclose(fp);
     printf("compare result: success\n\n");
@@ -99,12 +99,14 @@ int run_LIF(string model_root, int device_type = 0) {
   cvm::runtime::cvm_op_broadcast_cnt = 0;
   cvm::runtime::cvm_op_concat_cnt = 0;
   cvm::runtime::cvm_op_upsampling_cnt = 0;
+  cvm::runtime::cvm_op_elemwise_cnt = 0;
   cvm::runtime::cvm_op_inline_matmul_cnt = 0;
   cvm::runtime::cvm_op_chnwise_conv_cnt = 0;
   cvm::runtime::cvm_op_depthwise_conv_cnt = 0;
   cvm::runtime::cvm_op_chnwise_conv1x1_cnt = 0;
 #endif
 
+  //printf("the elewise cnt = %.4f\n", cvm::runtime::cvm_op_elemwise_cnt);
   string json_path = model_root + "/symbol";
   string params_path = model_root + "/params";
   cerr << "load " << json_path << "\n";
@@ -198,10 +200,13 @@ int run_LIF(string model_root, int device_type = 0) {
   CHECK_STATUS(status, "free model failed");
 #if(USE_GPU == 0)
   double ellapsed_time = (omp_get_wtime() - start) / n_run;
-  cout << "total time : " << ellapsed_time / n_run << "\n";
+  cout << "total time : " << ellapsed_time << "\n";
   cout << "total gemm.trans time: " << cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run << "\n";
   cout << "total  gemm.gemm time: " << cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run << "\n";
   cout << "total     im2col time: " << cvm::runtime::im2col_cnt / n_run<< "\n";
+  cout << "total matmul     time: " << cvm::runtime::cvm_op_inline_matmul_cnt/ n_run << endl; 
+  cout << "total chnconv2d1x1 time: " << cvm::runtime::cvm_op_chnwise_conv1x1_cnt / n_run << endl; 
+ 
   double sum_time = 0;
   sum_time +=  cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run;
   sum_time +=  cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run;
@@ -218,11 +223,9 @@ int run_LIF(string model_root, int device_type = 0) {
   cout << "total  broadcast time: " <<  sum_time << "/" << ellapsed_time
     << " " <<  sum_time / ellapsed_time <<"\n";
 
-
   sum_time =  cvm::runtime::cvm_op_clip_cnt / n_run;
   cout << "total       clip time: " << (sum_time) << "/" << ellapsed_time
     << " " <<  sum_time / ellapsed_time <<"\n";
-
 
   sum_time =  cvm::runtime::cvm_op_cvm_shift_cnt / n_run;
   cout << "total rightshift time: " << (sum_time) << "/" << ellapsed_time
@@ -234,10 +237,6 @@ int run_LIF(string model_root, int device_type = 0) {
 
   sum_time =  cvm::runtime::cvm_op_upsampling_cnt / n_run;
   cout << "total upsampling time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_inline_matmul_cnt / n_run;
-  cout << "total matmul     time: " << (sum_time) << "/" << ellapsed_time
     << " " <<  sum_time / ellapsed_time <<"\n";
 
   sum_time =  cvm::runtime::cvm_op_elemwise_cnt / n_run;
@@ -252,9 +251,6 @@ int run_LIF(string model_root, int device_type = 0) {
   cout << "total depth conv2d time: " << (sum_time) << "/" << ellapsed_time
     << " " <<  sum_time / ellapsed_time <<"\n";
 
-  sum_time =  cvm::runtime::cvm_op_chnwise_conv1x1_cnt / n_run;
-  cout << "total chnconv2d1x1 time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
 #endif
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
@@ -337,7 +333,7 @@ int test_models(int device_type = 0) {
     // "/data/std_out/resnet50_v2",
     // "/data/std_out/qd10_resnet20_v2",
     // "/data/std_out/trec",
-    // // "/data/new_cvm/yolo3_darknet53_voc/data",
+    // "/data/new_cvm/yolo3_darknet53_voc/data",
     // "/data/lz_model_storage/dcnet_mnist_v1/data",
     // "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
     // "/data/lz_model_storage/resnet50_v1_imagenet/data",
@@ -361,9 +357,9 @@ int test_models(int device_type = 0) {
     // "/data/std_out/random_3_5/",
     // "/data/std_out/random_4_0/",
     // "/data/std_out/random_4_1/",
-    // // "/data/std_out/random_4_2/",
-    // // "/data/std_out/random_4_3/",
-    // // "/data/std_out/random_4_4/",
+    // "/data/std_out/random_4_2/",
+    // "/data/std_out/random_4_3/",
+    // "/data/std_out/random_4_4/",
     // "/data/std_out/random_4_5/",
     // "/data/std_out/random_4_6/",
     // "/data/std_out/random_4_7/",
@@ -372,9 +368,9 @@ int test_models(int device_type = 0) {
     // "/data/std_out/log2",
     // "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
     // "/data/std_out/lr_attr",
-    // // "/data/std_out/non_in",
+    // "/data/std_out/non_in",
     // "/data/std_out/shufflenet",
-    // // "/data/std_out/ssd",
+    // "/data/std_out/ssd",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);
