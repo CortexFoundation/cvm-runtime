@@ -6,7 +6,7 @@ CVM Runtime
 ## Performance
 cpu: multi cpu > avx2 > 1 cpu
 
-model|  Cortex\-A57(s) | intel E5\-2650(s) |  Tegra X1 | 1080ti
+model|  Jetson Nano \- Cortex\-A57(s) | Intel E5\-2650(s) |  Jetson Nano \- GPU(128 CUDA Cores)(s) | 1080Ti(3584 CUDA Cores)(s)
 -|-|-|-|-
 resnet50_mxg | 1.2076| 0.3807| 1.2366 | 0.0931
 resnet50_v2 |1.4674| 0.5005 | 0.7962 | 0.0844
