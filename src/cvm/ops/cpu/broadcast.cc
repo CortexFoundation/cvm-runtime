@@ -3,6 +3,8 @@
 namespace cvm {
 namespace runtime {
 
+double cvm_op_broadcast_cnt = 0;
+
 inline int32_t broadcast_i_index(int64_t* oshape, uint64_t o_index, int64_t* ishape, int idim, int odim){
   if(idim == 1 && ishape[0] == 1) return 0;
   uint64_t index = 0;

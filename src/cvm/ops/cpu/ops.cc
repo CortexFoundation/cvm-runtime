@@ -17,14 +17,11 @@ double cvm_op_maxpool_cnt = 0;
 double cvm_op_concat_cnt = 0;
 double cvm_op_upsampling_cnt = 0;
 double cvm_op_inline_matmul_cnt = 0;
-double cvm_op_elemwise_cnt = 0;
+double cvm_op_relu_cnt = 0;
 double cvm_op_chnwise_conv_cnt = 0;
 double cvm_op_chnwise_conv1x1_cnt = 0;
 double cvm_op_depthwise_conv_cnt = 0;
 double cvm_op_depthwise_conv1x1_cnt = 0;
-double cvm_op_clip_cnt = 0;
-double cvm_op_cvm_shift_cnt = 0;
-double cvm_op_broadcast_cnt = 0;
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
@@ -42,7 +39,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
         y_data[i] = tmp;
    }
 #ifdef CVM_PROFILING
-    cvm_op_elemwise_cnt += omp_get_wtime() - start;
+    cvm_op_relu_cnt += omp_get_wtime() - start;
 #endif
   print_to_file(y, "relu.txt");
 });

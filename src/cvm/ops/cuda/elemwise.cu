@@ -1,5 +1,12 @@
 #include "cuda_ops.h"
 
+namespace cvm{
+namespace runtime{
+
+double cvm_op_elemwise_cnt = 0;
+double cvm_op_cvm_shift_cnt = 0;
+double cvm_op_clip_cnt = 0;
+
 template<typename F>
 __global__ void kernel_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64_t n, F const &op){
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -10,6 +17,7 @@ __global__ void kernel_elemwise(const int32_t *a, const int32_t *b, int32_t *c, 
 
 template<typename F>
 const char* cuda_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64_t n, F const &f, int& error_code){
+  start_time();
   int blockSize = 256;
   int gridSize = getGridSize(n, blockSize);
   kernel_elemwise<<<gridSize, blockSize>>>(a, b, c, n, f);
@@ -17,6 +25,7 @@ const char* cuda_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64
   if(error != cudaSuccess){
     error_code = ERROR_KERNEL;
   }
+  cvm_op_clip_cnt += get_used_time();
   return check_cuda_error(error);
 }
 
@@ -44,6 +53,7 @@ __global__ void kernel_clip(const int32_t *x, int32_t *y,
 }
 
 const char* cuda_clip(const int32_t *x, int32_t *y, const uint64_t n, const int32_t max, const int32_t min, int& error_code){
+  start_time();
   int threadSize = 256;
   int blockSize = getGridSize(n, threadSize);
   kernel_clip<<<blockSize, threadSize>>>(x, y, n, max, min);
@@ -51,6 +61,7 @@ const char* cuda_clip(const int32_t *x, int32_t *y, const uint64_t n, const int3
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
+  cvm_op_clip_cnt += get_used_time();
   return check_cuda_error(error);
 }
 
@@ -131,4 +142,6 @@ const char* cuda_cvm_left_shift(const int32_t *a, const int32_t b, const int32_t
     error_code = ERROR_KERNEL;
   }
   return check_cuda_error(error);
+}
+}
 }
