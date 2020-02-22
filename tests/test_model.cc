@@ -88,7 +88,8 @@ struct OpArgs {
 };
 
 int run_LIF(string model_root, int device_type = 0) {
-#if(USE_GPU==0)
+//#if(USE_GPU==0)
+#ifdef CVM_PROFILING
   cvm::runtime::transpose_int8_avx256_transpose_cnt = 0;
   cvm::runtime::transpose_int8_avx256_gemm_cnt = 0;
   cvm::runtime::im2col_cnt = 0;
@@ -200,7 +201,8 @@ int run_LIF(string model_root, int device_type = 0) {
   CHECK_STATUS(status, "free model failed");
   double ellapsed_time = (omp_get_wtime() - start) / n_run;
   cout << "total time : " << ellapsed_time << "\n";
-#if(USE_GPU == 0)
+//#if(USE_GPU == 0)
+#ifdef CVM_PROFILING
   cout << "total gemm.trans time: " << cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run << "\n";
   cout << "total  gemm.gemm time: " << cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run << "\n";
   cout << "total     im2col time: " << cvm::runtime::im2col_cnt / n_run<< "\n";
@@ -250,8 +252,8 @@ int run_LIF(string model_root, int device_type = 0) {
   sum_time =  cvm::runtime::cvm_op_depthwise_conv_cnt / n_run;
   cout << "total depth conv2d time: " << (sum_time) << "/" << ellapsed_time
     << " " <<  sum_time / ellapsed_time <<"\n";
-
 #endif
+
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
     uint64_t n_bytes = 4;
