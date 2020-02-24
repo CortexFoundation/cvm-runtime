@@ -103,15 +103,16 @@ void conv2d(
         for(int32_t ow = 0; ow < o_w; ow++){
           int32_t sum = 0;
           for(int32_t ic = 0; ic < in_channels; ic++){
-            for(int32_t fy = 0; fy < filter_h; fy++){
-              for(int32_t fx = 0; fx < filter_w; fx++){
-                int32_t ih = oh * stride_h + fy * dilation_h- padding[0];
-                int32_t iw = ow * stride_w + fx * dilation_w- padding[1];
+            for(int32_t fh = 0; fh < filter_h; fh++){
+              for(int32_t fw = 0; fw < filter_w; fw++){
+                int32_t ih = oh * stride_h + fh * dilation_h- padding[0];
+                int32_t iw = ow * stride_w + fw * dilation_w- padding[1];
                 if(ih < 0 || ih >= x_h || iw < 0 || iw >= x_w){
-                  int32_t w_index = oc * filter_c * filter_h * filter_w + ic * filter_h * filter_w + fy * filter_w + fx;
-                  int32_t x_index = n * in_channels * x_h * x_w + ic * x_h * x_w + ih * x_w + iw;
-                  sum += static_cast<int32_t>(w_data[w_index]) * x_data[x_index];
+                  continue;
                 }
+                int32_t w_index = oc * filter_c * filter_h * filter_w + ic * filter_h * filter_w + fh * filter_w + fw;
+                int32_t x_index = n * in_channels * x_h * x_w + ic * x_h * x_w + ih * x_w + iw;
+                sum += w_data[w_index] * x_data[x_index];
               }
             }
           }
