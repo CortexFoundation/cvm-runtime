@@ -1,6 +1,23 @@
 #include "cuda_ops.h"
 #include "../common.h"
 
+namespace cvm{
+namespace runtime{
+
+double transpose_int8_avx256_transpose_cnt = 0;
+double transpose_int8_avx256_gemm_cnt = 0;
+double im2col_cnt = 0;
+double cvm_op_dense_cnt = 0;
+double cvm_op_maxpool_cnt = 0;
+double cvm_op_concat_cnt = 0;
+double cvm_op_upsampling_cnt = 0;
+double cvm_op_inline_matmul_cnt = 0;
+double cvm_op_relu_cnt = 0;
+double cvm_op_chnwise_conv_cnt = 0;
+double cvm_op_chnwise_conv1x1_cnt = 0;
+double cvm_op_depthwise_conv_cnt = 0;
+double cvm_op_depthwise_conv1x1_cnt = 0;
+
 #define BS 16
 #define FS 8
 __global__ void kernel_conv2d(
@@ -268,6 +285,12 @@ const char* cuda_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, 
     int32_t device_id,
     int& error_code){
+  start_time();
+//  cudaEvent_t start, stop;
+//  cudaEventCreate(&start);
+//  cudaEventCreate(&stop);
+//  cudaEventRecord(start, 0);
+
   if(i_n < 1 || i_c < 1 || i_h < 1 || i_w < 1 || f_n < 1 || f_c < 1 || f_h < 1 || f_w < 1 || 
       padding_h < 0 || padding_w < 0 || stride_h < 1 || stride_w < 1 || dilation_h < 1 || dilation_w < 1 ||
       o_n < 1 || o_c < 1 || o_h < 1 || o_w < 1){
@@ -362,6 +385,14 @@ const char* cuda_conv2d(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
+
+  cvm_op_chnwise_conv_cnt += get_used_time();
+//  cudaEventRecord(stop, 0);
+//  cudaEventSynchronize(stop);
+//  float cost_time = 0.0f;
+//  cudaEventElapsedTime(&cost_time, start, stop);
+//   cvm_op_chnwise_conv_cnt += cost_time/1000.0;
+//  printf("conv2d use time = %.4f\n", cvm_op_chnwise_conv_cnt);
 
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "/tmp/zkh/trec/gpu/conv2d.txt");
   return check_cuda_error(error);
@@ -744,6 +775,7 @@ const char* cuda_max_pool(
     int32_t padding_h, int32_t padding_w,
     int32_t stride_h, int32_t stride_w,
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
+  start_time();
   int32_t *dev_i = input, *dev_o = output;
 
   const int32_t totalShareMemSize = getShareMemorySize(device_id, error_code);
@@ -782,6 +814,7 @@ const char* cuda_max_pool(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
+  cvm_op_maxpool_cnt += get_used_time();
   return check_cuda_error(error);
 }
 
@@ -829,6 +862,7 @@ const char* cuda_dense(
     int32_t *b,
     int32_t *c,
     const int m, const int k, const int n, int32_t* bias, int& error_code){
+  start_time();
   int32_t *dev_a = a, *dev_b = b, *dev_c = c, *dev_bias = bias, useBias = 0;
   if(bias != NULL) useBias = 1;
 
@@ -842,6 +876,7 @@ const char* cuda_dense(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
+  cvm_op_dense_cnt += get_used_time();
   print_to_file(dev_c, m*n, "/tmp/zkh/trec/gpu/dense.txt");
   return check_cuda_error(error);
 }
@@ -1561,4 +1596,8 @@ const char* cuda_where(const int32_t *x_data, const int32_t *y_data, const int32
     const int32_t blockSize = shape0;
     kernel_where_shape0<<<blockSize, threadSize>>>(x_data, y_data, condition_data, result_data, shape0, n);
   }
+  cudaError_t error = cudaGetLastError();
+  return check_cuda_error(error);
+}
+}
 }

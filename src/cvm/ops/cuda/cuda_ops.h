@@ -13,7 +13,11 @@
 #include <string.h>
 #include <iostream>
 #include <string>
+#include "../profiling.h"
 #define DEBUG
+
+namespace cvm{
+namespace runtime{
 
 const int NON_ERROR = 0;
 
@@ -26,6 +30,24 @@ const int ERROR_MEMSET = 22;
 const int ERROR_GET_PROPERTIES = 23;
 const int ERROR_KERNEL = 24;
 const int ERROR_PARAMS = 25;
+
+static cudaEvent_t start, stop;
+inline void start_time(){
+#ifdef CVM_PROFILING
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+#endif
+}
+inline float get_used_time(){
+  float cost_time = 0;
+#ifdef CVM_PROFILING
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&cost_time, start, stop);
+#endif
+  return cost_time/1000.0;
+}
 
 inline const char* check_cuda_error(cudaError_t error){
   if(error == cudaSuccess) return NULL;
@@ -207,4 +229,6 @@ const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_
         const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis, int& error_code);
 const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data, const uint64_t ysize, const uint64_t xsize, int& error_code);
 const char* cuda_where(const int32_t *x_data, const int32_t *y_data, const int32_t *condition_data, int32_t *result_data, bool same_shape, uint64_t n, uint64_t shape0, int& error_code);
+}
+}
 #endif

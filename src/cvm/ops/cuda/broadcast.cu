@@ -1,5 +1,10 @@
 #include "cuda_ops.h"
 
+namespace cvm {
+namespace runtime{
+
+double cvm_op_broadcast_cnt = 0;
+
 inline __device__ int32_t broadcast_i_index(int64_t* oshape, int o_index, int64_t* ishape, int idim, int odim){
   int index = 0;
   int allIndex = 1;
@@ -39,6 +44,7 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
     F const& f,
     int& error_code)
 {
+  start_time();
   const int32_t *dev_a = a, *dev_b = b;
   int32_t *dev_c = c;
   int threadSize = 256;
@@ -87,6 +93,7 @@ end:
   if(dev_ashape != NULL) cudaFree(dev_ashape);
   if(dev_bshape != NULL) cudaFree(dev_bshape);
   if(dev_cshape != NULL) cudaFree(dev_cshape);
+  cvm_op_broadcast_cnt += get_used_time();
   return check_cuda_error(cudaGetLastError());
 }
 
@@ -155,4 +162,6 @@ const char* cuda_broadcast_greater(const int32_t *a, const int32_t *b, int32_t* 
     return a > b;
   };
   return cuda_broadcast(a, b, c, n, ashape, adim, bshape, bdim, cshape, cdim, f, error_code);
+}
+}
 }
