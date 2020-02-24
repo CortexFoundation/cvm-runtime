@@ -1,5 +1,8 @@
 #include "cuda_ops.h"
 
+namespace cvm{
+namespace runtime{
+
 template<typename F>
 __global__ void kernel_reduce(const int32_t *x, int32_t *y, int64_t n, F const& f){
   __shared__ int32_t buf[256];
@@ -153,3 +156,5 @@ const char* cuda_max(const int32_t *x, int32_t *y, const uint64_t xsize, const u
   return cuda_reduce(x, y, xsize, ysize, xshape, yshape, realAxis, flag, every_xdim_size, axis_size, xndim, yndim, axis_ndim, f, error_code);
 }
 
+}
+}

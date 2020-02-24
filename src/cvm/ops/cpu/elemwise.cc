@@ -3,7 +3,9 @@
 namespace cvm {
 namespace runtime {
   
-//extern double cvm_op_elemwise_cnt;
+double cvm_op_elemwise_cnt = 0;
+double cvm_op_cvm_shift_cnt = 0;
+double cvm_op_clip_cnt = 0;
 
 typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
 
