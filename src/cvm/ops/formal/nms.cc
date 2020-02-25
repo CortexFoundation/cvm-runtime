@@ -184,9 +184,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
     for (int32_t b = 0; b < B; ++b) {
       int32_t T = std::max(std::min(B, valid_count[b]), 0);
       std::vector<int32_t*> R(T);
-      for (int i = 0; i < T; i++) {
-        R[i] = X + b * B * K + i * K;
-      }
+      for (int i = 0; i < T; ++i) R[i] = X + b * B * K + i * K;
+
       std::stable_sort(R.begin(), R.end(), 
         [](const int32_t* a, const int32_t* b) -> bool {
             return a[1] > b[1];
