@@ -1,4 +1,4 @@
-#include "cuda_ops.h"
+#include "./cuda_ops.h"
 
 namespace cvm{
 namespace runtime{
