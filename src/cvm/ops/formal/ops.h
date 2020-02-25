@@ -30,6 +30,24 @@ inline uint64_t getSize(DLTensor *dlTensor){
 namespace cvm{
 namespace runtime {
 // #define CVM_PRINT_OP_RESULT
+//
+template<typename DType>
+inline DType* CVMArg2Data(cvm::runtime::CVMArgValue const& av) {
+  DLTensor *tensor = av.operator DLTensor *();
+  return static_cast<DType*>(tensor->data);
+}
+
+template<typename PType>
+inline PType CVMArg2Attr(cvm::runtime::CVMArgValue const& av) {
+  void *ptr = av.operator void *();
+  auto attr = static_cast<cvm::NodeAttrs*>(ptr);
+  return cvm::get<PType>(attr->parsed);
+}
+
+inline int64_t* CVMArgShape(cvm::runtime::CVMArgValue const& av) {
+  DLTensor *tensor = av.operator DLTensor *();
+  return tensor->shape;
+}
 
 const std::string DIR = "/tmp/zkh/ssd/";
 inline void print_to_file(DLTensor *y, std::string filename, bool all=false){
