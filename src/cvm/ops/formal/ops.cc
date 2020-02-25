@@ -186,8 +186,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
 
   int stride_h = strides[0];
   int stride_w = strides[1];
-  int dilation_h = dilation[0];
-  int dilation_w = dilation[1];
+  //int dilation_h = dilation[0];
+  //int dilation_w = dilation[1];
 
   int32_t* x_data = (int32_t*)x->data;
   int32_t* w_data = (int32_t*)w->data;
