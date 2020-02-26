@@ -359,48 +359,25 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
     int32_t axis = param.axis;
     int32_t ndim = static_cast<int32_t>(input0->ndim);
     if(axis < 0) axis += ndim;
-    int n_batch = input0->shape[0];
 
-    if (axis == 1 && n_batch == 1) {
-      int32_t *out_data = static_cast<int32_t*>(out->data);
-      uint64_t offset = 0;
-      for(int k = 0; k < len; k++){
-        DLTensor* input = args[k];
-        int input_size_current = 1;
-        for (int i = 0; i < input->ndim; ++i) {
-          input_size_current *= input->shape[i];
+    int32_t *out_data = static_cast<int32_t*>(out->data);
+
+    int64_t y_axis_size = 0;
+    for(int32_t l = 0; l < len; l++){
+      DLTensor* input = args[l];
+      int32_t *input_data = static_cast<int32_t*>(input->data);
+      for(uint64_t i = 0; i < getSize(input); i++){
+        uint64_t tmp_i = i, yi = 0, shape_size = 1; 
+        for(int32_t d = ndim - 1; d >= 0; d--){
+         uint64_t col = tmp_i % input->shape[d];
+         tmp_i /= input->shape[d];
+         if(d == axis) col += y_axis_size; 
+         yi += col * shape_size;
+         shape_size *= out->shape[d];
         }
-        memcpy(out_data + offset, input->data, sizeof(int32_t) * input_size_current);
-        offset += input_size_current;
+        out_data[yi] = input_data[i];
       }
-    } else {
-      int32_t *out_data = static_cast<int32_t*>(out->data);
-      for(uint64_t i = 0; i < getSize(out); i++){
-        uint64_t o_i = i, in_i = 0, in_i2 = 0, shapeSize = 1;
-        for(int j = out->ndim-1; j >= 0; j--){
-          uint64_t col = o_i % out->shape[j];
-          o_i /= out->shape[j];
-          uint64_t tmpcol = col;
-          if(j == axis){
-            uint64_t allShapeSize = 0;
-            for(int k = 0; k < len; k++){
-              tmpcol = col - allShapeSize;
-              DLTensor *input = args[k];
-              allShapeSize += input->shape[axis];
-              if(col < allShapeSize){
-                in_i = k;
-                break;
-              }
-            }
-          }
-          in_i2 += tmpcol * shapeSize; 
-          DLTensor* input = args[in_i];
-          shapeSize *= input->shape[j];
-        }
-        DLTensor *input = args[in_i];
-        int32_t *input_data = static_cast<int32_t*>(input->data);
-        out_data[i] = input_data[in_i2];
-      }
+      y_axis_size += input->shape[axis];
     }
 #ifdef CVM_PROFILING
     cvm_op_concat_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
