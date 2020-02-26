@@ -497,42 +497,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.transpose")
     auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
     auto &param = cvm::get<cvm::top::TransposeParam>(attr->parsed);
 
-    TShape axes = param.axes;
-    for(uint32_t i = 0; i < axes.ndim(); i++){
-        if(axes[i] < 0) axes[i] += x->ndim;
+    int32_t ndim = y->ndim;
+    //TShape axes = param.axes;
+    std::vector<int32_t> axes(ndim);
+    for(int32_t i = 0; i < ndim; i++){
+        if(param.axes.ndim() == 0){
+          axes[i] = ndim - 1 - i;
+        }else{
+          int32_t axis = param.axes[i];
+          axes[i] = axis < 0 ? axis + ndim : axis;
+        }
     }
     int32_t *x_data = static_cast<int32_t*>(x->data);
     int32_t *y_data = static_cast<int32_t*>(y->data);
 
-    int ndim = y->ndim;
-    if (axes.ndim() == 3 && axes[0] == 1 && axes[1] == 2 && axes[2] == 0) {
-      int step = x->shape[1] * x->shape[2];
-      for (int i = 0; i < step; i++) {
-        for (int j = 0; j < x->shape[0]; j++) {
-          y_data[i * x->shape[0]+ j ] = x_data[j * step + i];
+    for(uint64_t i = 0; i < getSize(y); i++) {
+      uint64_t o_i = i, in_i = 0;
+      for(int j = ndim - 1; j >= 0; j--){
+        uint64_t col = o_i % y->shape[j];
+        o_i /= y->shape[j];
+        int xi = 1;
+        for(int tx = ndim-1; tx > axes[j]; tx--){
+          xi *= x->shape[tx];
         }
+        in_i += col * xi;
       }
-    }
-    else {
-      for(uint64_t i = 0; i < getSize(y); i++) {
-        uint64_t o_i = i, in_i = 0;
-        for(int j = ndim - 1; j >= 0; j--){
-          uint64_t col = o_i % y->shape[j];
-          o_i /= y->shape[j];
-          int xj = j;
-          if(axes.ndim() > 0) {
-            xj = axes[j];
-          } else {
-            xj = ndim - 1 - j;
-          }
-          int xi = 1;
-          for(int tx = ndim-1; tx > xj; tx--){
-            xi *= x->shape[tx];
-          }
-          in_i += col * xi;
-        }
-        y_data[i] = x_data[in_i];
-      }
+      y_data[i] = x_data[in_i];
     }
     print_to_file(y, "transpose.txt");
 });
@@ -634,43 +624,32 @@ void take(DLTensor *x, DLTensor *indices, DLTensor *y, const int32_t axis){
     int32_t yndim = y->ndim;
     int32_t xndim = x->ndim;
     int32_t indices_ndim = indices->ndim;
-    if (axis == 0 && xndim == 2 && yndim == 3) {
-      const int K = x->shape[1];
-      uint64_t wn = getSize(indices);
-      auto indices_data = static_cast<int32_t*>(indices->data);
-      for (uint64_t row = 0; row < wn; row++) {
-        uint64_t x_indices_i = std::min((int64_t)std::max(indices_data[row], 0), x->shape[0] - 1);
-        memcpy(y_data +  row * K, x_data + x_indices_i * K, K * sizeof(int32_t));
-      }
+    std::vector<size_t> x_shape_size(xndim, 1), indices_shape_size(indices_ndim, 1);
+    for (int i = xndim-2; i >= 0; --i) {
+      x_shape_size[i] = x_shape_size[i+1] * x->shape[i+1];
     }
-    else {
-      std::vector<size_t> x_shape_size(xndim, 1), indices_shape_size(indices_ndim, 1);
-      for (int i = xndim-2; i >= 0; --i) {
-        x_shape_size[i] = x_shape_size[i+1] * x->shape[i+1];
-      }
-      for (int i = indices_ndim-2; i >= 0; --i) {
-        indices_shape_size[i] = indices_shape_size[i+1] * indices->shape[i+1];
-      }
-      for (size_t i = 0; i < getSize(y); ++i) {
-        size_t oi = i, xi = 0, idxi = 0;
-        for(int j = yndim - 1; j>=0; --j){
-          size_t col = oi % y->shape[j];
-          oi /= y->shape[j];
-          if (axis <= j && j < axis+indices_ndim) {
-            idxi += col * indices_shape_size[j - axis];
-          } else {
-            int xidx = j < axis ? j : j - indices_ndim + 1;
-            xi += col * x_shape_size[xidx];
-          }
-
-          if (axis == j) {
-            int64_t idxx = std::min(std::max(indices_data[idxi], 0), 
-                (int32_t)x->shape[j]-1);
-            xi += idxx * x_shape_size[j];
-          }
+    for (int i = indices_ndim-2; i >= 0; --i) {
+      indices_shape_size[i] = indices_shape_size[i+1] * indices->shape[i+1];
+    }
+    for (size_t i = 0; i < getSize(y); ++i) {
+      size_t oi = i, xi = 0, idxi = 0;
+      for(int j = yndim - 1; j>=0; --j){
+        size_t col = oi % y->shape[j];
+        oi /= y->shape[j];
+        if (axis <= j && j < axis+indices_ndim) {
+          idxi += col * indices_shape_size[j - axis];
+        } else {
+          int xidx = j < axis ? j : j - indices_ndim + 1;
+          xi += col * x_shape_size[xidx];
         }
-        y_data[i] = x_data[xi];
+
+        if (axis == j) {
+          int64_t idxx = std::min(std::max(indices_data[idxi], 0), 
+              (int32_t)x->shape[j]-1);
+          xi += idxx * x_shape_size[j];
+        }
       }
+      y_data[i] = x_data[xi];
     }
 }
 
