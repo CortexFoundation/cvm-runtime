@@ -7,8 +7,9 @@ PKG_CFLAGS = -std=c++11 -Wall -O2 $(INCLUDE_FLAGS) -fPIC
 PKG_LDFLAGS =
 
 all: cpu gpu formal 
-	ln -s build/cpu/libcvm_runtime_cpu.so .
-	ln -s build/gpu/libcvm_runtime_cuda.so .
+	ln -sf build/cpu/libcvm_runtime_cpu.so .
+	ln -sf build/gpu/libcvm_runtime_cuda.so .
+	ln -sf build/formal/libcvm_runtime_formal.so .
 
 cpu:
 		 @mkdir -p build/cpu && cd build/cpu && cmake ../.. -DUSE_CUDA=OFF -DUSE_FORMAL=OFF && $(MAKE)
