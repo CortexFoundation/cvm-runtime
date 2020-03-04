@@ -1049,8 +1049,8 @@ inline bool WhereCorrectLayout(const NodeAttrs& attrs,
   return true;
 }
 
-//CVM_REGISTER_OP(where)
-//.describe(R"code(
+CVM_REGISTER_OP(where)
+.describe(R"code(
 //Return the elements, either from x or y, depending on the condition.
 //
 //Given three ndarrays, condition, x, and y, return an ndarray with the elements
@@ -1078,19 +1078,19 @@ inline bool WhereCorrectLayout(const NodeAttrs& attrs,
 //  where(cond, x, y) = [[1, 2], [7, 8]]
 //
 //)code" CVM_ADD_FILELINE)
-//.add_argument("condition", "Tensor", "Condition array")
-//.add_argument("x", "Tensor", "First array to be selected")
-//.add_argument("y", "Tensor", "Second array to be selected")
-//.set_num_inputs(3)
-//.set_num_outputs(1)
-//.set_attr<FInferShape>("FInferShape", WhereShape)
-//.set_attr<FInferType>("FInferType", WhereInferType)
-//.set_attr<FCorrectLayout>("FCorrectLayout", WhereCorrectLayout)
-//.set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
-//.set_attr<FListInputNames>("FListInputNames", [](const NodeAttrs& attrs) {
-//  return std::vector<std::string>{"condition", "x", "y"};
-//})
-//.set_support_level(4);
+.add_argument("condition", "Tensor", "Condition array")
+.add_argument("x", "Tensor", "First array to be selected")
+.add_argument("y", "Tensor", "Second array to be selected")
+.set_num_inputs(3)
+.set_num_outputs(1)
+.set_attr<FInferShape>("FInferShape", WhereShape)
+.set_attr<FInferType>("FInferType", WhereInferType)
+.set_attr<FCorrectLayout>("FCorrectLayout", WhereCorrectLayout)
+.set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
+.set_attr<FListInputNames>("FListInputNames", [](const NodeAttrs& attrs) {
+  return std::vector<std::string>{"condition", "x", "y"};
+})
+.set_support_level(4);
 
 }  // namespace top
 }  // namespace cvm
