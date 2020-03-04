@@ -183,7 +183,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
 
     for (int32_t b = 0; b < B; ++b) {
       int32_t T = std::max(std::min(B, valid_count[b]), 0);
-      std::vector<int32_t*> R(T);
+      std::vector<int32_t*> R(T); // sorted X in score descending order
       for (int i = 0; i < T; ++i) R[i] = X + b * B * K + i * K;
 
       std::stable_sort(R.begin(), R.end(), 
@@ -191,7 +191,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
             return a[1] > b[1];
         });
 
-      int32_t n = 0; // current y index, stand for dynamic union U's size
+      int32_t n = 0; // current y index, standing for dynamic union U's size
       int32_t idx = 0; // current x index
 
       // n \in [0, min{T, MOS, card{U}})
