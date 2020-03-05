@@ -40,21 +40,27 @@ input_data = np.load(input_path)
 print("input size = ", input_size, len(input_data))
 output_data = bytes(output_size) 
 correct_data = np.load(output_path)
+ret, output_type_size = cvm.GetOutputTypeSize(network)
+assert(ret == 0)
+print("output type size = ", output_type_size)
 
 ## call inference
 print("start inference")
 ret = cvm.Inference(network, input_data.tobytes(), input_size, output_data)
+assert(ret == 0)
+max_v = (1 << (output_type_size * 8 - 1))
+infer_result = []
+for i in range(0, output_size, output_type_size):
+    int_val = int.from_bytes(output_data[i:i+output_type_size], byteorder='little')
+    infer_result.append(int_val if int_val < max_v else int_val - 2 * max_v)
 print("end inference")
 
 ## compare result
 assert(ret == 0)
-#assert(correct_data.tobytes(), output_data)
-#correct_bytes = correct_data.tobytes()
-#for i in range(output_size):
-#    if correct_bytes[i] != output_data[i]:
-#        print(i, correct_bytes[i], output_data[i])
-#    assert(correct_bytes[i] == output_data[i])
-#
+for i in range(output_size):
+    assert(correct_data.flatten()[i] == infer_result[i])
 
-
-cvm.FreeModel(network)
+print("correct")
+ret = cvm.FreeModel(network)
+assert(ret == 0)
+print("free model success")
