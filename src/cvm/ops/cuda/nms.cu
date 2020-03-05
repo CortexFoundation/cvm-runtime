@@ -231,18 +231,18 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       const int gridSize = (vc + blockSize - 1) / blockSize;
       kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, vc, k, score_index, rows);
       thrust::stable_sort(thrust::device, rows, rows+vc, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
-            return a[score_index] > b[score_index];
+          return a[score_index] > b[score_index];
       });
 
-      if(topk > 0 && topk < vc){
-        for(int i = 0; i < vc - topk; i++){
-          status = cudaMemset(rows[i+topk], -1, k*sizeof(int32_t));
-          if(status != cudaSuccess){
-            error_code = ERROR_MEMSET;
-            goto end;
-          }
-        }
-      }
+      //if(topk > 0 && topk < vc){
+      //  for(int i = 0; i < vc - topk; i++){
+      //    status = cudaMemset(rows[i+topk], -1, k*sizeof(int32_t));
+      //    if(status != cudaSuccess){
+      //      error_code = ERROR_MEMSET;
+      //      goto end;
+      //    }
+      //  }
+      //}
 
       status = cudaMemset(removed, false, sizeof(bool)*vc);
       if(status != cudaSuccess){
