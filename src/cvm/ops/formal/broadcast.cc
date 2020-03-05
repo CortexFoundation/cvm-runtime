@@ -37,7 +37,6 @@ void broadcast(DLTensor *args0, DLTensor* args1, DLTensor* args2, broadcast_func
       c[i] = f(a[i], b[0]);
     }
   }else{
-#pragma omp parallel for
     for(uint64_t i = 0; i < getSize(args2); ++i){
       uint64_t o_index = i;
       int64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim, args2->ndim);
@@ -115,18 +114,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
     print_to_file(args2, "broadcast_div.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_greater")
-.set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
-    broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
-      return a > b;
-    };
-
-    broadcast(args0, args1, args2, f);
-    print_to_file(args2, "broadcast_greater.txt");
-});
+//CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_greater")
+//.set_body([](CVMArgs args, CVMRetValue *ret){
+//    DLTensor *args0 = args[0];
+//    DLTensor *args1 = args[1];
+//    DLTensor *args2 = args[2];
+//    broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
+//      return a > b;
+//    };
+//
+//    broadcast(args0, args1, args2, f);
+//    print_to_file(args2, "broadcast_greater.txt");
+//});
 }
 }
 
