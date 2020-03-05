@@ -1,53 +1,92 @@
 import os
 import ctypes
 
-import libinfo
+from . import libinfo
 
+# device type name
 CPU     = "cpu"
 GPU     = "gpu"
 FORMAL  = "formal"
-class CVMContext:
-    current_context = None
 
-    def __init__(self, device_type, device_id=0):
+
+class CVMContext:
+    _current_context = None
+
+    def __init__(self, device_type):
         self.dev_type = device_type
-        self.dev_id = device_id
         self.old_ctx = None
 
-        lib_path = libinfo.find_lib_path()
-        self.lib = ctypes.CDLL(lib_path[0], ctypes.RTLD_GLOBAL)
+        lib_path = libinfo.find_lib_path(self.dev_type)
         self.lib_name = os.path.basename(lib_path[0])
 
+        print(">>> Loading library({:s}) path: {:s}".format(
+            self.lib_name, lib_path[0]))
+
+        self.lib = ctypes.CDLL(lib_path[0], ctypes.RTLD_GLOBAL)
+
     def __enter__(self):
-        return self.set()
+        return CVMContext.set_global(self.dev_type, self.dev_id)
 
     def __exit__(self, *args):
-        return self.clear()
-
-    def set(self):
-        if self.old_ctx != self:
-            self.old_ctx = CVMContext.current_context
-            CVMContext.current_context = self
-        return self
-
-    def clear(self):
-        if self.old_ctx is None:
-            raise Exception("No context can be erase")
-
-        CVMContext.current_context = self.old_ctx
+        return CVMContext.restore()
 
     @staticmethod
     def LIB():
-        return CVMContext.current_context.lib
+        if CVMContext._current_context is None:
+            raise Exception("It seems not to set the GlobalContext, " +
+                "invoke the function `CVMContext.set_global` or " +
+                "use the python gramma of `with CVMContext()`.")
+        return CVMContext._current_context.lib
+
+    @staticmethod
+    def LIB_TYPE():
+        if CVMContext._current_context is None:
+            raise Exception("It seems not to set the GlobalContext, " +
+                "invoke the function `CVMContext.set_global` or " +
+                "use the python gramma of `with CVMContext()`.")
+        return CVMContext._current_context.dev_type
 
     @staticmethod
     def LIB_NAME():
-        return CVMContext.current_context.lib_name
+        if CVMContext._current_context is None:
+            raise Exception("It seems not to set the GlobalContext, " +
+                    "invoke the function `CVMContext.set_global` or " +
+                    "use the python gramma of `with CVMContext()`.")
+        return CVMContext._current_context.lib_name
 
-def set_global_context(device_type, device_id=0):
-    CVMContext.current_context = CVMContext(device_type, device_id)
+    @staticmethod
+    def set_global(device_type):
+        if CVMContext._current_context is not None:
+            CVMContext.restore()
 
-set_global_context(CPU)
+        old_ctx = CVMContext._current_context
+        assert old_ctx is None
+        # context not change, derived from old context
+        if old_ctx is not None and old_ctx.dev_type == device_type:
+            return old_ctx
+
+        new_ctx = CVMContext(device_type)
+        new_ctx.old_ctx = old_ctx
+        CVMContext._current_context = new_ctx
+        return new_ctx
+
+    @staticmethod
+    def restore():
+        lib = CVMContext.LIB()
+        handle = lib._handle # obtain the SO handle
+        print(">>> Freeing library({:s})".format(CVMContext.LIB_NAME()))
+        ctypes.CDLL('libdl.so').dlclose(handle)
+        CVMContext._current_context = None
+
+        # curr_ctx = CVMContext._current_context
+        # old_ctx = curr_ctx.old_ctx
+        # if old_ctx is None:
+        #     raise Exception("No context can be erase")
+
+        # CVMContext._current_context = old_ctx
+        # return old_ctx
+
+# CVMContext.set_global(CPU)
 _LIB, _LIB_NAME = CVMContext.LIB, CVMContext.LIB_NAME
 
 class Status:
