@@ -2,7 +2,8 @@ import ctypes
 import os
 import numpy as np
 
-from base import _LIB, check_call
+from . import base
+from .base import _LIB, check_call, CVMContext
 
 def c_str(string):
     return ctypes.c_char_p(string.encode('utf-8'))
@@ -19,19 +20,21 @@ def load_np_data(data_path):
     return data.tobytes()
 
 NetworkHandle = ctypes.c_void_p
-class DEVICE_TYPE:
-    CPU = 0
-    GPU = 1
-    FORMAL = 0
 
-def CVMAPILoadModel(json_str, param_bytes,
-                    device_type, device_id):
+_DevType2CInt = {
+    base.CPU    : ctypes.c_int(0),
+    base.GPU    : ctypes.c_int(1),
+    base.FORMAL : ctypes.c_int(0),
+}
+
+def CVMAPILoadModel(json_str, param_bytes, device_id=0):
+    dev_type = CVMContext.LIB_TYPE()
     net = NetworkHandle()
     check_call(_LIB().CVMAPILoadModel(
         c_str(json_str), ctypes.c_int(len(json_str)),
         ctypes.c_char_p(param_bytes), ctypes.c_int(len(param_bytes)),
         ctypes.byref(net),
-        ctypes.c_int(device_type), ctypes.c_int(device_id)))
+        _DevType2CInt[dev_type], ctypes.c_int(device_id)))
     return net
 
 def CVMAPIFreeModel(net):
@@ -75,28 +78,3 @@ def CVMAPIInference(net, input_data):
         ret.append(int_val if int_val < max_v else int_val - 2 * max_v)
 
     return ret
-
-
-# from base import CVMContext, CPU, GPU
-# CVMContext(GPU).set()
-# #  CVMContext(CPU).set()
-# 
-# # model_root = "/home/serving/tvm-cvm/data/jetson/"
-# model_root = "/tmp/ssd_512_mobilenet1.0_coco_tfm/"
-# # model_root = "/data/std_out/resnet50_v2"
-# # odel_root = "/data/std_out/ssd"
-# json, params = load_model(os.path.join(model_root, "symbol"),
-#                          os.path.join(model_root, "params"))
-# 
-# net = CVMAPILoadModel(json, params, DEVICE_TYPE.CPU, 0)
-# print(CVMAPIGetOutputLength(net))
-# 
-# data_path = os.path.join(model_root, "data.npy")
-# data = load_np_data(data_path)
-# 
-# out = CVMAPIInference(net, data)
-# for i in range(0, len(out), 6):
-#    if out[i] == -1:
-#        print ("Total object: ", i // 6)
-#        break
-#    print (out[i:i+6])

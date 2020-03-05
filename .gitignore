@@ -37,3 +37,7 @@ Thumbs.db
 
 compile_commands.json
 .ycm_extra_conf.py
+
+# binary
+tests/test_model
+tests/test_op
