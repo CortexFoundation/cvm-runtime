@@ -5,8 +5,8 @@ from cvm import utils
 
 import os
 
-CVMContext.set_global(CPU)
-# CVMContext.set_global(GPU)
+# CVMContext.set_global(CPU)
+CVMContext.set_global(GPU)
 # CVMContext.set_global(FORMAL)
 
 # model_root = "/home/serving/tvm-cvm/data/jetson/"
