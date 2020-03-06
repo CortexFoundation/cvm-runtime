@@ -1,5 +1,5 @@
 from __future__ import print_function
-import cvm 
+import libcvm 
 import numpy as np
 
 model_root = "/data/std_out/resnet50_mxg"
@@ -24,7 +24,7 @@ params_strlen = len(params_bytes)
 print("params size = ", len(params_bytes))
 print(type(params_bytes))
 
-lib = cvm.CVM()
+lib = libcvm.CVM()
 ## load model
 ret = lib.LoadModel(graph_json, graph_strlen, params_bytes, params_strlen, device_type, device_id) 
 assert(ret == 0)
