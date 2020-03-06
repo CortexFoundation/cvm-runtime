@@ -204,9 +204,10 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
 
   for(int32_t b = 0; b < batchs; b++){
     int32_t vc = valid_count_data[b];
-    if(vc > n){
-      goto end;
-    }
+    //if(vc > n){
+    //  goto end;
+    //}
+    vc = std::max(std::min(vc, n), 0);
 
     int32_t *x_batch = d_x_data + b * n * k;
     int32_t *y_batch = d_y_data + b * n * k;
