@@ -65,9 +65,10 @@ int non_max_suppression(int32_t *x_data, const int32_t *valid_count_data, int32_
       int32_t vc = valid_count_data[b];
       int32_t *x_batch = x_data + b * n * k;
       int32_t *y_batch = y_data + b * n * k;
-      if(vc > n){
-          return -1;
-      }
+      //if(vc > n){
+      //    return -1;
+      //}
+      vc = std::max(std::min(vc, n), 0);
       if(vc <= 0){
           memset(y_batch, -1, n * k * sizeof(int32_t));
           return 0;

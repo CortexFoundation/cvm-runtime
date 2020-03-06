@@ -28,3 +28,15 @@ def detection_output(out, batch=1):
                print ("Detect object number: %d" % (i // 6))
                break
            print (tmp[i:i+6])
+
+def load_model(sym_path, prm_path):
+    with open(sym_path, "r") as f:
+        json_str = f.read()
+    with open(prm_path, "rb") as f:
+        param_bytes = f.read()
+    return json_str.encode("utf-8"), param_bytes
+
+def load_np_data(data_path):
+    data = np.load(data_path)
+    return data.tobytes()
+
