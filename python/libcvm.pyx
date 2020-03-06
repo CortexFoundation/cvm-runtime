@@ -1,19 +1,28 @@
 cimport ccvm
+import numpy as np
 cdef class CVM:
     cdef void *network
-    def LoadModel(self, bytes graph_json, int graph_strlen,
-            bytes param_bytes, int param_strlen,
-            int device_type, int device_id):
-        print("start load model")
-        ret = ccvm.CVMAPILoadModel(graph_json, graph_strlen, param_bytes, param_strlen, &self.network, device_type, device_id)
-        print("end load model")
+    def LoadModel(self, bytes graph_json, bytes param_bytes, int device_type, int device_id):
+        ret = ccvm.CVMAPILoadModel(graph_json, len(graph_json), param_bytes, len(param_bytes), &self.network, device_type, device_id)
         return ret
 
     def FreeModel(self):
         return ccvm.CVMAPIFreeModel(self.network)
 
-    def Inference(self, char *input_data, int input_len, char *output_data):
-        return ccvm.CVMAPIInference(self.network, input_data, input_len, output_data)
+    def Inference(self, char *input_data):
+        ret, input_size = self.GetInputLength()
+        ret, output_size = self.GetOutputLength()
+        output_data = bytes(output_size)
+        ret, output_type_size = self.GetOutputTypeSize()
+
+        ret = ccvm.CVMAPIInference(self.network, input_data, input_size, output_data)
+
+        max_v = (1 << (output_type_size * 8 - 1))
+        infer_result = []
+        for i in range(0, output_size, output_type_size):
+            int_val = int.from_bytes(output_data[i:i+output_type_size], byteorder='little')
+            infer_result.append(int_val if int_val < max_v else int_val - 2 * max_v)
+        return ret, infer_result
 
     def GetVersion(self, char *version):
         return ccvm.CVMAPIGetVersion(self.network, version)
