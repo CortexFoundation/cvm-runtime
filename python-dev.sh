@@ -1,4 +1,7 @@
-export PYTHONPATH=`pwd`/python:${PYTHONPATH}
+if [[ *"cvm-runtime/python"* != "${PYTHONPATH}" ]]; then
+  export PYTHONPATH=`pwd`/python:${PYTHONPATH}
+fi
+
 echo ${PYTHONPATH}
 
 # compile the cython module
