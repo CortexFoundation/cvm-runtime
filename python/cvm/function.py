@@ -5,9 +5,6 @@ import numpy as np
 from . import base
 from .base import _LIB, check_call, CVMContext
 
-def c_str(string):
-    return ctypes.c_char_p(string.encode('utf-8'))
-
 NetworkHandle = ctypes.c_void_p
 
 _DevType2CInt = {
@@ -20,7 +17,7 @@ def CVMAPILoadModel(json_str, param_bytes, device_id=0):
     dev_type = CVMContext.LIB_TYPE()
     net = NetworkHandle()
     check_call(_LIB().CVMAPILoadModel(
-        c_str(json_str), ctypes.c_int(len(json_str)),
+        ctypes.c_char_p(json_str), ctypes.c_int(len(json_str)),
         ctypes.c_char_p(param_bytes), ctypes.c_int(len(param_bytes)),
         ctypes.byref(net),
         _DevType2CInt[dev_type], ctypes.c_int(device_id)))

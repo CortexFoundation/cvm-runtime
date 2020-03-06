@@ -14,8 +14,9 @@ CVMContext.set_global(GPU)
 # model_root = "/data/std_out/resnet50_v2"
 # model_root = "/data/std_out/ssd"
 model_root = "/data/std_out/resnet50_mxg/"
-json, params = utils.load_model(os.path.join(model_root, "symbol"),
-                         os.path.join(model_root, "params"))
+json, params = utils.load_model(
+        os.path.join(model_root, "symbol"),
+        os.path.join(model_root, "params"))
 
 net = CVMAPILoadModel(json, params)
 print(CVMAPIGetOutputLength(net))
