@@ -5,6 +5,6 @@ from Cython.Build import cythonize
 
 setup(
     ext_modules = cythonize([
-    Extension("cvm", ["cvm.pyx"], libraries=["cvm_runtime_cpu"])
+    Extension("cvm", ["cvm.pyx"], libraries=["cvm_runtime_cuda"])
     ]) 
 )
