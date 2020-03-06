@@ -8,17 +8,6 @@ from .base import _LIB, check_call, CVMContext
 def c_str(string):
     return ctypes.c_char_p(string.encode('utf-8'))
 
-def load_model(sym_path, prm_path):
-    with open(sym_path, "r") as f:
-        json_str = f.read()
-    with open(prm_path, "rb") as f:
-        param_bytes = f.read()
-    return json_str, param_bytes
-
-def load_np_data(data_path):
-    data = np.load(data_path)
-    return data.tobytes()
-
 NetworkHandle = ctypes.c_void_p
 
 _DevType2CInt = {
