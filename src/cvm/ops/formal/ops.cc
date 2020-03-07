@@ -359,16 +359,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
     int32_t axis = params.axis;
     if(axis < 0) axis += y_shape.size();
 
-    int64_t y_size = std::accumulate(
-        y_shape.begin(), y_shape.begin()+axis, 1,
-        [](int64_t prod, int64_t elem) -> int64_t {
-          return prod * elem;
-        });
-    int64_t axis_batch = std::accumulate(
-        y_shape.begin()+axis+1, y_shape.end(), 1,
-        [](int64_t prod, int64_t elem) -> int64_t {
-          return prod * elem;
-        });
+    int64_t y_size = 1;
+    for (int i = 0; i < axis; ++i) y_size *= y_shape[i];
+    int32_t axis_batch = 1;
+    for (size_t i = axis+1; i < y_shape.size(); ++i) axis_batch *= y_shape[i];
 
     int64_t y_start_idx = 0;
     int64_t y_axis_batch = y_shape.at(axis) * axis_batch;

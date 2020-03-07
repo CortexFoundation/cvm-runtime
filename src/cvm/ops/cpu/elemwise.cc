@@ -126,9 +126,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
   int32_t precision = param.precision;
   int32_t min = -(((int64_t)1 << (precision-1))-1);
   int32_t max = -min;
+  uint64_t size = getSize(x);
 
-#pragma omp parallel for
-  for(uint64_t i = 0; i < getSize(x); i++){
+  for(uint64_t i = 0; i < size; ++i){
     int32_t tmp = x_data[i];
     if (tmp > max) tmp = max;
     else if (tmp < min) tmp = min;
@@ -160,32 +160,48 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
     int32_t max = -min;
     auto size = getSize(a);
 
-    if (b == 1) {
-#pragma omp parallel for
-      for(uint64_t i = 0; i < size; i++){
-        int32_t shift_a = (a_data[i] + 1) >> 1;
-        if (shift_a > max) shift_a = max;
-        else if (shift_a < min) shift_a = min;
-        c_data[i] = shift_a;
+    if (max == 0) {
+      memset(c_data, 0, size * sizeof(int32_t));
+    } else if (b >= 31) {
+      for (uint64_t i = 0; i < size; ++i) c_data[i] = a_data[i] >> 31;
+    } else if (precision + b >= 32) {
+      for (uint64_t i = 0; i < size; ++i) {
+        int t = a_data[i] >> (b - 1);
+        c_data[i] = (t + 1) >> 1;
       }
     } else {
-      b -= 1;
-#pragma omp parallel
-      {
-#pragma omp for
-        for(uint64_t i = 0; i < size; i++){
-          c_data[i] = a_data[i] >> b;
-          ++c_data[i];
-          c_data[i] >>= 1;
-        }
-#pragma omp for
-        for(uint64_t i = 0; i < size; i++){
-          auto& shift_a = c_data[i];
-          if (shift_a > max) shift_a = max;
-          else if (shift_a < min) shift_a = min;
-        }
+      int x_min = (-2 * max - 1) << (b - 1);
+      int x_max = (2 * max - 1) << (b - 1);
+      for (int64_t i = 0; i < size; ++i) {
+        int32_t t = a_data[i];
+        if (t < x_min) c_data[i] = min;
+        else if (t > x_max) c_data[i] = max;
+        else c_data[i] = ((t >> (b - 1)) + 1) >> 1;
       }
     }
+
+    // if (b == 1) {
+    //   for(uint64_t i = 0; i < size; i++){
+    //     int32_t shift_a = (a_data[i] + 1) >> 1;
+    //     if (shift_a > max) shift_a = max;
+    //     else if (shift_a < min) shift_a = min;
+    //     c_data[i] = shift_a;
+    //   }
+    // } else {
+    //   b -= 1;
+    //   {
+    //     for(uint64_t i = 0; i < size; i++){
+    //       c_data[i] = a_data[i] >> b;
+    //       ++c_data[i];
+    //       c_data[i] >>= 1;
+    //     }
+    //     for(uint64_t i = 0; i < size; i++){
+    //       auto& shift_a = c_data[i];
+    //       if (shift_a > max) shift_a = max;
+    //       else if (shift_a < min) shift_a = min;
+    //     }
+    //   }
+    // }
 
 #ifdef CVM_PROFILING
     cvm_op_cvm_shift_cnt += omp_get_wtime() - start;
