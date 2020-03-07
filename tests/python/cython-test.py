@@ -1,6 +1,6 @@
 from __future__ import print_function
 from cvm import utils
-import libcvm 
+import libcvm
 import numpy as np
 import os
 
