@@ -216,7 +216,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
           }
         }
 
-        if (!ignored) { // satisfied: copy element into U and add U's size
+        // satisfied: copy element into U and add U's size
+        if (!ignored && R[idx][0] >= 0) {
           memcpy(y_batch + n * K, R[idx], K * sizeof(int32_t));
           n += 1;
         }

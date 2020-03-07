@@ -30,11 +30,11 @@ test_model_formal: formal
 	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
 
 test_op_cpu: cpu 
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/test_op -lcvm_runtime_cpu && ./tests/test_op
+	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
 test_op_gpu: gpu
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/test_op -lcvm_runtime_cuda -DUSE_GPU && ./tests/test_op
+	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cuda -DUSE_GPU && ./tests/$@
 test_op_formal: formal
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/test_op -lcvm_runtime_cpu && ./tests/test_op
+	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_formal && ./tests/$@
 
 clean:
 	  rm -rf ./build/*
