@@ -169,7 +169,6 @@ int non_max_suppression(int32_t *x_data, const int32_t *valid_count_data, int32_
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
 #if true
-    // parse the input, output and params
     auto X = CVMArg2Data<int32_t>(args[0]);
     auto valid_count = CVMArg2Data<int32_t>(args[1]);
     auto Y = CVMArg2Data<int32_t>(args[2]);
@@ -191,40 +190,37 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
             return a[1] > b[1];
         });
 
-      int32_t n = 0; // current y index, standing for dynamic union U's size
-      int32_t idx = 0; // current x index
-
-      // n \in [0, min{T, MOS, card{U}})
-      int32_t n_max = T;
+      int32_t n_max = T; // n_max = min{T, MOS}
       if (params.max_output_size >= 0)
         n_max = std::min(n_max, params.max_output_size);
-      int32_t idx_max = T;
-      if (params.top_k >= 0)
-        idx_max = std::min(idx_max, params.top_k);
+      int32_t p_max = T; // p_max = min{TK, T}
+      if (params.top_k >= 0) 
+        p_max = std::min(p_max, params.top_k);
 
+      int32_t n = 0; // dynamic calculate union U, as Y index.
       int32_t *y_batch = Y + b * B * K; // temporary variable
-      for (; n < n_max && idx < idx_max; ++idx) {
-        // check current bbox whether satisfies U's condition: bbox non-overlap
-        bool ignored = false;
+      // dynamic calculate U, and n \in [0, min{n_max, card{U})
+      for (int32_t p = 0; n < n_max && p < p_max; ++p) { // p \in [0, p_max)
+        if (R[p][0] < 0) continue; // R[b, p, 0] >= 0
+
+        bool ignored = false; // iou(p, q) <= iou_threshold, \forall q in U.
         for (int32_t i = 0; i < n; ++i) {
-          int64_t iou_ret = 0;
-          if (params.force_suppress || y_batch[i * K + 0] == R[idx][0])
-            iou_ret = iou(y_batch + i * K + 2, R[idx]+2, FORMAT_CORNER);
-          if (iou_ret >= params.iou_threshold) {
-            ignored = true;
-            break;
+          if (params.force_suppress || y_batch[i*K+0] == R[p][0]) {
+            int64_t iou_ret = iou(y_batch+i*K+2, R[p]+2, FORMAT_CORNER);
+            if (iou_ret >= params.iou_threshold) {
+              ignored = true;
+              break;
+            }
           }
         }
 
-        // satisfied: copy element into U and add U's size
-        if (!ignored && R[idx][0] >= 0) {
-          memcpy(y_batch + n * K, R[idx], K * sizeof(int32_t));
-          n += 1;
+        if (!ignored) { // append U: copy corresponding element to Y.
+          memcpy(y_batch+n*K, R[p], K*sizeof(int32_t));
+          ++n;
         }
       }
 
-      // others, memset -1
-      memset(y_batch + n * K, -1, (N - n) * K * sizeof(int32_t));
+      memset(y_batch+n*K, -1, (N-n)*K*sizeof(int32_t)); // others set -1.
     }
 
 #else
