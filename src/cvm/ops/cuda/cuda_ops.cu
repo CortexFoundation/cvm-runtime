@@ -949,72 +949,72 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
-__global__ void kernel_concatenate(const int32_t *input, const int64_t *ishape, int32_t *output, 
-    int64_t* oshape, const int32_t odim, const int64_t n,  
-    const int64_t preShapeSize, const int64_t curShapeSize, const int32_t axis){
-  int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for(uint64_t i = tid; i < n; i += gridDim.x*blockDim.x){
-    uint64_t o_i = i, in_i2 = 0, shapeSize = 0;
-    bool flag = true;
-    for(int j = odim-1; j >= 0; j--){
-      uint64_t col = o_i % oshape[j];
-      o_i /= oshape[j];
-      uint64_t tmpcol = col;
-      if(j == axis){
-        if(col >= preShapeSize && col < curShapeSize) {
-          tmpcol = col - preShapeSize;
-        }else{
-          flag = false;
-          break;
-        }
-      }
-      in_i2 += (j == odim-1 ? tmpcol : tmpcol * shapeSize);
-      shapeSize = (j == odim-1 ? ishape[j] : shapeSize * ishape[j]);
-    }
-    if(flag)
-    output[i] = input[in_i2];
+void cvm_cuda_malloc(void **p, size_t size){
+  cudaError_t status = cudaMalloc(p, size);
+  if(status != cudaSuccess){
+    throw ERROR_MALLOC;
   }
 }
-const char* cuda_concatenate(const int32_t *input, const int64_t *ishape, const int32_t idim, const uint64_t in, 
-    int32_t *output, int64_t* oshape, const int32_t odim, const uint64_t on,  
-    const int64_t preShapeSize, const int64_t curShapeSize, const int32_t axis, int& error_code){
-  const int32_t *dev_input = input;
+void cvm_cuda_memcpy(void *dst, void* src, size_t size, cudaMemcpyKind flag){
+  cudaError_t status = cudaMemcpy(dst, src, size, flag);
+  if(status != cudaSuccess){
+    throw ERROR_MEMCPY;
+  }
+}
+
+__global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, const int64_t *ishapes, const int64_t* oshape, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t *axisSize){
+  int32_t bid = blockIdx.x;
+  int32_t lid = threadIdx.x;
+  const int32_t *input_data = input[bid];
+  const int64_t *ishape = ishapes + bid * ndim;
+  const int32_t y_axis_size = axisSize[bid];
+  for(int64_t i = lid; i < inputSize[bid]; i+= blockDim.x){
+    int32_t tmp_i = i, yi = 0, shape_size = 1;
+    for(int32_t d = ndim-1; d>=0; d--){
+      int32_t col = tmp_i % ishape[d];
+      tmp_i /= ishape[d];
+      if(d == axis) col += y_axis_size;
+      yi += col * shape_size;
+      shape_size *= oshape[d];
+    }
+    out_data[yi] = input_data[i];
+  }
+}
+
+const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t *inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int& error_code){
+  int32_t **dev_input = NULL;
   int32_t *dev_output = output;
-  int bSize = 256;
-  int gSize = getGridSize(on, bSize);//(on + bSize - 1) / bSize;
+  int64_t *dev_inputSize = NULL;
+  int32_t *dev_axisSize = NULL;
 
-  int64_t* dev_ishape = NULL, *dev_oshape = NULL;
-  cudaError_t status;
-  status = cudaMalloc((void**)&dev_ishape, sizeof(int64_t) * idim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_oshape, sizeof(int64_t) * odim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_ishape, ishape, sizeof(int64_t)*idim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_oshape, oshape, sizeof(int64_t)*odim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_ishape, dev_output, dev_oshape, odim, on,
-      preShapeSize, curShapeSize, axis);
+  int64_t* dev_ishape = NULL;
+  int64_t *dev_oshape = NULL;
+  try{
+    cvm_cuda_malloc((void**)&dev_input, sizeof(int32_t*) * ninput);
+    cvm_cuda_memcpy((void*)dev_input, (void*)inputs, sizeof(int32_t*) * ninput, cudaMemcpyHostToDevice);
+    cvm_cuda_malloc((void**)&dev_ishape, sizeof(int64_t) * ninput * ndim);
+    for(int i = 0; i < ninput; i++){
+      cvm_cuda_memcpy((void*)(dev_ishape + i*ndim), (void*)ishapes[i], sizeof(int64_t)*ndim, cudaMemcpyHostToDevice);
+    }
+    cvm_cuda_malloc((void**)&dev_oshape, sizeof(int64_t) * ndim);
+    cvm_cuda_memcpy((void*)dev_oshape, (void*)oshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
+    cvm_cuda_malloc((void**)&dev_inputSize, sizeof(int64_t)*ninput);
+    cvm_cuda_memcpy((void*)dev_inputSize, inputSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
+    cvm_cuda_malloc((void**)&dev_axisSize, sizeof(int64_t) * ninput);
+    cvm_cuda_memcpy((void*)dev_axisSize, (void*)axisSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
 
-  if(cudaSuccess != cudaGetLastError()){
-    error_code = ERROR_KERNEL;
+    const int bSize = 1024;
+    int gSize = ninput;
+    kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, dev_oshape, ndim, dev_output, axis, dev_axisSize);
+    return "";
+  }catch (int e){
+    if(dev_input != NULL) cudaFree(dev_input);
+    if(dev_ishape != NULL) cudaFree(dev_ishape);
+    if(dev_oshape != NULL) cudaFree(dev_oshape);
+    if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
+    if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
+    return check_cuda_error(cudaGetLastError());
   }
-end:
-  if(dev_ishape != NULL) cudaFree(dev_ishape);
-  if(dev_oshape != NULL) cudaFree(dev_oshape);
-  return check_cuda_error(cudaGetLastError());
 }
 
 __global__ void kernel_bias_add(const int32_t *x_data, const int32_t * bias_data, int32_t *y_data, 

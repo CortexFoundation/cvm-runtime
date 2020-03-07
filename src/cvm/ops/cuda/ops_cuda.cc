@@ -714,29 +714,23 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
       int32_t ndim = static_cast<int32_t>(input0->ndim);
       if(axis < 0) axis += ndim;
 
-      int32_t *out_data = static_cast<int32_t*>(output->data);
+      std::vector<int32_t *> input_data(len);
+      std::vector<int64_t *> input_shape(len);
+      std::vector<int64_t > inputSize(len);
+      std::vector<int32_t > axisSize(len);
       int64_t preSize = 0;
       for(int i = 0; i < len; i++){
-        DLTensor *input  = args[i];
-        int error_code = NON_ERROR;
-        const char* errorStr = cuda_concatenate(
-            static_cast<int32_t*>(input->data),
-            input->shape,
-            input->ndim,
-            getSize(input),
-            out_data,
-            output->shape,
-            output->ndim,
-            getSize(output),
-            preSize,
-            preSize + input->shape[axis],
-            axis,
-            error_code
-        );
-
-        deal_error(error_code, errorStr);
+        DLTensor *input = args[i];
+        input_data[i] = static_cast<int32_t*>(input->data);
+        input_shape[i] = input->shape;
+        inputSize[i] = getSize(input);
+        axisSize[i] = preSize;
         preSize += input->shape[axis];
       }
+      int32_t *out_data = static_cast<int32_t*>(output->data);
+      int error_code = NON_ERROR;
+      const char* errorStr = cuda_concatenate(input_data.data(), input_shape.data(), len, inputSize.data(), ndim, out_data, output->shape, axis, axisSize.data(), error_code);
+      deal_error(error_code, errorStr);
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.repeat")
