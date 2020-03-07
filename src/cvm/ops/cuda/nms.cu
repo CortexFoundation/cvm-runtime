@@ -168,6 +168,52 @@ __global__ void kernel_compare_iou(int32_t **rows, int32_t *y_batch,
     d_y_index[0] = y_index;
 }
 
+#define BS 32 // the block size(BS, BS)
+template<const int32_t id_index, const int32_t coord_start, int K>
+__global__ void kernel_cal_all_iou(int32_t **rows, bool *removed, const int n, int32_t iou_threshold){
+  int bidx = blockIdx.x;
+  int bidy = blockIdx.y;
+  int lidx = threadIdx.x;
+  int lidy = threadIdx.y;
+  int gidx = lidx + bidx * blockDim.x;
+  int gidy = lidy + bidy * blockDim.y;
+  __shared__ int32_t share_box[BS][K];
+  if(lidx < n){
+#pragma unroll
+    for(int i = 0; i < K; i++)
+      share_box[lidx][i] = rows[gidx][i];
+  }
+  __syncthreads();
+
+  if(gidx < n && gidy < n && gidy < gidx){
+    int64_t iou_ret = dev_iou(share_box[lidy] + coord_start, share_box[lidx] + coord_start, FORMAT_CORNER); 
+    removed[gidy * n + gidx] = (iou_ret >= iou_threshold);
+  }
+}
+
+template<bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
+__global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, const bool* removed, int32_t *y_batch, int32_t **rows, const int32_t n, int32_t *num_y){
+  int yn = 0;
+  for(int i = 0; yn < n_max && i < idx_max; i++){
+    bool ignored = false;
+    for(int j = 0; j < yn; j++){
+      bool flag = removed[j * idx_max + i];
+      if(force_suppress || y_batch[j*K + id_index] == rows[i][id_index]){
+          ignored = flag;
+          if(ignored) break;
+      }
+    }
+    if(!ignored && rows[i][id_index] >= 0){
+#pragma unroll
+      for(int k = 0; k < K; k++){
+        y_batch[yn * K + k] = rows[i][k];
+      }
+      ++yn;
+    } 
+  }
+  *num_y = yn;
+}
+
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,
     const int32_t max_output_size, const int32_t iou_threshold, const int32_t topk, 
     const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int& error_code){
@@ -191,11 +237,6 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
     error_code = ERROR_MALLOC;
     goto end;
   }
-  status = cudaMalloc((void**)&removed, sizeof(bool) * n);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
   status = cudaMalloc((void**)&d_y_index, sizeof(int32_t));
   if(status != cudaSuccess){
     error_code = ERROR_MALLOC;
@@ -204,9 +245,8 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
 
   for(int32_t b = 0; b < batchs; b++){
     int32_t vc = valid_count_data[b];
-    if(vc > n){
-      goto end;
-    }
+
+    vc = std::max(std::min(vc, n), 0);
 
     int32_t *x_batch = d_x_data + b * n * k;
     int32_t *y_batch = d_y_data + b * n * k;
@@ -214,7 +254,6 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       cudaMemset(y_batch, -1, n * k * sizeof(int32_t));
       goto end;
     }
-
     if(iou_threshold <= 0){
       status = cudaMemcpy(y_batch, x_batch, vc * k * sizeof(int32_t), cudaMemcpyDeviceToDevice);
       if(status != cudaSuccess){
@@ -227,73 +266,51 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
         goto end;
       }
     }else{
-      const int blockSize = 256;
-      const int gridSize = (vc + blockSize - 1) / blockSize;
+      int32_t n_max = vc;
+      if(max_output_size >= 0) n_max = std::min(n_max, max_output_size);
+      int32_t idx_max = vc;
+      if(topk >= 0) idx_max = std::min(idx_max, topk);
+      int32_t remove_n = std::max(n_max, idx_max);
+
+      int blockSize = 256;
+      int gridSize = (vc + blockSize - 1) / blockSize;
       kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, vc, k, score_index, rows);
       thrust::stable_sort(thrust::device, rows, rows+vc, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
           return a[score_index] > b[score_index];
       });
 
-      //if(topk > 0 && topk < vc){
-      //  for(int i = 0; i < vc - topk; i++){
-      //    status = cudaMemset(rows[i+topk], -1, k*sizeof(int32_t));
-      //    if(status != cudaSuccess){
-      //      error_code = ERROR_MEMSET;
-      //      goto end;
-      //    }
-      //  }
-      //}
-
-      status = cudaMemset(removed, false, sizeof(bool)*vc);
+      status = cudaMalloc((void**)&removed, sizeof(bool) * remove_n * remove_n);
+      if(status != cudaSuccess){
+        error_code = ERROR_MALLOC;
+        goto end;
+      }
+      status = cudaMemset(removed, false, sizeof(bool)*remove_n * remove_n);
       if(status != cudaSuccess){
         error_code = ERROR_MEMSET;
         goto end;
       }
-      int need_keep = ((topk >= 0 && topk < vc) ? topk : vc);
-      if(need_keep < vc){
-        status = cudaMemset(removed + need_keep, true, (vc-need_keep)*sizeof(bool));
-        if(status != cudaSuccess){
-          error_code = ERROR_MEMSET;
-          goto end;
-        }
-      }
-      int32_t y_index;
-      kernel_compare_iou<<<1,1>>>(rows, y_batch, need_keep, k, force_suppress,
-          id_index, coord_start, iou_threshold, removed, d_y_index);
-      status = cudaMemcpy(&y_index, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
-      if(status != cudaSuccess){
-        error_code = ERROR_MEMCPY;
-        goto end;
-      }
 
-      if(y_index < n){
-        status = cudaMemset(&y_batch[y_index*k], -1, (n-y_index)*k*sizeof(int32_t));
-        if(status != cudaSuccess){
-          error_code = ERROR_MEMSET;
-          goto end;
-        }
+      dim3 blockSizeDim = dim3(1, BS, BS);
+      dim3 gridSizeDim = dim3(1, (remove_n+BS-1) / BS, (remove_n+BS-1)/BS);
+      kernel_cal_all_iou<0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, idx_max, iou_threshold);
+
+      if(force_suppress){
+        kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, n,  d_y_index);
       }
+      else{ 
+        kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, n,  d_y_index);
+      }
+      int32_t yn = 0;
+      cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
+      cudaMemset(y_batch + yn * k, -1, (n - yn) * k * sizeof(int32_t));
+      if(removed != NULL) cudaFree(removed);
     } 
-    if(max_output_size > 0){
-      int j = 0;
-      for(int i = 0; i < vc; i++){
-        if(j == max_output_size){
-          status = cudaMemset(y_batch + i * k, -1, k * sizeof(int32_t));
-          if(status != cudaSuccess){
-            error_code = ERROR_MEMSET;
-            goto end;
-          }
-        }else{
-          j += 1;
-        }
-      }
-    }
   }
 end:
   if(valid_count_data != NULL) free(valid_count_data);
   if(rows != NULL) cudaFree(rows);
   if(d_y_index != NULL) cudaFree(d_y_index);
-  if(removed != NULL) cudaFree(removed);
+  //if(removed != NULL) cudaFree(removed);
   return check_cuda_error(cudaGetLastError());
 }
 
