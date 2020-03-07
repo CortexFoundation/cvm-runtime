@@ -140,50 +140,25 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *a = args[0];
-    DLTensor *c = args[1];
-
 #ifdef CVM_PROFILING
     double start = omp_get_wtime();
 #endif
-    void *_attr = args[2];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::CVMRightShiftParam>(attr->parsed);
-    int32_t precision = param.precision;
-    int32_t b = param.shift_bit;
-    int32_t* a_data = static_cast<int32_t*>(a->data);
-    int32_t* c_data = static_cast<int32_t*>(c->data);
-    int32_t min = -(((int64_t)1 << (precision-1)) - 1);
-    int32_t max = -min;
-    auto size = getSize(a);
+    auto X = CVMArg2Data<int32_t>(args[0]);
+    auto Y = CVMArg2Data<int32_t>(args[1]);
+    auto params = CVMArg2Attr<top::CVMRightShiftParam>(args[2]);
 
-    if (b == 1) {
-      for(uint64_t i = 0; i < size; i++){
-        int32_t shift_a = (a_data[i] + 1) >> 1;
-        if (shift_a > max) shift_a = max;
-        else if (shift_a < min) shift_a = min;
-        c_data[i] = shift_a;
-      }
-    } else {
-      b -= 1;
-      {
-        for(uint64_t i = 0; i < size; i++){
-          c_data[i] = a_data[i] >> b;
-          ++c_data[i];
-          c_data[i] >>= 1;
-        }
-        for(uint64_t i = 0; i < size; i++){
-          auto& shift_a = c_data[i];
-          if (shift_a > max) shift_a = max;
-          else if (shift_a < min) shift_a = min;
-        }
-      }
+    int64_t max_size = CVMArgSize(args[0]);
+
+    int32_t alpha = (1 << (params.precision - 1)) - 1;
+    for (int64_t i = 0; i < max_size; ++i) {
+      int t = X[i] >> (params.shift_bit - 1);
+      t = (t + 1) >> 1;
+      Y[i] = std::min(std::max(t, -alpha), alpha);
     }
 
 #ifdef CVM_PROFILING
     cvm_op_cvm_shift_cnt += omp_get_wtime() - start;
 #endif
-  print_to_file(c, "cvm_right_shift.txt");
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")

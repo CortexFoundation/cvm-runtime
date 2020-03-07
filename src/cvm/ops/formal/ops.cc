@@ -350,39 +350,45 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
 #ifdef CVM_PROFILING
     clock_t start = clock();
 #endif
-    int len = args.num_args;
-    DLTensor *input0 = args[0];
-    void *_attr = args[--len];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::ConcatenateParam>(attr->parsed);
-    DLTensor *out = args[--len];
-    int32_t axis = param.axis;
-    int32_t ndim = static_cast<int32_t>(input0->ndim);
-    if(axis < 0) axis += ndim;
+    int M = args.num_args - 2; // I^0, I^1, ... I^M-1
+    auto Y = CVMArg2Data<int32_t>(args[M]);
+    auto params = CVMArg2Attr<top::ConcatenateParam>(args[M+1]);
 
-    int32_t *out_data = static_cast<int32_t*>(out->data);
+    auto y_shape = CVMArgShape(args[M]);
 
-    int64_t y_axis_size = 0;
-    for(int32_t l = 0; l < len; l++){
-      DLTensor* input = args[l];
-      int32_t *input_data = static_cast<int32_t*>(input->data);
-      for(uint64_t i = 0; i < getSize(input); i++){
-        uint64_t tmp_i = i, yi = 0, shape_size = 1; 
-        for(int32_t d = ndim - 1; d >= 0; d--){
-         uint64_t col = tmp_i % input->shape[d];
-         tmp_i /= input->shape[d];
-         if(d == axis) col += y_axis_size; 
-         yi += col * shape_size;
-         shape_size *= out->shape[d];
-        }
-        out_data[yi] = input_data[i];
+    int32_t axis = params.axis;
+    if(axis < 0) axis += y_shape.size();
+
+    int64_t y_size = std::accumulate(
+        y_shape.begin(), y_shape.begin()+axis, 1,
+        [](int64_t prod, int64_t elem) -> int64_t {
+          return prod * elem;
+        });
+    int64_t axis_batch = std::accumulate(
+        y_shape.begin()+axis+1, y_shape.end(), 1,
+        [](int64_t prod, int64_t elem) -> int64_t {
+          return prod * elem;
+        });
+
+    int64_t y_start_idx = 0;
+    int64_t y_axis_batch = y_shape.at(axis) * axis_batch;
+    for (int m = 0; m < M; ++m) {
+      auto Ix = CVMArg2Data<int32_t>(args[m]);
+      auto x_shape = CVMArgShape(args[m]);
+      auto x_axis_batch = x_shape.at(axis) * axis_batch;
+
+      for (int64_t y_iter = 0; y_iter < y_size; ++y_iter) {
+        memcpy(Y+y_iter*y_axis_batch+y_start_idx,
+               Ix+y_iter*x_axis_batch,
+               x_axis_batch*sizeof(int32_t));
       }
-      y_axis_size += input->shape[axis];
+
+      y_start_idx += x_axis_batch;
     }
+
 #ifdef CVM_PROFILING
     cvm_op_concat_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
 #endif
-  print_to_file(out, "concatenate.txt");
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.repeat")
