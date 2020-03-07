@@ -168,8 +168,8 @@ __global__ void kernel_compare_iou(int32_t **rows, int32_t *y_batch,
     d_y_index[0] = y_index;
 }
 
-#define BS 32 // the block size(BS, BS)
-template<const int32_t id_index, const int32_t coord_start, int K>
+//#define BS 64 // the block size(BS, BS)
+template<const int32_t BS, const int32_t id_index, const int32_t coord_start, int K>
 __global__ void kernel_cal_all_iou(int32_t **rows, bool *removed, const int n, int32_t iou_threshold){
   int bidx = blockIdx.x;
   int bidy = blockIdx.y;
@@ -195,18 +195,24 @@ template<bool force_suppress, const int32_t id_index, const int32_t coord_start,
 __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, const bool* removed, int32_t *y_batch, int32_t **rows, const int32_t n, int32_t *num_y){
   int yn = 0;
   for(int i = 0; yn < n_max && i < idx_max; i++){
+    int32_t row[K];
+#pragma unroll
+    for(int k = 0; k < K; k++){
+      row[k] = rows[i][k];
+    }
+
     bool ignored = false;
     for(int j = 0; j < yn; j++){
       bool flag = removed[j * idx_max + i];
-      if(force_suppress || y_batch[j*K + id_index] == rows[i][id_index]){
+      if(force_suppress || y_batch[j*K + id_index] == row[id_index]){
           ignored = flag;
           if(ignored) break;
       }
     }
-    if(!ignored && rows[i][id_index] >= 0){
+    if(!ignored && row[id_index] >= 0){
 #pragma unroll
       for(int k = 0; k < K; k++){
-        y_batch[yn * K + k] = rows[i][k];
+        y_batch[yn * K + k] = row[k];
       }
       ++yn;
     } 
@@ -290,9 +296,10 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
         goto end;
       }
 
+      const int32_t BS = 32;
       dim3 blockSizeDim = dim3(1, BS, BS);
       dim3 gridSizeDim = dim3(1, (remove_n+BS-1) / BS, (remove_n+BS-1)/BS);
-      kernel_cal_all_iou<0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, idx_max, iou_threshold);
+      kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, idx_max, iou_threshold);
 
       if(force_suppress){
         kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, n,  d_y_index);
