@@ -200,6 +200,7 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
     for(int k = 0; k < K; k++){
       row[k] = rows[i][k];
     }
+    if(row[id_index] < 0) continue;
 
     bool ignored = false;
     for(int j = 0; j < yn; j++){
@@ -209,7 +210,7 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
           if(ignored) break;
       }
     }
-    if(!ignored && row[id_index] >= 0){
+    if(!ignored){
 #pragma unroll
       for(int k = 0; k < K; k++){
         y_batch[yn * K + k] = row[k];

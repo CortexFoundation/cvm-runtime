@@ -1003,9 +1003,14 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
     cvm_cuda_malloc((void**)&dev_axisSize, sizeof(int64_t) * ninput);
     cvm_cuda_memcpy((void*)dev_axisSize, (void*)axisSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
 
-    const int bSize = 1024;
+    const int bSize = 512;
     int gSize = ninput;
     kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, dev_oshape, ndim, dev_output, axis, dev_axisSize);
+    if(dev_input != NULL) cudaFree(dev_input);
+    if(dev_ishape != NULL) cudaFree(dev_ishape);
+    if(dev_oshape != NULL) cudaFree(dev_oshape);
+    if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
+    if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     return "";
   }catch (int e){
     if(dev_input != NULL) cudaFree(dev_input);
