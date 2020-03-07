@@ -373,7 +373,7 @@ int test_models(int device_type = 0) {
     // "/data/std_out/non_in",
     "/data/std_out/shufflenet",
     "/data/std_out/ssd",
-    "/tmp/ssd_512_mobilenet1.0_coco_tfm/",
+    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);

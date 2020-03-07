@@ -23,11 +23,11 @@ formal:
 
 
 test_model_cpu: cpu
-	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
+	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -DCVM_PROFILING -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
 test_model_gpu: gpu
 	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cuda -DUSE_GPU && ./tests/$@
 test_model_formal: formal
-	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
+	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -DCVM_PROFILING -o tests/$@ -lcvm_runtime_formal && ./tests/$@
 
 test_op_cpu: cpu 
 	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@

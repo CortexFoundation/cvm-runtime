@@ -44,9 +44,21 @@ inline PType CVMArg2Attr(cvm::runtime::CVMArgValue const& av) {
   return cvm::get<PType>(attr->parsed);
 }
 
-inline int64_t* CVMArgShape(cvm::runtime::CVMArgValue const& av) {
+inline std::vector<int64_t> 
+CVMArgShape(cvm::runtime::CVMArgValue const& av) {
   DLTensor *tensor = av.operator DLTensor *();
-  return tensor->shape;
+  std::vector<int64_t> shape;
+  for (int32_t i = 0; i < tensor->ndim; ++i) {
+    shape.push_back(tensor->shape[i]);
+  }
+  return shape;
+}
+
+inline int64_t CVMArgSize(cvm::runtime::CVMArgValue const& av) {
+  DLTensor *tensor = av.operator DLTensor *();
+  int64_t size = 1;
+  for(int i = 0; i < tensor->ndim; ++i) size *= tensor->shape[i];
+  return size;
 }
 
 const std::string DIR = "/tmp/zkh/ssd/";
