@@ -624,52 +624,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
     auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
     auto &param = cvm::get<cvm::top::ConcatenateParam>(attr->parsed);
     DLTensor *out = args[--len];
+    int32_t *out_data = static_cast<int32_t*>(out->data);
     int32_t axis = param.axis;
     int32_t ndim = static_cast<int32_t>(input0->ndim);
     if(axis < 0) axis += ndim;
-    int n_batch = input0->shape[0];
 
-    if (axis == 1 && n_batch == 1) {
-      int32_t *out_data = static_cast<int32_t*>(out->data);
-      uint64_t offset = 0;
-      for(int k = 0; k < len; k++){
-        DLTensor* input = args[k];
-        int input_size_current = 1;
-        for (int i = 0; i < input->ndim; ++i) {
-          input_size_current *= input->shape[i];
-        }
-        memcpy(out_data + offset, input->data, sizeof(int32_t) * input_size_current);
-        offset += input_size_current;
+    int64_t y_size = 1;
+    for (int i = 0; i < axis; ++i) y_size *= out->shape[i];
+    int32_t axis_batch = 1;
+    for (int i = axis+1; i < ndim; ++i) axis_batch *= out->shape[i];
+
+    int64_t y_start_idx = 0;
+    int64_t y_axis_batch = out->shape[axis] * axis_batch;
+    for (int m = 0; m < len; ++m) {
+      DLTensor* input = args[m];
+      int32_t* Ix = static_cast<int32_t*>(input->data);
+      auto x_axis_batch = input->shape[axis] * axis_batch;
+
+      for (int64_t y_iter = 0; y_iter < y_size; ++y_iter) {
+        memcpy(out_data+y_iter*y_axis_batch+y_start_idx,
+               Ix+y_iter*x_axis_batch,
+               x_axis_batch*sizeof(int32_t));
       }
-    } else {
-      int32_t *out_data = static_cast<int32_t*>(out->data);
-      for(uint64_t i = 0; i < getSize(out); i++){
-        uint64_t o_i = i, in_i = 0, in_i2 = 0, shapeSize = 1;
-        for(int j = out->ndim-1; j >= 0; j--){
-          uint64_t col = o_i % out->shape[j];
-          o_i /= out->shape[j];
-          uint64_t tmpcol = col;
-          if(j == axis){
-            uint64_t allShapeSize = 0;
-            for(int k = 0; k < len; k++){
-              tmpcol = col - allShapeSize;
-              DLTensor *input = args[k];
-              allShapeSize += input->shape[axis];
-              if(col < allShapeSize){
-                in_i = k;
-                break;
-              }
-            }
-          }
-          in_i2 += tmpcol * shapeSize; 
-          DLTensor* input = args[in_i];
-          shapeSize *= input->shape[j];
-        }
-        DLTensor *input = args[in_i];
-        int32_t *input_data = static_cast<int32_t*>(input->data);
-        out_data[i] = input_data[in_i2];
-      }
+
+      y_start_idx += x_axis_batch;
     }
+
 #ifdef CVM_PROFILING
     cvm_op_concat_cnt += omp_get_wtime() - start;
 #endif

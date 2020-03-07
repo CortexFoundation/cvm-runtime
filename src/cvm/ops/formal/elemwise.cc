@@ -150,7 +150,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
     int64_t max_size = CVMArgSize(args[0]);
 
     int32_t alpha = (1 << (params.precision - 1)) - 1;
-    for (int64_t i = 0; i < max_size; ++i) {
+    for (uint64_t i = 0; i < max_size; ++i) {
       int t = X[i] >> (params.shift_bit - 1);
       t = (t + 1) >> 1;
       Y[i] = std::min(std::max(t, -alpha), alpha);

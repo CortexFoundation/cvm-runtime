@@ -32,16 +32,21 @@ void broadcast(DLTensor *args0, DLTensor* args1, DLTensor* args2, broadcast_func
   int32_t *b = static_cast<int32_t*>(args1->data);
   int32_t *c = static_cast<int32_t*>(args2->data);
 
-  if(getSize(args1) == 1){
-    for(uint64_t i = 0; i < getSize(args2); ++i){
-      c[i] = f(a[i], b[0]);
-    }
+  uint64_t a_size = getSize(args0);
+  uint64_t b_size = getSize(args1);
+  uint64_t c_size = getSize(args2);
+
+  if(a_size == 1){
+    for(uint64_t i = 0; i < c_size; ++i) c[i] = f(a[0], b[i]);
+  } else if (b_size == 1) {
+    for(uint64_t i = 0; i < c_size; ++i) c[i] = f(a[i], b[0]);
   }else{
 #pragma omp parallel for
-    for(uint64_t i = 0; i < getSize(args2); ++i){
-      uint64_t o_index = i;
-      int64_t a_index = broadcast_i_index(args2->shape, o_index, args0->shape, args0->ndim, args2->ndim);
-      int64_t b_index = broadcast_i_index(args2->shape, o_index, args1->shape, args1->ndim, args2->ndim);
+    for(uint64_t i = 0; i < c_size; ++i){
+      int64_t a_index = broadcast_i_index(
+          args2->shape, i, args0->shape, args0->ndim, args2->ndim);
+      int64_t b_index = broadcast_i_index(
+          args2->shape, i, args1->shape, args1->ndim, args2->ndim);
       c[i] = f(a[a_index], b[b_index]);
     }
   }

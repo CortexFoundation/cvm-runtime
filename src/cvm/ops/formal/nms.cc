@@ -98,9 +98,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
     int32_t K = x_shape[2];
 
     for (int32_t b = 0; b < B; ++b) {
-      int32_t T = std::max(std::min(B, valid_count[b]), 0);
+      int32_t T = std::max(std::min(N, valid_count[b]), 0);
       std::vector<int32_t*> R(T); // sorted X in score descending order
-      for (int i = 0; i < T; ++i) R[i] = X + b * B * K + i * K;
+      for (int i = 0; i < T; ++i) R[i] = X + b * N * K + i * K;
 
       std::stable_sort(R.begin(), R.end(), 
         [](const int32_t* a, const int32_t* b) -> bool {
@@ -115,7 +115,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
         p_max = std::min(p_max, params.top_k);
 
       int32_t n = 0; // dynamic calculate union U, as Y index.
-      int32_t *y_batch = Y + b * B * K; // temporary variable
+      int32_t *y_batch = Y + b * N * K; // temporary variable
       // dynamic calculate U, and n \in [0, min{n_max, card{U})
       for (int32_t p = 0; n < n_max && p < p_max; ++p) { // p \in [0, p_max)
         if (R[p][0] < 0) continue; // R[b, p, 0] >= 0
