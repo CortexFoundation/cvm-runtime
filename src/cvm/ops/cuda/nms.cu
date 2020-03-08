@@ -175,25 +175,36 @@ __global__ void kernel_cal_all_iou(int32_t **rows, bool *removed, const int n, i
   int bidy = blockIdx.y;
   int lidx = threadIdx.x;
   int lidy = threadIdx.y;
-  int gidx = lidx + bidx * blockDim.x;
-  int gidy = lidy + bidy * blockDim.y;
-  __shared__ int32_t share_box[BS][K];
-  if(lidx < n){
+  int gidx = lidx + bidx * BS;
+  int gidy = lidy + bidy * BS;
+  __shared__ int32_t share_box1[BS][K];
+  __shared__ int32_t share_box2[BS][K];
+  int index1 = bidy * BS + lidx;
+  if(lidy == 0 && index1 < n){
 #pragma unroll
     for(int i = 0; i < K; i++)
-      share_box[lidx][i] = rows[gidx][i];
+      share_box1[lidx][i] = rows[index1][i];
+  }
+  if(lidy == 1 && gidx < n){
+#pragma unroll
+    for(int i = 0; i < K; i++)
+      share_box2[lidx][i] = rows[gidx][i];
   }
   __syncthreads();
 
   if(gidx < n && gidy < n && gidy < gidx){
-    int64_t iou_ret = dev_iou(share_box[lidy] + coord_start, share_box[lidx] + coord_start, FORMAT_CORNER); 
-    removed[gidy * n + gidx] = (iou_ret >= iou_threshold);
+    int64_t iou_ret = dev_iou(&share_box1[lidy][coord_start], &share_box2[lidx][coord_start], FORMAT_CORNER); 
+    if(iou_ret >= iou_threshold){
+      removed[gidy * n + gidx] = true; 
+    }
   }
 }
 
 template<bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
-__global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, const bool* removed, int32_t *y_batch, int32_t **rows, const int32_t n, int32_t *num_y){
+__global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, const bool* removed, int32_t *y_batch, int32_t **rows, int32_t *num_y){
   int yn = 0;
+  int32_t removed_n = max(n_max, idx_max);
+  __shared__ int yindex[1024*8];
   for(int i = 0; yn < n_max && i < idx_max; i++){
     int32_t row[K];
 #pragma unroll
@@ -204,10 +215,13 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
 
     bool ignored = false;
     for(int j = 0; j < yn; j++){
-      bool flag = removed[j * idx_max + i];
+      bool flag = removed[yindex[j] * removed_n + i];
       if(force_suppress || y_batch[j*K + id_index] == row[id_index]){
           ignored = flag;
-          if(ignored) break;
+          if(ignored) {
+            //printf("%d %d\n", i, j);
+            break;
+          }
       }
     }
     if(!ignored){
@@ -215,6 +229,7 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
       for(int k = 0; k < K; k++){
         y_batch[yn * K + k] = row[k];
       }
+      yindex[yn] = i;
       ++yn;
     } 
   }
@@ -261,6 +276,7 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       cudaMemset(y_batch, -1, n * k * sizeof(int32_t));
       goto end;
     }
+
     if(iou_threshold <= 0){
       status = cudaMemcpy(y_batch, x_batch, vc * k * sizeof(int32_t), cudaMemcpyDeviceToDevice);
       if(status != cudaSuccess){
@@ -298,15 +314,16 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       }
 
       const int32_t BS = 32;
-      dim3 blockSizeDim = dim3(1, BS, BS);
-      dim3 gridSizeDim = dim3(1, (remove_n+BS-1) / BS, (remove_n+BS-1)/BS);
-      kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, idx_max, iou_threshold);
+      dim3 blockSizeDim = dim3(BS, BS, 1);
+      dim3 gridSizeDim = dim3((remove_n+BS-1) / BS, (remove_n+BS-1)/BS, 1);
+      printf("iou threshold = %d\n", iou_threshold);
+      kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, remove_n, iou_threshold);
 
       if(force_suppress){
-        kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, n,  d_y_index);
+        kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
       }
       else{ 
-        kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, n,  d_y_index);
+        kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
       }
       int32_t yn = 0;
       cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
