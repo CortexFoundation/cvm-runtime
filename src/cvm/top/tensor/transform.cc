@@ -7,6 +7,7 @@
 #include <cvm/node.h>
 #include <cvm/op_attr_types.h>
 #include <cvm/top/tensor.h>
+#include <cvm/dlpack.h>
 #include <cctype>
 #include <sstream>
 #include "../op_common.h"
@@ -287,8 +288,8 @@ Example::
     [](const NodeAttrs& attrs, 
       std::vector<TShape>* shapes,
       std::vector<int>* iprecs,
-      int device_type) -> int64_t {
-    if(device_type == 2){
+      const DLContext& ctx) -> int64_t {
+    if(ctx.device_type == kDLGPU){
       int ninput = shapes->size()-1; 
       int ndim = shapes->at(0).ndim();
       int size_n = sizeof(int64_t) / sizeof(int32_t);
