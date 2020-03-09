@@ -117,8 +117,9 @@ CVM_REGISTER_ELEMWISE_UNARY_OP(relu)
 .set_attr<FOpExtraSpace>("FOpExtraSpace",
     [](const NodeAttrs& attrs, 
        std::vector<TShape>* shapes,
-       std::vector<int>* iprecs) -> int64_t {
-      return 10;
+       std::vector<int>* iprecs,
+       int device_type) -> int64_t {
+      return 0;
     })
 .set_support_level(1);
 

@@ -84,7 +84,8 @@ using FInferPrecision =
 using FOpExtraSpace = 
   std::function<int64_t (const NodeAttrs& attrs,
       std::vector<TShape>* shapes,
-      std::vector<int>* iprecs)>;
+      std::vector<int>* iprecs,
+      int device_type)>;
 
 
 /*!
