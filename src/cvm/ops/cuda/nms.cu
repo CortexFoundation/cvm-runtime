@@ -222,8 +222,7 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
             if(flag) {
               break;
             }
-        }
-      }
+        } }
       if(j == yn){
 #pragma unroll
         for(int k = 0; k < K; k++){

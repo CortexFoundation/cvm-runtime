@@ -962,12 +962,13 @@ void cvm_cuda_memcpy(void *dst, void* src, size_t size, cudaMemcpyKind flag){
   }
 }
 
-__global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, const int64_t *ishapes, const int64_t* oshape, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t *axisSize){
+__global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
   int32_t lid = threadIdx.x;
   const int32_t *input_data = input[bid];
   const int64_t *ishape = ishapes + bid * ndim;
   const int32_t y_axis_size = axisSize[bid];
+  const int64_t oshape[6] = {oshape0, oshape1, oshape2, oshape3, oshape4, oshape5};
   for(int64_t i = lid; i < inputSize[bid]; i+= blockDim.x){
     int32_t tmp_i = i, yi = 0, shape_size = 1;
     for(int32_t d = ndim-1; d>=0; d--){
@@ -975,13 +976,14 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, co
       tmp_i /= ishape[d];
       if(d == axis) col += y_axis_size;
       yi += col * shape_size;
-      shape_size *= oshape[d];
+      shape_size *= oshape[d + 6-ndim];
     }
     out_data[yi] = input_data[i];
   }
 }
 
 const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t *inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int& error_code){
+  start_time();
   int32_t **dev_input = NULL;
   int32_t *dev_output = output;
   int64_t *dev_inputSize = NULL;
@@ -996,8 +998,8 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
     for(int i = 0; i < ninput; i++){
       cvm_cuda_memcpy((void*)(dev_ishape + i*ndim), (void*)ishapes[i], sizeof(int64_t)*ndim, cudaMemcpyHostToDevice);
     }
-    cvm_cuda_malloc((void**)&dev_oshape, sizeof(int64_t) * ndim);
-    cvm_cuda_memcpy((void*)dev_oshape, (void*)oshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
+    //cvm_cuda_malloc((void**)&dev_oshape, sizeof(int64_t) * ndim);
+    //cvm_cuda_memcpy((void*)dev_oshape, (void*)oshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
     cvm_cuda_malloc((void**)&dev_inputSize, sizeof(int64_t)*ninput);
     cvm_cuda_memcpy((void*)dev_inputSize, inputSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
     cvm_cuda_malloc((void**)&dev_axisSize, sizeof(int64_t) * ninput);
@@ -1005,17 +1007,37 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
 
     const int bSize = 512;
     int gSize = ninput;
-    kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, dev_oshape, ndim, dev_output, axis, dev_axisSize);
+    switch(ndim){
+      case 1:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, 1, 1, oshape[0]);
+        break;
+      case 2:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, 1, oshape[0], oshape[1]);
+        break;
+      case 3:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, oshape[0], oshape[1], oshape[2]);
+        break;
+      case 4:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize,  1, 1, oshape[0], oshape[1], oshape[2], oshape[3]);
+        break;
+      case 5:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, oshape[0], oshape[1], oshape[2], oshape[3], oshape[4]);
+        break;
+      case 6:
+        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, oshape[0], oshape[1], oshape[2], oshape[3], oshape[4], oshape[5]);
+        break;
+    }
     if(dev_input != NULL) cudaFree(dev_input);
     if(dev_ishape != NULL) cudaFree(dev_ishape);
-    if(dev_oshape != NULL) cudaFree(dev_oshape);
+    //if(dev_oshape != NULL) cudaFree(dev_oshape);
     if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
     if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
+    cvm_op_concat_cnt += get_used_time();
     return "";
   }catch (int e){
     if(dev_input != NULL) cudaFree(dev_input);
     if(dev_ishape != NULL) cudaFree(dev_ishape);
-    if(dev_oshape != NULL) cudaFree(dev_oshape);
+    //if(dev_oshape != NULL) cudaFree(dev_oshape);
     if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
     if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     return check_cuda_error(cudaGetLastError());
