@@ -81,6 +81,11 @@ using FInferPrecision =
     std::vector<int>* in_attrs,
     std::vector<int>* out_attrs)>;
 
+using FOpExtraSpace = 
+  std::function<int64_t (const NodeAttrs& attrs,
+      std::vector<TShape>* shapes,
+      std::vector<int>* in_precs)>;
+
 
 /*!
  * \brief Get attribute dictionary from node.

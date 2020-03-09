@@ -8,6 +8,7 @@
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
+#include <cvm/op_attr_types.h>
 
 #include <algorithm>
 #include <functional>
@@ -442,7 +443,7 @@ void CvmRuntime::PlanStorage() {
   for (size_t i = 0; i < attrs_.shape.size(); ++i) {
     // Use the fallback device if no device index is available.
     int device_type = static_cast<int>(ctxs_[0].device_type);
-    if (!attrs_.device_index.empty()) {
+    if (!attrs_.device_index.empty()) { // must be empty
       device_type = attrs_.device_index[i];
     }
     auto size = TShape(attrs_.shape[i]).Size();
@@ -461,6 +462,36 @@ void CvmRuntime::PlanStorage() {
     }
     pool_entry[sid].size = std::max(pool_entry[sid].size, bytes);
     pool_entry[sid].device_type = device_type;
+  }
+
+  // Calculate the extra space
+  std::vector<int> &precision = attrs_.precision;
+  std::vector<TShape> rshape;
+  for (auto shape : attrs_.shape) rshape.emplace_back(shape);
+  std::vector<TShape> shapes;
+  std::vector<int> iprecs;
+  static auto& fextra_space =
+      Op::GetAttr<cvm::FOpExtraSpace>("FOpExtraSpace");
+
+  extra_space_size_ = 0;
+  for (size_t i = 0; i < nodes_.size(); ++i) {
+    const auto& inode = nodes_[i];
+    if (inode.op_type == "null") continue;
+    auto fextra = fextra_space.get(inode.attrs.op, nullptr);
+    if (fextra == nullptr) continue;
+
+    const uint32_t num_inputs = inode.param.num_inputs;
+    const uint32_t num_outputs = inode.param.num_outputs;
+    // Forward operator inference.
+    shapes.resize(num_inputs+num_outputs, TShape());
+    iprecs.resize(num_inputs, 0);
+    for (uint32_t i = 0; i < num_inputs; ++i) {
+      const auto& eid = entry_id(inode.inputs[i]);
+      iprecs[i] = precision[eid];
+      shapes[i] = rshape[eid];
+    }
+    int64_t es = fextra(inode.attrs, &shapes, &iprecs);
+    extra_space_size_ = std::max(extra_space_size_, es);
   }
 }
 
@@ -503,10 +534,12 @@ void CvmRuntime::SetupStorage() {
   for (size_t i = 0; i < data_entry_.size(); ++i) {
     int storage_id = attrs_.storage_id[i];
     CHECK_LT(static_cast<size_t>(storage_id), storage_pool_.size());
-    data_entry_[i] =
-        storage_pool_[storage_id].CreateView(attrs_.shape[i], vtype[i]);
+    data_entry_[i] = storage_pool_[storage_id].CreateView(
+        attrs_.shape[i], vtype[i]);
   }
 
+  extra_space_ = NDArray::Empty(
+      {extra_space_size_}, DLDataType{kDLInt, 32, 1}, ctxs_[0]);
 }
 
 void CvmRuntime::SetupOpExecs() {
@@ -523,14 +556,13 @@ void CvmRuntime::SetupOpExecs() {
       uint32_t eid = this->entry_id(nid, index);
       args.push_back(*(data_entry_[eid].operator->()));
     }
-    op_execs_[nid] = CreateCVMOp(inode.param, &inode.attrs, args, inode.inputs.size());
+    op_execs_[nid] = CreateCVMOp(inode.param, &inode.attrs, args);
   }
 }
 
 std::function<void()> CvmRuntime::CreateCVMOp(
     const CVMOpParam& param, NodeAttrs* attr,
-    const std::vector<DLTensor>& args,
-    size_t num_inputs) {
+    const std::vector<DLTensor>& args) {
   struct OpArgs {
     std::vector<DLTensor> args;
     std::vector<CVMValue> arg_values;
@@ -561,18 +593,18 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   arg_ptr->arg_values.push_back(t_attr);
   arg_ptr->arg_tcodes.push_back(kHandle);
 
-  if (param.func_name == "__nop") {
-    return [](){};
-  } else if (param.func_name == "__copy") {
-    // Perform cross device data copy.
-    // Directly copy data from the input to the output.
-    auto fexec = [arg_ptr]() {
-      DLTensor* from = static_cast<DLTensor*>(arg_ptr->arg_values[0].v_handle);
-      DLTensor* to = static_cast<DLTensor*>(arg_ptr->arg_values[1].v_handle);
-      CVM_CCALL(CVMArrayCopyFromTo(from, to, nullptr));
-    };
-    return fexec;
-  }
+  // if (param.func_name == "__nop") {
+  //   return [](){};
+  // } else if (param.func_name == "__copy") {
+  //   // Perform cross device data copy.
+  //   // Directly copy data from the input to the output.
+  //   auto fexec = [arg_ptr]() {
+  //     DLTensor* from = static_cast<DLTensor*>(arg_ptr->arg_values[0].v_handle);
+  //     DLTensor* to = static_cast<DLTensor*>(arg_ptr->arg_values[1].v_handle);
+  //     CVM_CCALL(CVMArrayCopyFromTo(from, to, nullptr));
+  //   };
+  //   return fexec;
+  // }
 
   // Get compiled function from the module that contains both host and device
   // code.
@@ -583,12 +615,15 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   module_name += ".";
   auto func = cvm::runtime::Registry::Get(module_name + op);
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
-  return [arg_ptr, op, func](){
+
+  const DLTensor* ext_space = extra_space_.operator->();
+  return [arg_ptr, op, func, ext_space](){
     CVMRetValue rv;
     CVMArgs targs(
       arg_ptr->arg_values.data(),
       arg_ptr->arg_tcodes.data(),
-      static_cast<int>(arg_ptr->arg_values.size())
+      static_cast<int>(arg_ptr->arg_values.size()),
+      const_cast<DLTensor*>(ext_space)
     );
     func->CallPacked(targs, &rv);
   };

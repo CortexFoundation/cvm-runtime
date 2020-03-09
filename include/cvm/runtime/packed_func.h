@@ -296,6 +296,8 @@ class CVMArgs {
   const CVMValue* values;
   const int* type_codes;
   int num_args;
+
+  DLTensor* ext_space = nullptr;
   /*!
    * \brief constructor
    * \param values The argument values
@@ -304,10 +306,12 @@ class CVMArgs {
    */
   CVMArgs(const CVMValue* values,
           const int* type_codes,
-          int num_args)
+          int num_args,
+          DLTensor* es = nullptr)
       : values(values),
         type_codes(type_codes),
-        num_args(num_args) { }
+        num_args(num_args),
+        ext_space(es) { }
   /*! \return size of the arguments */
   inline int size() const;
   /*!
