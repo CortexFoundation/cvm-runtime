@@ -491,8 +491,7 @@ void CvmRuntime::PlanStorage() {
       shapes[i] = rshape[eid];
     }
 
-    int device_type = ctxs_[0].device_type;
-    int64_t es = fextra(inode.attrs, &shapes, &iprecs, device_type);
+    int64_t es = fextra(inode.attrs, &shapes, &iprecs, ctxs_[0]);
     extra_space_size_ = std::max(extra_space_size_, es);
   }
 }

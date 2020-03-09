@@ -15,6 +15,7 @@
 #include "node.h"
 #include "tuple.h"
 #include "layout.h"
+#include "dlpack.h"
 
 namespace cvm {
 
@@ -85,8 +86,7 @@ using FOpExtraSpace =
   std::function<int64_t (const NodeAttrs& attrs,
       std::vector<TShape>* shapes,
       std::vector<int>* iprecs,
-      int device_type)>;
-
+      const DLContext& ctx)>;
 
 /*!
  * \brief Get attribute dictionary from node.
