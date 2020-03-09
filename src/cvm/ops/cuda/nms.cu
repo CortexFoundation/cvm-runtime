@@ -201,37 +201,66 @@ __global__ void kernel_cal_all_iou(int32_t **rows, bool *removed, const int n, i
 }
 
 template<bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
-__global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, const bool* removed, int32_t *y_batch, int32_t **rows, int32_t *num_y){
+__global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_max, bool* removed, int32_t *y_batch, int32_t **rows, int32_t *num_y){
   int yn = 0;
-  int32_t removed_n = max(n_max, idx_max);
-  __shared__ int yindex[1024*8];
-  for(int i = 0; yn < n_max && i < idx_max; i++){
-    int32_t row[K];
-#pragma unroll
-    for(int k = 0; k < K; k++){
-      row[k] = rows[i][k];
-    }
-    if(row[id_index] < 0) continue;
+  const int32_t removed_n = max(n_max, idx_max);
 
-    bool ignored = false;
-    for(int j = 0; j < yn; j++){
-      bool flag = removed[yindex[j] * removed_n + i];
-      if(force_suppress || y_batch[j*K + id_index] == row[id_index]){
-          ignored = flag;
-          if(ignored) {
-            //printf("%d %d\n", i, j);
-            break;
-          }
-      }
-    }
-    if(!ignored){
+  if(n_max < 8*1024){
+    __shared__ int yindex[1024*8];
+    for(int i = 0; yn < n_max && i < idx_max; i++){
+      int32_t row[K];
 #pragma unroll
       for(int k = 0; k < K; k++){
-        y_batch[yn * K + k] = row[k];
+        row[k] = rows[i][k];
       }
-      yindex[yn] = i;
-      ++yn;
-    } 
+      if(row[id_index] < 0) continue;
+
+      int j = 0;
+      for(; j < yn; j++){
+        bool flag = removed[yindex[j] * removed_n + i];
+        if(force_suppress || y_batch[j*K + id_index] == row[id_index]){
+            if(flag) {
+              break;
+            }
+        }
+      }
+      if(j == yn){
+#pragma unroll
+        for(int k = 0; k < K; k++){
+          y_batch[yn * K + k] = row[k];
+        }
+        yindex[yn] = i;
+        ++yn;
+      } 
+    }
+  }else{
+    for(int i = 0; yn < n_max && i < idx_max; i++){
+      int32_t row[K];
+#pragma unroll
+      for(int k = 0; k < K; k++){
+        row[k] = rows[i][k];
+      }
+      if(row[id_index] < 0) continue;
+
+      int j = 0;
+      for(; j < i; j++){
+        bool preflag = removed[j];
+        if(!preflag && (force_suppress || rows[j][id_index] == row[id_index])){
+          bool flag = removed[j * removed_n + i];
+            if(flag) {
+              removed[i] = true;
+              break;
+            }
+        }
+      }
+      if(j == i){
+#pragma unroll
+        for(int k = 0; k < K; k++){
+          y_batch[yn * K + k] = row[k];
+        }
+        ++yn;
+      } 
+    }
   }
   *num_y = yn;
 }
@@ -316,7 +345,6 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       const int32_t BS = 32;
       dim3 blockSizeDim = dim3(BS, BS, 1);
       dim3 gridSizeDim = dim3((remove_n+BS-1) / BS, (remove_n+BS-1)/BS, 1);
-      printf("iou threshold = %d\n", iou_threshold);
       kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, remove_n, iou_threshold);
 
       if(force_suppress){
