@@ -943,18 +943,35 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
-__global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
+__global__ void cal_axis_offset(int64_t *axisSize, const int32_t ninput, int64_t*ishapes, const int32_t ndim, const int32_t axis){
+  int64_t preSize = 0;
+  for(int i = 0; i < ninput; i++){
+    int64_t size = ishapes[i*ndim + axis];
+    axisSize[i] = preSize;
+    preSize += size;
+  }
+}
+__global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int64_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
   int32_t lid = threadIdx.x;
   const int32_t *input_data = input[bid];
   const int64_t *ishape = ishapes + bid * ndim;
+  __shared__ int64_t share_ishape[MAX_DIM];
+  if(lid < ndim) share_ishape[lid] = ishape[lid];
+  __syncthreads();
+  int64_t reg_ishape[MAX_DIM];
+  int64_t isize = 1;
+  for(int i = 0; i < ndim; i++){
+    reg_ishape[i] = share_ishape[i];
+    isize *= reg_ishape[i];
+  }
   const int32_t y_axis_size = axisSize[bid];
   const int64_t oshape[6] = {oshape0, oshape1, oshape2, oshape3, oshape4, oshape5};
-  for(int64_t i = lid; i < inputSize[bid]; i+= blockDim.x){
+  for(int64_t i = lid; i < isize; i+= blockDim.x){
     int32_t tmp_i = i, yi = 0, shape_size = 1;
     for(int32_t d = ndim-1; d>=0; d--){
-      int32_t col = tmp_i % ishape[d];
-      tmp_i /= ishape[d];
+      int32_t col = tmp_i % reg_ishape[d];
+      tmp_i /= reg_ishape[d];
       if(d == axis) col += y_axis_size;
       yi += col * shape_size;
       shape_size *= oshape[d + 6-ndim];
@@ -963,27 +980,23 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, co
   }
 }
 
-const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t *inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
+const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
   start_time();
   int32_t *dev_input = ext_space;
   int64_t* dev_ishape = (int64_t*)(ext_space+ ninput * (sizeof(int32_t*)/sizeof(int32_t)));
   int32_t *dev_output = output;
-  int64_t *dev_inputSize = (int64_t *)(dev_ishape + ninput * ndim);
-  int32_t *dev_axisSize = (int32_t*)(dev_inputSize + ninput);
+  int64_t *dev_axisSize = (int64_t*)(dev_ishape + ninput * ndim);
 
   try{
     cvm_cuda_memcpy((void*)dev_input, (void*)inputs, sizeof(int32_t*) * ninput, cudaMemcpyHostToDevice);
-    for(int i = 0; i < ninput; i++){
-      cvm_cuda_memcpy((void*)(dev_ishape + i*ndim), (void*)ishapes[i], sizeof(int64_t)*ndim, cudaMemcpyHostToDevice);
-    }
-    cvm_cuda_memcpy((void*)dev_inputSize, inputSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
-    cvm_cuda_memcpy((void*)dev_axisSize, (void*)axisSize, sizeof(int32_t) * ninput, cudaMemcpyHostToDevice);
+    cvm_cuda_memcpy((void*)(dev_ishape), (void*)ishapes, sizeof(int64_t) * ninput * ndim, cudaMemcpyHostToDevice);
 
+    cal_axis_offset<<<1, 1>>>(dev_axisSize, ninput, dev_ishape, ndim, axis);
     const int bSize = 512;
     int gSize = ninput;
     int64_t newoshape[6];
     get_cuda_shape(oshape, ndim, newoshape);
-    kernel_concatenate<<<gSize, bSize>>>((int32_t**)dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
+    kernel_concatenate<<<gSize, bSize>>>((int32_t**)dev_input, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
 
     cvm_op_concat_cnt += get_used_time();
     return "";

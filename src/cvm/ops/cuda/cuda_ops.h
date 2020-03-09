@@ -197,7 +197,7 @@ const char* cuda_max(const int32_t *x, int32_t *y, const uint64_t xsize, const u
     const int32_t xndim, const int32_t yndim, const int32_t axis_ndim, int& error_code);
 const char* cuda_cvm_right_shift(const int32_t *a, const int32_t b, const int32_t precision, int32_t *c, const uint64_t n, int& error_code);
 const char* cuda_cvm_left_shift(const int32_t *a, const int32_t b, const int32_t precision, int32_t *c, const uint64_t n, int& error_code);
-const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t * inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code);
+const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code);
 const char* cuda_bias_add(const int32_t *x_data, const int32_t * bias_data, int32_t *y_data,
         int64_t ysize, const int64_t *yshape, const int32_t ndim, const int32_t axis, int& error_code);
 const char* cuda_repeat(const int32_t *x_data, int32_t *y_data, const int64_t *xshape,
