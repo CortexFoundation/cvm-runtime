@@ -227,6 +227,34 @@ const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_
         const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis, int& error_code);
 const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data, const uint64_t ysize, const uint64_t xsize, int& error_code);
 const char* cuda_where(const int32_t *x_data, const int32_t *y_data, const int32_t *condition_data, int32_t *result_data, bool same_shape, uint64_t n, uint64_t shape0, int& error_code);
+
+
+
+inline void cvm_cuda_malloc(void **p, size_t size){
+  cudaError_t status = cudaMalloc(p, size);
+  if(status != cudaSuccess){
+    throw ERROR_MALLOC;
+  }
+}
+inline void cvm_cuda_memcpy(void *dst, void* src, size_t size, cudaMemcpyKind flag){
+  cudaError_t status = cudaMemcpy(dst, src, size, flag);
+  if(status != cudaSuccess){
+    throw ERROR_MEMCPY;
+  }
+}
+
+#define MAX_DIM 6
+inline void get_cuda_shape(const int64_t *ishape, const int dim, int64_t*oshape){
+  int shift = MAX_DIM - dim;
+  for(int i = 0; i < MAX_DIM; i++){
+    oshape[i] = 1;
+    if(i >= shift){
+      oshape[i] = ishape[i - shift];
+    }
+  }
+}
+
 }
 }
+
 #endif

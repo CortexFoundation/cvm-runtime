@@ -949,19 +949,6 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
-void cvm_cuda_malloc(void **p, size_t size){
-  cudaError_t status = cudaMalloc(p, size);
-  if(status != cudaSuccess){
-    throw ERROR_MALLOC;
-  }
-}
-void cvm_cuda_memcpy(void *dst, void* src, size_t size, cudaMemcpyKind flag){
-  cudaError_t status = cudaMemcpy(dst, src, size, flag);
-  if(status != cudaSuccess){
-    throw ERROR_MEMCPY;
-  }
-}
-
 __global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
   int32_t lid = threadIdx.x;
@@ -990,7 +977,6 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
   int32_t *dev_axisSize = NULL;
 
   int64_t* dev_ishape = NULL;
-  int64_t *dev_oshape = NULL;
   try{
     cvm_cuda_malloc((void**)&dev_input, sizeof(int32_t*) * ninput);
     cvm_cuda_memcpy((void*)dev_input, (void*)inputs, sizeof(int32_t*) * ninput, cudaMemcpyHostToDevice);
@@ -998,8 +984,6 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
     for(int i = 0; i < ninput; i++){
       cvm_cuda_memcpy((void*)(dev_ishape + i*ndim), (void*)ishapes[i], sizeof(int64_t)*ndim, cudaMemcpyHostToDevice);
     }
-    //cvm_cuda_malloc((void**)&dev_oshape, sizeof(int64_t) * ndim);
-    //cvm_cuda_memcpy((void*)dev_oshape, (void*)oshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
     cvm_cuda_malloc((void**)&dev_inputSize, sizeof(int64_t)*ninput);
     cvm_cuda_memcpy((void*)dev_inputSize, inputSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
     cvm_cuda_malloc((void**)&dev_axisSize, sizeof(int64_t) * ninput);
@@ -1007,29 +991,12 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
 
     const int bSize = 512;
     int gSize = ninput;
-    switch(ndim){
-      case 1:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, 1, 1, oshape[0]);
-        break;
-      case 2:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, 1, oshape[0], oshape[1]);
-        break;
-      case 3:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, 1, 1, oshape[0], oshape[1], oshape[2]);
-        break;
-      case 4:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize,  1, 1, oshape[0], oshape[1], oshape[2], oshape[3]);
-        break;
-      case 5:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, 1, oshape[0], oshape[1], oshape[2], oshape[3], oshape[4]);
-        break;
-      case 6:
-        kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, oshape[0], oshape[1], oshape[2], oshape[3], oshape[4], oshape[5]);
-        break;
-    }
+    int64_t newoshape[6];
+    get_cuda_shape(oshape, ndim, newoshape);
+    kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
+
     if(dev_input != NULL) cudaFree(dev_input);
     if(dev_ishape != NULL) cudaFree(dev_ishape);
-    //if(dev_oshape != NULL) cudaFree(dev_oshape);
     if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
     if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     cvm_op_concat_cnt += get_used_time();
@@ -1037,7 +1004,6 @@ const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t 
   }catch (int e){
     if(dev_input != NULL) cudaFree(dev_input);
     if(dev_ishape != NULL) cudaFree(dev_ishape);
-    //if(dev_oshape != NULL) cudaFree(dev_oshape);
     if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
     if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     return check_cuda_error(cudaGetLastError());
