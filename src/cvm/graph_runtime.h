@@ -459,8 +459,7 @@ public:
    * \return The created executor.
    */
   std::function<void()> CreateCVMOp(const CVMOpParam& param, NodeAttrs* attr,
-                                    const std::vector<DLTensor>& args,
-                                    size_t num_inputs);
+                                    const std::vector<DLTensor>& args);
   // Get node entry index.
   uint32_t entry_id(uint32_t nid, uint32_t index) const {
     return node_row_ptr_[nid] + index;
@@ -496,6 +495,10 @@ public:
   /*! \brief Data entry of each node. */
   std::vector<NDArray> data_entry_;
   /*! \brief Operator on each node. */
+
+  int64_t extra_space_size_;
+  NDArray extra_space_;
+
   std::vector<std::function<void()> > op_execs_;
 
   std::string graph_json_;
