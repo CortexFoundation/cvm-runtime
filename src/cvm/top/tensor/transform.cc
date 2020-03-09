@@ -283,6 +283,14 @@ Example::
 .set_num_outputs(1)
 .set_num_inputs(kVarg)
 .set_attr<FInferPrecision>("FInferPrecision", MaxInPrecision)
+.set_attr<FOpExtraSpace>("FOpExtraSpace",
+    [](const NodeAttrs& attrs, std::vector<TShape>* shapes,
+      std::vector<int>* iprecs) -> int64_t {
+      int ninput = shapes->size()-1; 
+      int ndim = shapes->at(0).ndim();
+      int size_n = sizeof(int64_t) / sizeof(int32_t);
+      return ninput * (sizeof(int32_t*)/sizeof(int32_t)) + ninput*ndim*size_n + ninput * size_n + ninput * size_n;
+    })
 .set_support_level(1);
 
 // expand_dims

@@ -706,6 +706,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       int len = args.num_args;
       DLTensor *input0 = args[0];
+      int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
       void *_attr = args[--len];
       auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
       auto &param = cvm::get<cvm::top::ConcatenateParam>(attr->parsed);
@@ -729,7 +730,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
       }
       int32_t *out_data = static_cast<int32_t*>(output->data);
       int error_code = NON_ERROR;
-      const char* errorStr = cuda_concatenate(input_data.data(), input_shape.data(), len, inputSize.data(), ndim, out_data, output->shape, axis, axisSize.data(), error_code);
+      const char* errorStr = cuda_concatenate(input_data.data(), input_shape.data(), len, inputSize.data(), ndim, out_data, output->shape, axis, axisSize.data(), ext_space, error_code);
       deal_error(error_code, errorStr);
   });
 

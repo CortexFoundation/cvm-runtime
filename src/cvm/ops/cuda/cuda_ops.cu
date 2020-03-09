@@ -387,12 +387,6 @@ const char* cuda_conv2d(
   }
 
   cvm_op_chnwise_conv_cnt += get_used_time();
-//  cudaEventRecord(stop, 0);
-//  cudaEventSynchronize(stop);
-//  float cost_time = 0.0f;
-//  cudaEventElapsedTime(&cost_time, start, stop);
-//   cvm_op_chnwise_conv_cnt += cost_time/1000.0;
-//  printf("conv2d use time = %.4f\n", cvm_op_chnwise_conv_cnt);
 
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "/tmp/zkh/trec/gpu/conv2d.txt");
   return check_cuda_error(error);
@@ -969,43 +963,31 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *inputSize, co
   }
 }
 
-const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t *inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int& error_code){
+const char* cuda_concatenate(int32_t **inputs, int64_t **ishapes, const int32_t ninput, int64_t *inputSize, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
   start_time();
-  int32_t **dev_input = NULL;
+  int32_t *dev_input = ext_space;
+  int64_t* dev_ishape = (int64_t*)(ext_space+ ninput * (sizeof(int32_t*)/sizeof(int32_t)));
   int32_t *dev_output = output;
-  int64_t *dev_inputSize = NULL;
-  int32_t *dev_axisSize = NULL;
+  int64_t *dev_inputSize = (int64_t *)(dev_ishape + ninput * ndim);
+  int32_t *dev_axisSize = (int32_t*)(dev_inputSize + ninput);
 
-  int64_t* dev_ishape = NULL;
   try{
-    cvm_cuda_malloc((void**)&dev_input, sizeof(int32_t*) * ninput);
     cvm_cuda_memcpy((void*)dev_input, (void*)inputs, sizeof(int32_t*) * ninput, cudaMemcpyHostToDevice);
-    cvm_cuda_malloc((void**)&dev_ishape, sizeof(int64_t) * ninput * ndim);
     for(int i = 0; i < ninput; i++){
       cvm_cuda_memcpy((void*)(dev_ishape + i*ndim), (void*)ishapes[i], sizeof(int64_t)*ndim, cudaMemcpyHostToDevice);
     }
-    cvm_cuda_malloc((void**)&dev_inputSize, sizeof(int64_t)*ninput);
     cvm_cuda_memcpy((void*)dev_inputSize, inputSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
-    cvm_cuda_malloc((void**)&dev_axisSize, sizeof(int64_t) * ninput);
-    cvm_cuda_memcpy((void*)dev_axisSize, (void*)axisSize, sizeof(int64_t) * ninput, cudaMemcpyHostToDevice);
+    cvm_cuda_memcpy((void*)dev_axisSize, (void*)axisSize, sizeof(int32_t) * ninput, cudaMemcpyHostToDevice);
 
     const int bSize = 512;
     int gSize = ninput;
     int64_t newoshape[6];
     get_cuda_shape(oshape, ndim, newoshape);
-    kernel_concatenate<<<gSize, bSize>>>(dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
+    kernel_concatenate<<<gSize, bSize>>>((int32_t**)dev_input, dev_inputSize, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
 
-    if(dev_input != NULL) cudaFree(dev_input);
-    if(dev_ishape != NULL) cudaFree(dev_ishape);
-    if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
-    if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     cvm_op_concat_cnt += get_used_time();
     return "";
   }catch (int e){
-    if(dev_input != NULL) cudaFree(dev_input);
-    if(dev_ishape != NULL) cudaFree(dev_ishape);
-    if(dev_axisSize!= NULL) cudaFree(dev_axisSize);
-    if(dev_inputSize!= NULL) cudaFree(dev_inputSize);
     return check_cuda_error(cudaGetLastError());
   }
 }
