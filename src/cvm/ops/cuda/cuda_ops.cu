@@ -953,8 +953,9 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, cons
     reg_ishape[i] = share_ishape[i];
     isize *= reg_ishape[i];
   }
+
   const int32_t y_axis_size = axisSize[bid];
-  const int64_t oshape[6] = {oshape0, oshape1, oshape2, oshape3, oshape4, oshape5};
+  const int64_t oshape[MAX_DIM] = {oshape0, oshape1, oshape2, oshape3, oshape4, oshape5};
   for(int64_t i = lid; i < isize; i+= blockDim.x){
     int32_t tmp_i = i, yi = 0, shape_size = 1;
     for(int32_t d = ndim-1; d>=0; d--){
@@ -1222,7 +1223,6 @@ const char* cuda_transpose(const int32_t *x_data, const int64_t *axes_data, int3
     const int32_t axes_ndim, int& error_code){
   int threadSize = 256;
   int blockSize = getGridSize(ysize, threadSize);//(ysize + threadSize - 1) / threadSize;
-  cudaError_t status;
   int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM], dev_axes[MAX_DIM];
   get_cuda_shape(xshape, ndim, dev_xshape);
   get_cuda_shape(yshape, ndim, dev_yshape);
