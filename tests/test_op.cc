@@ -82,7 +82,8 @@ struct OpArgs {
 std::function<void()> get_func(
     const CVMOpParam& param, NodeAttrs* attr,
     const std::vector<DLTensor>& args,
-    size_t num_inputs)
+    size_t num_inputs,
+    DLTensor* extra_space = nullptr)
 {
 
   struct OpArgs {
@@ -124,12 +125,13 @@ std::function<void()> get_func(
   module_name += ".";
   auto func = cvm::runtime::Registry::Get(module_name + op);
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
-  return [arg_ptr, op, func](){
+  return [arg_ptr, op, func, extra_space](){
     CVMRetValue rv;
     CVMArgs targs(
       arg_ptr->arg_values.data(),
       arg_ptr->arg_tcodes.data(),
-      static_cast<int>(arg_ptr->arg_values.size())
+      static_cast<int>(arg_ptr->arg_values.size()),
+      extra_space
     );
     func->CallPacked(targs, &rv);
   };
@@ -480,6 +482,21 @@ void test_op(string op_name) {
     return ;
   }
 
+  static auto& finfer_prec =
+      Op::GetAttr<cvm::FInferPrecision>("FInferPrecision");
+  std::vector<int> iprec, oprec;
+  std::vector<TShape> shapes;
+  auto fip = finfer_prec.get(op, nullptr);
+  if (fip == nullptr) {
+    std::cout << "operator " << op_name
+      << "has not registered FInferPrecision";
+    return ;
+  }
+
+  static auto& fextra_space =
+      Op::GetAttr<cvm::FOpExtraSpace >("FOpExtraSpace");
+  auto fextra = fextra_space.get(op, nullptr);
+
   for(int ci = 0; ci < case_list.size(); ci++){
 		string case_path = case_dir + case_list[ci] + "/";
     string attr_path = case_path + "attr.txt";
@@ -548,6 +565,19 @@ void test_op(string op_name) {
       }
     }
 
+    std::vector<TShape> shapes;
+    std::vector<int> iprecs;
+    shapes.insert(shapes.end(), ishape.begin(), ishape.end());
+    shapes.insert(shapes.end(), oshape.begin(), oshape.end());
+    int64_t es[1]{ 0 };
+    if (fextra != nullptr) {
+      es[0] = fextra(attr, &ishape, &iprecs,
+          DLContext{DLDeviceType(ctx), 0});
+    }
+    DLTensor* extra_space;
+    CVMArrayAlloc(es, 1, 
+        dtype_code, dtype_bits, dtype_lanes, ctx, device_id, &extra_space);
+
     for(int i = 0; i < num_outputs; i++){
 			string out_path = case_path + "out_" + std::to_string(i) + ".txt";
 			cout << out_path << endl;
@@ -567,7 +597,7 @@ void test_op(string op_name) {
       args[num_inputs + i] = *dl;
     }
 
-    auto op = get_func(params, &attr, args, params.num_inputs);
+    auto op = get_func(params, &attr, args, params.num_inputs, extra_space);
     op();
 
     vector<int32_t> cpu_output_tensor(tdata[params.num_inputs].size());
@@ -597,9 +627,10 @@ void test_op(string op_name) {
     }
     assert(ret == 0);
     printf("\n");
-   // for(int i = 0; i < args.size(); i++){
-   //     CVMArrayFree(&args[i]);
-   // }
+    CVMArrayFree(extra_space);
+    // for(int i = 0; i < args.size(); i++){
+      // CVMArrayFree(&args[i]);
+    // }
   }
 }
 int main() {
