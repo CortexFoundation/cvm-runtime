@@ -28,11 +28,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 #ifdef CVM_PROFILING
   double start = omp_get_wtime();
 #endif
-  std::cout << "ARG ExtSpace: "
-    << args.ext_space->dtype << " "
-    << args.ext_space->ndim << " "
-    << args.ext_space->shape[0] << std::endl;
-
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    int32_t *x_data = static_cast<int32_t*>(x->data);
