@@ -506,6 +506,7 @@ public:
   std::string version_{std::string("cvm_1.0.0")};
 
   std::string postprocess_method_;
+  std::map<std::string, double> times;
 };
 
 std::vector<CVMContext> CVMGetAllContext(const CVMArgs& args);

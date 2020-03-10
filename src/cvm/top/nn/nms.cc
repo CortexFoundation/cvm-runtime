@@ -116,7 +116,7 @@ bool GetValidShape(const NodeAttrs& attrs,
   CHECK_EQ(in_attrs->size(), 1U);
   CHECK_EQ(out_attrs->size(), 2U);
   VERIFY(shp.ndim() == 3);
-  VERIFY(shp[2] >= 2);
+  VERIFY(shp[2] < 32 && shp[2] >= 2);
   TShape count_shape{shp[0]};
   TShape oshape(shp);
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, count_shape);

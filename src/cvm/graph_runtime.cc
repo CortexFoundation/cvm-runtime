@@ -18,6 +18,7 @@
 #include <memory>
 #include <thread>
 #include <utility>
+#include <omp.h>
 
 namespace cvm {
 namespace runtime {
@@ -30,6 +31,19 @@ void CvmRuntime::Run() {
   for (size_t i = 0; i < op_execs_.size(); ++i) {
     if (op_execs_[i]) op_execs_[i]();
   }
+  std::vector<std::pair<std::string, double>> vec_times(times.begin(), times.end());
+  std::stable_sort(vec_times.begin(), vec_times.end(), 
+      [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) ->bool {
+        return a.second > b.second;
+      });
+  printf("\n---------op time metrix--------------\n");
+  double total = 0;
+  for(auto time : vec_times){
+    total += time.second;
+    printf("%s : %.4fs\n", time.first.c_str(), time.second);
+  }
+  printf("total time = %.4fs\n", total);
+  printf("---------op time metrix-----------------\n");
 }
 
 /*!
@@ -618,7 +632,9 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
 
   const DLTensor* ext_space = extra_space_.operator->();
-  return [arg_ptr, op, func, ext_space](){
+  auto& times = this->times;
+  return [arg_ptr, op, func, ext_space, &times](){
+    double start = omp_get_wtime();
     CVMRetValue rv;
     CVMArgs targs(
       arg_ptr->arg_values.data(),
@@ -627,6 +643,9 @@ std::function<void()> CvmRuntime::CreateCVMOp(
       const_cast<DLTensor*>(ext_space)
     );
     func->CallPacked(targs, &rv);
+    double end = omp_get_wtime();
+    if(times.find(op) == times.end()) times[op] = 0;
+    times[op] += end-start;
   };
 
   return [](){};

@@ -5,17 +5,17 @@ namespace runtime{
 
 double cvm_op_broadcast_cnt = 0;
 
-inline __device__ int32_t broadcast_i_index(int64_t* oshape, int o_index, int64_t* ishape, int idim, int odim){
+inline __device__ int32_t broadcast_i_index(const int64_t* oshape, int o_index, const int64_t* ishape, int idim, int odim){
   int index = 0;
   int allIndex = 1;
   for(int i = 0; i < idim; i++){
     int idx = idim - 1 - i;
-    int ovar = o_index % oshape[idx + odim-idim];
-    if(ovar < ishape[idx]){
+    int ovar = o_index % oshape[idx + odim-idim + MAX_DIM - odim];
+    if(ovar < ishape[idx + MAX_DIM - idim]){
       index += allIndex * ovar;
     }
-    allIndex = allIndex * ishape[idx];
-    o_index /= oshape[idx + odim-idim];
+    allIndex = allIndex * ishape[idx + MAX_DIM - idim];
+    o_index /= oshape[idx + odim-idim + MAX_DIM - odim];
   }
   return index;
 }
@@ -23,11 +23,15 @@ inline __device__ int32_t broadcast_i_index(int64_t* oshape, int o_index, int64_
 template<typename F>
 __global__ void kernel_broadcast(const int32_t *a, const int32_t *b, int32_t*c, 
     const int64_t n,
-    int64_t *ashape, int32_t adim,
-    int64_t *bshape, int32_t bdim,
-    int64_t *cshape, int32_t cdim,
-    F const& f){
+    int32_t adim, int32_t bdim, int32_t cdim,
+    F const& f,
+    const int64_t ashp0, const int64_t ashp1, const int64_t ashp2, const int64_t ashp3, const int64_t ashp4, const int64_t ashp5,
+    const int64_t bshp0, const int64_t bshp1, const int64_t bshp2, const int64_t bshp3, const int64_t bshp4, const int64_t bshp5,
+    const int64_t cshp0, const int64_t cshp1, const int64_t cshp2, const int64_t cshp3, const int64_t cshp4, const int64_t cshp5){
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  const int64_t ashape[MAX_DIM] = {ashp0, ashp1, ashp2, ashp3, ashp4, ashp5};
+  const int64_t bshape[MAX_DIM] = {bshp0, bshp1, bshp2, bshp3, bshp4, bshp5};
+  const int64_t cshape[MAX_DIM] = {cshp0, cshp1, cshp2, cshp3, cshp4, cshp5};
   for(uint64_t i = tid; i < n; i += gridDim.x * blockDim.x){
     int ai = broadcast_i_index(cshape, i, ashape, adim, cdim);
     int bi = broadcast_i_index(cshape, i, bshape, bdim, cdim);
@@ -50,51 +54,17 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
   int threadSize = 256;
   int blockSize = getGridSize(n, threadSize);
 
-  int64_t *dev_ashape = NULL, *dev_bshape = NULL, *dev_cshape = NULL;
-  cudaError_t status;
-  status = cudaMalloc((void**)&dev_ashape, sizeof(int64_t) * adim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_bshape, sizeof(int64_t) * bdim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_cshape, sizeof(int64_t) * cdim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_ashape, ashape, sizeof(int64_t) * adim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_bshape, bshape, sizeof(int64_t) * bdim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_cshape, cshape, sizeof(int64_t) * cdim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  kernel_broadcast<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n, dev_ashape, adim, dev_bshape, bdim, dev_cshape, cdim, f);
-  //cudaDeviceSynchronize();
+  int64_t dev_ashape[MAX_DIM], dev_bshape[MAX_DIM], dev_cshape[MAX_DIM];
+  get_cuda_shape(ashape, adim, dev_ashape);
+  get_cuda_shape(bshape, bdim, dev_bshape);
+  get_cuda_shape(cshape, cdim, dev_cshape);
+  kernel_broadcast<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n, adim, bdim, cdim, f,
+      dev_ashape[0], dev_ashape[1], dev_ashape[2], dev_ashape[3], dev_ashape[4], dev_ashape[5],
+      dev_bshape[0], dev_bshape[1], dev_bshape[2], dev_bshape[3], dev_bshape[4], dev_bshape[5],
+      dev_cshape[0], dev_cshape[1], dev_cshape[2], dev_cshape[3], dev_cshape[4], dev_cshape[5]);
 
-  status = cudaGetLastError();
-  if(cudaSuccess != status){
-    error_code = ERROR_KERNEL;
-  }
-end:
-  if(dev_ashape != NULL) cudaFree(dev_ashape);
-  if(dev_bshape != NULL) cudaFree(dev_bshape);
-  if(dev_cshape != NULL) cudaFree(dev_cshape);
   cvm_op_broadcast_cnt += get_used_time();
-  return check_cuda_error(cudaGetLastError());
+  return "";
 }
 
 const char* cuda_broadcast_add(const int32_t *a, const int32_t *b, int32_t* c, 

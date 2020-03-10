@@ -89,23 +89,6 @@ struct OpArgs {
 
 int run_LIF(string model_root, int device_type = 0) {
 //#if(USE_GPU==0)
-#ifdef CVM_PROFILING
-  cvm::runtime::transpose_int8_avx256_transpose_cnt = 0;
-  cvm::runtime::transpose_int8_avx256_gemm_cnt = 0;
-  cvm::runtime::im2col_cnt = 0;
-  cvm::runtime::cvm_op_cvm_shift_cnt = 0;
-  cvm::runtime::cvm_op_clip_cnt = 0;
-  cvm::runtime::cvm_op_dense_cnt = 0;
-  cvm::runtime::cvm_op_maxpool_cnt = 0;
-  cvm::runtime::cvm_op_broadcast_cnt = 0;
-  cvm::runtime::cvm_op_concat_cnt = 0;
-  cvm::runtime::cvm_op_upsampling_cnt = 0;
-  cvm::runtime::cvm_op_elemwise_cnt = 0;
-  cvm::runtime::cvm_op_inline_matmul_cnt = 0;
-  cvm::runtime::cvm_op_chnwise_conv_cnt = 0;
-  cvm::runtime::cvm_op_depthwise_conv_cnt = 0;
-  cvm::runtime::cvm_op_chnwise_conv1x1_cnt = 0;
-#endif
 
   //printf("the elewise cnt = %.4f\n", cvm::runtime::cvm_op_elemwise_cnt);
   string json_path = model_root + "/symbol";
@@ -189,71 +172,11 @@ int run_LIF(string model_root, int device_type = 0) {
     printf("\n");
   }
 
-  double start = omp_get_wtime();
-  int n_run = 1;
-  for (int i = 0; i < n_run; i++) {
-    if (i % 10 == 0)
-      cout << "i = " << i << "\n";
-    status = CVMAPIInference(net, input.data(), input.size(), output.data());
-    CHECK_STATUS(status, "inference failed");
-  }
+  status = CVMAPIInference(net, input.data(), input.size(), output.data());
+  CHECK_STATUS(status, "inference failed");
   status = CVMAPIFreeModel(net);
   CHECK_STATUS(status, "free model failed");
-  double ellapsed_time = (omp_get_wtime() - start) / n_run;
-  cout << "total time : " << ellapsed_time << "\n";
 //#if(USE_GPU == 0)
-#ifdef CVM_PROFILING
-  cout << "total gemm.trans time: " << cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run << "\n";
-  cout << "total  gemm.gemm time: " << cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run << "\n";
-  cout << "total     im2col time: " << cvm::runtime::im2col_cnt / n_run<< "\n";
-  cout << "total matmul     time: " << cvm::runtime::cvm_op_inline_matmul_cnt/ n_run << endl; 
-  cout << "total chnconv2d1x1 time: " << cvm::runtime::cvm_op_chnwise_conv1x1_cnt / n_run << endl; 
- 
-  double sum_time = 0;
-  sum_time +=  cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run;
-  sum_time +=  cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run;
-  sum_time +=  cvm::runtime::im2col_cnt / n_run;
-  cout << "total       gemm time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = cvm::runtime::cvm_op_dense_cnt / n_run;
-  cout << "total naivedense time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = (cvm::runtime::cvm_op_maxpool_cnt) / n_run;
-  cout << "total    maxpool time: " <<  sum_time << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = (cvm::runtime::cvm_op_broadcast_cnt) / n_run;
-  cout << "total  broadcast time: " <<  sum_time << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_clip_cnt / n_run;
-  cout << "total       clip time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_cvm_shift_cnt / n_run;
-  cout << "total rightshift time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_concat_cnt / n_run;
-  cout << "total    concat time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_upsampling_cnt / n_run;
-  cout << "total upsampling time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_elemwise_cnt / n_run;
-  cout << "total elemwise   time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_chnwise_conv_cnt / n_run;
-  cout << "total chn conv2d time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_depthwise_conv_cnt / n_run;
-  cout << "total depth conv2d time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-#endif
-
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
     uint64_t n_bytes = 4;

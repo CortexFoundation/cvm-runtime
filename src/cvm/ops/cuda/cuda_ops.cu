@@ -1241,20 +1241,27 @@ const char* cuda_transpose(const int32_t *x_data, const int64_t *axes_data, int3
   return check_cuda_error(cudaGetLastError());
 }
 
-__global__ void kernel_stride_slice(const int32_t *x_data, int32_t *y_data, const int64_t *begin_data,
-    const int32_t begin_ndim, const int64_t *step_data, const int64_t *xshape, const int64_t *yshape, 
-    const int32_t step_ndim, const int32_t y_ndim, const uint64_t ysize){
+__global__ void kernel_stride_slice(const int32_t *x_data, int32_t *y_data,
+    const int32_t x_ndim, const int32_t begin_ndim, const int32_t step_ndim, const int32_t y_ndim, const uint64_t ysize,
+    const int64_t xshp0, const int64_t xshp1, const int64_t xshp2, const int64_t xshp3, const int64_t xshp4, const int64_t xshp5,
+    const int64_t yshp0, const int64_t yshp1, const int64_t yshp2, const int64_t yshp3, const int64_t yshp4, const int64_t yshp5,
+    const int64_t bgshp0, const int64_t bgshp1, const int64_t bgshp2, const int64_t bgshp3, const int64_t bgshp4, const int64_t bgshp5,
+    const int64_t stshp0, const int64_t stshp1, const int64_t stshp2, const int64_t stshp3, const int64_t stshp4, const int64_t stshp5){
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
+  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
+  const int64_t begin_data[MAX_DIM] = {bgshp0, bgshp1, bgshp2, bgshp3, bgshp4, bgshp5};
+  const int64_t step_data[MAX_DIM] = {stshp0, stshp1, stshp2, stshp3, stshp4, stshp5};
   for(uint64_t i = tid; i < ysize; i += gridDim.x*blockDim.x){
-    uint64_t o_i = i, in_i = 0, shapeSize = 0;
+    uint64_t o_i = i, in_i = 0, shapeSize = 1;
     for(int j = y_ndim-1; j >= 0; j--){
-      uint64_t col = o_i % yshape[j];
-      o_i /= yshape[j];
-      int64_t begin = begin_ndim > j ? begin_data[j] : 0;
-      int64_t step = step_ndim > j ? step_data[j] : 1;
+      uint64_t col = o_i % yshape[j + MAX_DIM - y_ndim];
+      o_i /= yshape[j + MAX_DIM - y_ndim];
+      int64_t begin = begin_ndim > j ? begin_data[j + MAX_DIM - begin_ndim] : 0;
+      int64_t step = step_ndim > j ? step_data[j + MAX_DIM - step_ndim] : 1;
       col = begin + col * step;
-      in_i += (j == y_ndim-1 ? col : col * shapeSize);
-      shapeSize = (j == y_ndim-1 ? xshape[j] : shapeSize * xshape[j]);
+      in_i += col * shapeSize;
+      shapeSize = shapeSize * xshape[j + MAX_DIM - x_ndim];
     }
     y_data[i] = x_data[in_i];
   }
@@ -1264,77 +1271,35 @@ const char* cuda_stride_slice(const int32_t *x_data, int32_t *y_data, const int6
     const int32_t step_ndim, const int32_t y_ndim, const uint64_t ysize, const int32_t x_ndim, int& error_code){
   int threadSize = 256;
   int blockSize = getGridSize(ysize, threadSize);
-  int64_t *dev_xshape = NULL, *dev_yshape = NULL, *dev_begin = NULL, *dev_step = NULL;
-  cudaError_t status;
-  status = cudaMalloc((void**)&dev_xshape, sizeof(int64_t) * x_ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_yshape, sizeof(int64_t) * y_ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_begin, sizeof(int64_t) * begin_ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_xshape, xshape, sizeof(int64_t) * x_ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_yshape, yshape, sizeof(int64_t) * y_ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_begin, begin_data, sizeof(int64_t) * begin_ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
+  int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM], dev_begin[MAX_DIM], dev_step[MAX_DIM];
+  get_cuda_shape(xshape, x_ndim, dev_xshape);
+  get_cuda_shape(yshape, y_ndim, dev_yshape);
+  get_cuda_shape(begin_data, begin_ndim, dev_begin);
   if(step_ndim > 0){
-    status = cudaMalloc((void**)&dev_step, sizeof(int64_t) * step_ndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMemcpy(dev_step, step_data, sizeof(int64_t) * step_ndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
+    get_cuda_shape(step_data, step_ndim, dev_step);
   }
 
-  kernel_stride_slice<<<blockSize, threadSize>>>(x_data,  y_data, dev_begin, begin_ndim, dev_step, 
-      dev_xshape, dev_yshape, step_ndim, y_ndim, ysize);
-  if(cudaSuccess != cudaGetLastError()){
-    error_code = ERROR_KERNEL;
-  }
-
-end:
-  if(dev_xshape != NULL) cudaFree(dev_xshape);
-  if(dev_yshape != NULL) cudaFree(dev_yshape);
-  if(dev_begin != NULL) cudaFree(dev_begin);
-  if(step_ndim > 0){
-    if(dev_step != NULL) cudaFree(dev_step);
-  }
-  return check_cuda_error(cudaGetLastError());
+  kernel_stride_slice<<<blockSize, threadSize>>>(x_data,  y_data, x_ndim, begin_ndim, step_ndim, y_ndim, ysize,
+      dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
+      dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5],
+      dev_begin[0], dev_begin[1], dev_begin[2], dev_begin[3], dev_begin[4], dev_begin[5],
+      dev_step[0], dev_step[1], dev_step[2], dev_step[3], dev_step[4], dev_step[5]);
+  return "";
 }
 
-__global__ void kernel_slice_like(const int32_t *x_data, int32_t *y_data, const int64_t *xshape, const int64_t *yshape,
-    const uint64_t ysize, const int32_t ndim){
+__global__ void kernel_slice_like(const int32_t *x_data, int32_t *y_data, const uint64_t ysize, const int32_t ndim,
+    const int64_t xshp0, const int64_t xshp1, const int64_t xshp2, const int64_t xshp3, const int64_t xshp4, const int64_t xshp5,
+    const int64_t yshp0, const int64_t yshp1, const int64_t yshp2, const int64_t yshp3, const int64_t yshp4, const int64_t yshp5){
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
+  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
   for(uint64_t i = tid; i < ysize; i+=gridDim.x*blockDim.x){
     uint64_t o_i = i, in_i = 0, shapeSize = 1;
     for(int j = ndim-1; j >= 0; j--){
-      int col = o_i % yshape[j];
-      o_i /= yshape[j];
+      int col = o_i % yshape[j + MAX_DIM - ndim];
+      o_i /= yshape[j + MAX_DIM - ndim];
       in_i +=  col * shapeSize;
-      shapeSize = shapeSize * xshape[j];
+      shapeSize = shapeSize * xshape[j + MAX_DIM - ndim];
     }
     y_data[i] = x_data[in_i];
   }
@@ -1343,52 +1308,33 @@ const char* cuda_slice_like(const int32_t *x_data, int32_t *y_data, const int64_
     const uint64_t ysize, const int32_t ndim, int& error_code){
   int threadSize = 256;
   int blockSize = getGridSize(ysize, threadSize);//(ysize + threadSize - 1) / threadSize;
-  int64_t *dev_xshape = NULL, *dev_yshape = NULL;
-  cudaError_t status;
-  status = cudaMalloc((void**)&dev_xshape, sizeof(int64_t) * ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_yshape, sizeof(int64_t) * ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_xshape, xshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_yshape, yshape, sizeof(int64_t) * ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
+  int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM];
+  get_cuda_shape(xshape, ndim, dev_xshape);
+  get_cuda_shape(yshape, ndim, dev_yshape);
 
-  kernel_slice_like<<<blockSize, threadSize>>>(x_data, y_data, dev_xshape, dev_yshape, ysize, ndim);
-  if(cudaSuccess != cudaGetLastError()){
-    error_code = ERROR_KERNEL;
-  }
-end:
-  if(dev_xshape != NULL) cudaFree(dev_xshape);
-  if(dev_yshape != NULL) cudaFree(dev_yshape);
-  return check_cuda_error(cudaGetLastError());
+  kernel_slice_like<<<blockSize, threadSize>>>(x_data, y_data, ysize, ndim,
+      dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
+      dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5]);
+  return "";
 }
 
-__global__ void kernel_take(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data, 
-    const int64_t *xshape, const int64_t *yshape, const int64_t *indices_shape, const int32_t yndim,
-    const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis){
+__global__ void kernel_take(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data, const int32_t yndim,
+    const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis,
+    const int64_t xshp0, const int64_t xshp1, const int64_t xshp2, const int64_t xshp3, const int64_t xshp4, const int64_t xshp5,
+    const int64_t yshp0, const int64_t yshp1, const int64_t yshp2, const int64_t yshp3, const int64_t yshp4, const int64_t yshp5,
+    const int64_t idshp0, const int64_t idshp1, const int64_t idshp2, const int64_t idshp3, const int64_t idshp4, const int64_t idshp5){
+  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
+  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
+  const int64_t indices_shape[MAX_DIM] = {idshp0, idshp1, idshp2, idshp3, idshp4, idshp5};
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   for(uint64_t i = tid; i < ysize; i += gridDim.x*blockDim.x){
-    uint64_t o_i = i, x_i = 0, indices_i = 0, x_shape_size = 0, indices_shape_size = 0;
+    uint64_t o_i = i, x_i = 0, indices_i = 0, x_shape_size = 1, indices_shape_size = 1;
     for(int32_t j = yndim - 1, k = indices_ndim-1; j>=axis; j--){
-      uint64_t col = o_i % yshape[j];
-      o_i /= yshape[j];
+      uint64_t col = o_i % yshape[j + MAX_DIM - yndim];
+      o_i /= yshape[j + MAX_DIM - yndim];
       if(j < axis + indices_ndim){
-        indices_i += (indices_shape_size == 0 ? col : col * indices_shape_size);
-        indices_shape_size = (indices_shape_size == 0 ? indices_shape[k]
-            : indices_shape_size * indices_shape[k]);
+        indices_i += col * indices_shape_size;
+        indices_shape_size = indices_shape_size * indices_shape[k + MAX_DIM - indices_ndim];
         --k;
       }
     }
@@ -1396,24 +1342,24 @@ __global__ void kernel_take(const int32_t *x_data, const int32_t *indices_data, 
     o_i = i;
     int32_t k = xndim - 1;
     for(int32_t j = yndim - 1; j >= axis + indices_ndim; j--, k--){
-      uint64_t col = o_i % yshape[j];
-      o_i /= yshape[j];
-      x_i += (j == yndim-1 ? col : col * x_shape_size);
-      x_shape_size = (j == yndim-1 ? xshape[k] : x_shape_size * xshape[k]);
+      uint64_t col = o_i % yshape[j + MAX_DIM - yndim];
+      o_i /= yshape[j + MAX_DIM - yndim];
+      x_i += col * x_shape_size;
+      x_shape_size = x_shape_size * xshape[k + MAX_DIM - xndim];
     }
 
-    uint64_t x_indices_i = min(max(indices_data[indices_i], 0), (int32_t)xshape[k]-1);
-    x_i += (x_shape_size == 0 ? x_indices_i : x_indices_i * x_shape_size);
-    x_shape_size = (x_shape_size == 0 ? xshape[k] : x_shape_size * xshape[k]);
+    uint64_t x_indices_i = min(max(indices_data[indices_i], 0), (int32_t)xshape[k + MAX_DIM - xndim]-1);
+    x_i += x_indices_i * x_shape_size;
+    x_shape_size = x_shape_size * xshape[k + MAX_DIM - xndim];
     --k;
 
     o_i = i;
     for(int32_t j = yndim - 1; j>=0 && k >= 0; j--){
-      uint64_t col = o_i % yshape[j];
-      o_i /= yshape[j];
+      uint64_t col = o_i % yshape[j + MAX_DIM - yndim];
+      o_i /= yshape[j + MAX_DIM - yndim];
       if(j < axis){
-        x_i += x_shape_size == 0 ? col : col * x_shape_size;
-        x_shape_size = x_shape_size == 0 ? xshape[k] : x_shape_size * xshape[k];
+        x_i += col * x_shape_size;
+        x_shape_size = x_shape_size * xshape[k + MAX_DIM - xndim];
         --k;
       }
     }
@@ -1425,53 +1371,18 @@ const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_
     const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis, int& error_code){
   int threadSize = 256;
   int blockSize = getGridSize(ysize, threadSize);//(ysize + threadSize - 1) / threadSize;
-  int64_t *dev_xshape, *dev_yshape, *dev_indices_shape;
-  cudaError_t status;
-  status = cudaMalloc((void**)&dev_xshape, sizeof(int64_t) * xndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_yshape, sizeof(int64_t) * yndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&dev_indices_shape, sizeof(int64_t) * indices_ndim);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMemcpy(dev_xshape, xshape, sizeof(int64_t)*xndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
+  int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM], dev_indices_shape[MAX_DIM];
+  get_cuda_shape(xshape, xndim, dev_xshape);
+  get_cuda_shape(yshape, yndim, dev_yshape);
+  get_cuda_shape(indices_shape, indices_ndim, dev_indices_shape);
 
-  status = cudaMemcpy(dev_yshape, yshape, sizeof(int64_t)*yndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMemcpy(dev_indices_shape, indices_shape, sizeof(int64_t)*indices_ndim, cudaMemcpyHostToDevice);
-  if(status != cudaSuccess){
-    error_code = ERROR_MEMCPY;
-    goto end;
-  }
+  kernel_take<<<blockSize, threadSize>>>(x_data, indices_data, y_data,
+      yndim, xndim, indices_ndim, ysize, axis,
+      dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
+      dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5],
+      dev_indices_shape[0], dev_indices_shape[1], dev_indices_shape[2], dev_indices_shape[3], dev_indices_shape[4], dev_indices_shape[5]);
 
-  kernel_take<<<blockSize, threadSize>>>(x_data, indices_data, y_data, dev_xshape, dev_yshape, dev_indices_shape,
-      yndim, xndim, indices_ndim, ysize, axis);
-
-  if(cudaSuccess != cudaGetLastError()){
-    error_code = ERROR_KERNEL;
-  }
-  print_to_file(x_data, ysize, "/tmp/zkh/trec/gpu/take_x.txt");
-  print_to_file(y_data, ysize, "/tmp/zkh/trec/gpu/take.txt");
-end:
-  if(dev_xshape != NULL) cudaFree(dev_xshape);
-  if(dev_yshape != NULL) cudaFree(dev_yshape);
-  if(dev_indices_shape != NULL) cudaFree(dev_indices_shape);
-  return check_cuda_error(cudaGetLastError());
+  return "";
 }
 
 __global__ void kernel_take_noaxis(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data, const uint64_t ysize, const uint64_t xsize){
