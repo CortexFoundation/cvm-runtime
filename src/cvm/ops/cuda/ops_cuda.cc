@@ -123,6 +123,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
       int error_code = NON_ERROR;
       const char* errorStr = "";
       if(groups == 1){
+        int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
         errorStr = cuda_conv2d(
             x_data, n_batch, in_channels, x_h, x_w,
             w_data, out_channels, in_channels, filter_h, filter_w,
@@ -131,7 +132,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
             strides[0], strides[1],
             dilation[0], dilation[1],
             groups,
-            y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, error_code);
+            y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, 
+            ext_space,
+            error_code);
       }else{
         errorStr = cuda_groupwise_conv2d(
             x_data, n_batch, in_channels, x_h, x_w,

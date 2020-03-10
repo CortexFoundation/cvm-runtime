@@ -118,7 +118,9 @@ const char* cuda_conv2d(
         int32_t stride_h, int32_t stride_w,
         int32_t dilation_h, int32_t dilation_w,
         int32_t groups,
-        int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code);
+        int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, 
+        int32_t *extspace, 
+        int& error_code);
 const char* cuda_depthwise_conv2d(
         int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
         int32_t *filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
@@ -252,6 +254,17 @@ inline void get_cuda_shape(const int64_t *ishape, const int dim, int64_t*oshape)
       oshape[i] = ishape[i - shift];
     }
   }
+}
+
+inline int32_t get_multi8to64_size(int32_t n){
+  return (n + 7) / 8 * 8;
+}
+inline int32_t get_multi32to64_size(int32_t n){
+  return (n + 1) / 2 * 2;
+}
+inline int32_t get_multi_pointerto64_size(int32_t n){
+  int ps = sizeof(int64_t) / sizeof(int32_t*);
+  return (n + ps-1) / ps * ps;
 }
 
 }

@@ -235,6 +235,41 @@ a bias vector is created and added to the outputs.
 .set_attr<FInferType>("FInferType", Conv2DInferType<Conv2DParam>)
 .set_attr<FInferPrecision>("FInferPrecision", Conv2DInferPrecision<Conv2DParam>)
 .set_attr<FCorrectLayout>("FCorrectLayout", Conv2DCorrectLayout<Conv2DParam>)
+.set_attr<FOpExtraSpace>("FOpExtraSpace",
+    [](const NodeAttrs& attrs, 
+      std::vector<TShape>* shapes,
+      std::vector<int>* iprecs,
+      const DLContext& ctx) -> int64_t {
+    if(ctx.device_type == kDLGPU){
+      TShape xshape = shapes->at(0);
+      TShape wshape = shapes->at(1);
+      const Conv2DParam& param = cvm::get<Conv2DParam>(attrs.parsed);
+      int32_t groups = param.groups;
+      int dilation[2] = {static_cast<int>(param.dilation[0]), static_cast<int>(param.dilation[1])};
+      int padding[2] = {static_cast<int>(param.padding[0]), static_cast<int>(param.padding[1])};
+      int strides[2] = {static_cast<int>(param.strides[0]), static_cast<int>(param.strides[1])};
+      if(groups == 1){
+        int32_t ic = xshape[1];  
+        int32_t ih = xshape[2];
+        int32_t iw = xshape[3];
+        int32_t oc = wshape[0];
+        int32_t fh = wshape[2];
+        int32_t fw = wshape[3];
+        int t_filter_h = (fh - 1) * dilation[0] + 1;
+        int t_filter_w = (fw - 1) * dilation[1] + 1;
+        int oh = (ih + 2 * padding[0] - t_filter_h) / strides[0] + 1;
+        int ow = (iw + 2 * padding[1] - t_filter_w) / strides[1] + 1;
+        int32_t fn = oc * ic * fh * fw; //int8_t
+        fn = (fn + 7)/8 * 8;
+        int32_t d_col_n = ic * fh * fw * oh * ow; //int8_t 
+        d_col_n = (d_col_n + 7)/8 * 8;
+        return (fn + d_col_n) * sizeof(int8_t) / sizeof(int32_t);
+      }else{
+      return  0;
+      } 
+    }
+      return 0;
+    })
 .set_num_outputs(1)
 .set_num_inputs(UseBiasNumInputs<Conv2DParam>)
 .set_support_level(2);

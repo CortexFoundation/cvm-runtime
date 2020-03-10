@@ -290,10 +290,14 @@ Example::
       std::vector<int>* iprecs,
       const DLContext& ctx) -> int64_t {
     if(ctx.device_type == kDLGPU){
-      int ninput = shapes->size()-1; 
-      int ndim = shapes->at(0).ndim();
-      int size_n = sizeof(int64_t) / sizeof(int32_t);
-      return ninput * (sizeof(int32_t*)/sizeof(int32_t)) + ninput*ndim*size_n + ninput * size_n;
+      int32_t ninput = shapes->size()-1; 
+      int32_t ndim = shapes->at(0).ndim();
+      int32_t input_size = ninput * sizeof(int32_t*) / sizeof(int32_t);
+      int ps = sizeof(int64_t) / sizeof(int32_t*);
+      input_size =  (input_size + ps - 1) / ps * ps;
+      int32_t ishape_size = ninput * ndim * sizeof(int64_t) / sizeof(int32_t);
+      int32_t axis_size = ninput * sizeof(int64_t) / sizeof(int32_t);
+      return input_size + ishape_size + axis_size;
       }else return 0;
     })
 .set_support_level(1);
