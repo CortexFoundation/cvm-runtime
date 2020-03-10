@@ -115,13 +115,6 @@ CVM_REGISTER_ELEMWISE_UNARY_OP(relu)
 )code" CVM_ADD_FILELINE)
 .add_alias("nn.relu")
 .set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
-.set_attr<FOpExtraSpace>("FOpExtraSpace",
-    [](const NodeAttrs& attrs, 
-       std::vector<TShape>* shapes,
-       std::vector<int>* iprecs,
-       const DLContext& ctx) -> int64_t {
-      return 0;
-    })
 .set_support_level(1);
 
 }  // namespace top
