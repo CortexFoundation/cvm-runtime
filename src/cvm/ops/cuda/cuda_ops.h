@@ -246,7 +246,8 @@ inline void cvm_cuda_memcpy(void *dst, void* src, size_t size, cudaMemcpyKind fl
 }
 
 #define MAX_DIM 6
-inline void get_cuda_shape(const int64_t *ishape, const int dim, int64_t*oshape){
+template<typename T>
+inline void get_cuda_shape(const T *ishape, const int dim, T *oshape){
   int shift = MAX_DIM - dim;
   for(int i = 0; i < MAX_DIM; i++){
     oshape[i] = 1;

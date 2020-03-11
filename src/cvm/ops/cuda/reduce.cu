@@ -28,25 +28,35 @@ __global__ void kernel_reduce(const int32_t *x, int32_t *y, int64_t n, F const& 
 }
 
 template<typename F>
-__global__ void kernel_reduce_with_axis(const int32_t *x, int32_t *y, const int32_t *realAxis,
-    const int64_t *xshape, const int64_t *yshape, const int32_t axis_ndim, const uint64_t *every_xdim_size,
-    const int32_t xndim, const int32_t yndim, const int64_t ysize, const int32_t* flag, const int64_t axis_size, F const& f){
+__global__ void kernel_reduce_with_axis(const int32_t *x, int32_t *y, 
+    const int32_t axis_ndim, const int32_t xndim, const int32_t yndim, const int64_t ysize, const int64_t axis_size, F const& f,
+    const int64_t xshp0, const int64_t xshp1, const int64_t xshp2, const int64_t xshp3, const int64_t xshp4, const int64_t xshp5,
+    const int64_t yshp0, const int64_t yshp1, const int64_t yshp2, const int64_t yshp3, const int64_t yshp4, const int64_t yshp5, 
+    const int32_t axshp0, const int32_t axshp1, const int32_t axshp2, const int32_t axshp3, const int32_t axshp4, const int32_t axshp5,
+    const uint64_t exshp0, const uint64_t exshp1, const uint64_t exshp2, const uint64_t exshp3, const uint64_t exshp4, const uint64_t exshp5,
+    const int32_t fshp0, const int32_t fshp1, const int32_t fshp2, const int32_t fshp3, const int32_t fshp4, const int32_t fshp5){
   int32_t tid = threadIdx.x + blockDim.x * blockIdx.x;
+  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
+  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
+  const int32_t realAxis[MAX_DIM] = {axshp0, axshp1, axshp2, axshp3, axshp4, axshp5};
+  const uint64_t every_xdim_size[MAX_DIM] = {exshp0, exshp1, exshp2, exshp3, exshp4, exshp5};
+  const int32_t flag[MAX_DIM] = {fshp0, fshp1, fshp2, fshp3, fshp4, fshp5};
+
   for(uint64_t i =tid; i < ysize; i+= gridDim.x*blockDim.x){
     uint64_t in_i = 0, o_i = i;
     for(int j = yndim-1, xj = xndim-1; j>=0; j--){
-      uint64_t col = o_i % yshape[j];
-      o_i /= yshape[j];
-      while(xj >= 0 && flag[xj--] == 1);
-      in_i += col * every_xdim_size[xj+1];
+      uint64_t col = o_i % yshape[j + MAX_DIM - yndim];
+      o_i /= yshape[j + MAX_DIM - yndim];
+      while(xj >= 0 && flag[(xj--) + MAX_DIM - xndim] == 1);
+      in_i += col * every_xdim_size[xj+1 + MAX_DIM - xndim];
     }
     int32_t tmp = x[in_i];
     for(uint64_t xi = 1; xi < axis_size; xi++){
       uint64_t o_i = xi, tmp_in_i = 0;
       for(int j = axis_ndim - 1; j>=0; j--){
-        uint64_t col = o_i % xshape[realAxis[j]];
-        o_i /= xshape[realAxis[j]];
-        tmp_in_i += col * every_xdim_size[realAxis[j]];
+        uint64_t col = o_i % xshape[realAxis[j + MAX_DIM - axis_ndim] + MAX_DIM - xndim];
+        o_i /= xshape[realAxis[j + MAX_DIM - axis_ndim] + MAX_DIM - xndim];
+        tmp_in_i += col * every_xdim_size[realAxis[j + MAX_DIM - axis_ndim] + MAX_DIM - xndim];
       }
       tmp = f(tmp, x[in_i + tmp_in_i]);
     }
@@ -55,9 +65,9 @@ __global__ void kernel_reduce_with_axis(const int32_t *x, int32_t *y, const int3
 }
 template<typename F>
 const char* cuda_reduce(const int32_t *x, int32_t *y, const uint64_t xsize, const uint64_t ysize, const int64_t *xshape, const int64_t *yshape, const int32_t* realAxis, const int32_t* flag, const uint64_t *every_xdim_size, const int64_t axis_size,const int32_t xndim, const int32_t yndim, const int32_t axis_ndim, F const& f, int& error_code){
-  int64_t *dev_xshape = NULL, *dev_yshape = NULL;
-  uint64_t *dev_every_xdim_size = NULL;
-  int32_t *dev_flag = NULL, *dev_axis = NULL;
+  int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM];
+  uint64_t dev_every_xdim_size[MAX_DIM];
+  int32_t dev_flag[MAX_DIM], dev_axis[MAX_DIM];
   if(axis_ndim == 0){
     kernel_reduce<<<1, 256>>>(x, y, xsize, f);
     int error = cudaGetLastError();
@@ -67,73 +77,23 @@ const char* cuda_reduce(const int32_t *x, int32_t *y, const uint64_t xsize, cons
   }else{
     int bSize = 256;
     int gSize = getGridSize(ysize, bSize);//(ysize + bSize - 1) / bSize;
-    cudaError_t status;
-    status = cudaMalloc((void**)&dev_xshape, sizeof(int64_t)*xndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMalloc((void**)&dev_yshape, sizeof(int64_t)*yndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMalloc((void**)&dev_axis, sizeof(int32_t) * axis_ndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMalloc((void**)&dev_every_xdim_size, sizeof(uint64_t) * xndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMalloc((void**)&dev_flag, sizeof(int32_t)*xndim);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMemcpy(dev_xshape, xshape, sizeof(int64_t)*xndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
-    status = cudaMemcpy(dev_yshape, yshape, sizeof(int64_t)*yndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
-    status = cudaMemcpy(dev_axis, realAxis, sizeof(int32_t)*axis_ndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
-    status = cudaMemcpy(dev_every_xdim_size, every_xdim_size, sizeof(uint64_t) * xndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
-    status = cudaMemcpy(dev_flag, flag, sizeof(int32_t)*xndim, cudaMemcpyHostToDevice);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMCPY;
-      goto end;
-    }
+    get_cuda_shape(xshape, xndim, dev_xshape);
+    get_cuda_shape(yshape, yndim, dev_yshape);
+    get_cuda_shape(realAxis, axis_ndim, dev_axis);
+    get_cuda_shape(every_xdim_size, xndim, dev_every_xdim_size);
+    get_cuda_shape(flag, xndim, dev_flag);
 
-    kernel_reduce_with_axis<<<gSize, bSize>>>(x, y, dev_axis, dev_xshape, dev_yshape, axis_ndim, 
-        dev_every_xdim_size, xndim, yndim, ysize, dev_flag, axis_size, f);
-    if(cudaSuccess != cudaGetLastError()){
-        error_code = ERROR_KERNEL;
-    }
+    kernel_reduce_with_axis<<<gSize, bSize>>>(x, y, axis_ndim, 
+         xndim, yndim, ysize, axis_size, f,
+      dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
+      dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5],
+      dev_axis[0], dev_axis[1], dev_axis[2], dev_axis[3], dev_axis[4], dev_axis[5],
+      dev_every_xdim_size[0], dev_every_xdim_size[1], dev_every_xdim_size[2], dev_every_xdim_size[3], dev_every_xdim_size[4], dev_every_xdim_size[5],
+      dev_flag[0], dev_flag[1], dev_flag[2], dev_flag[3], dev_flag[4], dev_flag[5]);
   }
   print_to_file(y, ysize, "/tmp/zkh/trec/gpu/sum.txt");
 
-end:
-  if(dev_xshape != NULL) cudaFree(dev_xshape);
-  if(dev_yshape != NULL) cudaFree(dev_yshape);
-  if(dev_axis != NULL) cudaFree(dev_axis);
-  if(dev_every_xdim_size != NULL) cudaFree(dev_every_xdim_size);
-  if(dev_flag != NULL) cudaFree(dev_flag);
-  return check_cuda_error(cudaGetLastError());
+  return "";//check_cuda_error(cudaGetLastError());
 }
 const char* cuda_sum(const int32_t *x, int32_t *y, const uint64_t xsize, 
     const uint64_t ysize,  const int64_t *xshape, const int64_t *yshape, 
