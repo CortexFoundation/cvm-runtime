@@ -4,20 +4,6 @@
 namespace cvm{
 namespace runtime{
 
-double transpose_int8_avx256_transpose_cnt = 0;
-double transpose_int8_avx256_gemm_cnt = 0;
-double im2col_cnt = 0;
-double cvm_op_dense_cnt = 0;
-double cvm_op_maxpool_cnt = 0;
-double cvm_op_concat_cnt = 0;
-double cvm_op_upsampling_cnt = 0;
-double cvm_op_inline_matmul_cnt = 0;
-double cvm_op_relu_cnt = 0;
-double cvm_op_chnwise_conv_cnt = 0;
-double cvm_op_chnwise_conv1x1_cnt = 0;
-double cvm_op_depthwise_conv_cnt = 0;
-double cvm_op_depthwise_conv1x1_cnt = 0;
-
 #define BS 16
 #define FS 8
 __global__ void kernel_conv2d(
@@ -285,11 +271,6 @@ const char* cuda_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, 
     int32_t device_id,
     int32_t *ext_space, int& error_code){
-  start_time();
-//  cudaEvent_t start, stop;
-//  cudaEventCreate(&start);
-//  cudaEventCreate(&stop);
-//  cudaEventRecord(start, 0);
 
   if(i_n < 1 || i_c < 1 || i_h < 1 || i_w < 1 || f_n < 1 || f_c < 1 || f_h < 1 || f_w < 1 || 
       padding_h < 0 || padding_w < 0 || stride_h < 1 || stride_w < 1 || dilation_h < 1 || dilation_w < 1 ||
@@ -301,83 +282,62 @@ const char* cuda_conv2d(
 
   int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
   int tmp_f_w = (f_w - 1) * dilation_w + 1;
-  int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; //for stride > 1 , TODO to be optimized
+  //int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; //for stride > 1 , TODO to be optimized
   int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
-  int32_t totalShareMemSize = getShareMemorySize(device_id, error_code);
-  if(error_code != NON_ERROR){
-    return check_cuda_error(cudaGetLastError());
-  }
-  size_t share_size = ((BS + tmp_f_h - 1) * (BS + tmp_f_w - 1) + f_h * f_w * FS + FS) * sizeof(int32_t);
-  if(share_size < totalShareMemSize){
-    size_t freeSize = getFreeMemorySize(device_id, error_code);
-    size_t tmp_filter_size = o_c * i_c * f_h * f_w * sizeof(int8_t);
-    size_t tmp_input_size = i_c * f_h * f_w * o_h * o_w * sizeof(int8_t);
-    if(tmp_filter_size + tmp_input_size >= freeSize || tmp_filter_size > MEMORY_LIMIT || tmp_input_size > MEMORY_LIMIT){
-      int b_h = BS;
-      int b_w = BS;
-      int32_t g_h = o_n * ((o_c + FS - 1) / FS) * ((tmp_o_h + b_h - 1) / b_h);
-      int32_t g_w = (tmp_o_w + b_w - 1) / b_w;
-      dim3 bDim(b_w, b_h, 1);
-      dim3 gDim(g_w, g_h, 1);
-      kernel_conv2d<<<gDim, bDim, share_size>>>(
-          dev_i, i_n, i_c, i_h, i_w,
-          dev_f, f_n, f_c, f_h, f_w,
-          dev_b, 
-          padding_h, padding_w,
-          stride_h, stride_w,
-          dilation_h, dilation_w,
-          groups,
-          dev_o, o_n, o_c, o_h, o_w);
-    }else{
-      int32_t fn = o_c * i_c * f_h * f_w;
-      const int M = o_c;
-      const int K = i_c * f_h * f_w;
-      const int N = o_h * o_w;
-      dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
-      int gh = (M + TILE_WIDTH - 1) / TILE_WIDTH;
-      int gw = (N + TILE_WIDTH - 1) / TILE_WIDTH;
-      dim3 gDim(gw, gh, 1);
+  //int32_t totalShareMemSize = getShareMemorySize(device_id, error_code);
+  //if(error_code != NON_ERROR){
+  //  return check_cuda_error(cudaGetLastError());
+  //}
+  //size_t share_size = ((BS + tmp_f_h - 1) * (BS + tmp_f_w - 1) + f_h * f_w * FS + FS) * sizeof(int32_t);
+  //if(share_size < totalShareMemSize){
+    //size_t freeSize = getFreeMemorySize(device_id, error_code);
+    int32_t fn = o_c * i_c * f_h * f_w;
+    const int M = o_c;
+    const int K = i_c * f_h * f_w;
+    const int N = o_h * o_w;
+    dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
+    int gh = (M + TILE_WIDTH - 1) / TILE_WIDTH;
+    int gw = (N + TILE_WIDTH - 1) / TILE_WIDTH;
+    dim3 gDim(gw, gh, 1);
 
-      int8_t *d_f = (int8_t*)ext_space;
-      int8_t *d_col = d_f + get_multi8to64_size(fn);
+    int8_t *d_f = (int8_t*)ext_space;
+    int8_t *d_col = d_f + get_multi8to64_size(fn);
 
-      int blockSize = 256;
-      int gridSize = getGridSize(fn, blockSize);
-      kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
+    int blockSize = 256;
+    int gridSize = getGridSize(fn, blockSize);
+    kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
 
-      for(int i = 0; i < o_n; i++){
-        im2col_gpu(dev_i + i * i_c * i_h * i_w,
-            i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
-            dilation_h, dilation_w, d_col);
-        kernel_matrix_mul<<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
-      }
+    for(int i = 0; i < o_n; i++){
+      im2col_gpu(dev_i + i * i_c * i_h * i_w,
+          i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
+          dilation_h, dilation_w, d_col);
+      kernel_matrix_mul<<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
     }
-  }else{
-    int b_h = BS;
-    int b_w = BS;
-    int g_h = o_n * o_c * ((o_h + b_h - 1) / b_h);
-    int g_w = (o_w + b_w - 1) / b_w;
-    dim3 bDim(b_w, b_h, 1);
-    dim3 gDim(g_w, g_h, 1);
-    kernel_conv2d_no_shared<<<gDim, bDim>>>(
-        dev_i, i_n, i_c, i_h, i_w,
-        dev_f, f_n, f_c, f_h, f_w,
-        dev_b, 
-        padding_h, padding_w,
-        stride_h, stride_w,
-        dilation_h, dilation_w,
-        groups,
-        dev_o, o_n, o_c, o_h, o_w);
-  }
-  cudaError_t error = cudaGetLastError();
-  if(cudaSuccess != error){
-    error_code = ERROR_KERNEL;
-  }
-
-  cvm_op_chnwise_conv_cnt += get_used_time();
+  //}else{
+  //  int b_h = BS;
+  //  int b_w = BS;
+  //  int g_h = o_n * o_c * ((o_h + b_h - 1) / b_h);
+  //  int g_w = (o_w + b_w - 1) / b_w;
+  //  dim3 bDim(b_w, b_h, 1);
+  //  dim3 gDim(g_w, g_h, 1);
+  //  kernel_conv2d_no_shared<<<gDim, bDim>>>(
+  //      dev_i, i_n, i_c, i_h, i_w,
+  //      dev_f, f_n, f_c, f_h, f_w,
+  //      dev_b, 
+  //      padding_h, padding_w,
+  //      stride_h, stride_w,
+  //      dilation_h, dilation_w,
+  //      groups,
+  //      dev_o, o_n, o_c, o_h, o_w);
+  //}
+  //cudaError_t error = cudaGetLastError();
+  //if(cudaSuccess != error){
+  //  error_code = ERROR_KERNEL;
+  //}
 
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "/tmp/zkh/trec/gpu/conv2d.txt");
-  return check_cuda_error(error);
+  //return check_cuda_error(error);
+  return "";
 }
 __global__ void kernel_depthwise_conv2d(
     const int32_t * __restrict__ input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
@@ -757,7 +717,6 @@ const char* cuda_max_pool(
     int32_t padding_h, int32_t padding_w,
     int32_t stride_h, int32_t stride_w,
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
-  start_time();
   int32_t *dev_i = input, *dev_o = output;
 
   const int32_t totalShareMemSize = getShareMemorySize(device_id, error_code);
@@ -796,7 +755,6 @@ const char* cuda_max_pool(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
-  cvm_op_maxpool_cnt += get_used_time();
   return check_cuda_error(error);
 }
 
@@ -844,7 +802,6 @@ const char* cuda_dense(
     int32_t *b,
     int32_t *c,
     const int m, const int k, const int n, int32_t* bias, int& error_code){
-  start_time();
   int32_t *dev_a = a, *dev_b = b, *dev_c = c, *dev_bias = bias, useBias = 0;
   if(bias != NULL) useBias = 1;
 
@@ -858,7 +815,6 @@ const char* cuda_dense(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
-  cvm_op_dense_cnt += get_used_time();
   print_to_file(dev_c, m*n, "/tmp/zkh/trec/gpu/dense.txt");
   return check_cuda_error(error);
 }
@@ -970,7 +926,6 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, cons
 }
 
 const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
-  start_time();
   int32_t *dev_input = ext_space;
   int64_t* dev_ishape = (int64_t*)(ext_space+ get_multi_pointerto64_size(ninput * (sizeof(int32_t*)/sizeof(int32_t))));
   int32_t *dev_output = output;
@@ -987,7 +942,6 @@ const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t n
     get_cuda_shape(oshape, ndim, newoshape);
     kernel_concatenate<<<gSize, bSize>>>((int32_t**)dev_input, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
 
-    cvm_op_concat_cnt += get_used_time();
     return "";
   }catch (int e){
     return check_cuda_error(cudaGetLastError());

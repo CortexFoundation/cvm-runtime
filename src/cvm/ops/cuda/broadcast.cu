@@ -48,7 +48,6 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
     F const& f,
     int& error_code)
 {
-  start_time();
   const int32_t *dev_a = a, *dev_b = b;
   int32_t *dev_c = c;
   int threadSize = 256;
@@ -62,8 +61,6 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
       dev_ashape[0], dev_ashape[1], dev_ashape[2], dev_ashape[3], dev_ashape[4], dev_ashape[5],
       dev_bshape[0], dev_bshape[1], dev_bshape[2], dev_bshape[3], dev_bshape[4], dev_bshape[5],
       dev_cshape[0], dev_cshape[1], dev_cshape[2], dev_cshape[3], dev_cshape[4], dev_cshape[5]);
-
-  cvm_op_broadcast_cnt += get_used_time();
   return "";
 }
 
