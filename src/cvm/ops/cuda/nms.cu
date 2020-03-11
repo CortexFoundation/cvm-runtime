@@ -280,9 +280,6 @@ __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_m
 
   if(lid == 0) yn = 0;
   __syncthreads();
-  if(lid == 0){
-    printf("%d %d %d %d\n", rows[0][0], rows[0][1], rows[0][2], rows[0][3]);
-  }
   for(int i = 0; i < idx_max && yn < n_max; i+= BS){
     removed[lid] = true;
     for(int k = 0; k < K; k++){
@@ -336,7 +333,6 @@ __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_m
           for(int k = 0; k < K; k++)
             y_batch[yn * K + k] = share_box1[l][k];
           ++yn;
-          printf("yn = %d\n", yn);
         }
       }    
     }
@@ -395,7 +391,6 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
     }
     int32_t yn = 0;
     cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
-    printf("host : yn = %d\n", yn);
     cudaMemset(y_batch + yn * k, -1, (n - yn) * k * sizeof(int32_t));
   } 
 end:
