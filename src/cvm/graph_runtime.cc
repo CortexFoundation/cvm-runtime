@@ -19,6 +19,8 @@
 #include <thread>
 #include <utility>
 #include <omp.h>
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 namespace cvm {
 namespace runtime {
@@ -643,6 +645,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
       const_cast<DLTensor*>(ext_space)
     );
     func->CallPacked(targs, &rv);
+    cudaDeviceSynchronize();
     double end = omp_get_wtime();
     if(times.find(op) == times.end()) times[op] = 0;
     times[op] += end-start;
