@@ -924,6 +924,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.non_max_suppression")
       DLTensor *x = args[0];
       DLTensor *valid_count = args[1];
       DLTensor *y = args[2];
+      int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
       void* _attr = args[3];
       auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
       auto &param = cvm::get<cvm::top::NonMaximumSuppressionParam>(attr->parsed);
@@ -950,8 +951,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.non_max_suppression")
       int error_code = NON_ERROR;
       const char* errorStr = cuda_non_max_suppression(
           x_data, valid_count_data, y_data, batchs, n, k,
-          max_output_size, iou_threshold, topk, coord_start, score_index, id_index, force_suppress,
-          error_code);
+          max_output_size, iou_threshold, topk, coord_start, score_index, id_index, force_suppress, ext_space, error_code);
       deal_error(error_code, errorStr);
   });
 

@@ -269,13 +269,88 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
   *num_y = yn;
 }
 
+template<int BS, bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
+__global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_max,int32_t *y_batch, int32_t **rows, int32_t *num_y, int32_t iou_threshold){
+  int bid = blockIdx.x;
+  int lid = threadIdx.x;
+  __shared__ int32_t share_box1[BS][K];
+  __shared__ int32_t share_box2[BS][K];
+  __shared__ bool removed[BS];
+  __shared__ int32_t yn;
+
+  if(lid == 0) yn = 0;
+  __syncthreads();
+  if(lid == 0){
+    printf("%d %d %d %d\n", rows[0][0], rows[0][1], rows[0][2], rows[0][3]);
+  }
+  for(int i = 0; i < idx_max && yn < n_max; i+= BS){
+    removed[lid] = true;
+    for(int k = 0; k < K; k++){
+      share_box1[lid][k] = -1;
+    }
+    if(i + lid < idx_max){
+      for(int k = 0; k < K; k++){
+        share_box1[lid][k] = rows[i+lid][k]; 
+      }
+    }
+    __syncthreads();
+    bool remove = (share_box1[lid][0] == -1);//false;
+    for(int j = 0; j < yn && yn < n_max; j+=BS){
+      for(int k = 0; k < K; k++){
+        share_box2[lid][k] = -1;
+      }
+      if(lid + j < yn){
+        for(int k = 0; k < K; k++){
+          share_box2[lid][k] = y_batch[(lid+j) * K + k];
+        }
+      }
+      __syncthreads();
+      //if(share_box1[lid][0] == -1) remove = true;
+      for(int l = 0; l < BS && !remove; l++){
+        if(share_box2[l][0] == -1) continue;
+        if(force_suppress || share_box1[lid][id_index] == share_box2[l][id_index]){
+          int64_t iou_ret = dev_iou(&share_box1[lid][coord_start], &share_box2[l][coord_start], FORMAT_CORNER); 
+          if(iou_ret >= iou_threshold) {
+            remove = true;
+            break;
+          }
+        }
+      }
+      __syncthreads();
+    }
+    for(int l = 0; l < lid && !remove; l++){
+      if(share_box1[l][0] == -1) continue;
+      if(force_suppress || share_box1[lid][id_index] == share_box1[l][id_index]){
+        int64_t iou_ret = dev_iou(&share_box1[lid][coord_start], &share_box1[l][coord_start], FORMAT_CORNER); 
+        if(iou_ret >= iou_threshold) {
+          remove = true;
+          break;
+        }
+      }
+    }
+    removed[lid] = remove;
+    __syncthreads();
+    if(lid == 0){
+      for(int l = 0; l < BS; l++){
+        if(!removed[l]){
+          for(int k = 0; k < K; k++)
+            y_batch[yn * K + k] = share_box1[l][k];
+          ++yn;
+          printf("yn = %d\n", yn);
+        }
+      }    
+    }
+    __syncthreads();
+  }
+  if(lid == 0) *num_y = yn;
+}
+
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,
     const int32_t max_output_size, const int32_t iou_threshold, const int32_t topk, 
-    const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int& error_code){
+    const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int32_t *ext_space, int& error_code){
   int32_t *valid_count_data = (int32_t*)malloc(batchs * sizeof(int32_t));
-  int32_t **rows = NULL; 
-  bool *removed = NULL;
-  int32_t *d_y_index = NULL;
+  int32_t **rows = (int32_t**)ext_space; 
+  int32_t *d_y_index = ext_space + n * (sizeof(int32_t*) / sizeof(int32_t));
   cudaError_t status;
   if(valid_count_data == NULL){
     error_code = ERROR_MALLOC;
@@ -285,16 +360,6 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
   if(status != cudaSuccess){
     free(valid_count_data);
     error_code = ERROR_MEMCPY;
-    goto end;
-  }
-  status = cudaMalloc((void**)&rows, sizeof(int32_t*) * n);
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
-    goto end;
-  }
-  status = cudaMalloc((void**)&d_y_index, sizeof(int32_t));
-  if(status != cudaSuccess){
-    error_code = ERROR_MALLOC;
     goto end;
   }
 
@@ -314,47 +379,27 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
     if(max_output_size >= 0) n_max = std::min(n_max, max_output_size);
     int32_t idx_max = vc;
     if(topk >= 0) idx_max = std::min(idx_max, topk);
-    int32_t remove_n = std::max(n_max, idx_max);
 
     int blockSize = 256;
     int gridSize = (vc + blockSize - 1) / blockSize;
     kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, vc, k, score_index, rows);
     thrust::stable_sort(thrust::device, rows, rows+vc, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
         return a[score_index] > b[score_index];
-        });
-
-    status = cudaMalloc((void**)&removed, sizeof(bool) * remove_n * remove_n);
-    if(status != cudaSuccess){
-      error_code = ERROR_MALLOC;
-      goto end;
-    }
-    status = cudaMemset(removed, false, sizeof(bool)*remove_n * remove_n);
-    if(status != cudaSuccess){
-      error_code = ERROR_MEMSET;
-      goto end;
-    }
-
-    const int32_t BS = 32;
-    dim3 blockSizeDim = dim3(BS, BS, 1);
-    dim3 gridSizeDim = dim3((remove_n+BS-1) / BS, (remove_n+BS-1)/BS, 1);
-    kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, remove_n, iou_threshold);
+    });
 
     if(force_suppress){
-      kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
+      kernel_compare_iou_opt2<128, true, 0, 2, 6><<<1, 128>>>(idx_max, n_max, y_batch, rows, d_y_index, iou_threshold);
     }
     else{ 
-      kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
+      kernel_compare_iou_opt2<128, false, 0, 2, 6><<<1,128>>>(idx_max, n_max, y_batch, rows, d_y_index, iou_threshold);
     }
     int32_t yn = 0;
     cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
+    printf("host : yn = %d\n", yn);
     cudaMemset(y_batch + yn * k, -1, (n - yn) * k * sizeof(int32_t));
-    if(removed != NULL) cudaFree(removed);
   } 
 end:
   if(valid_count_data != NULL) free(valid_count_data);
-  if(rows != NULL) cudaFree(rows);
-  if(d_y_index != NULL) cudaFree(d_y_index);
-  //if(removed != NULL) cudaFree(removed);
   return check_cuda_error(cudaGetLastError());
 }
 

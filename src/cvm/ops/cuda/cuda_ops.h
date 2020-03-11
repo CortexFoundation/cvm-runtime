@@ -223,7 +223,7 @@ const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_
         const int32_t score_threshold, const int32_t batchs, int& error_code);
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,
         const int32_t max_output_size, const int32_t iou_threshold, const int32_t topk,
-        const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int& error_code);
+        const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int32_t *ext_space, int& error_code);
 const char* cuda_take(const int32_t *x_data, const int32_t *indices_data, int32_t *y_data,
         const int64_t *xshape, const int64_t *yshape, const int64_t *indices_shape, const int32_t yndim,
         const int32_t xndim, const int32_t indices_ndim, const uint64_t ysize, const int32_t axis, int& error_code);

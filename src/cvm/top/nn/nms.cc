@@ -104,6 +104,19 @@ CVM_REGISTER_OP(non_max_suppression)
 .set_attr<FInferType>("FInferType", NMSInferType)
 .set_attr<FCorrectLayout>("FCorrectLayout", NMSInferLayout)
 .set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
+.set_attr<FOpExtraSpace>("FOpExtraSpace",
+    [](const NodeAttrs& attrs, 
+      std::vector<TShape>* shapes,
+      std::vector<int>* iprecs,
+      const DLContext& ctx) -> int64_t {
+    if(ctx.device_type == kDLGPU){
+      TShape xshape = shapes->at(0); 
+      int32_t size_offset = sizeof(int64_t) / sizeof(int32_t);
+      int32_t xn = (xshape[1] + size_offset - 1) / size_offset * size_offset;
+      int32_t yn = size_offset;
+      return (xn + yn) * size_offset;
+    }
+    })
 .set_support_level(4);
 
 
