@@ -7,16 +7,8 @@
 namespace cvm{
 namespace runtime{
 
-__global__ void kernel_get_valid_count(const int32_t *input, bool *saved, const int32_t n, const int32_t k, const int32_t score_threshold){
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  for(uint64_t j = tid; j < n; j+=gridDim.x*blockDim.x){
-    const int32_t *row = input + j * k;
-    saved[j] = row[1] > score_threshold ? 1 : 0;
-  }
-}
-
 template<int score_index, int BS>
-__global__ void kernel_get_valid_count_opt(const int32_t batchs, const int32_t n, const int32_t K, const int32_t *inputs, int32_t *y, int32_t *valid_count, const int32_t score_threshold){
+__global__ void kernel_get_valid_count(const int32_t batchs, const int32_t n, const int32_t K, const int32_t *inputs, int32_t *y, int32_t *valid_count, const int32_t score_threshold){
   const int lid = threadIdx.x;
   const int bidx = blockIdx.x;
   const int bidy = blockIdx.y;
@@ -24,11 +16,15 @@ __global__ void kernel_get_valid_count_opt(const int32_t batchs, const int32_t n
   const int batch = bidy; 
   __shared__ int32_t share_box[BS][32];
   __shared__ int32_t count;
+  __shared__ int32_t start_index;
 #pragma unroll
   for(int i = 0; i < K; i++){
     share_box[lid][i] = -1;
   }
-  if(lid == 0) count = 0;
+  if(lid == 0) {
+    count = 0;
+    start_index = 0;
+  }
   int x_i = batch * n * K + gidx * K; 
   if(gidx < n){
 #pragma unroll
@@ -49,7 +45,7 @@ __global__ void kernel_get_valid_count_opt(const int32_t batchs, const int32_t n
   __syncthreads();
 
   if(lid == 0) {
-    atomicAdd(valid_count + batch, count);
+    start_index = atomicAdd(valid_count + batch, count);
     int j = 0;
     for(int i = 0; i < BS; i++){
       if(share_box[i][0] != -1){
@@ -75,33 +71,20 @@ __global__ void kernel_get_valid_count_opt(const int32_t batchs, const int32_t n
   if(gidx < n){
     #pragma unroll
     for(int i = 0; i < K ;i++){
-      y[x_i + i] = share_box[lid][i];
+      if(share_box[lid][0] != -1)
+        y[batch * n* K + (start_index + lid) * K + i] = share_box[lid][i];
     }
+  }
+}
+__global__ void kernel_set_negative(int32_t *y, const int32_t *valid_count, const int32_t batchs, const int32_t n, const int32_t K){
+  int batch = blockIdx.y;
+  int32_t vc = valid_count[batch];
+  for(int i = threadIdx.x + vc; i < n; i+=blockDim.x){
+    for(int k = 0; k < K; k++)
+      y[batch * n * K + i * K + k] = -1;
   }
 }
 
-__global__ void kernel_merge_batchs(int32_t *data, const int32_t batchs, const int32_t n, const int32_t K){
-  int lid = threadIdx.x + blockIdx.x * blockDim.x;
-  if(lid < batchs){
-    int32_t *out = data + lid * n * K;
-    int j = 0;
-    for(int i = 0; i < n; i++){
-      if(out[i*K] != -1){
-        if(i > j){
-          #pragma unroll
-          for(int k = 0; k < K; k++){
-            out[j * K + k] = out[i * K + k];
-          }
-          #pragma unroll
-          for(int k = 0; k < K; k++){
-            out[i * K + k] = -1;
-          }
-        }
-        ++j;
-      } 
-    }
-  }
-}
 
 const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
     const int32_t n, const int32_t k,
@@ -110,9 +93,9 @@ const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_
   int bsize = 256;
   dim3 gsize = dim3((n+bsize-1)/bsize, batchs, 1);
   cudaMemset(valid_count_data, 0, sizeof(int32_t) * batchs);
-  kernel_get_valid_count_opt<1, 256><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold);
-  int gsize2 = (batchs + bsize - 1)/ bsize;
-  kernel_merge_batchs<<<gsize2, bsize>>>(y_data, batchs, n, k);
+  kernel_get_valid_count<1, 256><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold);
+  gsize = dim3(1, batchs, 1);
+  kernel_set_negative<<<gsize, bsize>>>(y_data, valid_count_data, batchs, n, k);
 
   return ""; 
 }
@@ -327,59 +310,46 @@ const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_c
       goto end;
     }
 
-    if(iou_threshold <= 0){
-      status = cudaMemcpy(y_batch, x_batch, vc * k * sizeof(int32_t), cudaMemcpyDeviceToDevice);
-      if(status != cudaSuccess){
-        error_code = ERROR_MEMCPY;
-        goto end;
-      }
-      status = cudaMemset(y_batch + vc * n * k, -1, (n-vc)*k*sizeof(int32_t));
-      if(status != cudaSuccess){
-        error_code = ERROR_MEMSET;
-        goto end;
-      }
-    }else{
-      int32_t n_max = vc;
-      if(max_output_size >= 0) n_max = std::min(n_max, max_output_size);
-      int32_t idx_max = vc;
-      if(topk >= 0) idx_max = std::min(idx_max, topk);
-      int32_t remove_n = std::max(n_max, idx_max);
+    int32_t n_max = vc;
+    if(max_output_size >= 0) n_max = std::min(n_max, max_output_size);
+    int32_t idx_max = vc;
+    if(topk >= 0) idx_max = std::min(idx_max, topk);
+    int32_t remove_n = std::max(n_max, idx_max);
 
-      int blockSize = 256;
-      int gridSize = (vc + blockSize - 1) / blockSize;
-      kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, vc, k, score_index, rows);
-      thrust::stable_sort(thrust::device, rows, rows+vc, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
-          return a[score_index] > b[score_index];
-      });
+    int blockSize = 256;
+    int gridSize = (vc + blockSize - 1) / blockSize;
+    kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, vc, k, score_index, rows);
+    thrust::stable_sort(thrust::device, rows, rows+vc, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
+        return a[score_index] > b[score_index];
+        });
 
-      status = cudaMalloc((void**)&removed, sizeof(bool) * remove_n * remove_n);
-      if(status != cudaSuccess){
-        error_code = ERROR_MALLOC;
-        goto end;
-      }
-      status = cudaMemset(removed, false, sizeof(bool)*remove_n * remove_n);
-      if(status != cudaSuccess){
-        error_code = ERROR_MEMSET;
-        goto end;
-      }
+    status = cudaMalloc((void**)&removed, sizeof(bool) * remove_n * remove_n);
+    if(status != cudaSuccess){
+      error_code = ERROR_MALLOC;
+      goto end;
+    }
+    status = cudaMemset(removed, false, sizeof(bool)*remove_n * remove_n);
+    if(status != cudaSuccess){
+      error_code = ERROR_MEMSET;
+      goto end;
+    }
 
-      const int32_t BS = 32;
-      dim3 blockSizeDim = dim3(BS, BS, 1);
-      dim3 gridSizeDim = dim3((remove_n+BS-1) / BS, (remove_n+BS-1)/BS, 1);
-      kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, remove_n, iou_threshold);
+    const int32_t BS = 32;
+    dim3 blockSizeDim = dim3(BS, BS, 1);
+    dim3 gridSizeDim = dim3((remove_n+BS-1) / BS, (remove_n+BS-1)/BS, 1);
+    kernel_cal_all_iou<BS, 0, 2, 6><<<gridSizeDim, blockSizeDim>>>(rows, removed, remove_n, iou_threshold);
 
-      if(force_suppress){
-        kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
-      }
-      else{ 
-        kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
-      }
-      int32_t yn = 0;
-      cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
-      cudaMemset(y_batch + yn * k, -1, (n - yn) * k * sizeof(int32_t));
-      if(removed != NULL) cudaFree(removed);
-    } 
-  }
+    if(force_suppress){
+      kernel_compare_iou_opt<true, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
+    }
+    else{ 
+      kernel_compare_iou_opt<false, 0, 2, 6><<<1,1>>>(idx_max, n_max, removed, y_batch, rows, d_y_index);
+    }
+    int32_t yn = 0;
+    cudaMemcpy(&yn, d_y_index, sizeof(int32_t), cudaMemcpyDeviceToHost);
+    cudaMemset(y_batch + yn * k, -1, (n - yn) * k * sizeof(int32_t));
+    if(removed != NULL) cudaFree(removed);
+  } 
 end:
   if(valid_count_data != NULL) free(valid_count_data);
   if(rows != NULL) cudaFree(rows);
