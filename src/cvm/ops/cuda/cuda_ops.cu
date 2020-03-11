@@ -887,14 +887,6 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
-__global__ void cal_axis_offset(int64_t *axisSize, const int32_t ninput, int64_t*ishapes, const int32_t ndim, const int32_t axis){
-  int64_t preSize = 0;
-  for(int i = 0; i < ninput; i++){
-    int64_t size = ishapes[i*ndim + axis];
-    axisSize[i] = preSize;
-    preSize += size;
-  }
-}
 __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int64_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
   int32_t lid = threadIdx.x;
@@ -924,28 +916,47 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, cons
     out_data[yi] = input_data[i];
   }
 }
+__global__ void kernel_concatenate_one_input(int32_t *input, const int64_t isize, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t axisSize, 
+    const int64_t ishp0, const int64_t ishp1, const int64_t ishp2, const int64_t ishp3, const int64_t ishp4, const int64_t ishp5,
+    const int64_t oshp0, const int64_t oshp1, const int64_t oshp2, const int64_t oshp3, const int64_t oshp4, const int64_t oshp5){
+  int32_t lid = threadIdx.x + blockIdx.x * blockDim.x;
+
+  const int32_t y_axis_size = axisSize;
+  const int64_t ishape[MAX_DIM] = {ishp0, ishp1, ishp2, ishp3, ishp4, ishp5};
+  const int64_t oshape[MAX_DIM] = {oshp0, oshp1, oshp2, oshp3, oshp4, oshp5};
+
+  for(int64_t i = lid; i < isize; i+= gridDim.x * blockDim.x){
+    int32_t tmp_i = i, yi = 0, shape_size = 1;
+    for(int32_t d = ndim-1; d>=0; d--){
+      int32_t col = tmp_i % ishape[d + MAX_DIM - ndim];
+      tmp_i /= ishape[d + MAX_DIM - ndim];
+      if(d == axis) col += y_axis_size;
+      yi += col * shape_size;
+      shape_size *= oshape[d + MAX_DIM-ndim];
+    }
+    out_data[yi] = input[i];
+  }
+}
 
 const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
-  int32_t *dev_input = ext_space;
-  int64_t* dev_ishape = (int64_t*)(ext_space+ get_multi_pointerto64_size(ninput * (sizeof(int32_t*)/sizeof(int32_t))));
   int32_t *dev_output = output;
-  int64_t *dev_axisSize = (int64_t*)(dev_ishape + ninput * ndim);
+    int64_t dev_oshape[6];
+    get_cuda_shape(oshape, ndim, dev_oshape);
 
-  try{
-    cvm_cuda_memcpy((void*)dev_input, (void*)inputs, sizeof(int32_t*) * ninput, cudaMemcpyHostToDevice);
-    cvm_cuda_memcpy((void*)(dev_ishape), (void*)ishapes, sizeof(int64_t) * ninput * ndim, cudaMemcpyHostToDevice);
-
-    cal_axis_offset<<<1, 1>>>(dev_axisSize, ninput, dev_ishape, ndim, axis);
-    const int bSize = 512;
-    int gSize = ninput;
-    int64_t newoshape[6];
-    get_cuda_shape(oshape, ndim, newoshape);
-    kernel_concatenate<<<gSize, bSize>>>((int32_t**)dev_input, dev_ishape, ndim, dev_output, axis, dev_axisSize, newoshape[0], newoshape[1], newoshape[2], newoshape[3], newoshape[4], newoshape[5]);
-
+    for(int i = 0; i < ninput; i++){
+      int64_t isize = 1;
+      for(int j = 0; j < ndim; j++){
+        isize *= ishapes[i*ndim + j]; 
+      }
+      int64_t dev_ishape[6];
+      get_cuda_shape(ishapes + i * ndim, ndim, dev_ishape);
+      const int bSize = 512;
+      const int gSize = (isize + bSize - 1) / bSize;
+      kernel_concatenate_one_input<<<gSize, bSize>>>(inputs[i], isize, ndim, dev_output, axis, axisSize[i], 
+          dev_ishape[0], dev_ishape[1], dev_ishape[2], dev_ishape[3], dev_ishape[4], dev_ishape[5],
+          dev_oshape[0], dev_oshape[1], dev_oshape[2], dev_oshape[3], dev_oshape[4], dev_oshape[5]);
+    }
     return "";
-  }catch (int e){
-    return check_cuda_error(cudaGetLastError());
-  }
 }
 
 __global__ void kernel_bias_add(const int32_t *x_data, const int32_t * bias_data, int32_t *y_data, 
