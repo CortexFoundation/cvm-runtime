@@ -18,9 +18,14 @@
 #include <memory>
 #include <thread>
 #include <utility>
+
+// #define CUDA_PROFILE
+
 #include <omp.h>
+#ifdef CUDA_PROFILE
 #include <cuda.h>
 #include <cuda_runtime.h>
+#endif
 
 namespace cvm {
 namespace runtime {
@@ -38,6 +43,7 @@ void CvmRuntime::Run() {
       [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) ->bool {
         return a.second > b.second;
       });
+
   printf("\n---------op time metrix--------------\n");
   double total = 0;
   for(auto time : vec_times){
@@ -636,6 +642,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   const DLTensor* ext_space = extra_space_.operator->();
   auto& times = this->times;
   return [arg_ptr, op, func, ext_space, &times](){
+    if(times.find(op) == times.end()) times[op] = 0;
     double start = omp_get_wtime();
     CVMRetValue rv;
     CVMArgs targs(
@@ -645,9 +652,11 @@ std::function<void()> CvmRuntime::CreateCVMOp(
       const_cast<DLTensor*>(ext_space)
     );
     func->CallPacked(targs, &rv);
+
+#ifdef CUDA_PROFILE
     cudaDeviceSynchronize();
+#endif
     double end = omp_get_wtime();
-    if(times.find(op) == times.end()) times[op] = 0;
     times[op] += end-start;
   };
 
