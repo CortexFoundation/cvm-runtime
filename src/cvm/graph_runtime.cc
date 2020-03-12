@@ -19,7 +19,7 @@
 #include <thread>
 #include <utility>
 
-// #define CUDA_PROFILE
+ #define CUDA_PROFILE
 
 #include <omp.h>
 #ifdef CUDA_PROFILE
@@ -44,14 +44,17 @@ void CvmRuntime::Run() {
         return a.second > b.second;
       });
 
-  printf("\n---------op time metrix--------------\n");
+  printf("\n-------------op time metrix--------------\n");
   double total = 0;
   for(auto time : vec_times){
     total += time.second;
-    printf("%s : %.4fs\n", time.first.c_str(), time.second);
+  //  printf("%s : %.4fs\n", time.first.c_str(), time.second);
   }
-  printf("total time = %.4fs\n", total);
-  printf("---------op time metrix-----------------\n");
+  for(auto time : vec_times){
+    printf("%-20s : \t%.4fs\t%.4f%%\n", time.first.c_str(), time.second, time.second / total);
+  }
+  printf("#####total time = %.3fs\n", total);
+  printf("-------------op time metrix-----------------\n\n");
 }
 
 /*!

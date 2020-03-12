@@ -203,56 +203,92 @@ __global__ void im2col_gpu_kernel(const int n, const int32_t* data_im,
 }
 
 #define TILE_WIDTH 16
+//__global__ void kernel_matrix_mul(
+//    int8_t *a, // m*k 
+//    int8_t *b, // k*n
+//    int32_t *c, // m*n
+//    int32_t m, int32_t k, int32_t n, int32_t *bias){
+//  __shared__ int8_t sharedm[TILE_WIDTH][TILE_WIDTH];
+//  __shared__ int8_t sharedn[TILE_WIDTH][TILE_WIDTH];
+//  int bx = blockIdx.x;
+//  int by = blockIdx.y;
+//  int tx = threadIdx.x;
+//  int ty = threadIdx.y;
+//  int row = by*TILE_WIDTH + ty;
+//  int col = bx*TILE_WIDTH + tx;
+//  int sum = 0;
+//
+//  for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i++)
+//  {
+//    if (i*TILE_WIDTH + tx < k && row < m)//m*k
+//      sharedm[ty][tx] = a[row*k + i*TILE_WIDTH + tx];
+//    else
+//      sharedm[ty][tx] = 0;
+//
+//    if(i*TILE_WIDTH + ty < k && col < n)//k*n
+//      sharedn[ty][tx] =b[(i*TILE_WIDTH + ty) * n + col] ;//b[col * k + i * TILE_WIDTH + ty];
+//    else
+//      sharedn[ty][tx] = 0;
+//    __syncthreads();
+//
+//    for(int j = 0; j < TILE_WIDTH; j++)
+//      sum += static_cast<int32_t>(sharedm[ty][j]) * sharedn[j][tx];
+//    __syncthreads();
+//  }
+//  if (row < m && col < n){
+//    if(bias != NULL) sum += bias[row];
+//    c[row*n + col] = sum;
+//  }
+//}
+
+template<const bool has_bias, int NUM>
 __global__ void kernel_matrix_mul(
     int8_t *a, // m*k 
     int8_t *b, // k*n
     int32_t *c, // m*n
     int32_t m, int32_t k, int32_t n, int32_t *bias){
-  __shared__ int8_t sharedm[TILE_WIDTH][TILE_WIDTH];
+  __shared__ int8_t sharedm[TILE_WIDTH*NUM][TILE_WIDTH];
   __shared__ int8_t sharedn[TILE_WIDTH][TILE_WIDTH];
   int bx = blockIdx.x;
   int by = blockIdx.y;
   int tx = threadIdx.x;
   int ty = threadIdx.y;
-  int row = by*TILE_WIDTH + ty;
+  int row = by*TILE_WIDTH*NUM + ty;
   int col = bx*TILE_WIDTH + tx;
-  int sum = 0;
+  int sum[NUM] = {0};
 
   for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i++)
   {
-    if (i*TILE_WIDTH + tx < k && row < m)//m*k
-      sharedm[ty][tx] = a[row*k + i*TILE_WIDTH + tx];
-    else
-      sharedm[ty][tx] = 0;
+//#pragma unroll
+    for(int ii = 0; ii < NUM; ii++){
+      if(i*TILE_WIDTH + tx < k && (row + ii *TILE_WIDTH) < m)
+        sharedm[ty + ii*TILE_WIDTH][tx] = a[(row+ii*TILE_WIDTH)*k + i*TILE_WIDTH + tx];
+      else{
+        sharedm[ty + ii*TILE_WIDTH][tx] = 0;
+      }
+    }
 
     if(i*TILE_WIDTH + ty < k && col < n)//k*n
-      sharedn[ty][tx] =b[(i*TILE_WIDTH + ty) * n + col] ;//b[col * k + i * TILE_WIDTH + ty];
+      sharedn[ty][tx] = b[(i*TILE_WIDTH + ty) * n + col];
     else
       sharedn[ty][tx] = 0;
     __syncthreads();
 
-    for(int j = 0; j < TILE_WIDTH; j++)
-      sum += static_cast<int32_t>(sharedm[ty][j]) * sharedn[j][tx];
+    for(int j = 0; j < TILE_WIDTH; j++){
+      int8_t tb = sharedn[j][tx];
+#pragma unroll
+      for(int ii = 0; ii < NUM; ii++)
+        sum[ii] += static_cast<int32_t>(sharedm[ty + ii * TILE_WIDTH][j]) * tb;
+    }
     __syncthreads();
   }
-  if (row < m && col < n){
-    if(bias != NULL) sum += bias[row];
-    c[row*n + col] = sum;
+//#pragma unroll
+  for(int ii = 0; ii < NUM; ii++){
+    if (row + ii*TILE_WIDTH < m && col < n){
+      if(has_bias) sum[ii] += bias[row + ii*TILE_WIDTH];
+      c[(row+ii*TILE_WIDTH)*n + col] = sum[ii];
+    }
   }
-}
-
-template<int WS, int HS>
-__global__ void kernel_matrix_mul(
-    int8_t *a, // m*k 
-    int8_t *b, // k*n
-    int32_t *c, // m*n
-    const int32_t M, const int32_t K, const int32_t N, int32_t *bias){
-  __shared__ int8_t share_a[HS][WS];
-  int8_t reg_b[WS];
-  int32_t sum[HS];
-  int lid = threadIdx.x;
-  int bid = blockIdx.x;
-  //for(int i = 0; i < (int)(ceil))
 }
 
 inline void im2col_gpu(const int32_t* data_im, const int channels,
@@ -311,7 +347,8 @@ const char* cuda_conv2d(
     const int K = i_c * f_h * f_w;
     const int N = o_h * o_w;
     dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
-    int gh = (M + TILE_WIDTH - 1) / TILE_WIDTH;
+    const int NUM = 4;
+    int gh = ((M+NUM-1)/NUM + TILE_WIDTH - 1) / TILE_WIDTH;
     int gw = (N + TILE_WIDTH - 1) / TILE_WIDTH;
     dim3 gDim(gw, gh, 1);
 
@@ -326,7 +363,10 @@ const char* cuda_conv2d(
       im2col_gpu(dev_i + i * i_c * i_h * i_w,
           i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
           dilation_h, dilation_w, d_col);
-      kernel_matrix_mul<<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
+      if(dev_b == NULL)
+        kernel_matrix_mul<false, NUM><<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
+      else
+        kernel_matrix_mul<true, NUM><<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
     }
   //}else{
   //  int b_h = BS;
