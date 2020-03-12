@@ -172,7 +172,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
     } else {
       int x_min = (-2 * max - 1) << (b - 1);
       int x_max = (2 * max - 1) << (b - 1);
-      for (int64_t i = 0; i < size; ++i) {
+      for (size_t i = 0; i < size; ++i) {
         int32_t t = a_data[i];
         if (t < x_min) c_data[i] = min;
         else if (t > x_max) c_data[i] = max;

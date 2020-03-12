@@ -116,6 +116,7 @@ CVM_REGISTER_OP(non_max_suppression)
       int32_t yn = size_offset;
       return (xn + yn) * size_offset;
     }
+    return 0;
     })
 .set_support_level(4);
 
