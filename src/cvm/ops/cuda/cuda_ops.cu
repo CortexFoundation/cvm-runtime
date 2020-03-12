@@ -938,21 +938,51 @@ __global__ void kernel_concatenate_one_input(int32_t *input, const int64_t isize
   }
 }
 
+__global__ void kernel_concatenate_wlt(
+    int32_t **input, 
+    int64_t const y_size, int32_t const axis_batch,
+    int64_t const y_axis_batch) {
+  int32_t lid = threadIdx.x + blockIdx.x * blockDim.x;
+  
+}
+
 const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
   int32_t *dev_output = output;
     int64_t dev_oshape[6];
     get_cuda_shape(oshape, ndim, dev_oshape);
 
+    // int64_t y_size = 1;
+    // for (int i = 0; i < axis; ++i) y_size *= oshape[i];
+    // int32_t axis_batch = 1;
+    // for (int i = axis+1; i < ndim; ++i) axis_batch *= oshape[i];
+
+    // int64_t y_start_idx = 0;
+    // int64_t y_axis_batch = oshape[axis] * axis_batch;
+    // for (int m = 0; m < ninput; ++m) {
+    //   int32_t* Ix = inputs[m];
+    //   auto x_axis_batch = ishapes[m*ndim+axis] * axis_batch;
+
+    //   for (int64_t y_iter = 0; y_iter < y_size; ++y_iter) {
+    //     cudaMemcpy(output+y_iter*y_axis_batch+y_start_idx,
+    //         Ix+y_iter*x_axis_batch,
+    //         x_axis_batch*sizeof(int32_t),
+    //         cudaMemcpyDeviceToDevice);
+    //   }
+
+    //   y_start_idx += x_axis_batch;
+    // }
+
     for(int i = 0; i < ninput; i++){
       int64_t isize = 1;
       for(int j = 0; j < ndim; j++){
-        isize *= ishapes[i*ndim + j]; 
+        isize *= ishapes[i*ndim + j];
       }
+
       int64_t dev_ishape[6];
       get_cuda_shape(ishapes + i * ndim, ndim, dev_ishape);
       const int bSize = 512;
       const int gSize = (isize + bSize - 1) / bSize;
-      kernel_concatenate_one_input<<<gSize, bSize>>>(inputs[i], isize, ndim, dev_output, axis, axisSize[i], 
+      kernel_concatenate_one_input<<<gSize, bSize>>>(inputs[i], isize, ndim, dev_output, axis, axisSize[i],
           dev_ishape[0], dev_ishape[1], dev_ishape[2], dev_ishape[3], dev_ishape[4], dev_ishape[5],
           dev_oshape[0], dev_oshape[1], dev_oshape[2], dev_oshape[3], dev_oshape[4], dev_oshape[5]);
     }
