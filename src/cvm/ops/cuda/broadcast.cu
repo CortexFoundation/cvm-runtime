@@ -40,6 +40,14 @@ __global__ void kernel_broadcast(const int32_t *a, const int32_t *b, int32_t*c,
 }
 
 template<typename F>
+__global__ void kernel_broadcast_scalar(const int32_t * a, const int32_t *b, int32_t *c, const int64_t n, F const& f){
+  int lid = threadIdx.x + blockDim.x * blockIdx.x;
+  for(int i = lid; i < n; i+= gridDim.x * blockDim.x){
+    c[i] = f(a[i], b[0]);
+  }
+}
+
+template<typename F>
 const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c, 
     const uint64_t n, 
     int64_t *ashape, int32_t adim,
@@ -53,14 +61,20 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
   int threadSize = 256;
   int blockSize = getGridSize(n, threadSize);
 
-  int64_t dev_ashape[MAX_DIM], dev_bshape[MAX_DIM], dev_cshape[MAX_DIM];
-  get_cuda_shape(ashape, adim, dev_ashape);
-  get_cuda_shape(bshape, bdim, dev_bshape);
-  get_cuda_shape(cshape, cdim, dev_cshape);
-  kernel_broadcast<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n, adim, bdim, cdim, f,
-      dev_ashape[0], dev_ashape[1], dev_ashape[2], dev_ashape[3], dev_ashape[4], dev_ashape[5],
-      dev_bshape[0], dev_bshape[1], dev_bshape[2], dev_bshape[3], dev_bshape[4], dev_bshape[5],
-      dev_cshape[0], dev_cshape[1], dev_cshape[2], dev_cshape[3], dev_cshape[4], dev_cshape[5]);
+  if(adim == 1 && ashape[0] == 1){
+    kernel_broadcast_scalar<<<blockSize, threadSize>>>(b, a, c, n, f);
+  }else if(bdim == 1 && bshape[0] == 1){
+    kernel_broadcast_scalar<<<blockSize, threadSize>>>(a, b, c, n, f);
+  }else{
+    int64_t dev_ashape[MAX_DIM], dev_bshape[MAX_DIM], dev_cshape[MAX_DIM];
+    get_cuda_shape(ashape, adim, dev_ashape);
+    get_cuda_shape(bshape, bdim, dev_bshape);
+    get_cuda_shape(cshape, cdim, dev_cshape);
+    kernel_broadcast<<<blockSize, threadSize>>>(dev_a, dev_b, dev_c, n, adim, bdim, cdim, f,
+        dev_ashape[0], dev_ashape[1], dev_ashape[2], dev_ashape[3], dev_ashape[4], dev_ashape[5],
+        dev_bshape[0], dev_bshape[1], dev_bshape[2], dev_bshape[3], dev_bshape[4], dev_bshape[5],
+        dev_cshape[0], dev_cshape[1], dev_cshape[2], dev_cshape[3], dev_cshape[4], dev_cshape[5]);
+  }
   return "";
 }
 
