@@ -240,6 +240,21 @@ __global__ void kernel_matrix_mul(
     c[row*n + col] = sum;
   }
 }
+
+template<int WS, int HS>
+__global__ void kernel_matrix_mul(
+    int8_t *a, // m*k 
+    int8_t *b, // k*n
+    int32_t *c, // m*n
+    const int32_t M, const int32_t K, const int32_t N, int32_t *bias){
+  __shared__ int8_t share_a[HS][WS];
+  int8_t reg_b[WS];
+  int32_t sum[HS];
+  int lid = threadIdx.x;
+  int bid = blockIdx.x;
+  //for(int i = 0; i < (int)(ceil))
+}
+
 inline void im2col_gpu(const int32_t* data_im, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
         const int pad_h, const int pad_w,
@@ -280,10 +295,10 @@ const char* cuda_conv2d(
   }
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
-  int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
-  int tmp_f_w = (f_w - 1) * dilation_w + 1;
+  //int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
+  //int tmp_f_w = (f_w - 1) * dilation_w + 1;
   //int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; //for stride > 1 , TODO to be optimized
-  int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
+  //int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
   //int32_t totalShareMemSize = getShareMemorySize(device_id, error_code);
   //if(error_code != NON_ERROR){
   //  return check_cuda_error(cudaGetLastError());
