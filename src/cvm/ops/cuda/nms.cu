@@ -90,12 +90,13 @@ const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_
     const int32_t n, const int32_t k,
     const int32_t score_threshold, const int32_t batchs, int& error_code){
 
+  cudaMemset(y_data, -1, sizeof(int32_t) * batchs * n * k);
   int bsize = 256;
   dim3 gsize = dim3((n+bsize-1)/bsize, batchs, 1);
   cudaMemset(valid_count_data, 0, sizeof(int32_t) * batchs);
   kernel_get_valid_count<1, 256><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold);
-  gsize = dim3(1, batchs, 1);
-  kernel_set_negative<<<gsize, bsize>>>(y_data, valid_count_data, batchs, n, k);
+  //gsize = dim3(1, batchs, 1);
+  //kernel_set_negative<<<gsize, bsize>>>(y_data, valid_count_data, batchs, n, k);
 
   return ""; 
 }

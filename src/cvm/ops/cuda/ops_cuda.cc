@@ -835,40 +835,31 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.strided_slice")
       TShape begin = param.begin;
       TShape end = param.end;
       TShape stride = param.stride;
-
+      int ndim = y->ndim;
       int32_t num_axis = x->ndim;
+      int64_t *dshp = x->shape;
       std::vector<int64_t> begin_vec;
-      std::vector<int64_t> end_vec;
-      std::vector<int64_t> stride_vec;
-
       std::copy(begin.begin(), begin.end(), std::back_inserter(begin_vec));
       for (dim_t i = begin_vec.size(); i < num_axis; ++i) {
-        begin_vec.push_back(0);
+      begin_vec.push_back(0);
       }
 
-      std::copy(end.begin(), end.end(), std::back_inserter(end_vec));
-      for (dim_t i = end_vec.size(); i < num_axis; ++i) {
-        end_vec.push_back(x->shape[i]);
-      }
-
+      std::vector<int64_t> stride_vec;
       std::copy(stride.begin(), stride.end(), std::back_inserter(stride_vec));
       for (dim_t i = stride_vec.size(); i < num_axis; ++i) {
         stride_vec.push_back(1);
       }
 
-      int64_t *begin_data = begin_vec.data();//begin.begin();
-      //int64_t *end_data = end_vec.data();//end.begin();
-      int64_t *step_data = stride_vec.data();//stride.begin();
-
-      for(int32_t i = 0; i < num_axis; i++){
-        if(begin_data[i] < 0) {
-          begin_data[i] += x->shape[i];
-          begin_data[i] = std::min(std::max(begin_data[i], (int64_t)0), (int64_t)x->shape[i]-1);
-        }
+      for (size_t i = 0; i < begin_vec.size(); ++i) {
+        int64_t begin_range = stride_vec[i] < 0 ? -1 : 0;
+        int64_t end_range = stride_vec[i] < 0 ? dshp[i] -1 : dshp[i];
+        int64_t begin = begin_vec[i];
+        if (begin < 0) begin += dshp[i];
+        begin_vec[i]= std::min(std::max(begin, begin_range), end_range);
       }
 
       int error_code = NON_ERROR;
-      const char *errorStr = cuda_stride_slice(x_data, y_data, begin_data, begin.ndim(), step_data,
+      const char *errorStr = cuda_stride_slice(x_data, y_data, begin_vec.data(), begin.ndim(), stride_vec.data(),
           x->shape, y->shape, stride.ndim(), y->ndim, getSize(y), x->ndim, error_code);
       deal_error(error_code, errorStr);
   });

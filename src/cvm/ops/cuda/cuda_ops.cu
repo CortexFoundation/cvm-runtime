@@ -175,7 +175,6 @@ __global__ void im2col_gpu_kernel(const int n, const int32_t* data_im,
         const int dilation_h, const int dilation_w,
         const int height_col, const int width_col,
         int8_t* data_col) {
-//    CUDA_KERNEL_LOOP(index, n) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   for(int64_t index = tid; index < n; index += gridDim.x*blockDim.x){
         const int h_index = index / width_col;
@@ -247,46 +246,74 @@ __global__ void kernel_matrix_mul(
     int8_t *b, // k*n
     int32_t *c, // m*n
     int32_t m, int32_t k, int32_t n, int32_t *bias){
-  __shared__ int8_t sharedm[TILE_WIDTH*NUM][TILE_WIDTH];
-  __shared__ int8_t sharedn[TILE_WIDTH][TILE_WIDTH];
+  __shared__ int8_t sharedm[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
+  __shared__ int8_t sharedn[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
   int bx = blockIdx.x;
   int by = blockIdx.y;
   int tx = threadIdx.x;
   int ty = threadIdx.y;
   int row = by*TILE_WIDTH*NUM + ty;
-  int col = bx*TILE_WIDTH + tx;
-  int sum[NUM] = {0};
+  int col = bx*TILE_WIDTH*NUM + tx;
+  int sum[NUM][NUM]= {{0}};
 
-  for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i++)
+  for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i+=NUM)
   {
-//#pragma unroll
-    for(int ii = 0; ii < NUM; ii++){
-      if(i*TILE_WIDTH + tx < k && (row + ii *TILE_WIDTH) < m)
-        sharedm[ty + ii*TILE_WIDTH][tx] = a[(row+ii*TILE_WIDTH)*k + i*TILE_WIDTH + tx];
-      else{
-        sharedm[ty + ii*TILE_WIDTH][tx] = 0;
+    for(int ii = 0; ii < NUM; ++ii){
+      int r_offset = ii * TILE_WIDTH;
+      for(int jj = 0; jj < NUM; ++jj){
+        int c_offset = jj * TILE_WIDTH;
+        int arow_offset = row + r_offset;
+        int acol_offset = i*TILE_WIDTH + tx + c_offset;
+        int brow_offset = i*TILE_WIDTH + ty + r_offset;
+        int bcol_offset =  col + c_offset;
+
+        if(arow_offset < m && acol_offset < k)
+          sharedm[ty+r_offset][tx+c_offset] = a[(arow_offset)*k + acol_offset];
+        else sharedm[ty+r_offset][tx+c_offset] = 0;
+
+        if(brow_offset < k && bcol_offset < n)
+          sharedn[ty+r_offset][tx+c_offset] = b[(brow_offset)*n + bcol_offset];
+        else sharedn[ty+r_offset][tx+c_offset] = 0;
       }
     }
-
-    if(i*TILE_WIDTH + ty < k && col < n)//k*n
-      sharedn[ty][tx] = b[(i*TILE_WIDTH + ty) * n + col];
-    else
-      sharedn[ty][tx] = 0;
     __syncthreads();
 
-    for(int j = 0; j < TILE_WIDTH; j++){
-      int8_t tb = sharedn[j][tx];
+    for(int j = 0; j < TILE_WIDTH; j++){ 
+      int8_t tm[NUM][NUM], tn[NUM][NUM];
 #pragma unroll
-      for(int ii = 0; ii < NUM; ii++)
-        sum[ii] += static_cast<int32_t>(sharedm[ty + ii * TILE_WIDTH][j]) * tb;
+      for(int ii = 0; ii < NUM; ++ii){
+#pragma unroll
+        for(int jj = 0; jj < NUM; ++jj){
+          tm[ii][jj] = sharedm[ty+ii*TILE_WIDTH][j+jj*TILE_WIDTH];
+          tn[ii][jj] = sharedn[j+ii*TILE_WIDTH][tx+jj*TILE_WIDTH];
+        }
+      }
+      for(int ii = 0; ii < NUM; ++ii){
+#pragma unroll
+        for(int kk = 0; kk < NUM; ++kk){
+#pragma unroll
+          for(int jj = 0; jj < NUM; ++jj){
+            sum[ii][jj] += tm[ii][kk] * tn[kk][jj];
+          }
+        }
+      }
     }
     __syncthreads();
   }
-//#pragma unroll
-  for(int ii = 0; ii < NUM; ii++){
-    if (row + ii*TILE_WIDTH < m && col < n){
-      if(has_bias) sum[ii] += bias[row + ii*TILE_WIDTH];
-      c[(row+ii*TILE_WIDTH)*n + col] = sum[ii];
+  if(has_bias) {
+    for(int ii = 0; ii < NUM; ++ii){
+      int32_t bv = bias[row + ii * TILE_WIDTH];
+      for(int jj = 0; jj < NUM ;++jj){
+        sum[ii][jj] += bv; 
+      }
+    }
+  }
+  for(int ii = 0; ii < NUM; ++ii){
+    int c_r_offset = row + ii * TILE_WIDTH;
+    for(int jj = 0; jj < NUM ;++jj){
+      int c_c_offset = col + jj * TILE_WIDTH;
+      if(c_r_offset < m && c_c_offset < n)
+        c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
     }
   }
 }
@@ -347,9 +374,9 @@ const char* cuda_conv2d(
     const int K = i_c * f_h * f_w;
     const int N = o_h * o_w;
     dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
-    const int NUM = 4;
+    const int NUM = 2;
     int gh = ((M+NUM-1)/NUM + TILE_WIDTH - 1) / TILE_WIDTH;
-    int gw = (N + TILE_WIDTH - 1) / TILE_WIDTH;
+    int gw = ((N+NUM-1)/NUM + TILE_WIDTH - 1) / TILE_WIDTH;
     dim3 gDim(gw, gh, 1);
 
     int8_t *d_f = (int8_t*)ext_space;
@@ -971,21 +998,22 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, cons
     out_data[yi] = input_data[i];
   }
 }
-__global__ void kernel_concatenate_one_input(int32_t *input, const int64_t isize, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t axisSize, 
-    const int64_t ishp0, const int64_t ishp1, const int64_t ishp2, const int64_t ishp3, const int64_t ishp4, const int64_t ishp5,
-    const int64_t oshp0, const int64_t oshp1, const int64_t oshp2, const int64_t oshp3, const int64_t oshp4, const int64_t oshp5){
+__global__ void kernel_concatenate_one_input(int32_t *input, const int32_t isize, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t axisSize, 
+    const int32_t ishp0, const int32_t ishp1, const int32_t ishp2, const int32_t ishp3, const int32_t ishp4, const int32_t ishp5,
+    const int32_t oshp0, const int32_t oshp1, const int32_t oshp2, const int32_t oshp3, const int32_t oshp4, const int32_t oshp5){
   int32_t lid = threadIdx.x + blockIdx.x * blockDim.x;
 
-  const int32_t y_axis_size = axisSize;
-  const int64_t ishape[MAX_DIM] = {ishp0, ishp1, ishp2, ishp3, ishp4, ishp5};
-  const int64_t oshape[MAX_DIM] = {oshp0, oshp1, oshp2, oshp3, oshp4, oshp5};
-
-  for(int64_t i = lid; i < isize; i+= gridDim.x * blockDim.x){
+  //const int32_t y_axis_size = axisSize;
+  const int32_t ishape[MAX_DIM] = {ishp0, ishp1, ishp2, ishp3, ishp4, ishp5};
+  const int32_t oshape[MAX_DIM] = {oshp0, oshp1, oshp2, oshp3, oshp4, oshp5};
+  int32_t axis_shape[MAX_DIM] = {0};
+  axis_shape[axis] = axisSize;
+  for(int32_t i = lid; i < isize; i+= gridDim.x * blockDim.x){
     int32_t tmp_i = i, yi = 0, shape_size = 1;
     for(int32_t d = ndim-1; d>=0; d--){
       int32_t col = tmp_i % ishape[d + MAX_DIM - ndim];
       tmp_i /= ishape[d + MAX_DIM - ndim];
-      if(d == axis) col += y_axis_size;
+      col += axis_shape[d];
       yi += col * shape_size;
       shape_size *= oshape[d + MAX_DIM-ndim];
     }
@@ -1292,26 +1320,27 @@ const char* cuda_transpose(const int32_t *x_data, const int64_t *axes_data, int3
 }
 
 __global__ void kernel_stride_slice(const int32_t *x_data, int32_t *y_data,
-    const int32_t x_ndim, const int32_t begin_ndim, const int32_t step_ndim, const int32_t y_ndim, const uint64_t ysize,
-    const int64_t xshp0, const int64_t xshp1, const int64_t xshp2, const int64_t xshp3, const int64_t xshp4, const int64_t xshp5,
-    const int64_t yshp0, const int64_t yshp1, const int64_t yshp2, const int64_t yshp3, const int64_t yshp4, const int64_t yshp5,
-    const int64_t bgshp0, const int64_t bgshp1, const int64_t bgshp2, const int64_t bgshp3, const int64_t bgshp4, const int64_t bgshp5,
-    const int64_t stshp0, const int64_t stshp1, const int64_t stshp2, const int64_t stshp3, const int64_t stshp4, const int64_t stshp5){
+    const int32_t ndim, const uint32_t ysize,
+    const int32_t xshp0, const int32_t xshp1, const int32_t xshp2, const int32_t xshp3, const int32_t xshp4, const int32_t xshp5,
+    const int32_t yshp0, const int32_t yshp1, const int32_t yshp2, const int32_t yshp3, const int32_t yshp4, const int32_t yshp5,
+    const int32_t bgshp0, const int32_t bgshp1, const int32_t bgshp2, const int32_t bgshp3, const int32_t bgshp4, const int32_t bgshp5,
+    const int32_t stshp0, const int32_t stshp1, const int32_t stshp2, const int32_t stshp3, const int32_t stshp4, const int32_t stshp5){
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
-  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
-  const int64_t begin_data[MAX_DIM] = {bgshp0, bgshp1, bgshp2, bgshp3, bgshp4, bgshp5};
-  const int64_t step_data[MAX_DIM] = {stshp0, stshp1, stshp2, stshp3, stshp4, stshp5};
-  for(uint64_t i = tid; i < ysize; i += gridDim.x*blockDim.x){
-    uint64_t o_i = i, in_i = 0, shapeSize = 1;
-    for(int j = y_ndim-1; j >= 0; j--){
-      uint64_t col = o_i % yshape[j + MAX_DIM - y_ndim];
-      o_i /= yshape[j + MAX_DIM - y_ndim];
-      int64_t begin = begin_ndim > j ? begin_data[j + MAX_DIM - begin_ndim] : 0;
-      int64_t step = step_ndim > j ? step_data[j + MAX_DIM - step_ndim] : 1;
-      col = begin + col * step;
+  const int32_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
+  const int32_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
+  const int32_t begin_data[MAX_DIM] = {bgshp0, bgshp1, bgshp2, bgshp3, bgshp4, bgshp5};
+  const int32_t step_data[MAX_DIM] = {stshp0, stshp1, stshp2, stshp3, stshp4, stshp5};
+  const int dim_offset = MAX_DIM - ndim;
+  for(uint32_t i = tid; i < ysize; i += gridDim.x*blockDim.x){
+    uint32_t o_i = i, in_i = 0, shapeSize = 1;
+    for(int j = ndim-1; j >= 0; j--){
+      uint32_t col = o_i % yshape[j + dim_offset];
+      o_i /= yshape[j + dim_offset];
+      int32_t tbegin = begin_data[j + dim_offset];
+      int32_t tstep = step_data[j + dim_offset];
+      col = tbegin + col * tstep;
       in_i += col * shapeSize;
-      shapeSize = shapeSize * xshape[j + MAX_DIM - x_ndim];
+      shapeSize = shapeSize * xshape[j + dim_offset];
     }
     y_data[i] = x_data[in_i];
   }
@@ -1324,12 +1353,10 @@ const char* cuda_stride_slice(const int32_t *x_data, int32_t *y_data, const int6
   int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM], dev_begin[MAX_DIM], dev_step[MAX_DIM];
   get_cuda_shape(xshape, x_ndim, dev_xshape);
   get_cuda_shape(yshape, y_ndim, dev_yshape);
-  get_cuda_shape(begin_data, begin_ndim, dev_begin);
-  if(step_ndim > 0){
-    get_cuda_shape(step_data, step_ndim, dev_step);
-  }
+  get_cuda_shape(begin_data, y_ndim, dev_begin);
+  get_cuda_shape(step_data, y_ndim, dev_step);
 
-  kernel_stride_slice<<<blockSize, threadSize>>>(x_data,  y_data, x_ndim, begin_ndim, step_ndim, y_ndim, ysize,
+  kernel_stride_slice<<<blockSize, threadSize>>>(x_data,  y_data, x_ndim, ysize,
       dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
       dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5],
       dev_begin[0], dev_begin[1], dev_begin[2], dev_begin[3], dev_begin[4], dev_begin[5],

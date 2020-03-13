@@ -25,6 +25,7 @@
 #ifdef CUDA_PROFILE
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <omp.h>
 #endif
 
 namespace cvm {
@@ -34,10 +35,14 @@ namespace runtime {
  * \brief Run all the operations one by one.
  */
 void CvmRuntime::Run() {
+  double start = omp_get_wtime();
   // setup the array and requirements.
   for (size_t i = 0; i < op_execs_.size(); ++i) {
     if (op_execs_[i]) op_execs_[i]();
   }
+  cudaDeviceSynchronize();
+  double end = omp_get_wtime();
+  double total = end - start;
   std::vector<std::pair<std::string, double>> vec_times(times.begin(), times.end());
   std::stable_sort(vec_times.begin(), vec_times.end(), 
       [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) ->bool {
@@ -45,11 +50,11 @@ void CvmRuntime::Run() {
       });
 
   printf("\n-------------op time metrix--------------\n");
-  double total = 0;
-  for(auto time : vec_times){
-    total += time.second;
-  //  printf("%s : %.4fs\n", time.first.c_str(), time.second);
-  }
+  //double total = 0;
+  //for(auto time : vec_times){
+  //  total += time.second;
+  ////  printf("%s : %.4fs\n", time.first.c_str(), time.second);
+  //}
   for(auto time : vec_times){
     printf("%-20s : \t%.4fs\t%.4f%%\n", time.first.c_str(), time.second, time.second / total);
   }
