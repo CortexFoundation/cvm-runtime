@@ -13,7 +13,6 @@
 #include <string.h>
 #include <iostream>
 #include <string>
-#include "../profiling.h"
 #define DEBUG
 
 namespace cvm{
@@ -31,23 +30,23 @@ const int ERROR_GET_PROPERTIES = 23;
 const int ERROR_KERNEL = 24;
 const int ERROR_PARAMS = 25;
 
-static cudaEvent_t start, stop;
-inline void start_time(){
-#ifdef CVM_PROFILING
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
-  cudaEventRecord(start, 0);
-#endif
-}
-inline float get_used_time(){
-  float cost_time = 0;
-#ifdef CVM_PROFILING
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&cost_time, start, stop);
-#endif
-  return cost_time/1000.0;
-}
+//static cudaEvent_t start, stop;
+//inline void start_time(){
+//#ifdef CVM_PROFILING
+//  cudaEventCreate(&start);
+//  cudaEventCreate(&stop);
+//  cudaEventRecord(start, 0);
+//#endif
+//}
+//inline float get_used_time(){
+//  float cost_time = 0;
+//#ifdef CVM_PROFILING
+//  cudaEventRecord(stop, 0);
+//  cudaEventSynchronize(stop);
+//  cudaEventElapsedTime(&cost_time, start, stop);
+//#endif
+//  return cost_time/1000.0;
+//}
 
 inline const char* check_cuda_error(cudaError_t error){
   if(error == cudaSuccess) return NULL;

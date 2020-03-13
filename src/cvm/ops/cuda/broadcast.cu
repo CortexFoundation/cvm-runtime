@@ -3,8 +3,6 @@
 namespace cvm {
 namespace runtime{
 
-double cvm_op_broadcast_cnt = 0;
-
 inline __device__ int32_t broadcast_i_index(const int64_t* oshape, int o_index, const int64_t* ishape, int idim, int odim){
   int index = 0;
   int allIndex = 1;

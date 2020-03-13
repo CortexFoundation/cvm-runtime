@@ -17,7 +17,6 @@
 #include <memory>
 #include <utility>
 #include <omp.h>
-#include "../profiling.h"
 
 inline uint64_t getSize(DLTensor *dlTensor){
   uint64_t size = 1;

@@ -272,7 +272,7 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
 
 template<int BS, bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
 __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_max,int32_t *y_batch, int32_t **rows, int32_t *num_y, int32_t iou_threshold){
-  int bid = blockIdx.x;
+  //int bid = blockIdx.x;
   int lid = threadIdx.x;
   __shared__ int32_t share_box1[BS][K];
   __shared__ int32_t share_box2[BS][K];

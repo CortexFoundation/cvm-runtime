@@ -835,7 +835,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.strided_slice")
       TShape begin = param.begin;
       TShape end = param.end;
       TShape stride = param.stride;
-      int ndim = y->ndim;
+      //int ndim = y->ndim;
       int32_t num_axis = x->ndim;
       int64_t *dshp = x->shape;
       std::vector<int64_t> begin_vec;

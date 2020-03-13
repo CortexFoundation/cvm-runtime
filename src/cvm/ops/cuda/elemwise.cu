@@ -3,10 +3,6 @@
 namespace cvm{
 namespace runtime{
 
-double cvm_op_elemwise_cnt = 0;
-double cvm_op_cvm_shift_cnt = 0;
-double cvm_op_clip_cnt = 0;
-
 template<typename F>
 __global__ void kernel_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64_t n, F const &op){
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
