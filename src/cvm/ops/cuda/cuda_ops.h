@@ -53,14 +53,15 @@ inline const char* check_cuda_error(cudaError_t error){
   else return cudaGetErrorString(error);
 }
 
-// #define CVM_PRINT_CUDA_RESULT
+//#define CVM_PRINT_CUDA_RESULT
 
+const std::string DIR = "/tmp/zkh/ssd/gpu/";
 inline void print_to_file(const int32_t *y, int32_t n, std::string filename){
 #ifdef CVM_PRINT_CUDA_RESULT
   int32_t *y_data = new int32_t[n];
   cudaMemcpy(y_data, y, sizeof(int32_t)*n, cudaMemcpyDeviceToHost);
 
-  FILE *fp = fopen(filename.c_str(), "a+");
+  FILE *fp = fopen((DIR+filename).c_str(), "a+");
 
   int32_t min = y_data[0], max= y_data[0];
   for(uint64_t i = 0; i < n; i++){
@@ -68,7 +69,7 @@ inline void print_to_file(const int32_t *y, int32_t n, std::string filename){
     max = max < y_data[i] ? y_data[i] : max;
   }
   fprintf(fp, "%d %d\n", min, max);
-  for(uint64_t i = 0; i < 1000 && i < n; i++){
+  for(uint64_t i = 0; i < 5000 && i < n; i++){
     fprintf(fp, "%d ", y_data[i]);
   }
   fprintf(fp, "\n");
@@ -219,7 +220,7 @@ const char* cuda_slice_like(const int32_t *x_data, int32_t *y_data, const int64_
         const uint64_t ysize, const int32_t ndim, int& error_code);
 const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
         const int32_t n, const int32_t k,
-        const int32_t score_threshold, const int32_t batchs, int& error_code);
+        const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code);
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,
         const int32_t max_output_size, const int32_t iou_threshold, const int32_t topk,
         const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int32_t *ext_space, int& error_code);

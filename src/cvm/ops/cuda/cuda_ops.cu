@@ -60,7 +60,7 @@ const char* cuda_dense(
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
-  print_to_file(dev_c, m*n, "/tmp/zkh/trec/gpu/dense.txt");
+  print_to_file(dev_c, m*n, "dense.txt");
   return check_cuda_error(error);
 }
 

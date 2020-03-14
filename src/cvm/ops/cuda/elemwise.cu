@@ -67,7 +67,7 @@ const char* cuda_cvm_clip(const int32_t* x, const int32_t precision, int32_t *y,
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
-  print_to_file(y, n, "/tmp/zkh/trec/gpu/cvm_clip.txt");
+  print_to_file(y, n, "cvm_clip.txt");
   return check_cuda_error(error);
 }
 

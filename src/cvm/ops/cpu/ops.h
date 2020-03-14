@@ -28,9 +28,9 @@ inline uint64_t getSize(DLTensor *dlTensor){
 
 namespace cvm{
 namespace runtime {
-// #define CVM_PRINT_OP_RESULT
+#define CVM_PRINT_OP_RESULT
 
-const std::string DIR = "/tmp/zkh/ssd/";
+const std::string DIR = "/tmp/zkh/ssd/cpu/";
 inline void print_to_file(DLTensor *y, std::string filename, bool all=false){
 #if defined(CVM_PRINT_OP_RESULT)
   FILE *fp = fopen((DIR + filename).c_str(), "a+");
@@ -47,7 +47,7 @@ inline void print_to_file(DLTensor *y, std::string filename, bool all=false){
       fprintf(fp, "%d ", y_data[i]);
     }
   }else{
-    for(uint64_t i = 0; i < 100 && i < getSize(y); i++){
+    for(uint64_t i = 0; i < 5000 && i < getSize(y); i++){
       fprintf(fp, "%d ", y_data[i]);
     }
   }

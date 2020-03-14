@@ -904,9 +904,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.get_valid_counts")
       int32_t *x_data = static_cast<int32_t*>(x->data);
       int32_t *valid_count_data = static_cast<int32_t*>(valid_count->data);
       int32_t *y_data = static_cast<int32_t*>(y->data);
+      int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
 
       int error_code = NON_ERROR;
-      const char* errorStr = cuda_get_valid_counts(x_data, y_data, valid_count_data, n, k, score_threshold, batchs, error_code);
+      const char* errorStr = cuda_get_valid_counts(x_data, y_data, valid_count_data, n, k, score_threshold, batchs, ext_space, error_code);
       deal_error(error_code, errorStr);
   });
 

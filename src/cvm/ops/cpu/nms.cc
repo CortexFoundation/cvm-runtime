@@ -40,6 +40,7 @@ int64_t iou(const int32_t *rect1, const int32_t *rect2, const int32_t format){
 }
 
 void get_valid_count(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data, const int32_t batchs, const int32_t n, const int32_t k, const int32_t score_threshold){
+  printf("batch=%d, n=%d, k=%d\n", batchs, n, k);
   for(int32_t i = 0; i < batchs; i++){
       int32_t y_index = 0;
       const int32_t *input = x_data + i * n * k;
@@ -49,6 +50,9 @@ void get_valid_count(const int32_t *x_data, int32_t *y_data, int32_t *valid_coun
           if(row[1] > score_threshold){
               memcpy(&output[y_index * k], row, k * sizeof(int32_t));
               y_index += 1;
+              if(y_index == 1){
+                printf("first =%d: %d %d\n", j, row[0], row[1]);
+              }
           }
       }
       valid_count_data[i] = y_index;

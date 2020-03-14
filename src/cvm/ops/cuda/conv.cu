@@ -208,7 +208,8 @@ const char* cuda_conv2d(
       kernel_matrix_mul<true, NUM><<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
   }
 
-  print_to_file(dev_o, o_n * o_c * o_h * o_w, "/tmp/zkh/trec/gpu/conv2d.txt");
+  print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
+  print_to_file(dev_o, o_n * o_c * o_h * o_w, "conv2d.txt");
   //return check_cuda_error(error);
   return "";
 }

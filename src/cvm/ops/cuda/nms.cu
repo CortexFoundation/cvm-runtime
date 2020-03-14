@@ -8,7 +8,44 @@ namespace cvm{
 namespace runtime{
 
 template<int score_index, int BS>
-__global__ void kernel_get_valid_count(const int32_t batchs, const int32_t n, const int32_t K, const int32_t *inputs, int32_t *y, int32_t *valid_count, const int32_t score_threshold){
+__global__ void kernel_get_count(const int32_t batchs, const int32_t n, const int32_t K, const int32_t *inputs, int32_t *valid_count, const int32_t score_threshold, int32_t *all_count){
+  const int lid = threadIdx.x;
+  const int bidx = blockIdx.x;
+  const int bidy = blockIdx.y;
+  const int gidx = lid + BS * bidx;  
+  const int batch = bidy; 
+  __shared__ int32_t share_box[BS][32];
+  __shared__ int32_t count;
+#pragma unroll
+  for(int i = 0; i < K; i++){
+    share_box[lid][i] = -1;
+  }
+  if(lid == 0) {
+    count = 0;
+  }
+  int x_i = batch * n * K + gidx * K; 
+  if(gidx < n){
+#pragma unroll
+    for(int i = 0; i < K; i++)
+      share_box[lid][i] = inputs[x_i + i];
+  }
+  __syncthreads();
+
+  if(share_box[lid][score_index] > score_threshold){
+    atomicAdd(&count, 1);
+  }
+  __syncthreads();
+
+  for(int i = lid+1; i < gridDim.x; i+=blockDim.x){
+    atomicAdd(&all_count[batch * n + bidx + i], count);
+  }
+  if(lid == blockDim.x -1){
+    atomicAdd(valid_count + batch, count);
+  }
+}
+
+template<int score_index, int BS>
+__global__ void kernel_get_data(const int32_t batchs, const int32_t n, const int32_t K, const int32_t *inputs, int32_t *y, int32_t *valid_count, const int32_t score_threshold, int32_t *all_count){
   const int lid = threadIdx.x;
   const int bidx = blockIdx.x;
   const int bidy = blockIdx.y;
@@ -23,80 +60,64 @@ __global__ void kernel_get_valid_count(const int32_t batchs, const int32_t n, co
   }
   if(lid == 0) {
     count = 0;
-    start_index = 0;
+    start_index = all_count[batch * n + bidx];
   }
   int x_i = batch * n * K + gidx * K; 
+  __syncthreads();
+
   if(gidx < n){
 #pragma unroll
     for(int i = 0; i < K; i++)
       share_box[lid][i] = inputs[x_i + i];
-  }
-  __syncthreads();
-
-  if(gidx < n){
-    if(share_box[lid][score_index] > score_threshold){
-      atomicAdd(&count, 1);
-    }
-    else{
+    if(share_box[lid][score_index] <= score_threshold){
       for(int i = 0; i < K; i++)
         share_box[lid][i] = -1;
     }
+    else
+      atomicAdd(&count, 1);
   }
+
   __syncthreads();
 
   if(lid == 0) {
-    start_index = atomicAdd(valid_count + batch, count);
     int j = 0;
     for(int i = 0; i < BS; i++){
       if(share_box[i][0] != -1){
         if(i > j){
-          share_box[j][0] = share_box[i][0];
-          share_box[j][1] = share_box[i][1];
-          share_box[j][2] = share_box[i][2];
-          share_box[j][3] = share_box[i][3];
-          share_box[j][4] = share_box[i][4];
-          share_box[j][5] = share_box[i][5];
-          share_box[i][0] = -1;
-          share_box[i][1] = -1;
-          share_box[i][2] = -1;
-          share_box[i][3] = -1;
-          share_box[i][4] = -1;
-          share_box[i][5] = -1;
+          for(int k = 0; k < K; k++){
+            share_box[j][k] = share_box[i][k];
+            share_box[i][k] = -1;
+          }
         }
         ++j;
       } 
     }
   }
   __syncthreads();
-  if(gidx < n){
+  if(lid < count){
     #pragma unroll
     for(int i = 0; i < K ;i++){
-      if(share_box[lid][0] != -1)
         y[batch * n* K + (start_index + lid) * K + i] = share_box[lid][i];
     }
   }
 }
-__global__ void kernel_set_negative(int32_t *y, const int32_t *valid_count, const int32_t batchs, const int32_t n, const int32_t K){
-  int batch = blockIdx.y;
-  int32_t vc = valid_count[batch];
-  for(int i = threadIdx.x + vc; i < n; i+=blockDim.x){
-    for(int k = 0; k < K; k++)
-      y[batch * n * K + i * K + k] = -1;
-  }
-}
-
 
 const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
     const int32_t n, const int32_t k,
-    const int32_t score_threshold, const int32_t batchs, int& error_code){
+    const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code){
 
+  int32_t *all_count = ext_space;
   cudaMemset(y_data, -1, sizeof(int32_t) * batchs * n * k);
-  int bsize = 256;
-  dim3 gsize = dim3((n+bsize-1)/bsize, batchs, 1);
   cudaMemset(valid_count_data, 0, sizeof(int32_t) * batchs);
-  kernel_get_valid_count<1, 256><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold);
-  //gsize = dim3(1, batchs, 1);
-  //kernel_set_negative<<<gsize, bsize>>>(y_data, valid_count_data, batchs, n, k);
+  cudaMemset(all_count, 0, sizeof(int32_t) * batchs * n);
+
+  const int bsize = 256;
+  dim3 gsize = dim3((n+bsize-1)/bsize, batchs, 1);
+  kernel_get_count<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, valid_count_data, score_threshold, all_count);
+  kernel_get_data<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold, all_count);
+
+  print_to_file(x_data, batchs * n * k, "get_valid_count_x.txt");
+  print_to_file(y_data, batchs * n * k, "get_valid_count_y.txt");
 
   return ""; 
 }
@@ -272,17 +293,14 @@ __global__ void kernel_compare_iou_opt(const int32_t idx_max, const int32_t n_ma
 
 template<int BS, bool force_suppress, const int32_t id_index, const int32_t coord_start, int K>
 __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_max,int32_t *y_batch, int32_t **rows, int32_t *num_y, int32_t iou_threshold){
-  //int bid = blockIdx.x;
   int lid = threadIdx.x;
   __shared__ int32_t share_box1[BS][K];
   __shared__ int32_t share_box2[BS][K];
-  __shared__ bool removed[BS];
   __shared__ int32_t yn;
 
   if(lid == 0) yn = 0;
   __syncthreads();
   for(int i = 0; i < idx_max && yn < n_max; i+= BS){
-    removed[lid] = true;
     for(int k = 0; k < K; k++){
       share_box1[lid][k] = -1;
     }
@@ -292,7 +310,6 @@ __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_m
       }
     }
     __syncthreads();
-    bool remove = (share_box1[lid][0] == -1);//false;
     for(int j = 0; j < yn && yn < n_max; j+=BS){
       for(int k = 0; k < K; k++){
         share_box2[lid][k] = -1;
@@ -303,34 +320,35 @@ __global__ void kernel_compare_iou_opt2(const int32_t idx_max, const int32_t n_m
         }
       }
       __syncthreads();
-      //if(share_box1[lid][0] == -1) remove = true;
-      for(int l = 0; l < BS && !remove; l++){
+      for(int l = 0; l < BS && share_box1[lid][0] !=-1; l++){
         if(share_box2[l][0] == -1) continue;
         if(force_suppress || share_box1[lid][id_index] == share_box2[l][id_index]){
           int64_t iou_ret = dev_iou(&share_box1[lid][coord_start], &share_box2[l][coord_start], FORMAT_CORNER); 
           if(iou_ret >= iou_threshold) {
-            remove = true;
+            for(int k = 0; k < K; k++){
+              share_box1[lid][k] = -1;
+            }
             break;
           }
         }
       }
       __syncthreads();
     }
-    for(int l = 0; l < lid && !remove; l++){
-      if(share_box1[l][0] == -1) continue;
-      if(force_suppress || share_box1[lid][id_index] == share_box1[l][id_index]){
-        int64_t iou_ret = dev_iou(&share_box1[lid][coord_start], &share_box1[l][coord_start], FORMAT_CORNER); 
-        if(iou_ret >= iou_threshold) {
-          remove = true;
-          break;
+    __syncthreads();
+    for(int j = 0; j < BS; j++){
+      if(lid < j && !share_box1[lid][0] != -1 && share_box1[j][0] != -1){
+        if(force_suppress || share_box1[lid][id_index] == share_box1[j][id_index]){
+          int64_t iou_ret = dev_iou(&share_box1[lid][coord_start], &share_box1[j][coord_start], FORMAT_CORNER); 
+          if(iou_ret >= iou_threshold) {
+            share_box1[j][0] = -1;
+          }
         }
       }
+      __syncthreads();
     }
-    removed[lid] = remove;
-    __syncthreads();
     if(lid == 0){
       for(int l = 0; l < BS; l++){
-        if(!removed[l]){
+        if(share_box1[l][0] != -1){
           for(int k = 0; k < K; k++)
             y_batch[yn * K + k] = share_box1[l][k];
           ++yn;

@@ -186,6 +186,17 @@ input data.
 .set_attr<FInferType>("FInferType", GetValidType)
 .set_attr<FCorrectLayout>("FCorrectLayout", GetValidLayout)
 .set_attr<FInferPrecision>("FInferPrecision", GetValidInferPrecision)
+.set_attr<FOpExtraSpace>("FOpExtraSpace",
+    [](const NodeAttrs& attrs, 
+      std::vector<TShape>* shapes,
+      std::vector<int>* iprecs,
+      const DLContext& ctx) -> int64_t {
+    if(ctx.device_type == kDLGPU){
+      TShape shape = shapes->at(0);
+      return shape[0] * shape[1];
+    }
+    return 0;
+    })
 .set_support_level(4);
 
 
