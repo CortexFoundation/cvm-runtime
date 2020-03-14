@@ -3,25 +3,8 @@
 namespace cvm {
 namespace runtime {
 
-double transpose_int8_avx256_transpose_cnt = 0;
-double transpose_int8_avx256_gemm_cnt = 0;
-double im2col_cnt = 0;
-double cvm_op_dense_cnt = 0;
-double cvm_op_maxpool_cnt = 0;
-double cvm_op_concat_cnt = 0;
-double cvm_op_upsampling_cnt = 0;
-double cvm_op_inline_matmul_cnt = 0;
-double cvm_op_relu_cnt = 0;
-double cvm_op_chnwise_conv_cnt = 0;
-double cvm_op_chnwise_conv1x1_cnt = 0;
-double cvm_op_depthwise_conv_cnt = 0;
-double cvm_op_depthwise_conv1x1_cnt = 0;
-
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
-#ifdef CVM_PROFILING
-    clock_t start = clock();
-#endif
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    int32_t *x_data = static_cast<int32_t*>(x->data);
@@ -31,9 +14,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
         if (tmp < 0) tmp = 0;
         y_data[i] = tmp;
    }
-#ifdef CVM_PROFILING
-    cvm_op_relu_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-#endif
   print_to_file(y, "relu.txt");
 });
 
@@ -45,9 +25,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 /data/std_out/shufflenet*/
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
-#ifdef CVM_PROFILING
-  clock_t start = clock();
-#endif
   int ndim = args.num_args;
   DLTensor *x = args[0];
   DLTensor *w = args[1];
@@ -85,9 +62,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense")
   }
   print_to_file(y, "dense.txt");
 
-#ifdef CVM_PROFILING
-  cvm_op_dense_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-#endif
 });
 
 void conv2d(
@@ -208,9 +182,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
   int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
   if(groups > 1){
-#ifdef CVM_PROFILING
-    clock_t start = clock();
-#endif
     groupwise_conv2d(
         x_data, n_batch, in_channels, x_h, x_w,
         w_data, filter_c, filter_h, filter_w,
@@ -218,25 +189,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
         b_data,
         padding, stride_h, stride_w, dilation[0], dilation[1],
         groups);
-#ifdef CVM_PROFILING
-    cvm_op_depthwise_conv_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-#endif
   } else {
-#ifdef CVM_PROFILING
-    clock_t start = clock();
-#endif
     conv2d(
         x_data, n_batch, in_channels, x_h, x_w,
         w_data, filter_c, filter_h, filter_w,
         y_data, out_channels, o_h, o_w,
         b_data,
         padding, stride_h, stride_w, dilation[0], dilation[1]);
-#ifdef CVM_PROFILING
-    cvm_op_chnwise_conv_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-    if (filter_h == 1 && filter_w == 1) {
-      cvm_op_chnwise_conv1x1_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-    }
-#endif
   }
   print_to_file(y, "conv2d.txt");
 });
@@ -252,9 +211,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-#ifdef CVM_PROFILING
-  clock_t start = clock();
-#endif
   DLTensor *x = args[0];
   DLTensor *y = args[1];
   void *_attr = args[2];
@@ -307,9 +263,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
       }
     }
   }
-#ifdef CVM_PROFILING
-  cvm_op_maxpool_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-#endif
   print_to_file(y, "max_pool.txt");
 
 });
@@ -347,9 +300,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.abs")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-#ifdef CVM_PROFILING
-    clock_t start = clock();
-#endif
     int M = args.num_args - 2; // I^0, I^1, ... I^M-1
     auto Y = CVMArg2Data<int32_t>(args[M]);
     auto params = CVMArg2Attr<top::ConcatenateParam>(args[M+1]);
@@ -380,9 +330,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
       y_start_idx += x_axis_batch;
     }
 
-#ifdef CVM_PROFILING
-    cvm_op_concat_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-#endif
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.repeat")
@@ -686,9 +633,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_lut")
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.upsampling")
 .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-#ifdef CVM_PROFILING
-  clock_t start = clock();
-#endif
   DLTensor *x = args[0];
   DLTensor *y = args[1];
 
@@ -715,10 +659,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.upsampling")
       }
     }
   }
-#ifdef CVM_PROFILING
-    cvm_op_upsampling_cnt += (clock() - start) * 1.0 / CLOCKS_PER_SEC;
-
-#endif
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.where")
