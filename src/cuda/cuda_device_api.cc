@@ -135,40 +135,6 @@ class CUDADeviceAPI final : public DeviceAPI {
     }
   }
 
-  CVMStreamHandle CreateStream(CVMContext ctx) {
-    CUDA_CALL(cudaSetDevice(ctx.device_id));
-    cudaStream_t retval;
-    CUDA_CALL(cudaStreamCreate(&retval));
-    return static_cast<CVMStreamHandle>(retval);
-  }
-
-  void FreeStream(CVMContext ctx, CVMStreamHandle stream) {
-    CUDA_CALL(cudaSetDevice(ctx.device_id));
-    cudaStream_t cu_stream = static_cast<cudaStream_t>(stream);
-    CUDA_CALL(cudaStreamDestroy(cu_stream));
-  }
-
-  void SyncStreamFromTo(CVMContext ctx, CVMStreamHandle event_src, CVMStreamHandle event_dst) {
-    CUDA_CALL(cudaSetDevice(ctx.device_id));
-    cudaStream_t src_stream = static_cast<cudaStream_t>(event_src);
-    cudaStream_t dst_stream = static_cast<cudaStream_t>(event_dst);
-    cudaEvent_t evt;
-    CUDA_CALL(cudaEventCreate(&evt));
-    CUDA_CALL(cudaEventRecord(evt, src_stream));
-    CUDA_CALL(cudaStreamWaitEvent(dst_stream, evt, 0));
-    CUDA_CALL(cudaEventDestroy(evt));
-  }
-
-  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
-    CUDA_CALL(cudaSetDevice(ctx.device_id));
-    CUDA_CALL(cudaStreamSynchronize(static_cast<cudaStream_t>(stream)));
-  }
-
-  void SetStream(CVMContext ctx, CVMStreamHandle stream) final {
-    CUDAThreadEntry::ThreadLocal()
-        ->stream = static_cast<cudaStream_t>(stream);
-  }
-
   static const std::shared_ptr<CUDADeviceAPI>& Global() {
     static std::shared_ptr<CUDADeviceAPI> inst =
         std::make_shared<CUDADeviceAPI>();

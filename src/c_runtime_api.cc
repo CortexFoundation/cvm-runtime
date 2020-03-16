@@ -77,20 +77,6 @@ DeviceAPI* DeviceAPI::Get(CVMContext ctx, bool allow_missing) {
       static_cast<int>(ctx.device_type), allow_missing);
 }
 
-CVMStreamHandle DeviceAPI::CreateStream(CVMContext ctx) {
-  LOG(FATAL) << "Device does not support stream api.";
-  return 0;
-}
-
-void DeviceAPI::FreeStream(CVMContext ctx, CVMStreamHandle stream) {
-  LOG(FATAL) << "Device does not support stream api.";
-}
-
-void DeviceAPI::SyncStreamFromTo(CVMContext ctx,
-                                 CVMStreamHandle event_src,
-                                 CVMStreamHandle event_dst) {
-  LOG(FATAL) << "Device does not support stream api.";
-}
 
 #ifndef _LIBCPP_SGX_NO_IOSTREAMS
 //--------------------------------------------------------
@@ -402,54 +388,6 @@ int CVMFuncCreateFromCFunc(CVMPackedCFunc func,
           }
       });
   }
-  API_END();
-}
-
-int CVMStreamCreate(int device_type, int device_id, CVMStreamHandle* out) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  *out = DeviceAPIManager::Get(ctx)->CreateStream(ctx);
-  API_END();
-}
-
-int CVMStreamFree(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->FreeStream(ctx, stream);
-  API_END();
-}
-
-int CVMSetStream(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->SetStream(ctx, stream);
-  API_END();
-}
-
-int CVMSynchronize(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->StreamSync(ctx, stream);
-  API_END();
-}
-
-int CVMStreamStreamSynchronize(int device_type,
-                               int device_id,
-                               CVMStreamHandle src,
-                               CVMStreamHandle dst) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->SyncStreamFromTo(ctx, src, dst);
   API_END();
 }
 

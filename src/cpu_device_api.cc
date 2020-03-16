@@ -64,9 +64,6 @@ class CPUDeviceAPI final : public DeviceAPI {
            size);
   }
 
-  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
-  }
-
   static const std::shared_ptr<CPUDeviceAPI>& Global() {
     static std::shared_ptr<CPUDeviceAPI> inst =
         std::make_shared<CPUDeviceAPI>();
