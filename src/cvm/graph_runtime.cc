@@ -663,9 +663,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   return [](){};
 }
 
-PackedFunc CvmRuntime::GetFunction(
-    const std::string& name,
-    const std::shared_ptr<ModuleNode>& sptr_to_self) {
+PackedFunc CvmRuntime::GetFunction(const std::string& name) {
   // Return member functions during query.
   if (name == "set_input") {
     return PackedFunc([this](CVMArgs args, CVMRetValue* rv) {

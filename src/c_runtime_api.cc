@@ -6,7 +6,6 @@
 #include <utils/thread_local.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/packed_func.h>
-#include <cvm/runtime/module.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/device_api.h>
 #include <array>
@@ -271,30 +270,12 @@ void CVMAPISetLastError(const char* msg) {
   CVMAPIRuntimeStore::Get()->last_error = msg;
 }
 
-int CVMModLoadFromFile(const char* file_name,
-                       const char* format,
-                       CVMModuleHandle* out) {
-  API_BEGIN();
-  Module m = Module::LoadFromFile(file_name, format);
-  *out = new Module(m);
-  API_END();
-}
-
-int CVMModImport(CVMModuleHandle mod,
-                 CVMModuleHandle dep) {
-  API_BEGIN();
-  static_cast<Module*>(mod)->Import(
-      *static_cast<Module*>(dep));
-  API_END();
-}
-
 int CVMModGetFunction(CVMModuleHandle mod,
                       const char* func_name,
                       int query_imports,
                       CVMFunctionHandle *func) {
   API_BEGIN();
-  PackedFunc pf = static_cast<Module*>(mod)->GetFunction(
-      func_name, query_imports != 0);
+  PackedFunc pf = static_cast<Module*>(mod)->GetFunction(func_name);
   if (pf != nullptr) {
     *func = new PackedFunc(pf);
   } else {
@@ -391,18 +372,8 @@ int CVMFuncCreateFromCFunc(CVMPackedCFunc func,
   API_END();
 }
 
-int CVMCbArgToReturn(CVMValue* value, int code) {
-  API_BEGIN();
-  cvm::runtime::CVMRetValue rv;
-  rv = cvm::runtime::CVMArgValue(*value, code);
-  int tcode;
-  rv.MoveToCHost(value, &tcode);
-  CHECK_EQ(tcode, code);
-  API_END();
-}
-
 // set device api
-CVM_REGISTER_GLOBAL(cvm::runtime::symbol::cvm_set_device)
+CVM_REGISTER_GLOBAL("__cvm_set_device")
 .set_body([](CVMArgs args, CVMRetValue *ret) {
     CVMContext ctx;
     ctx.device_type = static_cast<DLDeviceType>(args[0].operator int());

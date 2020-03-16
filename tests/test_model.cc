@@ -4,6 +4,7 @@
 #include <thread>
 #include <omp.h>
 #include <cvm/runtime/registry.h>
+#include <cvm/runtime/module.h>
 #include <cvm/op.h>
 #include "npy.hpp"
 using namespace std;

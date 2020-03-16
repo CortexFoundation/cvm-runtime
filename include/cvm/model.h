@@ -8,6 +8,7 @@
 
 #include <cvm/dlpack.h>
 #include <cvm/runtime/packed_func.h>
+#include <cvm/runtime/module.h>
 
 #include <string>
 #include <mutex>
