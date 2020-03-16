@@ -5,7 +5,6 @@
  */
 #include <utils/thread_local.h>
 #include <cvm/runtime/c_runtime_api.h>
-#include <cvm/runtime/c_backend_api.h>
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/module.h>
 #include <cvm/runtime/registry.h>
@@ -76,16 +75,6 @@ class DeviceAPIManager {
 DeviceAPI* DeviceAPI::Get(CVMContext ctx, bool allow_missing) {
   return DeviceAPIManager::Get(
       static_cast<int>(ctx.device_type), allow_missing);
-}
-
-void* DeviceAPI::AllocWorkspace(CVMContext ctx,
-                                size_t size,
-                                CVMType type_hint) {
-  return AllocDataSpace(ctx, size, kTempAllocaAlignment, type_hint);
-}
-
-void DeviceAPI::FreeWorkspace(CVMContext ctx, void* ptr) {
-  FreeDataSpace(ctx, ptr);
 }
 
 CVMStreamHandle DeviceAPI::CreateStream(CVMContext ctx) {
@@ -332,55 +321,6 @@ int CVMModFree(CVMModuleHandle mod) {
   API_BEGIN();
   delete static_cast<Module*>(mod);
   API_END();
-}
-
-int CVMBackendGetFuncFromEnv(void* mod_node,
-                             const char* func_name,
-                             CVMFunctionHandle *func) {
-  API_BEGIN();
-  *func = (CVMFunctionHandle)(
-      static_cast<ModuleNode*>(mod_node)->GetFuncFromEnv(func_name));
-  API_END();
-}
-
-void* CVMBackendAllocWorkspace(int device_type,
-                               int device_id,
-                               uint64_t size,
-                               int dtype_code_hint,
-                               int dtype_bits_hint) {
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-
-  CVMType type_hint;
-  type_hint.code = static_cast<decltype(type_hint.code)>(dtype_code_hint);
-  type_hint.bits = static_cast<decltype(type_hint.bits)>(dtype_bits_hint);
-  type_hint.lanes = 1;
-
-  return DeviceAPIManager::Get(ctx)->AllocWorkspace(ctx,
-                                                    static_cast<size_t>(size),
-                                                    type_hint);
-}
-
-int CVMBackendFreeWorkspace(int device_type,
-                            int device_id,
-                            void* ptr) {
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->FreeWorkspace(ctx, ptr);
-  return 0;
-}
-
-int CVMBackendRunOnce(void** handle,
-                      int (*f)(void*),
-                      void* cdata,
-                      int nbytes) {
-  if (*handle == nullptr) {
-    *handle = reinterpret_cast<void*>(1);
-    return (*f)(cdata);
-  }
-  return 0;
 }
 
 int CVMFuncFree(CVMFunctionHandle func) {

@@ -169,14 +169,6 @@ class CUDADeviceAPI final : public DeviceAPI {
         ->stream = static_cast<cudaStream_t>(stream);
   }
 
-  void* AllocWorkspace(CVMContext ctx, size_t size, CVMType type_hint) final {
-    return CUDAThreadEntry::ThreadLocal()->pool.AllocWorkspace(ctx, size);
-  }
-
-  void FreeWorkspace(CVMContext ctx, void* data) final {
-    CUDAThreadEntry::ThreadLocal()->pool.FreeWorkspace(ctx, data);
-  }
-
   static const std::shared_ptr<CUDADeviceAPI>& Global() {
     static std::shared_ptr<CUDADeviceAPI> inst =
         std::make_shared<CUDADeviceAPI>();
@@ -199,9 +191,7 @@ class CUDADeviceAPI final : public DeviceAPI {
 
 typedef utils::ThreadLocalStore<CUDAThreadEntry> CUDAThreadStore;
 
-CUDAThreadEntry::CUDAThreadEntry()
-    : pool(kDLGPU, CUDADeviceAPI::Global()) {
-}
+CUDAThreadEntry::CUDAThreadEntry() {}
 
 CUDAThreadEntry* CUDAThreadEntry::ThreadLocal() {
   return CUDAThreadStore::Get();

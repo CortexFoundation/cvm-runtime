@@ -4,7 +4,6 @@
  * \brief SystemLib module.
  */
 #include <cvm/runtime/registry.h>
-#include <cvm/runtime/c_backend_api.h>
 #include <mutex>
 #include "module_util.h"
 

@@ -8,7 +8,6 @@
 
 #include <cvm/runtime/module.h>
 #include <cvm/runtime/c_runtime_api.h>
-#include <cvm/runtime/c_backend_api.h>
 #include <memory>
 #include <vector>
 
@@ -49,11 +48,6 @@ void InitContextFunctions(FLookup flookup) {
   // Initialize the functions
   CVM_INIT_CONTEXT_FUNC(CVMFuncCall);
   CVM_INIT_CONTEXT_FUNC(CVMAPISetLastError);
-  CVM_INIT_CONTEXT_FUNC(CVMBackendGetFuncFromEnv);
-  CVM_INIT_CONTEXT_FUNC(CVMBackendAllocWorkspace);
-  CVM_INIT_CONTEXT_FUNC(CVMBackendFreeWorkspace);
-  CVM_INIT_CONTEXT_FUNC(CVMBackendParallelLaunch);
-  CVM_INIT_CONTEXT_FUNC(CVMBackendParallelBarrier);
 
   #undef CVM_INIT_CONTEXT_FUNC
 }
