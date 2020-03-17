@@ -124,6 +124,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
       const char* errorStr = "";
       if(groups == 1){
         int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
+        int32_t ext_space_size = args.ext_space->shape[0];
         errorStr = cuda_conv2d(
             x_data, n_batch, in_channels, x_h, x_w,
             w_data, out_channels, in_channels, filter_h, filter_w,
@@ -134,6 +135,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
             groups,
             y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, 
             ext_space,
+            ext_space_size,
             error_code);
       }else{
         errorStr = cuda_groupwise_conv2d(

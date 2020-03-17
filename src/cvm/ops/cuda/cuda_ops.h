@@ -119,7 +119,8 @@ const char* cuda_conv2d(
         int32_t dilation_h, int32_t dilation_w,
         int32_t groups,
         int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, 
-        int32_t *extspace, 
+        int32_t *ext_space,
+        int32_t ext_space_size,
         int& error_code);
 const char* cuda_depthwise_conv2d(
         int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,

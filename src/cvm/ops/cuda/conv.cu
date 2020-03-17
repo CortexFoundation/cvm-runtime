@@ -14,6 +14,60 @@ namespace runtime{
     }
   }
 
+__global__ void kernel_transpose_i32_to_i8(const int32_t *in, int8_t *out, 
+    const int32_t H, const int32_t W, 
+    const int32_t OH, const int32_t OW){
+  int bidy = blockIdx.y;
+  int bidx = blockIdx.x; 
+  int lidy = threadIdx.y;
+  int lidx = threadIdx.x;
+  __shared__ int32_t share_in[32][33];
+  int y = bidy * blockDim.y + lidy;
+  int x = bidx * blockDim.x + lidx;
+  if(y < H && x < W){
+    share_in[lidx][lidy] = in[y * W + x];
+  }
+  __syncthreads();
+  int oy = bidx * blockDim.x + lidy;
+  int ox = bidy * blockDim.y + lidx;
+  if(oy < W && ox < H)
+    out[oy * OH + ox] = (int8_t)share_in[lidy][lidx];
+}
+
+__global__ void im2col_gpu_kernel_pad(const int n, const int32_t* data_im,
+    const int height, const int width, const int kernel_h, const int kernel_w,
+    const int pad_h, const int pad_w,
+    const int stride_h, const int stride_w,
+    const int dilation_h, const int dilation_w,
+    const int height_col, const int width_col,
+    int8_t* data_col) {
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  const int cols = height_col * width_col;
+  const int offset = (cols + 63) / 64 * 64;
+  for(int64_t index = tid; index < n; index += gridDim.x*blockDim.x){
+    const int h_index = index / width_col;
+    const int h_col = h_index % height_col;
+    const int w_col = index % width_col;
+    const int c_im = h_index / height_col;
+    const int c_col = c_im * kernel_h * kernel_w;
+    const int h_offset = h_col * stride_h - pad_h;
+    const int w_offset = w_col * stride_w - pad_w;
+    int8_t* data_col_ptr = data_col;
+    data_col_ptr += c_col * offset + h_col * width_col + w_col;//(c_col * height_col + h_col) * width_col + w_col;
+    const int32_t* data_im_ptr = data_im;
+    data_im_ptr += (c_im * height + h_offset) * width + w_offset;
+    for (int i = 0; i < kernel_h; ++i) {
+      for (int j = 0; j < kernel_w; ++j) {
+        int h_im = h_offset + i * dilation_h;
+        int w_im = w_offset + j * dilation_w;
+        *data_col_ptr =
+          (h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) ?
+          static_cast<int8_t>(data_im_ptr[i * dilation_h * width + j * dilation_w]) : 0;
+        data_col_ptr += offset;
+      }
+    }
+  }
+}
 __global__ void im2col_gpu_kernel(const int n, const int32_t* data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
@@ -126,18 +180,65 @@ __global__ void kernel_matrix_mul(
   }
 }
 
-// for N = 1
-template<int BLOCK_SIZE>
-__global__ void kernel_matrix_mul_n1(
-    const int8_t *A, 
-    const int8_t *B,
-    const int32_t *bias,
-    int32_t *C,
-    const int32_t M, const int32_t K){
-  int group = blockIdx.x;
-  int lid = threadIdx.x;
-  __shared__ int8_t share_a[BLOCK_SIZE][BLOCK_SIZE];
-  __shared__ int8_t share_b[BLOCK_SIZE];
+template<bool has_bias>
+__global__ void kernel_matrix_mul_opt(
+    char4 *A, // k*m 
+    char4  *B, // k*n
+    int32_t *C, // m*n
+    int32_t M, int32_t K, int32_t N, int32_t *bias,
+    const int32_t TM, const int32_t TN, const int32_t TK){
+  int lidx = threadIdx.x;
+  int lidy = threadIdx.y;
+  int bidx = blockIdx.x;
+  int bidy = blockIdx.y;
+
+  int aBegin = bidy * TILE_WIDTH;
+  int aStep = TILE_WIDTH * (TM/4);
+  int bBegin = bidx * TILE_WIDTH;
+  int bStep = TILE_WIDTH * (TN/4);
+
+  int round_K = TK / TILE_WIDTH;
+  int32_t csub[4][4] = {{0}};
+  for(int i = 0, a = aBegin, b = bBegin; i < round_K; ++i, a += aStep, b+= bStep){
+    __shared__ char4 share_a[TILE_WIDTH][TILE_WIDTH];
+    __shared__ char4 share_b[TILE_WIDTH][TILE_WIDTH];
+
+    int aid = a + lidy * (TM/4) + lidx;
+    share_a[lidy][lidx] = A[a + lidy * (TM/4) + lidx];
+
+    int bid = b + lidy * (TN/4) + lidx;
+    share_b[lidy][lidx] = B[b + lidy * (TN/4) + lidx];
+    __syncthreads();
+
+    for(int k = 0; k < TILE_WIDTH; ++k){
+      char* pa = (char*)&share_a[k][lidy];
+      char* pb = (char*)&share_b[k][lidx];
+#pragma unroll
+      for(int ii = 0; ii < 4; ii++){
+#pragma unroll
+        for(int jj = 0; jj < 4; jj++){
+          csub[ii][jj] += pa[ii] * pb[jj];
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+ // int c = bidy * TILE_WIDTH * N + bidx * TILE_WIDTH;
+  int gidy = bidy * TILE_WIDTH + lidy;
+  int gidx = bidx * TILE_WIDTH + lidx;
+  for(int ii = 0; ii < 4; ii++){
+    int row = (gidy * 4 + ii);
+    int bv = 0;
+    if(has_bias && row < M){
+      bv = bias[row]; 
+    }
+    for(int jj = 0; jj < 4; jj++){
+      int col = gidx * 4 + jj;
+      if(row < M && col < N)
+      C[row * N + col] = csub[ii][jj] + bv;
+    }
+  }
 }
 
 inline void im2col_gpu(const int32_t* data_im, const int channels,
@@ -152,10 +253,10 @@ inline void im2col_gpu(const int32_t* data_im, const int channels,
             (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
     int width_col = (width + 2 * pad_w -
             (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
-    int num_kernels = channels * height_col * width_col;
+    int num_kernels = channels* height_col* width_col;
     int threads = 256;
     int blocks = (num_kernels + threads - 1) / threads;
-    im2col_gpu_kernel<<<blocks, threads>>>(
+    im2col_gpu_kernel_pad<<<blocks, threads>>>(
                 num_kernels, data_im, height, width, kernel_h, kernel_w, pad_h,
                 pad_w, stride_h, stride_w, dilation_h, dilation_w, height_col,
                 width_col, data_col);
@@ -171,7 +272,8 @@ const char* cuda_conv2d(
     int32_t groups,
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, 
     int32_t device_id,
-    int32_t *ext_space, int& error_code){
+    int32_t *ext_space, 
+    int32_t ext_space_size, int& error_code){
 
   if(i_n < 1 || i_c < 1 || i_h < 1 || i_w < 1 || f_n < 1 || f_c < 1 || f_h < 1 || f_w < 1 || 
       padding_h < 0 || padding_w < 0 || stride_h < 1 || stride_w < 1 || dilation_h < 1 || dilation_w < 1 ||
@@ -183,29 +285,36 @@ const char* cuda_conv2d(
 
   int32_t fn = o_c * i_c * f_h * f_w;
   const int M = o_c;
+  const int TM = (M + 63) / 64* 64;
   const int K = i_c * f_h * f_w;
+  const int TK = (K + 63) / 64 * 64;
   const int N = o_h * o_w;
+  const int TN = (N + 63) / 64 * 64;
   dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
   const int NUM = 2;
-  int gh = ((M+NUM-1)/NUM + TILE_WIDTH - 1) / TILE_WIDTH;
-  int gw = ((N+NUM-1)/NUM + TILE_WIDTH - 1) / TILE_WIDTH;
+  int gh = (TM/4 + TILE_WIDTH - 1) / TILE_WIDTH;
+  int gw = (TN/4 + TILE_WIDTH - 1) / TILE_WIDTH;
   dim3 gDim(gw, gh, 1);
 
+  cudaMemset(ext_space, 0, sizeof(int32_t)*ext_space_size);
   int8_t *d_f = (int8_t*)ext_space;
-  int8_t *d_col = d_f + get_multi8to64_size(fn);
+  int8_t *d_col = d_f + TM * TK;
 
-  int blockSize = 256;
-  int gridSize = getGridSize(fn, blockSize);
-  kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
+ // int blockSize = 256;
+ // int gridSize = getGridSize(fn, blockSize);
+  //kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
+  dim3 bSize(32, 32, 1);
+  dim3 gSize((K+31)/32, (M+31)/32, 1);
+  kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
 
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
     if(dev_b == NULL)
-      kernel_matrix_mul<false, NUM><<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
+      kernel_matrix_mul_opt<false><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
     else
-      kernel_matrix_mul<true, NUM><<<gDim, bDim>>>(d_f, d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b);
+      kernel_matrix_mul_opt<true><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
   }
 
   print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
