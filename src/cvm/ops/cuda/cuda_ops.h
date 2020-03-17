@@ -56,21 +56,22 @@ inline const char* check_cuda_error(cudaError_t error){
 //#define CVM_PRINT_CUDA_RESULT
 
 const std::string DIR = "/tmp/zkh/ssd/gpu/";
-inline void print_to_file(const int32_t *y, int32_t n, std::string filename){
+template<typename T>
+inline void print_to_file(const T *y, int32_t n, std::string filename){
 #ifdef CVM_PRINT_CUDA_RESULT
-  int32_t *y_data = new int32_t[n];
-  cudaMemcpy(y_data, y, sizeof(int32_t)*n, cudaMemcpyDeviceToHost);
+  T *y_data = new T[n];
+  cudaMemcpy(y_data, y, sizeof(T)*n, cudaMemcpyDeviceToHost);
 
   FILE *fp = fopen((DIR+filename).c_str(), "a+");
 
   int32_t min = y_data[0], max= y_data[0];
   for(uint64_t i = 0; i < n; i++){
-    min = min > y_data[i] ? y_data[i] : min;
-    max = max < y_data[i] ? y_data[i] : max;
+    min = min > (int)y_data[i] ? (int)y_data[i] : min;
+    max = max < (int)y_data[i] ? (int)y_data[i] : max;
   }
-  fprintf(fp, "%d %d\n", min, max);
-  for(uint64_t i = 0; i < 5000 && i < n; i++){
-    fprintf(fp, "%d ", y_data[i]);
+  //fprintf(fp, "%d %d\n", min, max);
+  for(uint64_t i = 0; i < n; i++){
+    fprintf(fp, "%d ", (int)y_data[i]);
   }
   fprintf(fp, "\n");
   fclose(fp);

@@ -1,5 +1,6 @@
 #include "cuda_ops.h"
 #include "../common.h"
+#include <assert.h>
 
 namespace cvm{
 namespace runtime{
@@ -203,16 +204,16 @@ __global__ void kernel_matrix_mul_opt(
     __shared__ char4 share_a[TILE_WIDTH][TILE_WIDTH];
     __shared__ char4 share_b[TILE_WIDTH][TILE_WIDTH];
 
-    int aid = a + lidy * (TM/4) + lidx;
+    //int aid = a + lidy * (TM/4) + lidx;
     share_a[lidy][lidx] = A[a + lidy * (TM/4) + lidx];
 
-    int bid = b + lidy * (TN/4) + lidx;
+    //int bid = b + lidy * (TN/4) + lidx;
     share_b[lidy][lidx] = B[b + lidy * (TN/4) + lidx];
     __syncthreads();
 
     for(int k = 0; k < TILE_WIDTH; ++k){
-      char* pa = (char*)&share_a[k][lidy];
-      char* pb = (char*)&share_b[k][lidx];
+      signed char pa[4] = {share_a[k][lidy].x, share_a[k][lidy].y, share_a[k][lidy].z, share_a[k][lidy].w};
+      signed char pb[4] = {share_b[k][lidx].x, share_b[k][lidx].y, share_b[k][lidx].z, share_b[k][lidx].w};
 #pragma unroll
       for(int ii = 0; ii < 4; ii++){
 #pragma unroll
@@ -283,7 +284,6 @@ const char* cuda_conv2d(
   }
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
-  int32_t fn = o_c * i_c * f_h * f_w;
   const int M = o_c;
   const int TM = (M + 63) / 64* 64;
   const int K = i_c * f_h * f_w;
@@ -291,7 +291,6 @@ const char* cuda_conv2d(
   const int N = o_h * o_w;
   const int TN = (N + 63) / 64 * 64;
   dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
-  const int NUM = 2;
   int gh = (TM/4 + TILE_WIDTH - 1) / TILE_WIDTH;
   int gw = (TN/4 + TILE_WIDTH - 1) / TILE_WIDTH;
   dim3 gDim(gw, gh, 1);
