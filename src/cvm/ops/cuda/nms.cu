@@ -16,20 +16,15 @@ __global__ void kernel_get_count(const int32_t batchs, const int32_t n, const in
   const int batch = bidy; 
   __shared__ int32_t share_box[BS][32];
   __shared__ int32_t count;
-#pragma unroll
-  for(int i = 0; i < K; i++){
-    share_box[lid][i] = -1;
-  }
+  share_box[lid][0] = -1;
   if(lid == 0) {
     count = 0;
   }
   int x_i = batch * n * K + gidx * K; 
   if(gidx < n){
-#pragma unroll
     for(int i = 0; i < K; i++)
       share_box[lid][i] = inputs[x_i + i];
   }
-  __syncthreads();
 
   if(share_box[lid][score_index] > score_threshold){
     atomicAdd(&count, 1);
@@ -54,7 +49,7 @@ __global__ void kernel_get_data(const int32_t batchs, const int32_t n, const int
   __shared__ int32_t share_box[BS][32];
   __shared__ int32_t count;
   __shared__ int32_t start_index;
-#pragma unroll
+  __shared__ int32_t tmp_indexs[BS];
   for(int i = 0; i < K; i++){
     share_box[lid][i] = -1;
   }
@@ -62,43 +57,29 @@ __global__ void kernel_get_data(const int32_t batchs, const int32_t n, const int
     count = 0;
     start_index = all_count[batch * n + bidx];
   }
+  tmp_indexs[lid] = 0;
   int x_i = batch * n * K + gidx * K; 
   __syncthreads();
 
   if(gidx < n){
-#pragma unroll
     for(int i = 0; i < K; i++)
       share_box[lid][i] = inputs[x_i + i];
-    if(share_box[lid][score_index] <= score_threshold){
-      for(int i = 0; i < K; i++)
-        share_box[lid][i] = -1;
+  }
+  if(share_box[lid][score_index] <= score_threshold){
+      share_box[lid][0] = -1;
+  }
+  else{
+    atomicAdd(&count, 1);
+    for(int i = lid+1; i < BS; i++){
+      atomicAdd(tmp_indexs + i, 1);
     }
-    else
-      atomicAdd(&count, 1);
   }
 
   __syncthreads();
 
-  if(lid == 0) {
-    int j = 0;
-    for(int i = 0; i < BS; i++){
-      if(share_box[i][0] != -1){
-        if(i > j){
-          for(int k = 0; k < K; k++){
-            share_box[j][k] = share_box[i][k];
-            share_box[i][k] = -1;
-          }
-        }
-        ++j;
-      } 
-    }
-  }
-  __syncthreads();
-  if(lid < count){
-    #pragma unroll
-    for(int i = 0; i < K ;i++){
-        y[batch * n* K + (start_index + lid) * K + i] = share_box[lid][i];
-    }
+  if(share_box[lid][0] != -1){
+    for(int k = 0; k < K; ++k)
+      y[batch * n * K + (start_index + tmp_indexs[lid]) * K + k] = share_box[lid][k];
   }
 }
 
@@ -111,7 +92,7 @@ const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_
   cudaMemset(valid_count_data, 0, sizeof(int32_t) * batchs);
   cudaMemset(all_count, 0, sizeof(int32_t) * batchs * n);
 
-  const int bsize = 256;
+  const int bsize = 128;
   dim3 gsize = dim3((n+bsize-1)/bsize, batchs, 1);
   kernel_get_count<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, valid_count_data, score_threshold, all_count);
   kernel_get_data<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold, all_count);
