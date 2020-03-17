@@ -5,9 +5,7 @@
  */
 #include <utils/thread_local.h>
 #include <cvm/runtime/c_runtime_api.h>
-#include <cvm/runtime/c_backend_api.h>
 #include <cvm/runtime/packed_func.h>
-#include <cvm/runtime/module.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/device_api.h>
 #include <array>
@@ -78,30 +76,6 @@ DeviceAPI* DeviceAPI::Get(CVMContext ctx, bool allow_missing) {
       static_cast<int>(ctx.device_type), allow_missing);
 }
 
-void* DeviceAPI::AllocWorkspace(CVMContext ctx,
-                                size_t size,
-                                CVMType type_hint) {
-  return AllocDataSpace(ctx, size, kTempAllocaAlignment, type_hint);
-}
-
-void DeviceAPI::FreeWorkspace(CVMContext ctx, void* ptr) {
-  FreeDataSpace(ctx, ptr);
-}
-
-CVMStreamHandle DeviceAPI::CreateStream(CVMContext ctx) {
-  LOG(FATAL) << "Device does not support stream api.";
-  return 0;
-}
-
-void DeviceAPI::FreeStream(CVMContext ctx, CVMStreamHandle stream) {
-  LOG(FATAL) << "Device does not support stream api.";
-}
-
-void DeviceAPI::SyncStreamFromTo(CVMContext ctx,
-                                 CVMStreamHandle event_src,
-                                 CVMStreamHandle event_dst) {
-  LOG(FATAL) << "Device does not support stream api.";
-}
 
 #ifndef _LIBCPP_SGX_NO_IOSTREAMS
 //--------------------------------------------------------
@@ -296,30 +270,12 @@ void CVMAPISetLastError(const char* msg) {
   CVMAPIRuntimeStore::Get()->last_error = msg;
 }
 
-int CVMModLoadFromFile(const char* file_name,
-                       const char* format,
-                       CVMModuleHandle* out) {
-  API_BEGIN();
-  Module m = Module::LoadFromFile(file_name, format);
-  *out = new Module(m);
-  API_END();
-}
-
-int CVMModImport(CVMModuleHandle mod,
-                 CVMModuleHandle dep) {
-  API_BEGIN();
-  static_cast<Module*>(mod)->Import(
-      *static_cast<Module*>(dep));
-  API_END();
-}
-
 int CVMModGetFunction(CVMModuleHandle mod,
                       const char* func_name,
                       int query_imports,
                       CVMFunctionHandle *func) {
   API_BEGIN();
-  PackedFunc pf = static_cast<Module*>(mod)->GetFunction(
-      func_name, query_imports != 0);
+  PackedFunc pf = static_cast<Module*>(mod)->GetFunction(func_name);
   if (pf != nullptr) {
     *func = new PackedFunc(pf);
   } else {
@@ -332,55 +288,6 @@ int CVMModFree(CVMModuleHandle mod) {
   API_BEGIN();
   delete static_cast<Module*>(mod);
   API_END();
-}
-
-int CVMBackendGetFuncFromEnv(void* mod_node,
-                             const char* func_name,
-                             CVMFunctionHandle *func) {
-  API_BEGIN();
-  *func = (CVMFunctionHandle)(
-      static_cast<ModuleNode*>(mod_node)->GetFuncFromEnv(func_name));
-  API_END();
-}
-
-void* CVMBackendAllocWorkspace(int device_type,
-                               int device_id,
-                               uint64_t size,
-                               int dtype_code_hint,
-                               int dtype_bits_hint) {
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-
-  CVMType type_hint;
-  type_hint.code = static_cast<decltype(type_hint.code)>(dtype_code_hint);
-  type_hint.bits = static_cast<decltype(type_hint.bits)>(dtype_bits_hint);
-  type_hint.lanes = 1;
-
-  return DeviceAPIManager::Get(ctx)->AllocWorkspace(ctx,
-                                                    static_cast<size_t>(size),
-                                                    type_hint);
-}
-
-int CVMBackendFreeWorkspace(int device_type,
-                            int device_id,
-                            void* ptr) {
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->FreeWorkspace(ctx, ptr);
-  return 0;
-}
-
-int CVMBackendRunOnce(void** handle,
-                      int (*f)(void*),
-                      void* cdata,
-                      int nbytes) {
-  if (*handle == nullptr) {
-    *handle = reinterpret_cast<void*>(1);
-    return (*f)(cdata);
-  }
-  return 0;
 }
 
 int CVMFuncFree(CVMFunctionHandle func) {
@@ -465,66 +372,8 @@ int CVMFuncCreateFromCFunc(CVMPackedCFunc func,
   API_END();
 }
 
-int CVMStreamCreate(int device_type, int device_id, CVMStreamHandle* out) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  *out = DeviceAPIManager::Get(ctx)->CreateStream(ctx);
-  API_END();
-}
-
-int CVMStreamFree(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->FreeStream(ctx, stream);
-  API_END();
-}
-
-int CVMSetStream(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->SetStream(ctx, stream);
-  API_END();
-}
-
-int CVMSynchronize(int device_type, int device_id, CVMStreamHandle stream) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->StreamSync(ctx, stream);
-  API_END();
-}
-
-int CVMStreamStreamSynchronize(int device_type,
-                               int device_id,
-                               CVMStreamHandle src,
-                               CVMStreamHandle dst) {
-  API_BEGIN();
-  CVMContext ctx;
-  ctx.device_type = static_cast<DLDeviceType>(device_type);
-  ctx.device_id = device_id;
-  DeviceAPIManager::Get(ctx)->SyncStreamFromTo(ctx, src, dst);
-  API_END();
-}
-
-int CVMCbArgToReturn(CVMValue* value, int code) {
-  API_BEGIN();
-  cvm::runtime::CVMRetValue rv;
-  rv = cvm::runtime::CVMArgValue(*value, code);
-  int tcode;
-  rv.MoveToCHost(value, &tcode);
-  CHECK_EQ(tcode, code);
-  API_END();
-}
-
 // set device api
-CVM_REGISTER_GLOBAL(cvm::runtime::symbol::cvm_set_device)
+CVM_REGISTER_GLOBAL("__cvm_set_device")
 .set_body([](CVMArgs args, CVMRetValue *ret) {
     CVMContext ctx;
     ctx.device_type = static_cast<DLDeviceType>(args[0].operator int());

@@ -9,7 +9,6 @@
 #include <cuda_runtime.h>
 #include <cvm/runtime/packed_func.h>
 #include <string>
-#include "../workspace_pool.h"
 
 namespace cvm {
 namespace runtime {
@@ -37,8 +36,6 @@ class CUDAThreadEntry {
  public:
   /*! \brief The cuda stream */
   cudaStream_t stream{nullptr};
-  /*! \brief thread local pool*/
-  WorkspacePool pool;
   /*! \brief constructor */
   CUDAThreadEntry();
   // get the threadlocal workspace

@@ -45,24 +45,6 @@ class Module {
   inline ModuleNode* operator->();
   /*! \return internal container */
   inline const ModuleNode* operator->() const;
-  // The following functions requires link with runtime.
-  /*!
-   * \brief Import another module into this module.
-   * \param other The module to be imported.
-   *
-   * \note Cyclic dependency is not allowed among modules,
-   *  An error will be thrown when cyclic dependency is detected.
-   */
-  CVM_DLL void Import(Module other);
-  /*!
-   * \brief Load a module from file.
-   * \param file_name The name of the host function module.
-   * \param format The format of the file.
-   * \note This function won't load the import relationship.
-   *  Re-create import relationship by calling Import.
-   */
-  CVM_DLL static Module LoadFromFile(const std::string& file_name,
-                                     const std::string& format = "");
 
  private:
   std::shared_ptr<ModuleNode> node_;
@@ -95,71 +77,11 @@ class ModuleNode {
    *   If the function need resource from the module(e.g. late linking),
    *   it should capture sptr_to_self.
    */
-  virtual PackedFunc GetFunction(
-      const std::string& name,
-      const std::shared_ptr<ModuleNode>& sptr_to_self) = 0;
-  /*!
-   * \brief Save the module to file.
-   * \param file_name The file to be saved to.
-   * \param format The format of the file.
-   */
-  CVM_DLL virtual void SaveToFile(const std::string& file_name,
-                                  const std::string& format);
-  /*!
-   * \brief Save the module to binary stream.
-   * \param stream The binary stream to save to.
-   * \note It is recommended to implement this for device modules,
-   *   but not necessarily host modules.
-   *   We can use this to do AOT loading of bundled device functions.
-   */
-  CVM_DLL virtual void SaveToBinary(utils::Stream* stream);
-  /*!
-   * \brief Get the source code of module, when available.
-   * \param format Format of the source code, can be empty by default.
-   * \return Possible source code when available.
-   */
-  CVM_DLL virtual std::string GetSource(const std::string& format = "");
-  /*!
-   * \brief Get a function from current environment
-   *  The environment includes all the imports as well as Global functions.
-   *
-   * \param name name of the function.
-   * \return The corresponding function.
-   */
-  CVM_DLL const PackedFunc* GetFuncFromEnv(const std::string& name);
-  /*! \return The module it imports from */
-  const std::vector<Module>& imports() const {
-    return imports_;
-  }
+  virtual PackedFunc GetFunction(const std::string& name) = 0;
 
  protected:
   friend class Module;
-  /*! \brief The modules this module depend on */
-  std::vector<Module> imports_;
-
- private:
-  /*! \brief Cache used by GetImport */
-  std::unordered_map<std::string,
-                     std::unique_ptr<PackedFunc> > import_cache_;
 };
-
-/*! \brief namespace for constant symbols */
-namespace symbol {
-/*! \brief Global variable to store module context. */
-constexpr const char* cvm_module_ctx = "__cvm_module_ctx";
-/*! \brief Global variable to store device module blob */
-constexpr const char* cvm_dev_mblob = "__cvm_dev_mblob";
-/*! \brief Number of bytes of device module blob. */
-constexpr const char* cvm_dev_mblob_nbytes = "__cvm_dev_mblob_nbytes";
-/*! \brief global function to set device */
-constexpr const char* cvm_set_device = "__cvm_set_device";
-/*! \brief Auxiliary counter to global barrier. */
-constexpr const char* cvm_global_barrier_state = "__cvm_global_barrier_state";
-/*! \brief Prepare the global barrier before kernels that uses global barrier. */
-constexpr const char* cvm_prepare_global_barrier = "__cvm_prepare_global_barrier";
-/*! \brief Placeholder for the module's entry function. */
-constexpr const char* cvm_module_main = "__cvm_main__";
-}  // namespace symbol
 
 // implementations of inline functions.
 inline ModuleNode* Module::operator->() {

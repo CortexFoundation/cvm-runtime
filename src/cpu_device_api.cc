@@ -8,7 +8,6 @@
 #include <cvm/runtime/device_api.h>
 #include <cstdlib>
 #include <cstring>
-#include "workspace_pool.h"
 
 #ifdef __ANDROID__
 #include <android/api-level.h>
@@ -65,34 +64,12 @@ class CPUDeviceAPI final : public DeviceAPI {
            size);
   }
 
-  void StreamSync(CVMContext ctx, CVMStreamHandle stream) final {
-  }
-
-  void* AllocWorkspace(CVMContext ctx, size_t size, CVMType type_hint) final;
-  void FreeWorkspace(CVMContext ctx, void* data) final;
-
   static const std::shared_ptr<CPUDeviceAPI>& Global() {
     static std::shared_ptr<CPUDeviceAPI> inst =
         std::make_shared<CPUDeviceAPI>();
     return inst;
   }
 };
-
-struct CPUWorkspacePool : public WorkspacePool {
-  CPUWorkspacePool() :
-      WorkspacePool(kDLCPU, CPUDeviceAPI::Global()) {}
-};
-
-void* CPUDeviceAPI::AllocWorkspace(CVMContext ctx,
-                                   size_t size,
-                                   CVMType type_hint) {
-  return utils::ThreadLocalStore<CPUWorkspacePool>::Get()
-      ->AllocWorkspace(ctx, size);
-}
-
-void CPUDeviceAPI::FreeWorkspace(CVMContext ctx, void* data) {
-  utils::ThreadLocalStore<CPUWorkspacePool>::Get()->FreeWorkspace(ctx, data);
-}
 
 CVM_REGISTER_GLOBAL("device_api.cpu")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
