@@ -259,13 +259,17 @@ a bias vector is created and added to the outputs.
         int t_filter_w = (fw - 1) * dilation[1] + 1;
         int oh = (ih + 2 * padding[0] - t_filter_h) / strides[0] + 1;
         int ow = (iw + 2 * padding[1] - t_filter_w) / strides[1] + 1;
-        int32_t fn = oc * ic * fh * fw; //int8_t
-        fn = (fn + 7)/8 * 8;
-        int32_t d_col_n = ic * fh * fw * oh * ow; //int8_t 
-        d_col_n = (d_col_n + 7)/8 * 8;
+        int M = oc;
+        int K = ic * fh * fw;
+        int N = oh * ow;
+        M = (M + 63) / 64 * 64;
+        K = (K + 63) / 64 * 64;
+        N = (N + 63) / 64 * 64;
+        int32_t fn = M * K;//oc * ic * fh * fw; //int8_t
+        int32_t d_col_n = K*N;//ic * fh * fw * oh * ow; //int8_t 
         return (fn + d_col_n) * sizeof(int8_t) / sizeof(int32_t);
       }else{
-      return  0;
+        return  0;
       } 
     }
       return 0;

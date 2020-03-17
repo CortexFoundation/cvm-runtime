@@ -3,8 +3,6 @@
 namespace cvm {
 namespace runtime{
 
-double cvm_op_broadcast_cnt = 0;
-
 inline __device__ int32_t broadcast_i_index(const int64_t* oshape, int o_index, const int64_t* ishape, int idim, int odim){
   int index = 0;
   int allIndex = 1;
@@ -40,7 +38,14 @@ __global__ void kernel_broadcast(const int32_t *a, const int32_t *b, int32_t*c,
 }
 
 template<typename F>
-__global__ void kernel_broadcast_scalar(const int32_t * a, const int32_t *b, int32_t *c, const int64_t n, F const& f){
+__global__ void kernel_broadcast_scalar_a(const int32_t * a, const int32_t *b, int32_t *c, const int64_t n, F const& f){
+  int lid = threadIdx.x + blockDim.x * blockIdx.x;
+  for(int i = lid; i < n; i+= gridDim.x * blockDim.x){
+    c[i] = f(a[0], b[i]);
+  }
+}
+template<typename F>
+__global__ void kernel_broadcast_scalar_b(const int32_t * a, const int32_t *b, int32_t *c, const int64_t n, F const& f){
   int lid = threadIdx.x + blockDim.x * blockIdx.x;
   for(int i = lid; i < n; i+= gridDim.x * blockDim.x){
     c[i] = f(a[i], b[0]);
@@ -62,9 +67,9 @@ const char* cuda_broadcast(const int32_t *a, const int32_t *b, int32_t* c,
   int blockSize = getGridSize(n, threadSize);
 
   if(adim == 1 && ashape[0] == 1){
-    kernel_broadcast_scalar<<<blockSize, threadSize>>>(b, a, c, n, f);
+    kernel_broadcast_scalar_a<<<blockSize, threadSize>>>(a, b, c, n, f);
   }else if(bdim == 1 && bshape[0] == 1){
-    kernel_broadcast_scalar<<<blockSize, threadSize>>>(a, b, c, n, f);
+    kernel_broadcast_scalar_b<<<blockSize, threadSize>>>(a, b, c, n, f);
   }else{
     int64_t dev_ashape[MAX_DIM], dev_bshape[MAX_DIM], dev_cshape[MAX_DIM];
     get_cuda_shape(ashape, adim, dev_ashape);

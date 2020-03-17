@@ -3,10 +3,6 @@
 namespace cvm{
 namespace runtime{
 
-double cvm_op_elemwise_cnt = 0;
-double cvm_op_cvm_shift_cnt = 0;
-double cvm_op_clip_cnt = 0;
-
 template<typename F>
 __global__ void kernel_elemwise(const int32_t *a, const int32_t *b, int32_t *c, uint64_t n, F const &op){
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -71,7 +67,7 @@ const char* cuda_cvm_clip(const int32_t* x, const int32_t precision, int32_t *y,
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
   }
-  print_to_file(y, n, "/tmp/zkh/trec/gpu/cvm_clip.txt");
+  print_to_file(y, n, "cvm_clip.txt");
   return check_cuda_error(error);
 }
 

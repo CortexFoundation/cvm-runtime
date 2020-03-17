@@ -13,7 +13,6 @@
 #include <string.h>
 #include <iostream>
 #include <string>
-#include "../profiling.h"
 #define DEBUG
 
 namespace cvm{
@@ -31,37 +30,38 @@ const int ERROR_GET_PROPERTIES = 23;
 const int ERROR_KERNEL = 24;
 const int ERROR_PARAMS = 25;
 
-static cudaEvent_t start, stop;
-inline void start_time(){
-#ifdef CVM_PROFILING
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
-  cudaEventRecord(start, 0);
-#endif
-}
-inline float get_used_time(){
-  float cost_time = 0;
-#ifdef CVM_PROFILING
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&cost_time, start, stop);
-#endif
-  return cost_time/1000.0;
-}
+//static cudaEvent_t start, stop;
+//inline void start_time(){
+//#ifdef CVM_PROFILING
+//  cudaEventCreate(&start);
+//  cudaEventCreate(&stop);
+//  cudaEventRecord(start, 0);
+//#endif
+//}
+//inline float get_used_time(){
+//  float cost_time = 0;
+//#ifdef CVM_PROFILING
+//  cudaEventRecord(stop, 0);
+//  cudaEventSynchronize(stop);
+//  cudaEventElapsedTime(&cost_time, start, stop);
+//#endif
+//  return cost_time/1000.0;
+//}
 
 inline const char* check_cuda_error(cudaError_t error){
   if(error == cudaSuccess) return NULL;
   else return cudaGetErrorString(error);
 }
 
-// #define CVM_PRINT_CUDA_RESULT
+//#define CVM_PRINT_CUDA_RESULT
 
+const std::string DIR = "/tmp/zkh/ssd/gpu/";
 inline void print_to_file(const int32_t *y, int32_t n, std::string filename){
 #ifdef CVM_PRINT_CUDA_RESULT
   int32_t *y_data = new int32_t[n];
   cudaMemcpy(y_data, y, sizeof(int32_t)*n, cudaMemcpyDeviceToHost);
 
-  FILE *fp = fopen(filename.c_str(), "a+");
+  FILE *fp = fopen((DIR+filename).c_str(), "a+");
 
   int32_t min = y_data[0], max= y_data[0];
   for(uint64_t i = 0; i < n; i++){
@@ -69,7 +69,7 @@ inline void print_to_file(const int32_t *y, int32_t n, std::string filename){
     max = max < y_data[i] ? y_data[i] : max;
   }
   fprintf(fp, "%d %d\n", min, max);
-  for(uint64_t i = 0; i < 1000 && i < n; i++){
+  for(uint64_t i = 0; i < 5000 && i < n; i++){
     fprintf(fp, "%d ", y_data[i]);
   }
   fprintf(fp, "\n");
@@ -119,7 +119,8 @@ const char* cuda_conv2d(
         int32_t dilation_h, int32_t dilation_w,
         int32_t groups,
         int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, 
-        int32_t *extspace, 
+        int32_t *ext_space,
+        int32_t ext_space_size,
         int& error_code);
 const char* cuda_depthwise_conv2d(
         int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
@@ -220,7 +221,7 @@ const char* cuda_slice_like(const int32_t *x_data, int32_t *y_data, const int64_
         const uint64_t ysize, const int32_t ndim, int& error_code);
 const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
         const int32_t n, const int32_t k,
-        const int32_t score_threshold, const int32_t batchs, int& error_code);
+        const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code);
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,
         const int32_t max_output_size, const int32_t iou_threshold, const int32_t topk,
         const int32_t coord_start, const int32_t score_index, const int32_t id_index, const bool force_suppress, int32_t *ext_space, int& error_code);

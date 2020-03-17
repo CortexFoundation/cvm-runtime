@@ -91,7 +91,7 @@ const char* cuda_reduce(const int32_t *x, int32_t *y, const uint64_t xsize, cons
       dev_every_xdim_size[0], dev_every_xdim_size[1], dev_every_xdim_size[2], dev_every_xdim_size[3], dev_every_xdim_size[4], dev_every_xdim_size[5],
       dev_flag[0], dev_flag[1], dev_flag[2], dev_flag[3], dev_flag[4], dev_flag[5]);
   }
-  print_to_file(y, ysize, "/tmp/zkh/trec/gpu/sum.txt");
+  print_to_file(y, ysize, "sum.txt");
 
   return "";//check_cuda_error(cudaGetLastError());
 }

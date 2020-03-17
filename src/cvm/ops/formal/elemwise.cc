@@ -3,17 +3,9 @@
 namespace cvm {
 namespace runtime {
   
-double cvm_op_elemwise_cnt = 0;
-double cvm_op_cvm_shift_cnt = 0;
-double cvm_op_clip_cnt = 0;
-
 typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
 
 inline void elemwise(DLTensor *args0, DLTensor *args1, DLTensor *args2, const elemwise_func& f){
-#ifdef CVM_PROFILING
-  double start = omp_get_wtime();
-#endif
-
   int32_t *a = static_cast<int32_t*>(args0->data);
   int32_t *b = static_cast<int32_t*>(args1->data);
   int32_t *c = static_cast<int32_t*>(args2->data);
@@ -22,9 +14,6 @@ inline void elemwise(DLTensor *args0, DLTensor *args1, DLTensor *args2, const el
     c[i] = f(a[i], b[i]);
   }
 
-#ifdef CVM_PROFILING
-  cvm_op_elemwise_cnt += omp_get_wtime() - start;
-#endif
 }
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
@@ -56,9 +45,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_sub")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
 .set_body([](CVMArgs args, CVMRetValue* rv){
-#ifdef CVM_PROFILING
-  double start = omp_get_wtime();
-#endif
    DLTensor *x = args[0];
    DLTensor *y = args[1];
    void *_attr = args[2];
@@ -71,17 +57,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
    for (uint64_t i = 0; i < getSize(x); i++) {
     y_data[i] = std::max(std::min(max, x_data[i]), min);
    }
-#ifdef CVM_PROFILING
-    cvm_op_elemwise_cnt += omp_get_wtime() - start;
-#endif
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
-#ifdef CVM_PROFILING
-  double start = omp_get_wtime();
-#endif
      DLTensor *x = args[0];
      DLTensor *y = args[1];
      int32_t* x_data = static_cast<int32_t*>(x->data);
@@ -90,9 +70,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
         memcpy(y_data, x_data, getSize(x)*sizeof(int32_t));
      }
 
-#ifdef CVM_PROFILING
-    cvm_op_elemwise_cnt += omp_get_wtime() - start;
-#endif
 
   print_to_file(y, "flatten.txt");
 });
@@ -110,9 +87,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-#ifdef CVM_PROFILING
-  double start = omp_get_wtime();
-#endif
   DLTensor *x = args[0];
   DLTensor *y = args[1];
   int32_t *x_data = static_cast<int32_t*>(x->data);
@@ -131,18 +105,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
     else if (tmp < min) tmp = min;
     y_data[i] = tmp;
   }
-#ifdef CVM_PROFILING
-  cvm_op_clip_cnt += omp_get_wtime() - start;
-#endif
   print_to_file(y, "clip.txt");
 }
 );
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-#ifdef CVM_PROFILING
-    double start = omp_get_wtime();
-#endif
     auto X = CVMArg2Data<int32_t>(args[0]);
     auto Y = CVMArg2Data<int32_t>(args[1]);
     auto params = CVMArg2Attr<top::CVMRightShiftParam>(args[2]);
@@ -156,16 +124,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
       Y[i] = std::min(std::max(t, -alpha), alpha);
     }
 
-#ifdef CVM_PROFILING
-    cvm_op_cvm_shift_cnt += omp_get_wtime() - start;
-#endif
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-#ifdef CVM_PROFILING
-    double start = omp_get_wtime();
-#endif
     DLTensor *a = args[0];
     DLTensor *c = args[1];
     void *_attr = args[2];
@@ -182,9 +144,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
       int32_t shift_a = a_data[i] << b;
       c_data[i] = std::max(std::min(shift_a, max), min);
     }
-#ifdef CVM_PROFILING
-    cvm_op_cvm_shift_cnt += omp_get_wtime() - start;
-#endif
 });
 }
 }

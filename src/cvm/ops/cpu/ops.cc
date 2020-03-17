@@ -451,6 +451,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
       }
     }
   }
+  print_to_file(x, "conv2d_x.txt");
   print_to_file(y, "conv2d.txt");
 });
 
@@ -962,6 +963,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.get_valid_counts")
     int32_t *y_data = static_cast<int32_t*>(y->data);
 
     get_valid_count(x_data, y_data, valid_count_data, batches, n, k, score_threshold);
+    print_to_file(x, "get_valid_count_x.txt");
+    print_to_file(y, "get_valid_count_y.txt");
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")

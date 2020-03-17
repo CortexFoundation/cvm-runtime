@@ -19,12 +19,14 @@
 #include <thread>
 #include <utility>
 
-// #define CUDA_PROFILE
+//#define CUDA_PROFILE
 
+#ifdef PROFILE
 #include <omp.h>
 #ifdef CUDA_PROFILE
 #include <cuda.h>
 #include <cuda_runtime.h>
+#endif
 #endif
 
 namespace cvm {
@@ -34,24 +36,32 @@ namespace runtime {
  * \brief Run all the operations one by one.
  */
 void CvmRuntime::Run() {
+#ifdef PROFILE
+  double start = omp_get_wtime();
+#endif
   // setup the array and requirements.
   for (size_t i = 0; i < op_execs_.size(); ++i) {
     if (op_execs_[i]) op_execs_[i]();
   }
+#ifdef  PROFILE
+#ifdef CUDA_PROFILE
+  cudaDeviceSynchronize();
+#endif
+  double end = omp_get_wtime();
+  double total = end - start;
   std::vector<std::pair<std::string, double>> vec_times(times.begin(), times.end());
   std::stable_sort(vec_times.begin(), vec_times.end(), 
       [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) ->bool {
         return a.second > b.second;
       });
 
-  printf("\n---------op time metrix--------------\n");
-  double total = 0;
+  printf("\n-------------op time metrix--------------\n");
   for(auto time : vec_times){
-    total += time.second;
-    printf("%s : %.4fs\n", time.first.c_str(), time.second);
+    printf("%-20s : \t%.4fs\t%.4f%%\n", time.first.c_str(), time.second, time.second * 100 / total);
   }
-  printf("total time = %.4fs\n", total);
-  printf("---------op time metrix-----------------\n");
+  printf("#####total time = %.3fs\n", total);
+  printf("-------------op time metrix-----------------\n\n");
+#endif
 }
 
 /*!
@@ -642,8 +652,10 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   const DLTensor* ext_space = extra_space_.operator->();
   auto& times = this->times;
   return [arg_ptr, op, func, ext_space, &times](){
+#ifdef PROFILE
     if(times.find(op) == times.end()) times[op] = 0;
     double start = omp_get_wtime();
+#endif
     CVMRetValue rv;
     CVMArgs targs(
       arg_ptr->arg_values.data(),
@@ -653,11 +665,13 @@ std::function<void()> CvmRuntime::CreateCVMOp(
     );
     func->CallPacked(targs, &rv);
 
+#ifdef PROFILE
 #ifdef CUDA_PROFILE
     cudaDeviceSynchronize();
 #endif
     double end = omp_get_wtime();
     times[op] += end-start;
+#endif
   };
 
   return [](){};
