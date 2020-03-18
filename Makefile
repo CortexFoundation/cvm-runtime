@@ -11,7 +11,7 @@ all: dep
 	@mkdir -p build/lib && cd build/lib && cmake ../../ && $(MAKE)
 
 dep:
-	@cp cmake/config.cmake .
+	@cp cmake/config.cmake . --update
 
 cpu: dep
 	@mkdir -p build/cpu && cd build/cpu && cmake ../.. -DUSE_CUDA=OFF -DUSE_FORMAL=OFF && $(MAKE)
