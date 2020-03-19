@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.2)
 project(cvm C CXX)
 
-set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
+
 # Utility functions
 include(cmake/util/Util.cmake)
 include(cmake/util/FindCUDA.cmake)
@@ -37,7 +38,9 @@ else()
 endif ()
 
 # Source file lists
-file(GLOB RUNTIME_SRCS src/*.cc)
+file(GLOB RUNTIME_SRCS src/core/*.cc
+                       src/runtime/*.cc
+                       src/runtime/cpu/*.cc)
 
 if(${PROFILE} STREQUAL "ON")
     add_definitions(-DPROFILE)
@@ -51,7 +54,7 @@ if(${USE_CUDA} STREQUAL "ON")
     set (EXECUTE_NAME cvm_runtime_cuda)
     add_definitions(-DCVM_RUNTIME_CUDA)
     add_definitions(-DCUDA_PROFILE)
-    file(GLOB RUNTIME_CVM_CUDA_SRCS src/cuda/*.cc)
+    file(GLOB RUNTIME_CVM_CUDA_SRCS src/runtime/cuda/*.cc)
     file(GLOB CVM_OPS_CUDA_SRCS src/cvm/ops/cuda/*.cc
       src/cvm/ops/cuda/*.cu)
     list(APPEND RUNTIME_CVM_SRCS ${CVM_OPS_CUDA_SRCS})

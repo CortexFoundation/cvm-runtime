@@ -145,23 +145,6 @@ typedef void* CVMRetValueHandle;
 typedef void* CVMStreamHandle;
 
 /*!
- * \brief Used for implementing C API function.
- *  Set last error message before return.
- * \param msg The error message to be set.
- */
-CVM_DLL void CVMAPISetLastError(const char* msg);
-
-/*!
- * \brief return str message of the last error
- *  all function in this file will return 0 when success
- *  and -1 when an error occured,
- *  CVMGetLastError can be called to retrieve the error
- *
- *  this function is threadsafe and can be called by different thread
- *  \return error info
- */
-CVM_DLL const char *CVMGetLastError(void);
-/*!
  * \brief Load module from file.
  * \param file_name The file name to load the module from.
  * \param format The format of the module.

@@ -4,10 +4,10 @@
  * \brief NDArray container infratructure.
  */
 #include <utils/logging.h>
+#include <cvm/errors.h>
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/device_api.h>
-#include "runtime_base.h"
 
 // deleter for arrays used by DLPack exporter
 extern "C" void NDArrayDLPackDeleter(DLManagedTensor* tensor);

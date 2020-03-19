@@ -5,12 +5,12 @@
  */
 #include <utils/logging.h>
 #include <utils/thread_local.h>
+#include <cvm/errors.h>
 #include <cvm/runtime/registry.h>
 #include <unordered_map>
 #include <mutex>
 #include <memory>
 #include <array>
-#include "runtime_base.h"
 
 namespace cvm {
 namespace runtime {

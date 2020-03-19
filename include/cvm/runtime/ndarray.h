@@ -11,6 +11,7 @@
 #include <utility>
 #include "c_runtime_api.h"
 #include "serializer.h"
+#include "../errors.h"
 
 namespace cvm {
 namespace runtime {

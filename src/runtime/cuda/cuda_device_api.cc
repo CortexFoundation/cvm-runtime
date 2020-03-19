@@ -8,10 +8,27 @@
 #include <utils/thread_local.h>
 #include <cvm/runtime/registry.h>
 #include <cuda_runtime.h>
-#include "cuda_common.h"
 
 namespace cvm {
 namespace runtime {
+
+#define CUDA_DRIVER_CALL(x)                                             \
+  {                                                                     \
+    CUresult result = x;                                                \
+    if (result != CUDA_SUCCESS && result != CUDA_ERROR_DEINITIALIZED) { \
+      const char *msg;                                                  \
+      cuGetErrorName(result, &msg);                                     \
+      LOG(FATAL)                                                        \
+          << "CUDAError: " #x " failed with error: " << msg;            \
+    }                                                                   \
+  }
+
+#define CUDA_CALL(func)                                            \
+  {                                                                \
+    cudaError_t e = (func);                                        \
+    CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading)       \
+        << "CUDA: " << cudaGetErrorString(e);                      \
+  }
 
 class CUDADeviceAPI final : public DeviceAPI {
  public:
@@ -154,14 +171,6 @@ class CUDADeviceAPI final : public DeviceAPI {
     }
   }
 };
-
-typedef utils::ThreadLocalStore<CUDAThreadEntry> CUDAThreadStore;
-
-CUDAThreadEntry::CUDAThreadEntry() {}
-
-CUDAThreadEntry* CUDAThreadEntry::ThreadLocal() {
-  return CUDAThreadStore::Get();
-}
 
 CVM_REGISTER_GLOBAL("device_api.gpu")
 .set_body([](CVMArgs args, CVMRetValue* rv) {

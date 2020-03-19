@@ -8,9 +8,6 @@
 #include <cvm/runtime/packed_func.h>
 #include <unordered_set>
 #include <cstring>
-#ifndef _LIBCPP_SGX_CONFIG
-#include "file_util.h"
-#endif
 
 namespace cvm {
 namespace runtime {
