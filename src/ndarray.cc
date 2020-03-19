@@ -210,24 +210,6 @@ int CVMArrayCopyFromTo(CVMArrayHandle from,
   API_END();
 }
 
-int CVMArrayFromDLPack(DLManagedTensor* from,
-                       CVMArrayHandle* out) {
-  API_BEGIN();
-  *out = NDArray::Internal::MoveAsDLTensor(NDArray::FromDLPack(from));
-  API_END();
-}
-
-int CVMArrayToDLPack(CVMArrayHandle from,
-                     DLManagedTensor** out) {
-  API_BEGIN();
-  *out = NDArray::Internal::ToDLPack(reinterpret_cast<NDArray::Container*>(from));
-  API_END();
-}
-
-void CVMDLManagedTensorCallDeleter(DLManagedTensor* dltensor) {
-  (*(dltensor->deleter))(dltensor);
-}
-
 int CVMArrayCopyFromBytes(CVMArrayHandle handle,
                           void* data,
                           size_t nbytes) {
