@@ -7,20 +7,14 @@ from .base import _LIB, check_call, CVMContext
 
 NetworkHandle = ctypes.c_void_p
 
-_DevType2CInt = {
-    base.CPU    : ctypes.c_int(0),
-    base.GPU    : ctypes.c_int(1),
-    base.FORMAL : ctypes.c_int(2),
-}
-
 def CVMAPILoadModel(json_str, param_bytes, device_id=0):
-    dev_type = CVMContext.LIB_TYPE()
+    dev_type = CVMContext.DEV_TYPE()
     net = NetworkHandle()
     check_call(_LIB.CVMAPILoadModel(
         ctypes.c_char_p(json_str), ctypes.c_int(len(json_str)),
         ctypes.c_char_p(param_bytes), ctypes.c_int(len(param_bytes)),
         ctypes.byref(net),
-        _DevType2CInt[dev_type], ctypes.c_int(device_id)))
+        dev_type, ctypes.c_int(device_id)))
     return net
 
 def CVMAPIFreeModel(net):

@@ -4,10 +4,19 @@ import ctypes
 from . import libinfo
 
 # device type name
-CPU     = "cpu"
-GPU     = "gpu"
-FORMAL  = "formal"
+CPU = 0
+GPU = 1
+FORMAL = 2
 
+def DeviceName(device_type):
+    if device_type == CPU:
+        return "cpu"
+    elif device_type == GPU:
+        return "gpu"
+    elif device_type == FORMAL:
+        return "formal"
+
+    raise RuntimeError("Unknown device type: %d" % device_type)
 
 class CVMContext:
     _current_context = None
@@ -23,16 +32,8 @@ class CVMContext:
         return CVMContext.restore()
 
     @staticmethod
-    def LIB():
-        return CVMContext._current_context._lib
-
-    @staticmethod
-    def LIB_TYPE():
+    def DEV_TYPE():
         return CVMContext._current_context.dev_type
-
-    @staticmethod
-    def LIB_NAME():
-        return CVMContext._current_context.lib_name
 
     @staticmethod
     def set_global(device_type):

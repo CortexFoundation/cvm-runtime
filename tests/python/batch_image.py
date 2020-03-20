@@ -103,13 +103,12 @@ def get_net(model_id, Cython):
     model_root = os.path.join(models[model_id][1])
     #print("model_root === ", model_root)
     if Cython == 1:
-        device_type = 1
         device_id = 0
         json, params = utils.load_model(
             os.path.join(model_root, "symbol"),
             os.path.join(model_root, "params"))
         import libcvm
-        lib = libcvm.CVM(json, params, device_type, device_id)
+        lib = libcvm.CVM(json, params, device_id)
         net = []
     else:
         json, params = load_model(os.path.join(model_root, "symbol"),

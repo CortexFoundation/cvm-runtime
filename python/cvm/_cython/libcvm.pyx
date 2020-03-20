@@ -1,17 +1,17 @@
 cimport ccvm
 import numpy as np
-from cvm.base import check_call
+from cvm.base import check_call, CVMContext
 
 
 cdef class CVM:
     cdef void *network
 
-    def __init__(self, bytes graph_json, bytes param_bytes,
-                 int device_type, int device_id):
+    def __init__(self, bytes graph_json, bytes param_bytes, int device_id):
+        dev_type = CVMContext.DEV_TYPE()
         check_call(ccvm.CVMAPILoadModel(
             graph_json, len(graph_json),
             param_bytes, len(param_bytes),
-            &self.network, device_type, device_id))
+            &self.network, dev_type, device_id))
 
     def FreeModel(self):
         check_call(ccvm.CVMAPIFreeModel(self.network))
