@@ -3,12 +3,11 @@
  * \file infer_attr.cc
  * \brief Inference the attrs given existin information.
  */
-#include "graph_runtime.h"
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>
-#include "top/elemwise_op_common.h"
 #include <cvm/graph_attr_types.h>
 #include <iostream>
+#include "graph_runtime.h"
 
 using cvm::Op;
 using cvm::TShape;

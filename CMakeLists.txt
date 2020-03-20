@@ -16,7 +16,7 @@ endif()
 # You can create a config.cmake at build folder
 # and add set(OPTION VALUE) to override these build options.
 # Alernatively, use cmake -DOPTION=VALUE through command-line.
-cvm_option(USE_CUDA "Build with CUDA" ON)
+# cvm_option(USE_CUDA "Build with CUDA" ON)
 
 # include directories
 include_directories("include")
@@ -74,9 +74,10 @@ else()
     set (EXECUTE_NAME cvm_runtime_cpu)
 endif()
 list(APPEND RUNTIME_SRCS ${RUNTIME_CVM_SRCS})
-file(GLOB CVM_TOP_SRCS src/cvm/top/*.cc
-          src/cvm/top/nn/*.cc
-          src/cvm/top/tensor/*.cc)
+
+file(GLOB CVM_TOP_SRCS src/top/*.cc
+                       src/top/nn/*.cc
+                       src/top/tensor/*.cc)
 list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 
 # Module rules
