@@ -1,6 +1,5 @@
-
 from cvm.base import CVMContext, CPU, GPU, FORMAL
-import libcvm
+
 from cvm.utils import load_model, load_np_data
 from cvm.function import CVMAPILoadModel, CVMAPIInference, CVMAPIGetOutputLength
 from cvm import utils
@@ -31,6 +30,9 @@ data_mode = configure["data"][str(configure["data_select"])]
 threshold = configure["threshold"]
 disp_mode = configure['display'][str(configure["disp_mode"])]
 font_mode = configure['font'][str(configure["font_mode"])]
+video_fps = configure['video_fps']
+frame_len = configure['frame_len'] # in second
+
 
 if font_mode == "small":
     text_font = 1
@@ -56,6 +58,7 @@ else:
 photo_dir = "./tests/python/photo/"
 
 def preprocess(img, img_mean, img_std, netin_size):
+    print("img.shape = ", img[0,0,0])
     if img.shape[0] > img.shape[1]:
         #square_size = img.shape[1]
         start_p = (int)((img.shape[0] - img.shape[1])/2)
@@ -98,13 +101,14 @@ def get_label(model_id):
 
 def get_net(model_id, Cython):
     model_root = os.path.join(models[model_id][1])
-    print("model_root === ", model_root)
+    #print("model_root === ", model_root)
     if Cython == 1:
         device_type = 1
         device_id = 0
         json, params = utils.load_model(
             os.path.join(model_root, "symbol"),
             os.path.join(model_root, "params"))
+        import libcvm
         lib = libcvm.CVM(json, params, device_type, device_id)
         net = []
     else:
@@ -178,6 +182,7 @@ def gen_text(out_norm, img0, label, scaler):
 
     if len(out_norm.shape) == 1:
         max_ind = np.argmax(np.array(out_norm, "float32"))
+        print("max_ind = ", max_ind)
         label0 = label[max_ind].strip("\'").strip("\"").strip("\n").split()
 
         p3 = (int(20*scaler),int(20*scaler))
@@ -222,13 +227,25 @@ if data_mode == "video_file":
 
         frame_text = gen_text(out_norm, img0, label, scaler)
 
-        cv2.imshow('', frame_text)
+        cv2.imwrite(os.path.join("./tests/python/photo_processed", f), frame_text)
+        cv2.imshow('',frame_text)
         cv2.waitKey(1)
-        time.sleep(1)
+
+    mk_video = "ffmpeg -i ./tests/python/photo_processed/test_%5d.jpg ./tests/python/video_{}.mp4".format(models[model_id][2])
+    os.system(mk_video)
 else:
+    cap = open_cam_onboard(1280, 720)
+    video_id = 0
+    frame_id = 0
+    start_time = time.time()
     while(1):
-        cap = open_cam_onboard(1280, 720)
+        #print("frame_id = ", frame_id)
         _, frame = cap.read()
+        cv2.flip(frame,0,frame )
+        print(frame.shape)
+        h, w = frame.shape[0], frame.shape[1]
+        frame = frame[:, (w-h)//2:(w-h)//2+h,:]
+        print("frame[0,0,0] = ", frame[0,0,0])
         frame1 = preprocess(frame, img_mean, img_std, input_size)
         net_out = infer(net_o, lib_o, frame1)
 
@@ -237,24 +254,36 @@ else:
             out_norm = out_norm/[1, 536870910, 853144.6988601037, 853144.6988601037, 853144.6988601037, 853144.6988601037]
         else:
             out_norm = net_out
+            print("net_out[0:10] = ",net_out[0:10])
 
         if disp_mode == "original":
             scaler = frame.shape[0]/input_size
-            img0 = np.zeros(frame.shape, "uint8")
+            img0 = frame
         else:
             scaler = 1
-            img0 = np.zeros((input_size, input_size, 3), "uint8")
+            img0 = cv2.resize(frame, (input_size, input_size))
 
+        frame_text = gen_text(out_norm, img0, label, scaler)
+        real_frame_id = int((time.time() - start_time)*video_fps)
 
+        print("video_id = ", video_id, " real_frame_id = ",real_frame_id, " frame_id = ", frame_id)
 
-        text = gen_text(out_norm, img0, label, scaler)
-        if disp_mode == "original":
-            new_frame = frame + text
-        else:
-            new_frame = cv2.resize(frame, (input_size, input_size)) + text
-        
+        if real_frame_id > frame_id:
+            pad_num = real_frame_id-frame_id
+            for pad_id in range(pad_num):
+                frame_id = frame_id + 1
+                cv2.imwrite(os.path.join("./tests/python/photo_processed", "{:0>5d}.jpg".format(frame_id)), frame_text)
 
+        #cv2.imshow('',frame_text)
+        #cv2.waitKey(1)
 
+        if frame_id >= int(frame_len*video_fps):
+            mk_video = "ffmpeg -y -r {} -i ./tests/python/photo_processed/%5d.jpg ./tests/python/cap_{}_{}.mp4".format(video_fps, models[model_id][2], video_id)
+            os.system(mk_video)
+            os.system("rm ./tests/python/photo_processed/*.*")
+            start_time = time.time()
+            frame_id = 0
+            video_id = video_id + 1
 
 
 
