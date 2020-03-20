@@ -39,7 +39,8 @@ endif ()
 # Source file lists
 file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
-                       src/runtime/cpu/*.cc)
+                       src/runtime/cpu/*.cc
+                       src/runtime/formal/*.cc)
 
 if(PROFILE)
   add_definitions(-DPROFILE)

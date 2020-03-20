@@ -8,6 +8,7 @@
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
+#include <cvm/runtime/device_api.h>
 #include <cvm/op_attr_types.h>
 
 #include <algorithm>
@@ -605,46 +606,26 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   std::shared_ptr<OpArgs> arg_ptr = std::make_shared<OpArgs>();
   // setup address.
   arg_ptr->args = std::move(args);
-  // if (param.flatten_data) {
-  //   arg_ptr->shape_data.resize(arg_ptr->args.size());
-  // }
+
   for (size_t i = 0; i < arg_ptr->args.size(); ++i) {
     CVMValue v;
     DLTensor* t = &(arg_ptr->args[i]);
     v.v_handle = t;
     arg_ptr->arg_values.push_back(v);
     arg_ptr->arg_tcodes.push_back(kArrayHandle);
-    // if (param.flatten_data) {
-    //   arg_ptr->shape_data[i] = std::accumulate(
-    //       t->shape, t->shape + t->ndim, 1, std::multiplies<int64_t>());
-    //   t->ndim = 1;
-    //   t->shape = &(arg_ptr->shape_data[i]);
-    // }
   }
   CVMValue t_attr;
   t_attr.v_handle = (void*)attr;
   arg_ptr->arg_values.push_back(t_attr);
   arg_ptr->arg_tcodes.push_back(kHandle);
 
-  // if (param.func_name == "__nop") {
-  //   return [](){};
-  // } else if (param.func_name == "__copy") {
-  //   // Perform cross device data copy.
-  //   // Directly copy data from the input to the output.
-  //   auto fexec = [arg_ptr]() {
-  //     DLTensor* from = static_cast<DLTensor*>(arg_ptr->arg_values[0].v_handle);
-  //     DLTensor* to = static_cast<DLTensor*>(arg_ptr->arg_values[1].v_handle);
-  //     CVM_CCALL(CVMArrayCopyFromTo(from, to, nullptr));
-  //   };
-  //   return fexec;
-  // }
-
   // Get compiled function from the module that contains both host and device
   // code.
   auto op = param.func_name;
   int device_type = static_cast<int>(ctxs_[0].device_type);
-  std::string module_name = "cvm.runtime.cvm";
-  if (device_type == kDLGPU) module_name += "_cuda";
+
+  std::string module_name = "cvm.runtime.";
+  module_name += DeviceName(device_type);
   module_name += ".";
   auto func = cvm::runtime::Registry::Get(module_name + op);
   VERIFY(func != nullptr) << "function undefined " << module_name + op;

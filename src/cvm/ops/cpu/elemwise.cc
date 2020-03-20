@@ -17,7 +17,7 @@ inline void elemwise(DLTensor *args0, DLTensor *args1, DLTensor *args2, const el
 
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.elemwise_add")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *args0 = args[0];
@@ -31,7 +31,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
   print_to_file(args2, "elemwise_add.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_sub")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.elemwise_sub")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *args0 = args[0];
@@ -44,7 +44,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_sub")
   elemwise(args0, args1, args2, f);
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.clip")
 .set_body([](CVMArgs args, CVMRetValue* rv){
    DLTensor *x = args[0];
    DLTensor *y = args[1];
@@ -61,7 +61,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
    }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.flatten")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
      DLTensor *x = args[0];
@@ -75,7 +75,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
   print_to_file(y, "flatten.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.reshape")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -85,7 +85,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
   print_to_file(y, "reshape.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.cvm_clip")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -111,7 +111,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
 }
 );
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.cvm_right_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *a = args[0];
     DLTensor *c = args[1];
@@ -172,7 +172,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
   print_to_file(c, "cvm_right_shift.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.cpu.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *a = args[0];
     DLTensor *c = args[1];

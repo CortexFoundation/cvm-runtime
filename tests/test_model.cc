@@ -89,7 +89,6 @@ struct OpArgs {
 };
 
 int run_LIF(string model_root, int device_type = 0) {
-//#if(USE_GPU==0)
 
   //printf("the elewise cnt = %.4f\n", cvm::runtime::cvm_op_elemwise_cnt);
   string json_path = model_root + "/symbol";
@@ -177,7 +176,6 @@ int run_LIF(string model_root, int device_type = 0) {
   CHECK_STATUS(status, "inference failed");
   status = CVMAPIFreeModel(net);
   CHECK_STATUS(status, "free model failed");
-//#if(USE_GPU == 0)
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
     uint64_t n_bytes = 4;
@@ -254,9 +252,9 @@ void test_thread() {
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
-    "/data/wlt/yolo_tfm",
+    // "/data/wlt/yolo_tfm",
     // "/data/std_out/null",
-    // "/data/std_out/resnet50_mxg",
+    "/data/std_out/resnet50_mxg",
     // "/data/std_out/resnet50_v2",
     // "/data/std_out/qd10_resnet20_v2",
     // "/data/std_out/trec",

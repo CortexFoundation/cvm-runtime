@@ -3,7 +3,7 @@
 namespace cvm {
 namespace runtime {
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
    DLTensor *x = args[0];
    DLTensor *y = args[1];
@@ -23,7 +23,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.relu")
 * b : N
 * y : M*N
 /data/std_out/shufflenet*/
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.dense")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
   int ndim = args.num_args;
   DLTensor *x = args[0];
@@ -132,7 +132,7 @@ void groupwise_conv2d(
   }
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
   DLTensor *x = args[0];
@@ -208,7 +208,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.conv2d")
 * ceil_mode False
 * padding (1, 1)
 */
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -267,7 +267,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max_pool2d")
 
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_precision")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_precision")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -286,7 +286,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_precision")
     }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.abs")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.abs")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -298,7 +298,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.abs")
 });
 
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     int M = args.num_args - 2; // I^0, I^1, ... I^M-1
     auto Y = CVMArg2Data<int32_t>(args[M]);
@@ -332,7 +332,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.concatenate")
 
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.repeat")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.repeat")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -359,7 +359,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.repeat")
     }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.negative")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.negative")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -371,7 +371,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.negative")
     }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.tile")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.tile")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -410,7 +410,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.tile")
     print_to_file(y, "tile.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.expand_dims")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.expand_dims")
 .set_body([](CVMArgs args, CVMRetValue *ret)
 {
     DLTensor *ishape = args[0];
@@ -423,7 +423,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.expand_dims")
     memcpy(oshape_data, ishape_data, getSize(ishape)* sizeof(int32_t));
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.squeeze")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.squeeze")
 .set_body([](CVMArgs args, CVMRetValue *ret)
 {
     DLTensor *ishape = args[0];
@@ -436,7 +436,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.squeeze")
     memcpy(oshape_data, ishape_data, getSize(ishape)* sizeof(int32_t));
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.transpose")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -474,7 +474,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.transpose")
     print_to_file(y, "transpose.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.strided_slice")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[1];
@@ -526,7 +526,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.strided_slice")
     print_to_file(y, "stride_slice.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.slice_like")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.slice_like")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *x = args[0];
     DLTensor *y = args[2];
@@ -600,7 +600,7 @@ void take(DLTensor *x, DLTensor *indices, DLTensor *y, const int32_t axis){
     }
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.take")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.take")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     DLTensor *x = args[0];
     DLTensor *indices = args[1];
@@ -621,7 +621,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.take")
     print_to_file(y, "take.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_lut")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_lut")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     DLTensor *indices = args[0];
     DLTensor *x = args[1];
@@ -630,7 +630,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_lut")
     take(x, indices, y);
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.upsampling")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
 .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -661,7 +661,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.upsampling")
   }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.where")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.where")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *condition = args[0];
     DLTensor *x = args[1];
