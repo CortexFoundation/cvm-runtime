@@ -1,7 +1,7 @@
 from __future__ import print_function
 from cvm import utils
 from cvm.base import CVMContext, CPU, GPU, FORMAL
-from cvm._cy3 import libcvm
+from cvm.dll import libcvm
 import numpy as np
 import os
 

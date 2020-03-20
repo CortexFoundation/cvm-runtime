@@ -1,7 +1,7 @@
 
 from cvm.base import CVMContext, CPU, GPU, FORMAL
 from cvm.utils import load_model, load_np_data
-from cvm.function import CVMAPILoadModel, CVMAPIInference, CVMAPIGetOutputLength
+from cvm.dll import CVMAPILoadModel, CVMAPIInference, CVMAPIGetOutputLength
 from cvm import utils
 
 import os

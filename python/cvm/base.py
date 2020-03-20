@@ -1,7 +1,6 @@
 import os
 import ctypes
 
-from . import libinfo
 
 # device type name
 CPU = 0
@@ -56,10 +55,6 @@ class CVMContext:
 
         CVMContext._current_context = old_ctx
         return old_ctx
-
-_LIB_PATH = libinfo.find_lib_path()
-_LIB_NAME = os.path.basename(_LIB_PATH[0])
-_LIB = ctypes.CDLL(_LIB_PATH[0], ctypes.RTLD_GLOBAL)
 
 CVMContext.set_global(CPU)
 

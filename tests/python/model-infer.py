@@ -1,6 +1,6 @@
 from cvm.base import CVMContext, CPU, GPU, FORMAL
-from cvm.function import CVMAPILoadModel, CVMAPIInference
-from cvm.function import CVMAPIGetOutputLength, CVMAPIFreeModel
+from cvm.dll import CVMAPILoadModel, CVMAPIInference
+from cvm.dll import CVMAPIGetOutputLength, CVMAPIFreeModel
 from cvm import utils
 
 import os

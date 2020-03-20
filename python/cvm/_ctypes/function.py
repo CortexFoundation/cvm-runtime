@@ -2,10 +2,15 @@ import ctypes
 import os
 import numpy as np
 
-from . import base
-from .base import _LIB, check_call, CVMContext
+from .. import libinfo
+from ..base import check_call, CVMContext
+
+_LIB_PATH = libinfo.find_lib_path()
+_LIB_NAME = os.path.basename(_LIB_PATH[0])
+_LIB = ctypes.CDLL(_LIB_PATH[0], ctypes.RTLD_GLOBAL)
 
 NetworkHandle = ctypes.c_void_p
+
 
 def CVMAPILoadModel(json_str, param_bytes, device_id=0):
     dev_type = CVMContext.DEV_TYPE()
