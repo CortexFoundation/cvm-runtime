@@ -13,10 +13,25 @@
 
 #define PRINT(e) // printf("ERROR: %s\n", e);
 #define API_BEGIN() try {
-#define API_END() } \
-  catch (const std::runtime_error &e) { PRINT(e.what()); return ERROR_RUNTIME; }  \
-  catch (const std::logic_error &e)   { PRINT(e.what()); return ERROR_LOGIC; }  \
-  catch (const std::exception &e) { PRINT(e.what()); return ERROR_RUNTIME; } \
+
+#define API_END_HANDLE_ERROR(finalize) \
+  } catch (const std::runtime_error &e) { \
+    PRINT(e.what()); finalize; return ERROR_RUNTIME; \
+  } catch (const std::logic_error &e) { \
+    PRINT(e.what()); finalize; return ERROR_LOGIC; \
+  } catch (const std::exception &e) { \
+    PRINT(e.what()); finalize; return ERROR_RUNTIME; \
+  } \
+  return SUCCEED;
+
+#define API_END() \
+  } catch (const std::runtime_error &e) { \
+    PRINT(e.what()); return ERROR_RUNTIME; \
+  } catch (const std::logic_error &e) { \
+    PRINT(e.what()); return ERROR_LOGIC; \
+  } catch (const std::exception &e) { \
+    PRINT(e.what()); return ERROR_RUNTIME; \
+  } \
   return SUCCEED;
 
 struct CVMRuntimeEntry {

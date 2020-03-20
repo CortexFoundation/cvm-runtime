@@ -1,10 +1,10 @@
 #include <cvm/c_symbol_api.h>
 #include <cvm/op.h>
+#include <cvm/errors.h>
 #include <cvm/symbolic.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <utils/registry.h>
-#include "../runtime_base.h" 
 //#include "c_api_common.h"
 
 using namespace cvm;
