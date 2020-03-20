@@ -1,40 +1,41 @@
-.PHONY: clean all test dep
+.PHONY: clean all tests dep
 
-all: dep
-	@mkdir -p build/lib && cd build/lib && cmake ../../ && $(MAKE)
-	@ln -sf build/cpu/libcvm_runtime_cpu.so .
+BUILD := build
+
+all: lib tests
 
 dep:
 	@cp cmake/config.cmake . --update
+	@mkdir -p ${BUILD}
 
-cpu: dep
-	@mkdir -p build/cpu && cd build/cpu && cmake ../.. -DUSE_CUDA=OFF -DUSE_FORMAL=OFF && $(MAKE)
-	# @mkdir -p build/cpu && cd build/cpu && cmake ../.. -DUSE_CUDA=OFF -DUSE_FORMAL=OFF -DCMAKE_BUILD_TYPE=Debug && $(MAKE)
-	@ln -sf build/cpu/libcvm_runtime_cpu.so .
+lib: dep
+	@cd ${BUILD} && cmake ../ && $(MAKE)
 
-gpu: dep
-	@mkdir -p build/gpu && cd build/gpu && cmake ../.. -DUSE_CUDA=ON -DUSE_FORMAL=OFF && $(MAKE)
-	# @mkdir -p build/gpu && cd build/gpu && cmake ../.. -DUSE_CUDA=ON -DCMAKE_BUILD_TYPE=Debug && $(MAKE)
-	@ln -sf build/gpu/libcvm_runtime_cuda.so .
+tests: test_model_cpu test_model_gpu test_model_formal test_op_cpu test_op_gpu test_op_formal
 
-formal: dep
-	@mkdir -p build/formal && cd build/formal && cmake ../.. -DUSE_CUDA=OFF -DUSE_FORMAL=ON && $(MAKE)
-	@ln -sf build/formal/libcvm_runtime_formal.so .
+test_model_cpu: tests/test_model.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=0 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
 
+test_model_gpu: tests/test_model.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=1 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
 
-test_model_cpu: cpu
-	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
-test_model_gpu: gpu
-	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cuda -DUSE_GPU=1 && ./tests/$@
-test_model_formal: formal
-	g++ ./tests/test_model.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_formal -DUSE_GPU=2 && ./tests/$@
+test_model_formal: tests/test_model.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=2 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
 
-test_op_cpu: cpu 
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cpu && ./tests/$@
-test_op_gpu: gpu
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_cuda -DUSE_GPU && ./tests/$@
-test_op_formal: formal
-	g++ ./tests/test_op.cc -Iinclude -fopenmp -std=c++11 -o tests/$@ -lcvm_runtime_formal && ./tests/$@
+test_op_cpu: tests/test_op.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=0 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
+
+test_op_gpu: tests/test_op.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=1 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
+
+test_op_formal: tests/test_op.cc lib
+	g++ -o ${BUILD}/$@ $< -DUSE_GPU=2 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	@${BUILD}/$@
 
 clean:
 	  rm -rf ./build/*

@@ -252,8 +252,8 @@ void test_thread() {
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
-    // "/data/wlt/yolo_tfm",
-    // "/data/std_out/null",
+    "/data/wlt/yolo_tfm",
+    "/data/std_out/null",
     "/data/std_out/resnet50_mxg",
     // "/data/std_out/resnet50_v2",
     // "/data/std_out/qd10_resnet20_v2",

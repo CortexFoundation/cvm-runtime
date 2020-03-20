@@ -97,7 +97,7 @@ void conv2d(
   }
 }
 
-void groupwise_conv2d(
+static void groupwise_conv2d(
    int32_t *x_data, int32_t n_batch, int32_t in_channels, int32_t x_h, int32_t x_w,
    int32_t *w_data, int32_t filter_c, int32_t filter_h, int32_t filter_w,
    int32_t *y_data, int32_t out_channels, int32_t o_h, int32_t o_w,
@@ -551,7 +551,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.slice_like")
     }
 });
 
-void take(DLTensor *x, DLTensor *indices, DLTensor *y){
+static void take(DLTensor *x, DLTensor *indices, DLTensor *y){
     int32_t *x_data = static_cast<int32_t*>(x->data);
     int32_t *indices_data = static_cast<int32_t*>(indices->data);
     int32_t *y_data = static_cast<int32_t*>(y->data);
@@ -563,7 +563,10 @@ void take(DLTensor *x, DLTensor *indices, DLTensor *y){
     }
 }
 
-void take(DLTensor *x, DLTensor *indices, DLTensor *y, const int32_t axis){
+static void take(DLTensor *x, 
+                 DLTensor *indices, 
+                 DLTensor *y, 
+                 const int32_t axis){
     int32_t *x_data = static_cast<int32_t*>(x->data);
     int32_t *indices_data = static_cast<int32_t*>(indices->data);
     int32_t *y_data = static_cast<int32_t*>(y->data);

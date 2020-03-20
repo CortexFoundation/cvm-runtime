@@ -31,7 +31,10 @@ inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x)
 }
 
 typedef std::function<void(int32_t&, int32_t)> reduce_func;
-void Reduce(DLTensor *x, DLTensor *y, TShape& axis, bool exclude, reduce_func const &f){
+static void Reduce(DLTensor *x, 
+                   DLTensor *y, 
+                   TShape& axis, 
+                   bool exclude, reduce_func const &f){
   int32_t *x_data = static_cast<int32_t*>(x->data);
   int32_t *y_data = static_cast<int32_t*>(y->data);
 

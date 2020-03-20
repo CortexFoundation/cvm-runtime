@@ -1,6 +1,7 @@
 #include <cvm/c_api.h>
 #include <cvm/model.h>
 #include <cvm/dlpack.h>
+#include <cvm/runtime/device_api.h>
 #include <cvm/runtime/registry.h>
 #include <string.h>
 
@@ -25,6 +26,9 @@ int CVMAPILoadModel(const char *graph_json, int graph_strlen,
   string graph(graph_json, graph_strlen);
   string params(param_bytes, param_strlen);
   DLContext ctx;
+  CHECK(APIDevTypeMap.find(device_type) != APIDevTypeMap.end())
+    << "Invalid device type: " << device_type
+    << ", only supported 0(CPU), 1(GPU), 2(FORMAL)\n";
   ctx.device_type = APIDevTypeMap.at(device_type);
   // ctx.device_type = (device_type == 0) ? kDLCPU : kDLGPU;
   ctx.device_id = device_id;

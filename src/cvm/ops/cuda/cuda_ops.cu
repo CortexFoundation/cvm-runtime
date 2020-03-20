@@ -184,14 +184,6 @@ __global__ void kernel_concatenate_one_input(int32_t *input, const int32_t isize
   }
 }
 
-__global__ void kernel_concatenate_wlt(
-    int32_t **input, 
-    int64_t const y_size, int32_t const axis_batch,
-    int64_t const y_axis_batch) {
-  int32_t lid = threadIdx.x + blockIdx.x * blockDim.x;
-  
-}
-
 const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
   int32_t *dev_output = output;
     int64_t dev_oshape[6];
@@ -320,7 +312,7 @@ const char* cuda_upsampling_nearest(const int32_t *x_data, int32_t *y_data, cons
   dim3 block(1, 32, 32);
   int grid = channel > 4096 ? 4096 : channel;
 
-  for(int i = 0; i < batch; i++){
+  for(uint32_t i = 0; i < batch; i++){
     kernel_upsampling_nearest<<<grid, block>>>(x_data + i*channel*ih*iw, 
         y_data + i*channel*oh*ow, 
         scale, ih, iw, oh, ow, channel);

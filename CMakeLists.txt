@@ -39,8 +39,7 @@ endif ()
 # Source file lists
 file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
-                       src/runtime/cpu/*.cc
-                       src/runtime/formal/*.cc)
+                       src/runtime/cpu/*.cc)
 
 if(PROFILE)
   add_definitions(-DPROFILE)
@@ -49,10 +48,13 @@ if(PROFILE)
   endif()
 endif()
 
-message(STATUS "Build with CVM runtime support...")
-file(GLOB CVM_SRCS src/cvm/*.cc) 
+
+file(GLOB CVM_SRCS src/cvm/*.cc
+                   src/cvm/ops/cpu/*.cc) 
+set (EXECUTE_NAME cvm_runtime)
+
 if(USE_CUDA)
-    message("USE CUDA")
+    message(STATUS "ENABLE CUDA")
     # project(cvm CUDA)
 
     find_cuda(${USE_CUDA})
@@ -66,15 +68,11 @@ if(USE_CUDA)
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDA_LIBRARY})
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
-    # set(CMAKE_CUDA_FLAGS
-    #     "${CMAKE_CUDA_FLAGS} -std=c++11 --expt-extended-lambda")
     set(CUDA_NVCC_FLAGS 
         ${CUDA_NVCC_FLAGS} -std=c++11 --expt-extended-lambda)
 
-    set (EXECUTE_NAME cvm_runtime_cuda)
     add_definitions(-DCVM_RUNTIME_CUDA)
       
-    message(STATUS "Build with CUDA support")
     file(GLOB RUNTIME_CUDA_SRCS src/runtime/cuda/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
 
@@ -84,17 +82,17 @@ if(USE_CUDA)
     file(GLOB CUDA_SRCS src/cvm/ops/cuda/*.cu)
     cuda_compile(CUDA_LIBS ${CUDA_SRCS})
     list(APPEND CVM_SRCS ${CUDA_LIBS})
-elseif(USE_FORMAL)
-    message("USE FORMAL")
+endif()
+
+if(USE_FORMAL)
+    message(STATUS "ENABLE FORMALIZATION")
+    file(GLOB RUNTIME_CUDA_SRCS src/runtime/formal/*.cc)
+    list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
+
     file(GLOB CVM_OPS_CPU_SRCS src/cvm/ops/formal/*.cc)
     list(APPEND CVM_SRCS ${CVM_OPS_CPU_SRCS})
-    set (EXECUTE_NAME cvm_runtime_formal)
-else()
-    message("USE CPU")
-    file(GLOB CVM_OPS_CPU_SRCS src/cvm/ops/cpu/*.cc)
-    list(APPEND CVM_SRCS ${CVM_OPS_CPU_SRCS})
-    set (EXECUTE_NAME cvm_runtime_cpu)
 endif()
+
 list(APPEND RUNTIME_SRCS ${CVM_SRCS})
 
 file(GLOB CVM_TOP_SRCS src/top/*.cc

@@ -5,7 +5,11 @@ namespace runtime {
 
 double cvm_op_broadcast_cnt = 0;
 
-inline int32_t broadcast_i_index(int64_t* oshape, uint64_t o_index, int64_t* ishape, int idim, int odim){
+inline int32_t broadcast_i_index(
+    int64_t* oshape, 
+    uint64_t o_index, 
+    int64_t* ishape, 
+    int idim, int odim){
   if(idim == 1 && ishape[0] == 1) return 0;
   uint64_t index = 0;
   uint64_t allIndex = 1;
@@ -23,8 +27,10 @@ inline int32_t broadcast_i_index(int64_t* oshape, uint64_t o_index, int64_t* ish
 
 typedef std::function<int32_t(int32_t a, int32_t b)> broadcast_func;
 
-void broadcast(DLTensor *args0, DLTensor* args1, DLTensor* args2, broadcast_func const &f){
-
+static void broadcast(DLTensor *args0, 
+                      DLTensor* args1, 
+                      DLTensor* args2, 
+                      broadcast_func const &f){
   int32_t *a = static_cast<int32_t*>(args0->data);
   int32_t *b = static_cast<int32_t*>(args1->data);
   int32_t *c = static_cast<int32_t*>(args2->data);
