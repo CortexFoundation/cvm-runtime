@@ -10,13 +10,13 @@ NetworkHandle = ctypes.c_void_p
 _DevType2CInt = {
     base.CPU    : ctypes.c_int(0),
     base.GPU    : ctypes.c_int(1),
-    base.FORMAL : ctypes.c_int(0),
+    base.FORMAL : ctypes.c_int(2),
 }
 
 def CVMAPILoadModel(json_str, param_bytes, device_id=0):
     dev_type = CVMContext.LIB_TYPE()
     net = NetworkHandle()
-    check_call(_LIB().CVMAPILoadModel(
+    check_call(_LIB.CVMAPILoadModel(
         ctypes.c_char_p(json_str), ctypes.c_int(len(json_str)),
         ctypes.c_char_p(param_bytes), ctypes.c_int(len(param_bytes)),
         ctypes.byref(net),
@@ -24,33 +24,33 @@ def CVMAPILoadModel(json_str, param_bytes, device_id=0):
     return net
 
 def CVMAPIFreeModel(net):
-    check_call(_LIB().CVMAPIFreeModel(net))
+    check_call(_LIB.CVMAPIFreeModel(net))
 
 def CVMAPIGetInputLength(net):
     size = ctypes.c_ulonglong()
-    check_call(_LIB().CVMAPIGetInputLength(net, ctypes.byref(size)))
+    check_call(_LIB.CVMAPIGetInputLength(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetInputTypeSize(net):
     size = ctypes.c_ulonglong()
-    check_call(_LIB().CVMAPIGetInputTypeSize(net, ctypes.byref(size)))
+    check_call(_LIB.CVMAPIGetInputTypeSize(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetOutputLength(net):
     size = ctypes.c_ulonglong()
-    check_call(_LIB().CVMAPIGetOutputLength(net, ctypes.byref(size)))
+    check_call(_LIB.CVMAPIGetOutputLength(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetOutputTypeSize(net):
     size = ctypes.c_ulonglong()
-    check_call(_LIB().CVMAPIGetOutputTypeSize(net, ctypes.byref(size)))
+    check_call(_LIB.CVMAPIGetOutputTypeSize(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIInference(net, input_data):
     osize = CVMAPIGetOutputLength(net)
 
     output_data = bytes(osize)
-    check_call(_LIB().CVMAPIInference(
+    check_call(_LIB.CVMAPIInference(
         net,
         ctypes.c_char_p(input_data), ctypes.c_int(len(input_data)),
         ctypes.c_char_p(output_data)))

@@ -29,11 +29,6 @@ else()
   set(CMAKE_CXX_FLAGS "-O3 ${CMAKE_CXX_FLAGS}")
 endif ()
 
-# Source file lists
-file(GLOB RUNTIME_SRCS src/core/*.cc
-                       src/runtime/*.cc
-                       src/runtime/cpu/*.cc)
-
 if(PROFILE)
   add_definitions(-DPROFILE)
   if (ENABLE_CUDA)
@@ -41,10 +36,28 @@ if(PROFILE)
   endif()
 endif()
 
+# Source file lists
+file(GLOB RUNTIME_SRCS src/core/*.cc
+                       src/runtime/*.cc
+                       src/runtime/cpu/*.cc)
 
-file(GLOB CVM_SRCS src/cvm/*.cc
-                   src/cvm/ops/cpu/*.cc) 
+file(GLOB CVM_SRCS src/cvm/*.cc)
 set (EXECUTE_NAME cvm_runtime)
+
+if(ENABLE_CPU)
+    message(STATUS "ENABLE CPU")
+    file(GLOB CVM_OPS_CPU_SRCS src/cvm/ops/cpu/*.cc)
+    list(APPEND CVM_SRCS ${CVM_OPS_CPU_SRCS})
+endif()
+
+if(ENABLE_FORMAL)
+    message(STATUS "ENABLE FORMALIZATION")
+    file(GLOB RUNTIME_FORMAL_SRCS src/runtime/formal/*.cc)
+    list(APPEND RUNTIME_SRCS ${RUNTIME_FORMAL_SRCS})
+
+    file(GLOB CVM_OPS_FORMAL_SRCS src/cvm/ops/formal/*.cc)
+    list(APPEND CVM_SRCS ${CVM_OPS_FORMAL_SRCS})
+endif()
 
 if(ENABLE_CUDA)
     message(STATUS "ENABLE CUDA")
@@ -75,15 +88,6 @@ if(ENABLE_CUDA)
     file(GLOB CUDA_SRCS src/cvm/ops/cuda/*.cu)
     cuda_compile(CUDA_LIBS ${CUDA_SRCS})
     list(APPEND CVM_SRCS ${CUDA_LIBS})
-endif()
-
-if(ENABLE_FORMAL)
-    message(STATUS "ENABLE FORMALIZATION")
-    file(GLOB RUNTIME_CUDA_SRCS src/runtime/formal/*.cc)
-    list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
-
-    file(GLOB CVM_OPS_CPU_SRCS src/cvm/ops/formal/*.cc)
-    list(APPEND CVM_SRCS ${CVM_OPS_CPU_SRCS})
 endif()
 
 list(APPEND RUNTIME_SRCS ${CVM_SRCS})

@@ -2,20 +2,17 @@ from __future__ import absolute_import
 import sys
 import os
 
-def find_lib_path(device_type="cpu"):
-    assert device_type in ["cpu", "gpu", "cuda", "formal"]
-    device_type = "cuda" if device_type == "gpu" else device_type
-
+def find_lib_path():
     cvm_dir = os.path.dirname(os.path.realpath(os.path.expanduser(__file__)))
     source_dir = os.path.join(cvm_dir, "..", "..")
 
     dll_path = []
     dll_path.append(os.path.join(source_dir))
-    dll_path.append(os.path.join(source_dir, "build", device_type))
+    dll_path.append(os.path.join(source_dir, "build"))
 
     dll_path = [os.path.realpath(x) for x in dll_path]
 
-    lib_name = 'libcvm_runtime_%s.so' % (device_type)
+    lib_name = 'libcvm_runtime.so'
     lib_dll_path = [os.path.join(p, lib_name) for p in dll_path]
 
     lib_found = [p for p in lib_dll_path if os.path.exists(p) and os.path.isfile(p)]

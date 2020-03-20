@@ -10,8 +10,8 @@ CVMContext.set_global(GPU)
 # CVMContext.set_global(FORMAL)
 
 # model_root = "/home/serving/tvm-cvm/data/jetson/"
-model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
-# model_root = "/data/std_out/resnet50_v2"
+#  model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+model_root = "/data/std_out/resnet50_v2"
 # model_root = "/data/std_out/ssd"
 # model_root = "/data/std_out/resnet50_mxg/"
 json, params = utils.load_model(
@@ -28,6 +28,6 @@ out = CVMAPIInference(net, data)
 
 CVMAPIFreeModel(net)
 
-# utils.classification_output(out)
-utils.detection_output(out)
+utils.classification_output(out)
+# utils.detection_output(out)
 
