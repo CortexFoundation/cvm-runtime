@@ -102,7 +102,7 @@ void Reduce(DLTensor *x, DLTensor *y, TShape& axis, bool exclude, reduce_func co
   }
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.sum")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.sum")
   .set_body([](CVMArgs args, CVMRetValue *ret)
       {
       DLTensor *x = args[0];
@@ -121,7 +121,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.sum")
       print_to_file(y, "sum.txt");
       });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.max")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.max")
   .set_body([](CVMArgs args, CVMRetValue *ret)
       {
       DLTensor *x = args[0];

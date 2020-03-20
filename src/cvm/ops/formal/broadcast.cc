@@ -44,7 +44,7 @@ void broadcast(DLTensor *args0, DLTensor* args1, DLTensor* args2, broadcast_func
 
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_add")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];
@@ -57,7 +57,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_add")
     print_to_file(args2, "broadcast_add.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_sub")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_sub")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];
@@ -70,7 +70,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_sub")
     print_to_file(args2, "broadcast_sub.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_mul")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_mul")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];
@@ -83,7 +83,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_mul")
     print_to_file(args2, "broadcast_mul.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_max")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];
@@ -95,7 +95,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_max")
     broadcast(args0, args1, args2, f);
     print_to_file(args2, "broadcast_max.txt");
 });
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_div")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];
@@ -108,7 +108,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_div")
     print_to_file(args2, "broadcast_div.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.broadcast_greater")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_greater")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *args0 = args[0];
     DLTensor *args1 = args[1];

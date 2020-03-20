@@ -42,7 +42,7 @@ inline void deal_error(int error_code, const char* errorStr){
   }
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_add")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.elemwise_add")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *a = args[0];
       DLTensor *b = args[1];
@@ -57,7 +57,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_add")
 
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_sub")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.elemwise_sub")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *a = args[0];
       DLTensor *b = args[1];
@@ -72,7 +72,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.elemwise_sub")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.conv2d")
   .set_body([](CVMArgs args, CVMRetValue* rv){
       DLTensor *x = args[0];
       DLTensor *w = args[1];
@@ -151,7 +151,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.conv2d")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.dense")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.dense")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
       int ndim = args.num_args;
       DLTensor *x = args[0];
@@ -182,7 +182,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.dense")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.clip")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -201,7 +201,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.clip")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.relu")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.relu")
   .set_body([](CVMArgs args, CVMRetValue* rv) {
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -214,7 +214,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.relu")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.flatten")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.flatten")
   .set_body([](CVMArgs args, CVMRetValue* rv){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -228,7 +228,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.flatten")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_add")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_add")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
@@ -251,7 +251,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_add")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_sub")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_sub")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
@@ -274,7 +274,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_sub")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_mul")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_mul")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
@@ -297,7 +297,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_mul")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_div")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_div")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
@@ -320,7 +320,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_div")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_greater")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_greater")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
@@ -348,7 +348,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_greater")
  * ceil_mode False
  * padding (1, 1)
  */
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max_pool2d")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.max_pool2d")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -395,7 +395,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max_pool2d")
 /*
  * axis (2, 3)
  */
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.sum")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.sum")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *dlx = args[0];
       DLTensor *y = args[1];
@@ -483,7 +483,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.sum")
       }
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.reshape")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.reshape")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -502,7 +502,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.reshape")
  * y, output data
  * precision, clip precision
  */
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.cvm_clip")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -529,7 +529,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_clip")
  * precision, clip precision
  * b, shift b
  * */
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_right_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.cvm_right_shift")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *a = args[0];
       DLTensor *c = args[1];
@@ -552,7 +552,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_right_shift")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_left_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.cvm_left_shift")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *a = args[0];
       DLTensor *c = args[1];
@@ -574,7 +574,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_left_shift")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_precision")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.cvm_precision")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *dlx = args[0];
       DLTensor *y = args[1];
@@ -585,7 +585,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_precision")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.abs")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.abs")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *dlx = args[0];
       DLTensor *y = args[1];
@@ -596,7 +596,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.abs")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.max")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *dlx = args[0];
       DLTensor *y = args[1];
@@ -684,7 +684,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.max")
       }
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.broadcast_max")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *a = args[0];
       DLTensor *b = args[1];
@@ -707,7 +707,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.broadcast_max")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.concatenate")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       int len = args.num_args;
       DLTensor *input0 = args[0];
@@ -737,7 +737,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.concatenate")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.repeat")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.repeat")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -757,7 +757,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.repeat")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.negative")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.negative")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -769,7 +769,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.negative")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.tile")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.tile")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -785,7 +785,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.tile")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.expand_dims")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.expand_dims")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *ishape = args[0];
       DLTensor *oshape = args[1];
@@ -802,7 +802,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.expand_dims")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.transpose")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.transpose")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -824,7 +824,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.transpose")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.strided_slice")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.strided_slice")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -866,7 +866,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.strided_slice")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.slice_like")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.slice_like")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       //DLTensor *shape = args[1];
@@ -888,7 +888,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.slice_like")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.get_valid_counts")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.get_valid_counts")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *x = args[0];
       DLTensor *valid_count = args[1];
@@ -913,7 +913,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.get_valid_counts")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.non_max_suppression")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.non_max_suppression")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *x = args[0];
       DLTensor *valid_count = args[1];
@@ -949,7 +949,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.non_max_suppression")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.upsampling")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.upsampling")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *x = args[0];
       DLTensor *y = args[1];
@@ -970,7 +970,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.upsampling")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.take")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.take")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *x = args[0];
       DLTensor *indices = args[1];
@@ -1000,7 +1000,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.take")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_lut")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.cvm_lut")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *x = args[0];
       DLTensor *indices = args[1];
@@ -1015,7 +1015,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.cvm_lut")
       deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.squeeze")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.squeeze")
   .set_body([](CVMArgs args, CVMRetValue *ret)
       {
       DLTensor *ishape = args[0];
@@ -1033,7 +1033,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.squeeze")
       deal_error(error_code, errorStr);
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm_cuda.where")
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.where")
   .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *condition = args[0];
     DLTensor *x = args[1];

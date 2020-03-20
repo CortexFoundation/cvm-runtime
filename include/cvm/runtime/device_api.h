@@ -119,6 +119,7 @@ inline const char* DeviceName(int type) {
   switch (type) {
     case kDLCPU: return "cpu";
     case kDLGPU: return "gpu";
+    case kDLFORMAL: return "formal";
     default: LOG(FATAL) << "unknown type =" << type; return "Unknown";
   }
 }

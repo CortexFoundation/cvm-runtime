@@ -6,26 +6,6 @@
 #ifndef DLPACK_DLPACK_H_
 #define DLPACK_DLPACK_H_
 
-#ifdef __cplusplus
-#define DLPACK_EXTERN_C extern "C"
-#else
-#define DLPACK_EXTERN_C
-#endif
-
-/*! \brief The current version of dlpack */
-#define DLPACK_VERSION 020
-
-/*! \brief DLPACK_DLL prefix for windows */
-#ifdef _WIN32
-#ifdef DLPACK_EXPORTS
-#define DLPACK_DLL __declspec(dllexport)
-#else
-#define DLPACK_DLL __declspec(dllimport)
-#endif
-#else
-#define DLPACK_DLL
-#endif
-
 #include <stdint.h>
 #include <stddef.h>
 
@@ -40,6 +20,7 @@ typedef enum {
   kDLCPU = 1,
   /*! \brief CUDA GPU device */
   kDLGPU = 2,
+  kDLFORMAL = 3,
 } DLDeviceType;
 
 /*!

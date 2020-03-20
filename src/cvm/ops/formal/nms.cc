@@ -62,7 +62,7 @@ void get_valid_count(const int32_t *x_data, int32_t *y_data, int32_t *valid_coun
   }
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.get_valid_counts")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.get_valid_counts")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     DLTensor *x = args[0];
     DLTensor *valid_count = args[1];
@@ -84,7 +84,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.get_valid_counts")
     get_valid_count(x_data, y_data, valid_count_data, batches, n, k, score_threshold);
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.non_max_suppression")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.non_max_suppression")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
     auto X = CVMArg2Data<int32_t>(args[0]);
     auto valid_count = CVMArg2Data<int32_t>(args[1]);

@@ -89,7 +89,6 @@ struct OpArgs {
 };
 
 int run_LIF(string model_root, int device_type = 0) {
-//#if(USE_GPU==0)
 
   //printf("the elewise cnt = %.4f\n", cvm::runtime::cvm_op_elemwise_cnt);
   string json_path = model_root + "/symbol";
@@ -177,7 +176,6 @@ int run_LIF(string model_root, int device_type = 0) {
   CHECK_STATUS(status, "inference failed");
   status = CVMAPIFreeModel(net);
   CHECK_STATUS(status, "free model failed");
-//#if(USE_GPU == 0)
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
     uint64_t n_bytes = 4;
@@ -254,51 +252,51 @@ void test_thread() {
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
-    "/data/wlt/yolo_tfm",
-    "/data/std_out/null",
+    // "/data/wlt/yolo_tfm",
+    // "/data/std_out/null",
     "/data/std_out/resnet50_mxg",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/trec",
-    // "/data/new_cvm/yolo3_darknet53_voc/data",
-    "/data/lz_model_storage/dcnet_mnist_v1/data",
-    "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
-    "/data/lz_model_storage/resnet50_v1_imagenet/data",
-    "/data/lz_model_storage/animal10/data",
-    "/data/lz_model_storage/resnet50_v2/data",
-    "/data/lz_model_storage/vgg16_gcv/data",
-    "/data/lz_model_storage/sentiment_trec/data",
-    "/data/lz_model_storage/vgg19_gcv/data",
-    "/data/lz_model_storage/squeezenet_gcv1.1/data",
-    "/data/lz_model_storage/squeezenet_gcv1.0/data",
-    // invalid has strange attribute in operator elemwise_add.
-    // "/data/lz_model_storage/octconv_resnet26_0.250/data",
-    "/data/std_out/resnet50_mxg/",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/random_3_0/",
-    "/data/std_out/random_3_1/",
-    "/data/std_out/random_3_2/",
-    "/data/std_out/random_3_3/",
-    "/data/std_out/random_3_4/",
-    "/data/std_out/random_3_5/",
-    "/data/std_out/random_4_0/",
-    "/data/std_out/random_4_1/",
-    // "/data/std_out/random_4_2/",
-    // "/data/std_out/random_4_3/",
-    // "/data/std_out/random_4_4/",
-    "/data/std_out/random_4_5/",
-    "/data/std_out/random_4_6/",
-    "/data/std_out/random_4_7/",
-    "/data/std_out/random_4_8/",
-    "/data/std_out/random_4_9/",
-    "/data/std_out/log2",
-    "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
-    "/data/std_out/lr_attr",
-    // "/data/std_out/non_in",
-    "/data/std_out/shufflenet",
-    "/data/std_out/ssd",
-    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
+    // "/data/std_out/resnet50_v2",
+    // "/data/std_out/qd10_resnet20_v2",
+    // "/data/std_out/trec",
+    // // "/data/new_cvm/yolo3_darknet53_voc/data",
+    // "/data/lz_model_storage/dcnet_mnist_v1/data",
+    // "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
+    // "/data/lz_model_storage/resnet50_v1_imagenet/data",
+    // "/data/lz_model_storage/animal10/data",
+    // "/data/lz_model_storage/resnet50_v2/data",
+    // "/data/lz_model_storage/vgg16_gcv/data",
+    // "/data/lz_model_storage/sentiment_trec/data",
+    // "/data/lz_model_storage/vgg19_gcv/data",
+    // "/data/lz_model_storage/squeezenet_gcv1.1/data",
+    // "/data/lz_model_storage/squeezenet_gcv1.0/data",
+    // // invalid has strange attribute in operator elemwise_add.
+    // // "/data/lz_model_storage/octconv_resnet26_0.250/data",
+    // "/data/std_out/resnet50_mxg/",
+    // "/data/std_out/resnet50_v2",
+    // "/data/std_out/qd10_resnet20_v2",
+    // "/data/std_out/random_3_0/",
+    // "/data/std_out/random_3_1/",
+    // "/data/std_out/random_3_2/",
+    // "/data/std_out/random_3_3/",
+    // "/data/std_out/random_3_4/",
+    // "/data/std_out/random_3_5/",
+    // "/data/std_out/random_4_0/",
+    // "/data/std_out/random_4_1/",
+    // // "/data/std_out/random_4_2/",
+    // // "/data/std_out/random_4_3/",
+    // // "/data/std_out/random_4_4/",
+    // "/data/std_out/random_4_5/",
+    // "/data/std_out/random_4_6/",
+    // "/data/std_out/random_4_7/",
+    // "/data/std_out/random_4_8/",
+    // "/data/std_out/random_4_9/",
+    // "/data/std_out/log2",
+    // "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
+    // "/data/std_out/lr_attr",
+    // // "/data/std_out/non_in",
+    // "/data/std_out/shufflenet",
+    // "/data/std_out/ssd",
+    // "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);

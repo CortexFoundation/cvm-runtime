@@ -16,7 +16,7 @@ inline void elemwise(DLTensor *args0, DLTensor *args1, DLTensor *args2, const el
 
 }
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_add")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *args0 = args[0];
@@ -30,7 +30,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_add")
   print_to_file(args2, "elemwise_add.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_sub")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_sub")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *args0 = args[0];
@@ -43,7 +43,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.elemwise_sub")
   elemwise(args0, args1, args2, f);
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
 .set_body([](CVMArgs args, CVMRetValue* rv){
    DLTensor *x = args[0];
    DLTensor *y = args[1];
@@ -59,7 +59,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.clip")
    }
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
      DLTensor *x = args[0];
@@ -74,7 +74,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.flatten")
   print_to_file(y, "flatten.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -84,7 +84,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.reshape")
   print_to_file(y, "reshape.txt");
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
   DLTensor *x = args[0];
@@ -109,7 +109,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_clip")
 }
 );
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_right_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     auto X = CVMArg2Data<int32_t>(args[0]);
     auto Y = CVMArg2Data<int32_t>(args[1]);
@@ -126,7 +126,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_right_shift")
 
 });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.cvm.cvm_left_shift")
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *a = args[0];
     DLTensor *c = args[1];
