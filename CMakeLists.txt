@@ -12,18 +12,11 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/config.cmake)
 endif()
 
-# NOTE: do not modify this file to change option values.
-# You can create a config.cmake at build folder
-# and add set(OPTION VALUE) to override these build options.
-# Alernatively, use cmake -DOPTION=VALUE through command-line.
-# cvm_option(USE_CUDA "Build with CUDA" ON)
-
 # include directories
 include_directories("include")
 
 # initial variables
 set(CVM_RUNTIME_LINKER_LIBS "")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Generic compilation options
 set(CMAKE_C_FLAGS "-fsigned-char -Wall -fPIC ${CMAKE_C_FLAGS}")
@@ -43,7 +36,7 @@ file(GLOB RUNTIME_SRCS src/core/*.cc
 
 if(PROFILE)
   add_definitions(-DPROFILE)
-  if (USE_CUDA)
+  if (ENABLE_CUDA)
     add_definitions(-DCUDA_PROFILE)
   endif()
 endif()
@@ -53,15 +46,15 @@ file(GLOB CVM_SRCS src/cvm/*.cc
                    src/cvm/ops/cpu/*.cc) 
 set (EXECUTE_NAME cvm_runtime)
 
-if(USE_CUDA)
+if(ENABLE_CUDA)
     message(STATUS "ENABLE CUDA")
     # project(cvm CUDA)
 
-    find_cuda(${USE_CUDA})
+    find_cuda(${ENABLE_CUDA})
     if (CUDA_FOUND)
       include_directories(${CUDA_INCLUDE_DIRS})
     else()
-      message(FATAL_ERROR "Cannot find CUDA, USE_CUDA=" ${USE_CUDA})
+      message(FATAL_ERROR "Cannot find CUDA, ENABLE_CUDA=" ${ENABLE_CUDA})
     endif()
 
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDART_LIBRARY})
@@ -84,7 +77,7 @@ if(USE_CUDA)
     list(APPEND CVM_SRCS ${CUDA_LIBS})
 endif()
 
-if(USE_FORMAL)
+if(ENABLE_FORMAL)
     message(STATUS "ENABLE FORMALIZATION")
     file(GLOB RUNTIME_CUDA_SRCS src/runtime/formal/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
