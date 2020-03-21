@@ -1,4 +1,6 @@
 .PHONY: clean all dep test_cpu test_gpu test_formal 
+# .PHONY: test_model_cpu test_model_gpu test_model_formal
+# .PHONY: test_op_cpu test_op_gpu test_op_formal
 
 BUILD := build
 INCLUDE := include
