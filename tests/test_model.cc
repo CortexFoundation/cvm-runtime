@@ -11,8 +11,8 @@ using namespace std;
 using cvm::runtime::PackedFunc;
 using cvm::runtime::Registry;
 
-#ifndef USE_GPU
-#define USE_GPU  0
+#ifndef DEVICE
+#define DEVICE  0
 #endif
 
 #define CHECK_STATUS(x, msg) \
@@ -305,7 +305,7 @@ int test_models(int device_type = 0) {
   return 0;
 }
 int main() {
- if (test_models(USE_GPU) != 0)
+ if (test_models(DEVICE) != 0)
    return -1;
   return 0;
 }

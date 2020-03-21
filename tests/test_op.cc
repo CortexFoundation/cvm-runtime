@@ -7,6 +7,7 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>
+#include <cvm/runtime/device_api.h>
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
@@ -28,6 +29,13 @@ using cvm::runtime::Registry;
 using namespace cvm;
 using namespace cvm::runtime;
 
+static 
+std::unordered_map<int, DLDeviceType> const APIDevTypeMap = {
+  {0, kDLCPU},
+  {1, kDLGPU},
+  {2, kDLFORMAL},
+};
+
 int dtype_code{kDLInt};
 int dtype_bits{32};
 int dtype_lanes{1};
@@ -40,11 +48,11 @@ struct CVMOpParam {
   std::string attrs;
 };
 
-#ifdef USE_GPU 
-int ctx = kDLGPU;
-#else
-int ctx = kDLCPU;
-#endif
+#ifndef DEVICE
+#define DEVICE 0
+#endif 
+
+int ctx = APIDevTypeMap.at(DEVICE);
 
 int device_id = 0;
 /*
@@ -120,8 +128,8 @@ std::function<void()> get_func(
 
   auto op = param.func_name;
   int device_type = static_cast<int>(ctx);
-  std::string module_name = "cvm.runtime.cvm";
-  if (device_type == kDLGPU) module_name += "_cuda";
+  std::string module_name = "cvm.runtime.";
+  module_name += DeviceName(device_type);
   module_name += ".";
   auto func = cvm::runtime::Registry::Get(module_name + op);
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
@@ -339,7 +347,6 @@ int findAllSubDir(std::vector<string> &filelist, const char *basePath, int type)
 {
     DIR *dir;
     struct dirent *ptr;
-    char base[1000];
 
     if ((dir=opendir(basePath)) == NULL)
     {
@@ -634,15 +641,15 @@ void test_op(string op_name) {
   }
 }
 int main() {
-  test_op("max_pool2d");
-  test_op("upsampling");
-  test_op("dense");
-  test_op("conv2d");
-  test_op("sum");
-  test_op("max"); // pass
-  test_op("slice_like");
-  test_op("tile"); //pass
-  test_op("repeat"); //pass
+  // test_op("max_pool2d");
+  // test_op("upsampling");
+  // test_op("dense");
+  // test_op("conv2d");
+  // test_op("sum");
+  // test_op("max"); // pass
+  // test_op("slice_like");
+  // test_op("tile"); //pass
+  // test_op("repeat"); //pass
   test_op("get_valid_counts");
 
   test_op("strided_slice"); //pass

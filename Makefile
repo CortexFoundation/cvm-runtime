@@ -1,42 +1,41 @@
-.PHONY: clean all test_model test_op dep
+.PHONY: clean all dep test_cpu test_gpu test_formal 
+# .PHONY: test_model_cpu test_model_gpu test_model_formal
+# .PHONY: test_op_cpu test_op_gpu test_op_formal
 
 BUILD := build
+INCLUDE := include
+TESTS := tests
 
-all: lib test_model test_op
+all: lib test_cpu test_gpu test_formal
+	echo ${TEST_CPUS}
 
 dep:
 	@cp cmake/config.cmake . --update
 	@mkdir -p ${BUILD}
+	@mkdir -p ${BUILD}/${TESTS}
 
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
 
-test_model: test_model_cpu test_model_gpu test_model_formal 
-test_op: test_op_cpu test_op_gpu test_op_formal
+TEST_SRCS := $(wildcard ${TESTS}/*.cc)
+TEST_EXES := $(patsubst ${TESTS}/%.cc,%,${TEST_SRCS})
 
-test_model_cpu: tests/test_model.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=0 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
+TEST_CPUS := $(patsubst %,%_cpu,${TEST_EXES})
+TEST_GPUS := $(patsubst %,%_gpu,${TEST_EXES})
+TEST_FORMALS := $(patsubst %,%_formal,${TEST_EXES})
 
-test_model_gpu: tests/test_model.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=1 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
+test_cpu: ${TEST_CPUS}
+test_gpu: ${TEST_GPUS}
+test_formal: ${TEST_FORMALS}
 
-test_model_formal: tests/test_model.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=2 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
+%_cpu: ${TESTS}/%.cc lib
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=0 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
-test_op_cpu: tests/test_op.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=0 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
+%_gpu: ${TESTS}/%.cc lib
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=1 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
-test_op_gpu: tests/test_op.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=1 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
-
-test_op_formal: tests/test_op.cc lib
-	g++ -o ${BUILD}/$@ $< -DUSE_GPU=2 -std=c++11 -Iinclude -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
-	@${BUILD}/$@
+%_formal: ${TESTS}/%.cc lib
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 clean:
 	  rm -rf ./build/*
