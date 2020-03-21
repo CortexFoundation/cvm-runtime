@@ -55,7 +55,7 @@ extern "C" {
  * \brief Set the last error message needed by C API
  * \param msg The error message to set.
  */
-CVM_DLL void CVMAPISetLastError(const char* msg);
+//CVM_DLL void CVMAPISetLastError(const char* msg);
 
 /*!
  * \brief return str message of the last error
@@ -66,7 +66,7 @@ CVM_DLL void CVMAPISetLastError(const char* msg);
  *  this function is threadsafe and can be called by different thread
  *  \return error info
  */
-CVM_DLL const char *CVMGetLastError(void);
+//CVM_DLL const char *CVMGetLastError(void);
 
 /*!
  * \brief list all the available operator names, include entries.

@@ -41,7 +41,9 @@ file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
                        src/runtime/cpu/*.cc)
 
-file(GLOB CVM_SRCS src/cvm/*.cc)
+file(GLOB CVM_SRCS src/cvm/*.cc
+                   src/cvm/compiler/*.cc
+                   src/cvm/pass/*.cc)
 set (EXECUTE_NAME cvm_runtime)
 
 if(ENABLE_CPU)

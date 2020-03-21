@@ -5,23 +5,9 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <utils/registry.h>
-//#include "c_api_common.h"
 
 using namespace cvm;
 
-struct CVMAPIThreadLocalEntry {
-  /*! \brief result holder for returning string */
-  std::string ret_str;
-  /*! \brief result holder for returning strings */
-  std::vector<std::string> ret_vec_str;
-  /*! \brief result holder for returning string pointers */
-  std::vector<const char *> ret_vec_charp;
-  /*! \brief result holder for returning handles */
-  std::vector<void *> ret_handles;
-  /*! \brief argument holder to hold symbol */
-  std::unordered_map<std::string, const cvm::Symbol*> kwarg_symbol;
-};
-typedef utils::ThreadLocalStore<CVMAPIThreadLocalEntry> CVMAPIThreadLocalStore;
 
 int CVMListAllOpNames(nn_uint *out_size,
                      const char*** out_array) {

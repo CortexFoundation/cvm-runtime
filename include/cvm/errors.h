@@ -9,6 +9,7 @@
 #include <utils/thread_local.h>
 #include <cvm/c_api.h>
 #include <cvm/runtime/c_runtime_api.h>
+#include <cvm/symbolic.h>
 #include <exception>
 
 #define PRINT(e) // printf("ERROR: %s\n", e);
@@ -41,6 +42,22 @@ struct CVMRuntimeEntry {
 };
 
 typedef utils::ThreadLocalStore<CVMRuntimeEntry> CVMAPIRuntimeStore;
+
+struct CVMAPIThreadLocalEntry {
+  /*! \brief result holder for returning string */
+  std::string ret_str;
+  /*! \brief result holder for returning strings */
+  std::vector<std::string> ret_vec_str;
+  /*! \brief result holder for returning string pointers */
+  std::vector<const char *> ret_vec_charp;
+  /*! \brief result holder for returning handles */
+  std::vector<void *> ret_handles;
+  /*! \brief argument holder to hold symbol */
+  std::unordered_map<std::string, const cvm::Symbol*> kwarg_symbol;
+};
+
+/*! \brief Thread local store that can be used to hold return values. */
+typedef utils::ThreadLocalStore<CVMAPIThreadLocalEntry> CVMAPIThreadLocalStore;
 
 /*!
  * \brief Used for implementing C API function.

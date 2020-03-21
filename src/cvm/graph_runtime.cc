@@ -33,6 +33,8 @@
 namespace cvm {
 namespace runtime {
 
+CVMUTIL_REGISTER_PARAMETER(CVMOpParam);
+
 /*!
  * \brief Run all the operations one by one.
  */
