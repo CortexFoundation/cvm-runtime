@@ -16,10 +16,11 @@ __global__ void kernel_get_count(const int32_t batchs, const int32_t n, const in
   const int batch = bidy; 
   __shared__ int32_t share_box[BS][32];
   __shared__ int32_t count;
-  share_box[lid][0] = -1;
+  share_box[lid][score_index] = -1;
   if(lid == 0) {
     count = 0;
   }
+  __syncthreads();
   int x_i = batch * n * K + gidx * K; 
   if(gidx < n){
     for(int i = 0; i < K; i++)
