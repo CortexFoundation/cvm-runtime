@@ -15,6 +15,9 @@
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/c_symbol_api.h>
 #include <cvm/symbolic.h>
+#include <cvm/c_api_graph.h>
+#include <unordered_map>
+#include <string>
 
 using namespace std;
 
@@ -51,6 +54,7 @@ int main(){
   //  printf("op %d: %s\n", i, opNameList[i]); 
   //}
 
+  printf("get clip handle.\n");
   OpHandle op;
   ret = CVMGetOpHandle("clip", &op);
   if(ret == -1){
@@ -58,6 +62,7 @@ int main(){
     return 0;
   }
 
+  printf("get clip info:\n");
   OpInfo opInfo;
   ret = CVMGetOpInfo(
       op, 
@@ -74,14 +79,53 @@ int main(){
   const char *vals[] = {"0", "10"};
   SymbolHandle symbolHandle;
   nn_uint num_param = 2;
+  printf("create clip symble handle.\n");
   ret = CVMSymbolCreateAtomicSymbol(op, num_param, keys, vals, &symbolHandle);
+  if(ret != 0){
+    printf("create clip symble failed.\n");
+    return 0;
+  }
 
-  Symbol *symbol = (Symbol*)symbolHandle;
-  symbol->Print(std::cout);
+  Symbol clip_symbol = *(Symbol*)symbolHandle;
+  //clip_symbol.Print(std::cout);
   //vector<cvm::NodePtr> nodePtr = symbol->ListInputs(Symbol::kAll);
   //Symbol xsymbol = Symbol::CreateVariable("x");
   //int a[10] = {0};
   //vector<int> b;
   //cvm::NodePtr np = cvm::Node::Create();
+  //
+  //
+  Symbol x = Symbol::CreateVariable("x");
+  std::vector<const Symbol*> vec_args(1);
+  vec_args[0] = &x;
+  utils::array_view<const Symbol*> args(vec_args);
+  const std::string ret_name = "y";
+  std::unordered_map<std::string, const Symbol*>& kwargs;
+  clip_symbol(args, NULL, ret_name);
+
+  printf("create graph.\n");
+  GraphHandle graph;
+  ret = CVMGraphCreate(symbolHandle, &graph);
+  if(ret != 0){
+    printf("create graph failed.\n");
+    return 0;
+  }
+
+  const char *key = "shape_inputs";
+  const char *json_value = "[\"list_shape\", [[1]]]";
+  ret = CVMGraphSetJSONAttr(graph, key, json_value);
+  if(ret != 0){
+    printf("graph set json attr failed.\n");
+    return 0;
+  }
+  
+  GraphHandle dstGraph;
+  const char* pass_names[] = {"InferShape", "InferPrecision", "GraphCompile"};
+  ret = CVMGraphApplyPasses(graph, 3, pass_names, &dstGraph);
+  if(ret != 0){
+    printf("apply pass GraphCompile failed.\n");
+    return 0;
+  }
+  CVMGraphFree(graph);
   return 0;
 }

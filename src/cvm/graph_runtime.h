@@ -38,12 +38,20 @@ using cvm::NodeAttrs;
 constexpr uint64_t kCVMNDArrayListMagic = 0xF7E58D4F05049CB7;
 
 /*! \brief operator attributes about cvm op */
-struct CVMOpParam {
+struct CVMOpParam : public utils::Parameter<CVMOpParam> {
   std::string func_name;
   uint32_t num_inputs;
   uint32_t num_outputs;
   uint32_t flatten_data;
   std::string attrs;
+
+  CVMUTIL_DECLARE_PARAMETER(CVMOpParam) {
+    CVMUTIL_DECLARE_FIELD(func_name);
+    CVMUTIL_DECLARE_FIELD(num_inputs).set_default(1);
+    CVMUTIL_DECLARE_FIELD(num_outputs).set_default(1);
+    CVMUTIL_DECLARE_FIELD(flatten_data).set_default(0);
+    CVMUTIL_DECLARE_FIELD(attrs).set_default("{}");
+  }
 };
 
 

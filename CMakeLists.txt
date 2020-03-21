@@ -50,7 +50,7 @@ if(PROFILE)
 endif()
 
 message(STATUS "Build with CVM runtime support...")
-file(GLOB CVM_SRCS src/cvm/*.cc) 
+file(GLOB CVM_SRCS src/cvm/*.cc src/cvm/compiler/*.cc src/cvm/pass/*.cc) 
 if(USE_CUDA)
     message("USE CUDA")
     # project(cvm CUDA)
