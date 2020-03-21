@@ -34,7 +34,7 @@ Thumbs.db
 # lib
 *.a
 *.so
-python/libcvm.c
+python/cvm/_cython/libcvm.c
 
 compile_commands.json
 .ycm_extra_conf.py
