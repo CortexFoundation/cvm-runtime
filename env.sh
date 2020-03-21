@@ -14,4 +14,6 @@ fi
 echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}"
 echo
 
-python3 python/setup.py build_ext -i
+cd python
+python3 setup.py build_ext -i
+cd ..

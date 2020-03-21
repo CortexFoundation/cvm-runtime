@@ -16,9 +16,6 @@ def config_cython():
             [os.path.join(path, fn)],
             include_dirs=[os.path.join(root_dir, "include")],
             library_dirs=[os.path.join(root_dir, "build")],
-            runtime_library_dirs=[
-                "../../../build",
-                os.path.join(root_dir, "build")],
             libraries=['cvm_runtime']))
     return cythonize(ret, compiler_directives={"language_level": 3})
 
