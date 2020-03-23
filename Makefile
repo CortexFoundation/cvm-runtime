@@ -1,4 +1,4 @@
-.PHONY: clean all dep test_cpu test_gpu test_formal 
+.PHONY: clean all dep test_cpu test_gpu test_formal python
 # .PHONY: test_model_cpu test_model_gpu test_model_formal
 # .PHONY: test_op_cpu test_op_gpu test_op_formal
 
@@ -6,7 +6,7 @@ BUILD := build
 INCLUDE := include
 TESTS := tests
 
-all: lib test_cpu test_gpu test_formal
+all: lib python test_cpu test_gpu test_formal
 	echo ${TEST_CPUS}
 
 dep:
@@ -36,6 +36,9 @@ test_formal: ${TEST_FORMALS}
 
 %_formal: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+
+python: lib
+	. env.sh
 
 clean:
 	  rm -rf ./build/*
