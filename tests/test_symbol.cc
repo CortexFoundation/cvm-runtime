@@ -86,7 +86,7 @@ int main(){
     return 0;
   }
 
-  Symbol clip_symbol = *(Symbol*)symbolHandle;
+  Symbol *clip_symbol = (Symbol*)symbolHandle;
   //clip_symbol.Print(std::cout);
   //vector<cvm::NodePtr> nodePtr = symbol->ListInputs(Symbol::kAll);
   //Symbol xsymbol = Symbol::CreateVariable("x");
@@ -100,8 +100,8 @@ int main(){
   vec_args[0] = &x;
   utils::array_view<const Symbol*> args(vec_args);
   const std::string ret_name = "y";
-  std::unordered_map<std::string, const Symbol*>& kwargs;
-  clip_symbol(args, NULL, ret_name);
+  std::unordered_map<std::string, const Symbol*> kwargs;
+  clip_symbol->Compose(args, kwargs, ret_name);
 
   printf("create graph.\n");
   GraphHandle graph;
@@ -111,16 +111,18 @@ int main(){
     return 0;
   }
 
-  const char *key = "shape_inputs";
-  const char *json_value = "[\"list_shape\", [[1]]]";
-  ret = CVMGraphSetJSONAttr(graph, key, json_value);
-  if(ret != 0){
-    printf("graph set json attr failed.\n");
-    return 0;
+  const char *key[] = {"shape_inputs", "dtype_inputs", "target"};
+  const char *json_value[] = {"[\"list_shape\", [[1]]]", "[\"list_int\", [8]]", "\"str\", \"cpu\""};
+  for(int i = 0; i < 2; i++){
+    ret = CVMGraphSetJSONAttr(graph, key[i], json_value[i]);
+    if(ret != 0){
+      printf("graph set json attr (%d, %s) failed.\n", i, key[i]);
+      return 0;
+    }
   }
   
   GraphHandle dstGraph;
-  const char* pass_names[] = {"InferShape", "InferPrecision", "GraphCompile"};
+  const char* pass_names[] = {"InferShape", "InferType", "GraphCompile"};
   ret = CVMGraphApplyPasses(graph, 3, pass_names, &dstGraph);
   if(ret != 0){
     printf("apply pass GraphCompile failed.\n");
