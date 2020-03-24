@@ -1,6 +1,7 @@
 #include <cvm/c_api.h>
 #include <cvm/model.h>
 #include <cvm/dlpack.h>
+#include <cvm/time.h>
 #include <cvm/runtime/device_api.h>
 #include <cvm/runtime/registry.h>
 #include <string.h>
@@ -56,12 +57,36 @@ int CVMAPIInference(void *net,
   CHECK_3_NOT_NULL(net, input_data, output_data);
 
   CVMModel* model = static_cast<CVMModel*>(net);
+
+#ifdef PROFILE
+  auto start = cvm_clock::now();
+#endif
+
   DLTensor *input = model->PlanInput(input_data, input_len);
   auto outputs = model->PlanOutput();
+
+#ifdef PROFILE
+  auto end = cvm_clock::now();
+  auto elapsed = end - start;
+#endif
+
   model->Run(input, outputs);
   model->SaveTensor(outputs, output_data);
+
+#ifdef PROFILE
+  start = cvm_clock::now();
+#endif
+
   if (input) CVMArrayFree(input);
   for (auto &output : outputs) CVMArrayFree(output);
+
+#ifdef PROFILE
+  end = cvm_clock::now();
+  elapsed += end - start;
+  std::cout << "Temporary variable in Infer time elapsed: "
+    << std::chrono::duration_cast<microseconds>(elapsed).count() << " us" << std::endl;
+#endif
+
   API_END();
 }
 
