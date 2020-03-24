@@ -11,8 +11,8 @@ CVMContext.set_global(GPU)
 # CVMContext.set_global(FORMAL)
 
 # model_root = "/home/serving/tvm-cvm/data/jetson/"
-model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
-#  model_root = "/data/wlt/resnet18_v1_tfm"
+# model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+model_root = "/data/wlt/resnet18_v1_tfm"
 #  model_root = "/data/std_out/resnet50_v2"
 # model_root = "/data/std_out/ssd"
 # model_root = "/data/std_out/resnet50_mxg/"
@@ -26,7 +26,7 @@ print(CVMAPIGetOutputLength(net))
 data_path = os.path.join(model_root, "data.npy")
 data = utils.load_np_data(data_path)
 
-iter_num = 10
+iter_num = 1
 start = time.time()
 for i in range(iter_num):
     out = CVMAPIInference(net, data)

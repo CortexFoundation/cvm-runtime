@@ -5,8 +5,8 @@
 namespace cvm{
 namespace runtime{
 
-#define BS 16
-#define FS 8
+//#define BS 16
+//#define FS 8
 
   __global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int n){
     int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -35,6 +35,7 @@ __global__ void kernel_transpose_i32_to_i8(const int32_t *in, int8_t *out,
     out[oy * OH + ox] = (int8_t)share_in[lidy][lidx];
 }
 
+#define MATRIX_PAD 64
 __global__ void im2col_gpu_kernel_pad(const int n, const int32_t* data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
@@ -44,7 +45,7 @@ __global__ void im2col_gpu_kernel_pad(const int n, const int32_t* data_im,
     int8_t* data_col) {
   int tid = threadIdx.x + blockDim.x * blockIdx.x;
   const int cols = height_col * width_col;
-  const int offset = (cols + 63) / 64 * 64;
+  const int offset = (cols + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   for(int64_t index = tid; index < n; index += gridDim.x*blockDim.x){
     const int h_index = index / width_col;
     const int h_col = h_index % height_col;
@@ -242,6 +243,137 @@ __global__ void kernel_matrix_mul_opt(
   }
 }
 
+inline __device__ int4 vec4Add(const int a, const int4 b){
+  return make_int4(
+      a + b.x,
+      a + b.y,
+      a + b.z,
+      a + b.w
+      );
+}
+inline __device__ int4 vec4Add(const int4 a, const int4 b){
+  return make_int4(
+      a.x + b.x,
+      a.y + b.y,
+      a.z + b.z,
+      a.w + b.w
+      );
+}
+inline __device__ int4 vec4Mul(const signed char a, const char4 b){
+  return make_int4(a*b.x, a*b.y, a*b.z, a*b.w);
+}
+
+texture<char4, 1, cudaReadModeElementType> texRefA;
+texture<char4, 1, cudaReadModeElementType> texRefB;
+template<const int BS, const int NA, const int NB, const bool hasBias>
+__global__ void kernel_matrix_mul_opt6(
+    const char4* __restrict__ A,
+    const char4* __restrict__ B,
+    int *C, // m*n
+    const int32_t SM, const int32_t SK, const int32_t SN, const int32_t * __restrict__ bias,
+    const int32_t TM, const int32_t TK, const int32_t TN){
+  const int M = TM / 4;
+  const int N = TN / 4;
+  __shared__ char4 smem[BS*BS*NA + BS*BS*NB];
+  char4 *cacheA = smem;
+  char4 *cacheB = smem + BS*BS*NA;
+
+  int lidx = threadIdx.x;
+  int lidy = threadIdx.y;
+  int bidx = blockIdx.x;
+  int bidy = blockIdx.y;
+
+  int4 csub[NA][4][NB] = {{{make_int4(0, 0, 0, 0)}}};
+
+  for(int k = 0; k < TK; k += BS){
+    char4 ta[NA];
+#pragma unroll
+    for(int i = 0; i < NA; ++i){
+      ta[i] = A[(NA * bidy + i) * BS + (k + lidy) * M + lidx]; 
+     // ta[i] = tex1Dfetch(texRefA, (NA * bidy + i) * BS + (k + lidy) * M + lidx); 
+    }
+
+    char4 tb[NB];
+#pragma unroll 
+    for(int i = 0; i < NB; ++i){
+      tb[i] = B[(NB * bidx + i) * BS + (k + lidy) * N + lidx];
+     // tb[i] = tex1Dfetch(texRefB, (NB * bidx + i) * BS + (k + lidy) * N + lidx);
+    }
+
+    __syncthreads();
+
+#pragma unroll
+    for(int i = 0; i < NA; ++i){
+      cacheA[(NA*lidy + i) * BS + lidx] = ta[i];
+    }
+#pragma unroll 
+    for(int i = 0; i < NB; ++i){
+      cacheB[(NB * lidy + i) * BS + lidx] = tb[i];
+    }    
+    __syncthreads();
+
+    for(int i = 0; i < BS; ++i){
+      char4 tmpa[NA];
+#pragma unroll
+      for(int ti = 0; ti < NA; ++ti){
+        tmpa[ti] = cacheA[(NA * i + ti) * BS + lidy];
+      }
+      char4 tmpb[NA];
+#pragma unroll
+      for(int ti = 0; ti < NB; ++ti){
+        tmpb[ti] = cacheB[(NB * i + ti) * BS + lidx];
+      }
+
+#pragma unroll
+      for(int ti = 0; ti < NA; ++ti){
+#pragma unroll
+        for(int tj = 0; tj < NB; ++tj){
+          csub[ti][0][tj] = vec4Add(csub[ti][0][tj], vec4Mul(tmpa[ti].x, tmpb[tj]));
+          csub[ti][1][tj] = vec4Add(csub[ti][1][tj], vec4Mul(tmpa[ti].y, tmpb[tj]));
+          csub[ti][2][tj] = vec4Add(csub[ti][2][tj], vec4Mul(tmpa[ti].z, tmpb[tj]));
+          csub[ti][3][tj] = vec4Add(csub[ti][3][tj], vec4Mul(tmpa[ti].w, tmpb[tj]));
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+  if(hasBias){
+#pragma unroll
+    for(int ti = 0; ti < NA; ++ti){
+      int cy = (bidy*NA + ti) * BS + lidy;
+      const int bv0 = bias[cy*4];
+      const int bv1 = bias[cy*4+1];
+      const int bv2 = bias[cy*4+2];
+      const int bv3 = bias[cy*4+3];
+#pragma unroll
+      for(int tj = 0; tj < NB; ++tj){
+        csub[ti][0][tj] = vec4Add(bv0, csub[ti][0][tj]);
+        csub[ti][1][tj] = vec4Add(bv1, csub[ti][1][tj]);
+        csub[ti][2][tj] = vec4Add(bv2, csub[ti][2][tj]);
+        csub[ti][3][tj] = vec4Add(bv3, csub[ti][3][tj]);
+      }
+    }
+  }
+#pragma unroll
+  for(int ti = 0; ti < NA; ++ti){
+#pragma unroll
+    for(int tj = 0; tj < NB; ++tj){
+      int cy = (bidy*NA + ti) * BS + lidy; 
+      int cx = (bidx*NB + tj) * BS + lidx;
+
+      for(int ci = 0; ci < 4; ci++){
+        int tc[4] = {csub[ti][ci][tj].x, csub[ti][ci][tj].y, csub[ti][ci][tj].z, csub[ti][ci][tj].w};
+        for(int tk = 0; cy*4+ci < SM && tk < 4; tk++){
+          int index = (cy * 4 + ci)*SN + cx * 4 + tk;
+          if(cx * 4 + tk < SN)
+            C[index] = tc[tk];
+        }
+      }
+    }
+  }
+}
+
 inline void im2col_gpu(const int32_t* data_im, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
         const int pad_h, const int pad_w,
@@ -276,23 +408,20 @@ const char* cuda_conv2d(
     int32_t *ext_space, 
     int32_t ext_space_size, int& error_code){
 
-  if(i_n < 1 || i_c < 1 || i_h < 1 || i_w < 1 || f_n < 1 || f_c < 1 || f_h < 1 || f_w < 1 || 
-      padding_h < 0 || padding_w < 0 || stride_h < 1 || stride_w < 1 || dilation_h < 1 || dilation_w < 1 ||
-      o_n < 1 || o_c < 1 || o_h < 1 || o_w < 1){
-    error_code = ERROR_PARAMS;
-    return "error args";
-  }
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
   const int M = o_c;
-  const int TM = (M + 63) / 64* 64;
+  const int TM = (M + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   const int K = i_c * f_h * f_w;
-  const int TK = (K + 63) / 64 * 64;
+  const int TK = (K + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   const int N = o_h * o_w;
-  const int TN = (N + 63) / 64 * 64;
-  dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
-  int gh = (TM/4 + TILE_WIDTH - 1) / TILE_WIDTH;
-  int gw = (TN/4 + TILE_WIDTH - 1) / TILE_WIDTH;
+  const int TN = (N + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
+  const int BS = 8;
+  const int NA = 2;
+  const int NB = 2;
+  dim3 bDim(BS, BS, 1);
+  int gh = TM/4 / BS / NA;
+  int gw = TN/4 / BS / NB;
   dim3 gDim(gw, gh, 1);
 
   cudaMemset(ext_space, 0, sizeof(int32_t)*ext_space_size);
@@ -306,21 +435,27 @@ const char* cuda_conv2d(
   dim3 gSize((K+31)/32, (M+31)/32, 1);
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
 
+  //cudaBindTexture(0, texRefA, (char4*)d_f);
+  //cudaBindTexture(0, texRefB, (char4*)d_col);
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
     if(dev_b == NULL)
-      kernel_matrix_mul_opt<false><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+      kernel_matrix_mul_opt6<BS, NA, NB, false><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
     else
-      kernel_matrix_mul_opt<true><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+      kernel_matrix_mul_opt6<BS, NA, NB, true><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
   }
 
+  //cudaUnbindTexture(texRefA);
+  //cudaUnbindTexture(texRefB);
   print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "conv2d.txt");
   //return check_cuda_error(error);
   return "";
 }
+
+template<int BS>
 __global__ void kernel_depthwise_conv2d(
     const int32_t * __restrict__ input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
     const int32_t * __restrict__ filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
@@ -450,6 +585,7 @@ __global__ void kernel_depthwise_conv2d_no_shared(
     output[gy * o_w + gx] = sum + (bias != NULL ? bias[l_o_c] : 0);
   }
 }
+
 const char* cuda_depthwise_conv2d(
     int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
     int32_t *filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
@@ -461,6 +597,7 @@ const char* cuda_depthwise_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
+  const int BS = 16;
   int b_h = BS;
   int b_w = BS;
   int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
@@ -532,6 +669,7 @@ const char* cuda_groupwise_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
+  const int BS = 16;
   int b_h = BS;
   int b_w = BS;
   int tmp_f_h = (f_h - 1) * dilation_h + 1; 
@@ -594,6 +732,7 @@ const char* cuda_max_pool(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
   int32_t *dev_i = input, *dev_o = output;
 
+  const int BS = 16;
   int b_h = BS;
   int b_w = BS;
   int32_t g_h = o_n * o_c * ((o_h + b_h - 1) / b_h); 
