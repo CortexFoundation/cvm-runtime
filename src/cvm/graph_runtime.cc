@@ -650,7 +650,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
 
 #ifdef PROFILE
 #ifdef CUDA_PROFILE
-    cudaDeviceSynchronize();
+    // cudaDeviceSynchronize();
 #endif
     double end = omp_get_wtime();
     times[op] += end-start;

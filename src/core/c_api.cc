@@ -58,34 +58,22 @@ int CVMAPIInference(void *net,
 
   CVMModel* model = static_cast<CVMModel*>(net);
 
-#ifdef PROFILE
-  auto start = cvm_clock::now();
-#endif
+  TIME_INIT(0);
 
   DLTensor *input = model->PlanInput(input_data, input_len);
   auto outputs = model->PlanOutput();
 
-#ifdef PROFILE
-  auto end = cvm_clock::now();
-  auto elapsed = end - start;
-#endif
+  TIME_ELAPSED(0) << "Plan input & output\n";
 
+  TIME_INIT(1);
   model->Run(input, outputs);
+  TIME_ELAPSED(1) << "Model operators infer\n";
+
+  TIME_INIT(2);
   model->SaveTensor(outputs, output_data);
-
-#ifdef PROFILE
-  start = cvm_clock::now();
-#endif
-
   if (input) CVMArrayFree(input);
   for (auto &output : outputs) CVMArrayFree(output);
-
-#ifdef PROFILE
-  end = cvm_clock::now();
-  elapsed += end - start;
-  std::cout << "Temporary variable in Infer time elapsed: "
-    << std::chrono::duration_cast<microseconds>(elapsed).count() << " us" << std::endl;
-#endif
+  TIME_ELAPSED(2) << "Temporary variable free\n";
 
   API_END();
 }

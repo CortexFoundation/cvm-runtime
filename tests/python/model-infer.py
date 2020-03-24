@@ -31,7 +31,7 @@ start = time.time()
 for i in range(iter_num):
     out = CVMAPIInference(net, data)
 end = time.time()
-print ("Infer Time: ", (end - start) / iter_num)
+print ("Infer Time: ", (end - start) * 1e3 / iter_num, " ms")
 
 CVMAPIFreeModel(net)
 
