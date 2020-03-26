@@ -2,6 +2,7 @@
 #define CVM_TIME_H
 
 #include <chrono>
+#include <iomanip>
 
 using cvm_clock = std::chrono::high_resolution_clock;
 
@@ -23,16 +24,17 @@ using std::chrono::hours;
 
 #ifdef PROFILE
 
-#define TIME_ELAPSED(id) \
+#define TIME_ELAPSED(id, msg) \
   auto __end_ ## id = cvm_clock::now(); \
   auto __count_ ## id = __end_ ## id - \
     __start_ ## id; \
   std::cout << "Time elapsed: " \
+    << std::setw(10) << std::setprecision(3) \
     << (double)(__count_ ## id.count()) / 1000000 \
-    << " ms, "
+    << " ms in " << msg << std::endl;
 
 #else
-#define TIME_ELAPSED(id)
+#define TIME_ELAPSED(id, msg)
 #endif
 
 #endif // CVM_TIME_H

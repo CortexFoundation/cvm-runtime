@@ -56,24 +56,22 @@ int CVMAPIInference(void *net,
   API_BEGIN();
   CHECK_3_NOT_NULL(net, input_data, output_data);
 
-  CVMModel* model = static_cast<CVMModel*>(net);
-
   TIME_INIT(0);
+  CVMModel* model = static_cast<CVMModel*>(net);
 
   DLTensor *input = model->PlanInput(input_data, input_len);
   auto outputs = model->PlanOutput();
-
-  TIME_ELAPSED(0) << "Plan input & output\n";
+  TIME_ELAPSED(0, "plan input & output");
 
   TIME_INIT(1);
   model->Run(input, outputs);
-  TIME_ELAPSED(1) << "Model operators infer\n";
+  TIME_ELAPSED(1, "model operators inference");
 
   TIME_INIT(2);
   model->SaveTensor(outputs, output_data);
   if (input) CVMArrayFree(input);
   for (auto &output : outputs) CVMArrayFree(output);
-  TIME_ELAPSED(2) << "Temporary variable free\n";
+  TIME_ELAPSED(2, "temporary variable free");
 
   API_END();
 }

@@ -14,7 +14,9 @@ def classification_output(out, batch=1):
               " ".join([str(d) for d in tmp[:10]]))
         print("Last  10 numbers: [%s]" % \
               " ".join([str(d) for d in tmp[-10:]]))
-        print("Argmax output category: %d" % argmax(tmp))
+        cat = argmax(tmp)
+        print("Argmax output category: %d with possiblity %d" % \
+              (cat, tmp[cat]))
 
 def detection_output(out, batch=1):
     batch_len = len(out) // batch
