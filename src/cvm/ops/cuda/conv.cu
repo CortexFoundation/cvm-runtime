@@ -1,6 +1,6 @@
 #include "cuda_ops.h"
 #include "../common.h"
-#include <assert.h>
+#include <omp.h>
 
 namespace cvm{
 namespace runtime{
@@ -15,28 +15,28 @@ namespace runtime{
     }
   }
 
-__global__ void kernel_transpose_i32_to_i8(const int32_t *in, int8_t *out, 
+__global__ void kernel_transpose_i32_to_i8(const int32_t * __restrict__ in, int8_t *out, 
     const int32_t H, const int32_t W, 
     const int32_t OH, const int32_t OW){
   int bidy = blockIdx.y;
   int bidx = blockIdx.x; 
   int lidy = threadIdx.y;
   int lidx = threadIdx.x;
-  __shared__ int32_t share_in[32][33];
+  __shared__ int8_t share_in[8][8];
   int y = bidy * blockDim.y + lidy;
   int x = bidx * blockDim.x + lidx;
   if(y < H && x < W){
-    share_in[lidx][lidy] = in[y * W + x];
+    share_in[lidx][lidy] = (int8_t)in[y * W + x];
   }
   __syncthreads();
   int oy = bidx * blockDim.x + lidy;
   int ox = bidy * blockDim.y + lidx;
   if(oy < W && ox < H)
-    out[oy * OH + ox] = (int8_t)share_in[lidy][lidx];
+    out[oy * OH + ox] = share_in[lidy][lidx];
 }
 
 #define MATRIX_PAD 64
-__global__ void im2col_gpu_kernel_pad(const int n, const int32_t* data_im,
+__global__ void im2col_gpu_kernel_pad(const int n, const int32_t*__restrict__ data_im,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
@@ -286,31 +286,33 @@ __global__ void kernel_matrix_mul_opt6(
   int4 csub[NA][4][NB] = {{{make_int4(0, 0, 0, 0)}}};
 
   for(int k = 0; k < TK; k += BS){
-    char4 ta[NA];
+    //char4 ta[NA];
 #pragma unroll
     for(int i = 0; i < NA; ++i){
-      ta[i] = A[(NA * bidy + i) * BS + (k + lidy) * M + lidx]; 
-     // ta[i] = tex1Dfetch(texRefA, (NA * bidy + i) * BS + (k + lidy) * M + lidx); 
+      //ta[i] = A[(NA * bidy + i) * BS + (k + lidy) * M + lidx]; 
+      //ta[i] = tex1Dfetch(texRefA, (NA * bidy + i) * BS + (k + lidy) * M + lidx); 
+      cacheA[(NA*lidy+i)*BS + lidx] = A[(NA * bidy + i) * BS + (k + lidy) * M + lidx]; 
     }
 
-    char4 tb[NB];
+    //char4 tb[NB];
 #pragma unroll 
     for(int i = 0; i < NB; ++i){
-      tb[i] = B[(NB * bidx + i) * BS + (k + lidy) * N + lidx];
-     // tb[i] = tex1Dfetch(texRefB, (NB * bidx + i) * BS + (k + lidy) * N + lidx);
+      //tb[i] = B[(NB * bidx + i) * BS + (k + lidy) * N + lidx];
+      //tb[i] = tex1Dfetch(texRefB, (NB * bidx + i) * BS + (k + lidy) * N + lidx);
+      cacheB[(NB*lidy + i) * BS + lidx] = B[(NB * bidx + i) * BS + (k + lidy) * N + lidx];
     }
 
     __syncthreads();
 
-#pragma unroll
-    for(int i = 0; i < NA; ++i){
-      cacheA[(NA*lidy + i) * BS + lidx] = ta[i];
-    }
-#pragma unroll 
-    for(int i = 0; i < NB; ++i){
-      cacheB[(NB * lidy + i) * BS + lidx] = tb[i];
-    }    
-    __syncthreads();
+//#pragma unroll
+//    for(int i = 0; i < NA; ++i){
+//      cacheA[(NA*lidy + i) * BS + lidx] = ta[i];
+//    }
+//#pragma unroll 
+//    for(int i = 0; i < NB; ++i){
+//      cacheB[(NB * lidy + i) * BS + lidx] = tb[i];
+//    }    
+//    __syncthreads();
 
     for(int i = 0; i < BS; ++i){
       char4 tmpa[NA];
@@ -419,11 +421,15 @@ const char* cuda_conv2d(
   const int BS = 8;
   const int NA = 2;
   const int NB = 2;
-  dim3 bDim(BS, BS, 1);
-  int gh = TM/4 / BS / NA;
-  int gw = TN/4 / BS / NB;
+  dim3 bDim1(BS, BS, 1);
+  //int gh = TM/4 / BS / NA;
+  //int gw = TN/4 / BS / NB;
+  dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
+  int gh = TM / 64;
+  int gw = TN / 64;
   dim3 gDim(gw, gh, 1);
 
+  //double start = omp_get_wtime();
   cudaMemset(ext_space, 0, sizeof(int32_t)*ext_space_size);
   int8_t *d_f = (int8_t*)ext_space;
   int8_t *d_col = d_f + TM * TK;
@@ -431,20 +437,39 @@ const char* cuda_conv2d(
  // int blockSize = 256;
  // int gridSize = getGridSize(fn, blockSize);
   //kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
-  dim3 bSize(32, 32, 1);
-  dim3 gSize((K+31)/32, (M+31)/32, 1);
+  dim3 bSize(8, 8, 1);
+  dim3 gSize((K+7)/8, (M+7)/8, 1);
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
-
+  //cudaDeviceSynchronize();
+  //double tran_end = omp_get_wtime();
+  //printf("%d %d %d %d transpose: %.5f\n", M, K, TM, TK, tran_end-start);
+  
   //cudaBindTexture(0, texRefA, (char4*)d_f);
   //cudaBindTexture(0, texRefB, (char4*)d_col);
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
-    if(dev_b == NULL)
-      kernel_matrix_mul_opt6<BS, NA, NB, false><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-    else
-      kernel_matrix_mul_opt6<BS, NA, NB, true><<<gDim, bDim>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+
+  //  cudaDeviceSynchronize();
+  //  double im2col_end = omp_get_wtime();
+  //  printf("%d %d %d im2col: %.5f\n", TM, TK, TN, im2col_end-tran_end);
+
+    if(dev_b == NULL){
+      if(true)//(TM > 256 && TN > 256)
+        kernel_matrix_mul_opt6<BS, NA, NB, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      else
+        kernel_matrix_mul_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+    }
+    else{
+      if(true)//(TM > 256 && TN > 256)
+        kernel_matrix_mul_opt6<BS, NA, NB, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      else
+        kernel_matrix_mul_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+    }
+  //  cudaDeviceSynchronize();
+  //  double end = omp_get_wtime();
+  //  printf("%d %d %d matrix_mul: %.5f\n", TM, TK, TN, end-im2col_end);
   }
 
   //cudaUnbindTexture(texRefA);
