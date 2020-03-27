@@ -252,9 +252,11 @@ void test_thread() {
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
-    "/data/wlt/yolo_tfm",
-    "/data/std_out/null",
-    "/data/std_out/resnet50_mxg",
+    //"/data/wlt/yolo_tfm",
+    //"/data/std_out/null",
+    // "/data/std_out/resnet50_mxg",
+    //"/data/std_out/ssd_512_mobilenet1.0_voc_tfm",
+    //"/data/wlt/resnet18_v1_tfm",
     // "/data/std_out/resnet50_v2",
     // "/data/std_out/qd10_resnet20_v2",
     // "/data/std_out/trec",
@@ -296,7 +298,7 @@ int test_models(int device_type = 0) {
     // // "/data/std_out/non_in",
     // "/data/std_out/shufflenet",
     // "/data/std_out/ssd",
-    // "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
+    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);

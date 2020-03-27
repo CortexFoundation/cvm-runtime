@@ -7,7 +7,8 @@ import os
 import time
 
 # model_root = "/data/std_out/resnet50_mxg"
-model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+# model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+model_root = "/data/wlt/resnet18_v1_tfm"
 
 CVMContext.set_global(GPU)
 
@@ -23,7 +24,7 @@ data_path = os.path.join(model_root, "data.npy")
 input_data = utils.load_np_data(data_path)
 ## call inference
 
-iter_num = 10
+iter_num = 1
 start = time.time()
 for i in range(iter_num):
     infer_result = lib.Inference(input_data)

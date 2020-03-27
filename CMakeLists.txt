@@ -77,7 +77,7 @@ if(ENABLE_CUDA)
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
     set(CUDA_NVCC_FLAGS 
-        ${CUDA_NVCC_FLAGS} -std=c++11 --expt-extended-lambda)
+        ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
       

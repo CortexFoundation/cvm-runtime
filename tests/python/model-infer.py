@@ -15,7 +15,6 @@ CVMContext.set_global(GPU)
 #  model_root = "/tmp/resnet18_v1_tfm/"
 # model_root = "/data/mrt/ssd_512_mobilenet1.0_voc_tfm"
 model_root = "/data/std_out/cvm_mnist/"
-#  model_root = "/data/wlt/resnet18_v1_tfm"
 #  model_root = "/data/std_out/resnet50_v2"
 # model_root = "/data/std_out/ssd"
 # model_root = "/data/std_out/resnet50_mxg/"
