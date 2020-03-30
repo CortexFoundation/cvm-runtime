@@ -467,8 +467,8 @@ __global__ void kernel_depthwise_conv2d(
     int32_t dilation_h, int32_t dilation_w, 
     int32_t groups,
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w){
-  const int SW = blockDim.x * stride_w + f_w * dilation_w - padding_w;
-  const int SH = blockDim.y * stride_h + f_h * dilation_h - padding_h;
+  const int SW = blockDim.x * stride_w + f_w * dilation_w;
+  const int SH = blockDim.y * stride_h + f_h * dilation_h;
   extern __shared__ int8_t cache[];
   int8_t *cache_input = cache;//SH*SW 
   int8_t *cache_filter = cache + SH * SW;//filter size < BS*BS
@@ -502,7 +502,7 @@ __global__ void kernel_depthwise_conv2d(
       for(int yn = ly; yn < SH && y*stride_h+yn-padding_h < i_h; yn += blockDim.y){
         for(int xn = lx; xn < SW && x*stride_w+xn-padding_w < i_w; xn += blockDim.x){
           if(y*stride_h+yn-padding_h >= 0 && x*stride_w+xn-padding_w >= 0)
-            cache_input[(yn) * SW + xn] = (int8_t)pInput[(y*stride_h+yn-padding_w)*i_w + x*stride_w+xn-padding_w];
+            cache_input[(yn) * SW + xn] = (int8_t)pInput[(y*stride_h+yn-padding_h)*i_w + x*stride_w+xn-padding_w];
         }
       }
       __syncthreads();
@@ -637,8 +637,8 @@ const char* cuda_groupwise_conv2d(
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
   const int BS = 16;
-  const int SW = BS * stride_w + f_w * dilation_w - padding_w;
-  const int SH = BS * stride_h + f_h * dilation_h - padding_h;
+  const int SW = BS * stride_w + f_w * dilation_w;
+  const int SH = BS * stride_h + f_h * dilation_h;
   size_t share_size = SH * SW * sizeof(int8_t) + f_h * f_w * sizeof(int8_t);
   if(groups == o_c && share_size <= 48*1024){
     dim3 blockSize(BS, BS, 1);
