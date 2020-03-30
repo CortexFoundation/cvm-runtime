@@ -1,19 +1,15 @@
 #include "cuda_ops.h"
 #include "../common.h"
-#include <omp.h>
 
 namespace cvm{
 namespace runtime{
 
-//#define BS 16
-//#define FS 8
-
-  __global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int n){
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for(int64_t i = tid; i < n; i+= gridDim.x * blockDim.x){
-      out_data[i] = static_cast<int8_t>(in_data[i]);
-    }
+__global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int n){
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  for(int64_t i = tid; i < n; i+= gridDim.x * blockDim.x){
+    out_data[i] = static_cast<int8_t>(in_data[i]);
   }
+}
 
 __global__ void kernel_transpose_i32_to_i8(const int32_t * __restrict__ in, int8_t *out, 
     const int32_t H, const int32_t W, 
@@ -183,7 +179,7 @@ __global__ void kernel_matrix_mul(
 }
 
 template<bool has_bias>
-__global__ void kernel_matrix_mul_opt(
+__global__ void kernel_gemm_opt(
     char4 *A, // k*m 
     char4  *B, // k*n
     int32_t *C, // m*n
@@ -266,7 +262,7 @@ inline __device__ int4 vec4Mul(const signed char a, const char4 b){
 texture<char4, 1, cudaReadModeElementType> texRefA;
 texture<char4, 1, cudaReadModeElementType> texRefB;
 template<const int BS, const int NA, const int NB, const bool hasBias>
-__global__ void kernel_matrix_mul_opt6(
+__global__ void kernel_gemm_nano(
     const char4* __restrict__ A,
     const char4* __restrict__ B,
     int *C, // m*n
@@ -419,61 +415,43 @@ const char* cuda_conv2d(
   const int N = o_h * o_w;
   const int TN = (N + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   const int BS = 8;
-  const int NA = 2;
-  const int NB = 2;
+ // const int NA = 2;
+ // const int NB = 2;
   dim3 bDim1(BS, BS, 1);
-  //int gh = TM/4 / BS / NA;
-  //int gw = TN/4 / BS / NB;
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
   int gw = TN / 64;
   dim3 gDim(gw, gh, 1);
 
-  //double start = omp_get_wtime();
   cudaMemset(ext_space, 0, sizeof(int32_t)*ext_space_size);
   int8_t *d_f = (int8_t*)ext_space;
   int8_t *d_col = d_f + TM * TK;
 
- // int blockSize = 256;
- // int gridSize = getGridSize(fn, blockSize);
-  //kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
   dim3 bSize(8, 8, 1);
   dim3 gSize((K+7)/8, (M+7)/8, 1);
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
-  //cudaDeviceSynchronize();
-  //double tran_end = omp_get_wtime();
-  //printf("%d %d %d %d transpose: %.5f\n", M, K, TM, TK, tran_end-start);
-  
-  //cudaBindTexture(0, texRefA, (char4*)d_f);
-  //cudaBindTexture(0, texRefB, (char4*)d_col);
+
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
 
-  //  cudaDeviceSynchronize();
-  //  double im2col_end = omp_get_wtime();
-  //  printf("%d %d %d im2col: %.5f\n", TM, TK, TN, im2col_end-tran_end);
-
     if(dev_b == NULL){
-      if(true)//(TM > 256 && TN > 256)
-        kernel_matrix_mul_opt6<BS, NA, NB, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      else
-        kernel_matrix_mul_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#ifdef NANO
+      kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+#else
+      kernel_gemm_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#endif
     }
     else{
-      if(true)//(TM > 256 && TN > 256)
-        kernel_matrix_mul_opt6<BS, NA, NB, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      else
-        kernel_matrix_mul_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#ifdef NANO
+      kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+#else
+      kernel_gemm_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#endif
     }
-  //  cudaDeviceSynchronize();
-  //  double end = omp_get_wtime();
-  //  printf("%d %d %d matrix_mul: %.5f\n", TM, TK, TN, end-im2col_end);
   }
 
-  //cudaUnbindTexture(texRefA);
-  //cudaUnbindTexture(texRefB);
   print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "conv2d.txt");
   //return check_cuda_error(error);
@@ -658,7 +636,6 @@ const char* cuda_groupwise_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
-  printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", i_n, i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, dilation_h, dilation_w, groups, o_h, o_w);
   const int BS = 16;
   const int SW = BS * stride_w + f_w * dilation_w - padding_w;
   const int SH = BS * stride_h + f_h * dilation_h - padding_h;
