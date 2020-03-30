@@ -70,13 +70,27 @@ __global__ void kernel_relu(const int32_t *x, int32_t*y, const uint64_t n){
     y[i] = max(x[i], 0);
   }
 }
+__global__ void kernel_relu4(const int4 *x, int4 *y, const uint64_t n){
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  for(uint64_t i = tid; i < n; i += gridDim.x * blockDim.x){
+    int4 data = x[i];
+    data.x = max(data.x, 0);
+    data.y = max(data.y, 0);
+    data.z = max(data.z, 0);
+    data.w = max(data.w, 0);
+    y[i] = data; 
+  }
+}
 const char* cuda_relu(const int32_t *x, int32_t *y, const uint64_t n, int& error_code){
   const int32_t *dev_x = x;
   int32_t *dev_y = y;
 
+  int new_n = n/4;
   int threadSize = 256;
-  int blockSize = getGridSize(n, threadSize);//(n + threadSize - 1) / threadSize;
-  kernel_relu<<<blockSize, threadSize>>>(dev_x, dev_y, n);
+  int blockSize = getGridSize(new_n, threadSize);
+  if(new_n > 0)
+  kernel_relu4<<<blockSize, threadSize>>>((int4*)dev_x, (int4*)dev_y, new_n);
+  kernel_relu<<<1, 32>>>(dev_x+new_n*4, dev_y+new_n*4, n-new_n*4);
 
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){
