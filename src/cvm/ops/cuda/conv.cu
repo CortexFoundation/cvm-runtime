@@ -480,103 +480,67 @@ const char* cuda_conv2d(
   return "";
 }
 
-template<int BS>
 __global__ void kernel_depthwise_conv2d(
-    const int32_t * __restrict__ input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
-    const int32_t * __restrict__ filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
-    const int32_t * __restrict__ bias,
+    int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
+    int32_t *filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
+    int32_t *bias,
     int32_t padding_h, int32_t padding_w,
     int32_t stride_h, int32_t stride_w,
     int32_t dilation_h, int32_t dilation_w, 
     int32_t groups,
-    int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w)
-{
-  int g_x = blockDim.x * blockIdx.x + threadIdx.x;
-  int l_y = threadIdx.y; 
-  int l_x = threadIdx.x;
-  int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
-  int tmp_f_w = (f_w - 1) * dilation_w + 1;
-  int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; // for stride
-  int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
-  int perBlockOneImageY = (tmp_o_h+BS-1) / BS;
-  int perBlockOneImageX = (tmp_o_w+BS-1) / BS;
-  int l_o_c = blockIdx.y / perBlockOneImageY;
-  int l_f_c = l_o_c % o_c;
-  int l_o_hi = blockIdx.y % perBlockOneImageY;
-  int l_o_wi = blockIdx.x % perBlockOneImageX;
-  int l_o_h = l_o_hi * BS + l_y;
-  //    int l_o_w = l_o_wi * BS + l_x;
-  if(l_o_h >= tmp_o_h || g_x >= tmp_o_w) return;
-
-  const int32_t F_H = f_h;
-  const int32_t F_W = f_w;
-  //    __shared__ int32_t shared_i[BS + F_H - 1][BS + F_W - 1];
-  int32_t sih = BS + tmp_f_h - 1;
-  int32_t siw = BS + tmp_f_w - 1;
-  extern __shared__ int32_t  share[];
-  int32_t *shared_i = (int32_t*)share; 
-  int32_t *shared_f = &share[sih * siw];
-
-  int32_t sum = 0; 
-  int min_s_y = (l_o_hi+1) * BS <= tmp_o_h ? BS : tmp_o_h%BS;
-  int min_s_x = (l_o_wi+1) * BS <= tmp_o_w ? BS : tmp_o_w%BS;
-
-  //load input to shared
-  int l_i_h = l_o_h - padding_h;
-  int i_y = l_o_c * i_h + l_i_h;
-  int i_x = g_x - padding_w;
-  // 0~2-> -1~1
-  if(l_i_h < 0 || i_x < 0 || l_i_h >= i_h || i_x >= i_w)
-    shared_i[l_y*siw + l_x] = 0;
-  else
-    shared_i[l_y*siw + l_x] = input[i_y * i_w + i_x];
-
-  if(l_y < tmp_f_h-1){
-    for(int i = l_y; i < tmp_f_h-1; i+=min_s_y){
-      if(l_i_h+min_s_y+i-l_y < 0 || i_x < 0 || l_i_h+min_s_y+i-l_y >= i_h || i_x >= i_w)
-        shared_i[(i+min_s_y)*siw + l_x] = 0;
-      else
-        shared_i[(i + min_s_y)*siw + l_x] = input[(i_y + min_s_y + i - l_y) * i_w + i_x]; 
-    }
+    int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w){
+  const int SW = blockDim.x * stride_w + f_w * dilation_w - padding_w;
+  const int SH = blockDim.y * stride_h + f_h * dilation_h - padding_h;
+  extern __shared__ int8_t cache[];
+  int8_t *cache_input = cache;//SH*SW 
+  int8_t *cache_filter = cache + SH * SW;//filter size < BS*BS
+  //one block calc one channel
+  int batch = blockIdx.y;
+  int channel = blockIdx.x;
+  int ly = threadIdx.y;
+  int lx = threadIdx.x;
+  int tid = ly * blockDim.x + lx;
+  int nfilter = f_h * f_w;
+  int32_t *pInput = input + batch * i_c * i_h * i_w +  channel * i_h * i_w;
+  int32_t *pFilter = filter + channel * f_h * f_w; 
+  int32_t *pOut = output + batch * o_c * o_h * o_w + channel * o_h * o_w;
+  int biasV = 0;
+  for(int i = tid; i < nfilter; i += blockDim.x * blockDim.y){
+    cache_filter[i] = (int8_t)pFilter[i];
   }
-  if(l_x < tmp_f_w-1){
-    for(int i = l_x; i < tmp_f_w-1; i+= min_s_x){
-      if(l_i_h < 0 || i_x+min_s_x+i-l_x < 0 || l_i_h >= i_h || i_x+min_s_x+i-l_x >= i_w)
-        shared_i[l_y * siw + i+min_s_x] = 0;
-      else
-        shared_i[l_y * siw + i + min_s_x] = input[i_y * i_w + i_x + min_s_x + i - l_x];
-    }
-  }
-  if(l_y < tmp_f_h-1 && l_x < tmp_f_w-1){
-    for(int i = l_y; i < tmp_f_h-1; i+=min_s_y){
-      for(int j = l_x; j < tmp_f_w-1; j+=min_s_x){
-        if(l_i_h+min_s_y+i-l_y < 0 || i_x+min_s_x+j-l_x < 0 || l_i_h+min_s_y+i-l_y >= i_h || i_x+min_s_x+j-l_x >= i_w)
-          shared_i[(i+min_s_y) * siw + j+min_s_x] = 0;
-        else
-          shared_i[(i+min_s_y) * siw + j+min_s_x] = input[(i_y+min_s_y + i-l_y)*i_w + i_x + min_s_x + j - l_x];
+  if(bias != NULL) biasV = bias[channel];
+
+  __syncthreads();
+
+  for(int y = 0; y < o_h; y += blockDim.y){
+    for(int x = 0; x < o_w; x += blockDim.x){
+      for(int yn = ly; yn < SH; yn+=blockDim.y){
+        for(int xn = lx; xn < SW; xn+= blockDim.x){
+          cache_input[yn * SW + xn] = 0;
+        }
       }
+      __syncthreads();
+      //load input to share
+      for(int yn = ly; yn < SH && y*stride_h+yn-padding_h < i_h; yn += blockDim.y){
+        for(int xn = lx; xn < SW && x*stride_w+xn-padding_w < i_w; xn += blockDim.x){
+          if(y*stride_h+yn-padding_h >= 0 && x*stride_w+xn-padding_w >= 0)
+            cache_input[(yn) * SW + xn] = (int8_t)pInput[(y*stride_h+yn-padding_w)*i_w + x*stride_w+xn-padding_w];
+        }
+      }
+      __syncthreads();
+
+      int32_t sum = 0;
+      for(int fy = 0; fy < f_h; ++fy){
+        for(int fx = 0; fx < f_w; ++fx){
+          int32_t ih  = ly * stride_h + fy * dilation_h;
+          int32_t iw = lx * stride_w + fx * dilation_w;
+          sum += cache_input[ih * SW + iw] * cache_filter[fy * f_w + fx];
+        }
+      }
+      if(y+ly < o_h && x+lx < o_w)
+      pOut[(y + ly) * o_w + x + lx] = sum + biasV;
+      __syncthreads();
     }
-  }
-
-  //load filter to shared;
-  if(l_y < F_H && l_x < F_W){
-    for(int i = l_y; i < F_H; i+= min_s_y)
-      for(int j = l_x; j < F_W; j+=min_s_x)
-        shared_f[i*F_W + j] = filter[l_f_c * F_H * F_W + i * F_W + j];
-  }
-  __syncthreads();
-
-  for(int fy = 0; fy < F_H; fy++){
-    for(int fx = 0; fx < F_W; fx++){
-      sum += shared_i[(l_y+fy*dilation_h)*siw + l_x+fx*dilation_w] * shared_f[fy*F_W + fx];
-    }
-  } 
-  __syncthreads();
-
-  if(l_o_h % stride_h == 0 && g_x % stride_w == 0){
-    //int oi = l_o_c * o_h * o_w + l_o_h * o_w + g_x;
-    int oi = l_o_c * o_h * o_w + l_o_h/stride_h * o_w + g_x/stride_w;
-    output[oi] = sum + (bias != NULL ? bias[l_o_c%o_c] : 0);
   }
 }
 __global__ void kernel_depthwise_conv2d_no_shared(
@@ -694,26 +658,46 @@ const char* cuda_groupwise_conv2d(
     int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w, int32_t device_id, int& error_code){
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
+  printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", i_n, i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, dilation_h, dilation_w, groups, o_h, o_w);
   const int BS = 16;
-  int b_h = BS;
-  int b_w = BS;
-  int tmp_f_h = (f_h - 1) * dilation_h + 1; 
-  int tmp_f_w = (f_w - 1) * dilation_w + 1;
-  int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; 
-  int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
-  int32_t g_h = o_n * o_c * ((tmp_o_h + b_h - 1) / b_h); 
-  int32_t g_w = (tmp_o_w + b_w - 1) / b_w;
-  dim3 bDim(b_w, b_h, 1);
-  dim3 gDim(g_w, g_h, 1);
-  kernel_groupwise_conv2d_no_shared<<<gDim, bDim>>>(
-      dev_i, i_n, i_c, i_h, i_w,
-      dev_f, f_n, f_c, f_h, f_w,
-      dev_b, 
-      padding_h, padding_w,
-      stride_h, stride_w,
-      dilation_h, dilation_w,
-      groups,
-      dev_o, o_n, o_c, o_h, o_w);
+  const int SW = BS * stride_w + f_w * dilation_w - padding_w;
+  const int SH = BS * stride_h + f_h * dilation_h - padding_h;
+  size_t share_size = SH * SW * sizeof(int8_t) + f_h * f_w * sizeof(int8_t);
+  if(groups == o_c && share_size <= 48*1024){
+    dim3 blockSize(BS, BS, 1);
+    dim3 gridSize(o_c, i_n, 1);
+    //assert(share_size < 32*1024);
+    kernel_depthwise_conv2d<<<gridSize, blockSize, share_size>>>(
+        input, i_n, i_c, i_h, i_w, 
+        filter, o_c, f_c, f_h, f_w, 
+        bias,
+        padding_h, padding_w, 
+        stride_h, stride_w,
+        dilation_h, dilation_w, 
+        groups, 
+        output, o_n, o_c, o_h, o_w);
+  }else{
+    const int BS = 16;
+    int b_h = BS;
+    int b_w = BS;
+    int tmp_f_h = (f_h - 1) * dilation_h + 1; 
+    int tmp_f_w = (f_w - 1) * dilation_w + 1;
+    int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; 
+    int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
+    int32_t g_h = o_n * o_c * ((tmp_o_h + b_h - 1) / b_h); 
+    int32_t g_w = (tmp_o_w + b_w - 1) / b_w;
+    dim3 bDim(b_w, b_h, 1);
+    dim3 gDim(g_w, g_h, 1);
+    kernel_groupwise_conv2d_no_shared<<<gDim, bDim>>>(
+        dev_i, i_n, i_c, i_h, i_w,
+        dev_f, f_n, f_c, f_h, f_w,
+        dev_b, 
+        padding_h, padding_w,
+        stride_h, stride_w,
+        dilation_h, dilation_w,
+        groups,
+        dev_o, o_n, o_c, o_h, o_w);
+  }
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;
