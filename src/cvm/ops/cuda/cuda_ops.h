@@ -220,7 +220,7 @@ const char* cuda_stride_slice(const int32_t *x_data, int32_t *y_data, const int6
         const int32_t step_ndim, const int32_t y_ndim, const uint64_t ysize, const int32_t x_ndim, int& error_code);
 const char* cuda_slice_like(const int32_t *x_data, int32_t *y_data, const int64_t *xshape, const int64_t *yshape,
         const uint64_t ysize, const int32_t ndim, int& error_code);
-const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
+const char* cuda_get_valid_counts(int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
         const int32_t n, const int32_t k,
         const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code);
 const char *cuda_non_max_suppression(int32_t *d_x_data, const int32_t *d_valid_count_data, int32_t *d_y_data, const int32_t batchs, const int32_t n, const int32_t k,

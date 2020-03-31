@@ -84,9 +84,36 @@ __global__ void kernel_get_data(const int32_t batchs, const int32_t n, const int
   }
 }
 
-const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
-    const int32_t n, const int32_t k,
-    const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code){
+__global__ void kernel_get_values_and_keys(
+    int32_t* data, const int32_t n, const int32_t k, const int32_t score_index,
+    int32_t **values){
+    int tid = threadIdx.x + blockDim.x * blockIdx.x;
+    if(tid < n){
+        values[tid] = &data[tid * k];
+    }
+}
+__global__ void kernel_get_count_sorted(int32_t **rows, const int n, const int K, int32_t *valid_count, const int score_threshold, int32_t* output){
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  __shared__ int count;
+  if(threadIdx.x == 0)  count = 0;
+  __syncthreads();
+  if(tid < n){
+    if(rows[tid][1] > score_threshold)  {
+      atomicAdd(&count, 1);
+      for(int k = 0; k < K; k++)
+        output[tid * K + k] = rows[tid][k];
+    }else{
+      for(int k = 0; k < K; k++)
+        output[tid * K + k] = -1;//rows[tid][k];
+    }
+  }
+  __syncthreads();
+  atomicAdd(valid_count, count);
+}
+
+const char* cuda_get_valid_counts(int32_t *x_data, int32_t *y_data, int32_t *valid_count_data,
+   const int32_t n, const int32_t k,
+   const int32_t score_threshold, const int32_t batchs, int32_t *ext_space, int& error_code){
 
   int32_t *all_count = ext_space;
   cudaMemset(y_data, -1, sizeof(int32_t) * batchs * n * k);
@@ -98,19 +125,25 @@ const char* cuda_get_valid_counts(const int32_t *x_data, int32_t *y_data, int32_
   kernel_get_count<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, valid_count_data, score_threshold, all_count);
   kernel_get_data<1, bsize><<<gsize, bsize>>>(batchs, n, k, x_data, y_data, valid_count_data, score_threshold, all_count);
 
+ // int32_t **rows = (int32_t**)ext_space; 
+ // int blockSize = 256;
+ // int gridSize = (n + blockSize - 1) / blockSize;
+ // int score_index = 1;
+ // for(int i = 0; i < batchs; i++){
+ //   int32_t *x_batch = x_data + i * n * k;
+ //   kernel_get_values_and_keys<<<gridSize, blockSize>>>(x_batch, n, k, score_index, rows);
+ //   thrust::stable_sort(thrust::device, rows, rows+n, [score_index]__device__(const int32_t *a, int32_t *b) -> bool{
+ //       return a[1] > b[1];
+ //       });
+ //   kernel_get_count_sorted<<<gridSize, blockSize>>>(rows, n, k, valid_count_data + i, score_threshold, y_data+ i * n*k);
+ // }
+
   print_to_file(x_data, batchs * n * k, "get_valid_count_x.txt");
   print_to_file(y_data, batchs * n * k, "get_valid_count_y.txt");
 
   return ""; 
 }
-__global__ void kernel_get_values_and_keys(
-    int32_t* data, const int32_t n, const int32_t k, const int32_t score_index,
-    int32_t **values){
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    if(tid < n){
-        values[tid] = &data[tid * k];
-    }
-}
+
 
 inline __device__ int64_t dev_iou(const int32_t *rect1, const int32_t *rect2, const int32_t format){
     int32_t x1_min = format == FORMAT_CORNER ? rect1[0] : rect1[0] - rect1[2]/2;

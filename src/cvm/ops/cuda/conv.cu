@@ -4,10 +4,12 @@
 namespace cvm{
 namespace runtime{
 
-__global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int n){
-  int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for(int64_t i = tid; i < n; i+= gridDim.x * blockDim.x){
-    out_data[i] = static_cast<int8_t>(in_data[i]);
+__global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int M, const int K){
+  int tidx = threadIdx.x + blockDim.x * blockIdx.x;
+  int tidy = threadIdx.y + blockDim.y * blockIdx.y;
+  const int TK = (K + 63) / 64 * 64;
+  if(tidy < M && tidx < K){
+    out_data[tidy * TK + tidx] = in_data[tidy * K + tidx];
   }
 }
 
@@ -100,83 +102,6 @@ __global__ void im2col_gpu_kernel(const int n, const int32_t* data_im,
 }
 
 #define TILE_WIDTH 16
-template<const bool has_bias, int NUM>
-__global__ void kernel_matrix_mul(
-    int8_t *a, // m*k 
-    int8_t *b, // k*n
-    int32_t *c, // m*n
-    int32_t m, int32_t k, int32_t n, int32_t *bias){
-  __shared__ int8_t sharedm[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
-  __shared__ int8_t sharedn[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
-  int bx = blockIdx.x;
-  int by = blockIdx.y;
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
-  int row = by*TILE_WIDTH*NUM + ty;
-  int col = bx*TILE_WIDTH*NUM + tx;
-  int sum[NUM][NUM]= {{0}};
-
-  for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i+=NUM)
-  {
-    for(int ii = 0; ii < NUM; ++ii){
-      int r_offset = ii * TILE_WIDTH;
-      for(int jj = 0; jj < NUM; ++jj){
-        int c_offset = jj * TILE_WIDTH;
-        int arow_offset = row + r_offset;
-        int acol_offset = i*TILE_WIDTH + tx + c_offset;
-        int brow_offset = i*TILE_WIDTH + ty + r_offset;
-        int bcol_offset =  col + c_offset;
-
-        if(arow_offset < m && acol_offset < k)
-          sharedm[ty+r_offset][tx+c_offset] = a[(arow_offset)*k + acol_offset];
-        else sharedm[ty+r_offset][tx+c_offset] = 0;
-
-        if(brow_offset < k && bcol_offset < n)
-          sharedn[ty+r_offset][tx+c_offset] = b[(brow_offset)*n + bcol_offset];
-        else sharedn[ty+r_offset][tx+c_offset] = 0;
-      }
-    }
-    __syncthreads();
-
-    for(int j = 0; j < TILE_WIDTH; j++){ 
-      int8_t tm[NUM][NUM], tn[NUM][NUM];
-#pragma unroll
-      for(int ii = 0; ii < NUM; ++ii){
-#pragma unroll
-        for(int jj = 0; jj < NUM; ++jj){
-          tm[ii][jj] = sharedm[ty+ii*TILE_WIDTH][j+jj*TILE_WIDTH];
-          tn[ii][jj] = sharedn[j+ii*TILE_WIDTH][tx+jj*TILE_WIDTH];
-        }
-      }
-      for(int ii = 0; ii < NUM; ++ii){
-#pragma unroll
-        for(int kk = 0; kk < NUM; ++kk){
-#pragma unroll
-          for(int jj = 0; jj < NUM; ++jj){
-            sum[ii][jj] += tm[ii][kk] * tn[kk][jj];
-          }
-        }
-      }
-    }
-    __syncthreads();
-  }
-  if(has_bias) {
-    for(int ii = 0; ii < NUM; ++ii){
-      int32_t bv = bias[row + ii * TILE_WIDTH];
-      for(int jj = 0; jj < NUM ;++jj){
-        sum[ii][jj] += bv; 
-      }
-    }
-  }
-  for(int ii = 0; ii < NUM; ++ii){
-    int c_r_offset = row + ii * TILE_WIDTH;
-    for(int jj = 0; jj < NUM ;++jj){
-      int c_c_offset = col + jj * TILE_WIDTH;
-      if(c_r_offset < m && c_c_offset < n)
-        c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
-    }
-  }
-}
 
 template<bool has_bias>
 __global__ void kernel_gemm_opt(
@@ -371,6 +296,65 @@ __global__ void kernel_gemm_nano(
     }
   }
 }
+template<int NUMA, int NUMB, int TILE, bool hasBias>
+__global__ void kernel_gemm_nano2(
+    const int8_t * __restrict__ a, // m*k 
+    const int8_t * __restrict__ b, // k*n
+    int32_t *c, // m*n
+    int32_t m, int32_t k, int32_t n, int32_t *bias, int TM, int TK, int TN){
+  __shared__ int8_t sharedm[TILE * NUMA][TILE];
+  __shared__ int8_t sharedn[TILE][TILE * NUMB];
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int row = by*TILE * NUMA + ty;
+  int col = bx*TILE * NUMB + tx;
+  int sum[NUMA][NUMB]= {{0}};
+
+  for(int i = 0; i < TK/TILE; i++)
+  {
+#pragma unroll
+    for(int ii = 0; ii < NUMA; ++ii){
+      sharedm[ty + ii*TILE][tx] = a[(row + ii*TILE)*TK + i * TILE + tx];
+    }
+#pragma unroll
+    for(int jj = 0; jj < NUMB; ++jj){
+      sharedn[ty][tx + jj*TILE] = b[(i*TILE + ty)*TN + col + jj*TILE];
+    }
+    __syncthreads();
+
+    for(int kk = 0; kk < TILE; ++kk){
+#pragma unroll
+      for(int ii = 0; ii < NUMA; ++ii){
+#pragma unroll
+        for(int jj = 0; jj < NUMB; ++jj){
+          sum[ii][jj] += sharedm[ii*TILE+ ty][kk] * sharedn[kk][tx + jj*TILE];
+        }
+      }
+    }
+    __syncthreads();
+  }
+  if(hasBias){
+#pragma unroll
+    for(int ii = 0; ii < NUMA; ++ii){
+      int c_r_offset = row + ii * TILE;
+      int biasV = bias[c_r_offset];
+#pragma unroll
+      for(int jj = 0; jj < NUMB ;++jj){
+        sum[ii][jj] += biasV;
+      }
+    }
+  }
+  for(int ii = 0; ii < NUMA; ++ii){
+    int c_r_offset = row + ii * TILE;
+    for(int jj = 0; jj < NUMB ;++jj){
+      int c_c_offset = col + jj * TILE;
+      if(c_r_offset < m && c_c_offset < n)
+      c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
+    }
+  }
+}
 
 inline void im2col_gpu(const int32_t* data_im, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
@@ -417,6 +401,8 @@ const char* cuda_conv2d(
   const int BS = 8;
  // const int NA = 2;
  // const int NB = 2;
+  const int NUMA = 8;
+  const int NUMB = 8;
   dim3 bDim1(BS, BS, 1);
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
@@ -429,27 +415,44 @@ const char* cuda_conv2d(
 
   dim3 bSize(8, 8, 1);
   dim3 gSize((K+7)/8, (M+7)/8, 1);
+#ifdef NANO
+  kernel_int32_to_int8<<<gSize, bSize>>>(dev_f, d_f, M, K);
+#else
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
+#endif
 
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
 
+    //cudaEvent_t start, stop;
+    //cudaEventCreate(&start);
+    //cudaEventCreate(&stop);
+    //cudaEventRecord(start, 0);
     if(dev_b == NULL){
 #ifdef NANO
-      kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      //kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<NUMA, NUMB, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif
     }
     else{
 #ifdef NANO
-      kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      //kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<NUMA, NUMB, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif
     }
+    //cudaDeviceSynchronize();
+    //cudaEventRecord(stop, 0);
+    //cudaEventSynchronize(stop);
+    //float cost_time;
+    //cudaEventElapsedTime(&cost_time, start,  stop);
+
+    //printf("()%d %d %d), (%d %d %d): %.5f\n", M, K, N, TM, TK, TN, cost_time);
   }
 
   print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
