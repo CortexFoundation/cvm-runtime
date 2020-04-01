@@ -28,8 +28,8 @@ class VideoType:
 
 class VideoWriter:
     FORMAT = {
-        MP4 : 'XVID',
-        AVI : 'MJPG',
+        VideoType.MP4 : 'XVID',
+        VideoType.AVI : 'MJPG',
     }
 
     def __init__(self, filename, file_type=VideoType.AVI):
