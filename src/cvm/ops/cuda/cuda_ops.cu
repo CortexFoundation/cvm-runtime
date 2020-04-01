@@ -70,13 +70,27 @@ __global__ void kernel_relu(const int32_t *x, int32_t*y, const uint64_t n){
     y[i] = max(x[i], 0);
   }
 }
+__global__ void kernel_relu4(const int4 *x, int4 *y, const uint64_t n){
+  int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  for(uint64_t i = tid; i < n; i += gridDim.x * blockDim.x){
+    int4 data = x[i];
+    data.x = max(data.x, 0);
+    data.y = max(data.y, 0);
+    data.z = max(data.z, 0);
+    data.w = max(data.w, 0);
+    y[i] = data; 
+  }
+}
 const char* cuda_relu(const int32_t *x, int32_t *y, const uint64_t n, int& error_code){
   const int32_t *dev_x = x;
   int32_t *dev_y = y;
 
+  int new_n = n/4;
   int threadSize = 256;
-  int blockSize = getGridSize(n, threadSize);//(n + threadSize - 1) / threadSize;
-  kernel_relu<<<blockSize, threadSize>>>(dev_x, dev_y, n);
+  int blockSize = getGridSize(new_n, threadSize);
+  if(new_n > 0)
+    kernel_relu4<<<blockSize, threadSize>>>((int4*)dev_x, (int4*)dev_y, new_n);
+  kernel_relu<<<1, 32>>>(dev_x+new_n*4, dev_y+new_n*4, n-new_n*4);
 
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){
@@ -161,6 +175,7 @@ __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, cons
     out_data[yi] = input_data[i];
   }
 }
+
 __global__ void kernel_concatenate_one_input(int32_t *input, const int32_t isize, const int32_t ndim, int32_t *out_data, const int32_t axis, const int32_t axisSize, 
     const int32_t ishp0, const int32_t ishp1, const int32_t ishp2, const int32_t ishp3, const int32_t ishp4, const int32_t ishp5,
     const int32_t oshp0, const int32_t oshp1, const int32_t oshp2, const int32_t oshp3, const int32_t oshp4, const int32_t oshp5){
@@ -184,47 +199,39 @@ __global__ void kernel_concatenate_one_input(int32_t *input, const int32_t isize
   }
 }
 
+__global__ void kernel_concatenate_opt(const int32_t *input, int32_t *output, int y_axis_batch, int x_axis_batch, int n){
+  int tid = threadIdx.x + blockIdx.x * blockDim.x;
+  if(tid < n){
+    int y_iter = tid / x_axis_batch;
+    int x_iter = tid % x_axis_batch;
+    output[y_iter * y_axis_batch+ x_iter] = input[y_iter * x_axis_batch + x_iter];
+  }
+}
+
 const char* cuda_concatenate(int32_t **inputs, int64_t *ishapes, const int32_t ninput, const int32_t ndim, int32_t *output,const int64_t* oshape, const int32_t axis, int32_t* axisSize, int32_t *ext_space, int& error_code){
   int32_t *dev_output = output;
-    int64_t dev_oshape[6];
-    get_cuda_shape(oshape, ndim, dev_oshape);
+  int64_t dev_oshape[6];
+  get_cuda_shape(oshape, ndim, dev_oshape);
 
-    // int64_t y_size = 1;
-    // for (int i = 0; i < axis; ++i) y_size *= oshape[i];
-    // int32_t axis_batch = 1;
-    // for (int i = axis+1; i < ndim; ++i) axis_batch *= oshape[i];
+  int64_t y_size = 1;
+  for (int i = 0; i < axis; ++i) y_size *= oshape[i];
+  int32_t axis_batch = 1;
+  for (int i = axis+1; i < ndim; ++i) axis_batch *= oshape[i];
 
-    // int64_t y_start_idx = 0;
-    // int64_t y_axis_batch = oshape[axis] * axis_batch;
-    // for (int m = 0; m < ninput; ++m) {
-    //   int32_t* Ix = inputs[m];
-    //   auto x_axis_batch = ishapes[m*ndim+axis] * axis_batch;
+  int64_t y_start_idx = 0;
+  int64_t y_axis_batch = oshape[axis] * axis_batch;
+  for (int m = 0; m < ninput; ++m) {
+    int32_t* Ix = inputs[m];
+    int32_t x_axis_batch = ishapes[m*ndim+axis] * axis_batch;
 
-    //   for (int64_t y_iter = 0; y_iter < y_size; ++y_iter) {
-    //     cudaMemcpy(output+y_iter*y_axis_batch+y_start_idx,
-    //         Ix+y_iter*x_axis_batch,
-    //         x_axis_batch*sizeof(int32_t),
-    //         cudaMemcpyDeviceToDevice);
-    //   }
+    int32_t n = x_axis_batch * y_size;
+    int32_t bSize = 512;
+    int32_t gSize = getGridSize(n, bSize);
+    kernel_concatenate_opt<<<gSize, bSize>>>(Ix, dev_output + y_start_idx, y_axis_batch, x_axis_batch, n);
+    y_start_idx += x_axis_batch;
+  }
 
-    //   y_start_idx += x_axis_batch;
-    // }
-
-    for(int i = 0; i < ninput; i++){
-      int64_t isize = 1;
-      for(int j = 0; j < ndim; j++){
-        isize *= ishapes[i*ndim + j];
-      }
-
-      int64_t dev_ishape[6];
-      get_cuda_shape(ishapes + i * ndim, ndim, dev_ishape);
-      const int bSize = 512;
-      const int gSize = (isize + bSize - 1) / bSize;
-      kernel_concatenate_one_input<<<gSize, bSize>>>(inputs[i], isize, ndim, dev_output, axis, axisSize[i],
-          dev_ishape[0], dev_ishape[1], dev_ishape[2], dev_ishape[3], dev_ishape[4], dev_ishape[5],
-          dev_oshape[0], dev_oshape[1], dev_oshape[2], dev_oshape[3], dev_oshape[4], dev_oshape[5]);
-    }
-    return "";
+  return "";
 }
 
 __global__ void kernel_bias_add(const int32_t *x_data, const int32_t * bias_data, int32_t *y_data, 

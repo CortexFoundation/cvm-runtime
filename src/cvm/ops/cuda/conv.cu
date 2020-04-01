@@ -1,19 +1,17 @@
 #include "cuda_ops.h"
 #include "../common.h"
-#include <omp.h>
 
 namespace cvm{
 namespace runtime{
 
-//#define BS 16
-//#define FS 8
-
-  __global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int n){
-    int tid = threadIdx.x + blockDim.x * blockIdx.x;
-    for(int64_t i = tid; i < n; i+= gridDim.x * blockDim.x){
-      out_data[i] = static_cast<int8_t>(in_data[i]);
-    }
+__global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int M, const int K){
+  int tidx = threadIdx.x + blockDim.x * blockIdx.x;
+  int tidy = threadIdx.y + blockDim.y * blockIdx.y;
+  const int TK = (K + 63) / 64 * 64;
+  if(tidy < M && tidx < K){
+    out_data[tidy * TK + tidx] = in_data[tidy * K + tidx];
   }
+}
 
 __global__ void kernel_transpose_i32_to_i8(const int32_t * __restrict__ in, int8_t *out, 
     const int32_t H, const int32_t W, 
@@ -104,86 +102,9 @@ __global__ void im2col_gpu_kernel(const int n, const int32_t* data_im,
 }
 
 #define TILE_WIDTH 16
-template<const bool has_bias, int NUM>
-__global__ void kernel_matrix_mul(
-    int8_t *a, // m*k 
-    int8_t *b, // k*n
-    int32_t *c, // m*n
-    int32_t m, int32_t k, int32_t n, int32_t *bias){
-  __shared__ int8_t sharedm[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
-  __shared__ int8_t sharedn[TILE_WIDTH*NUM][TILE_WIDTH*NUM];
-  int bx = blockIdx.x;
-  int by = blockIdx.y;
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
-  int row = by*TILE_WIDTH*NUM + ty;
-  int col = bx*TILE_WIDTH*NUM + tx;
-  int sum[NUM][NUM]= {{0}};
-
-  for (int i = 0; i < (int)(ceil((float)k/TILE_WIDTH)); i+=NUM)
-  {
-    for(int ii = 0; ii < NUM; ++ii){
-      int r_offset = ii * TILE_WIDTH;
-      for(int jj = 0; jj < NUM; ++jj){
-        int c_offset = jj * TILE_WIDTH;
-        int arow_offset = row + r_offset;
-        int acol_offset = i*TILE_WIDTH + tx + c_offset;
-        int brow_offset = i*TILE_WIDTH + ty + r_offset;
-        int bcol_offset =  col + c_offset;
-
-        if(arow_offset < m && acol_offset < k)
-          sharedm[ty+r_offset][tx+c_offset] = a[(arow_offset)*k + acol_offset];
-        else sharedm[ty+r_offset][tx+c_offset] = 0;
-
-        if(brow_offset < k && bcol_offset < n)
-          sharedn[ty+r_offset][tx+c_offset] = b[(brow_offset)*n + bcol_offset];
-        else sharedn[ty+r_offset][tx+c_offset] = 0;
-      }
-    }
-    __syncthreads();
-
-    for(int j = 0; j < TILE_WIDTH; j++){ 
-      int8_t tm[NUM][NUM], tn[NUM][NUM];
-#pragma unroll
-      for(int ii = 0; ii < NUM; ++ii){
-#pragma unroll
-        for(int jj = 0; jj < NUM; ++jj){
-          tm[ii][jj] = sharedm[ty+ii*TILE_WIDTH][j+jj*TILE_WIDTH];
-          tn[ii][jj] = sharedn[j+ii*TILE_WIDTH][tx+jj*TILE_WIDTH];
-        }
-      }
-      for(int ii = 0; ii < NUM; ++ii){
-#pragma unroll
-        for(int kk = 0; kk < NUM; ++kk){
-#pragma unroll
-          for(int jj = 0; jj < NUM; ++jj){
-            sum[ii][jj] += tm[ii][kk] * tn[kk][jj];
-          }
-        }
-      }
-    }
-    __syncthreads();
-  }
-  if(has_bias) {
-    for(int ii = 0; ii < NUM; ++ii){
-      int32_t bv = bias[row + ii * TILE_WIDTH];
-      for(int jj = 0; jj < NUM ;++jj){
-        sum[ii][jj] += bv; 
-      }
-    }
-  }
-  for(int ii = 0; ii < NUM; ++ii){
-    int c_r_offset = row + ii * TILE_WIDTH;
-    for(int jj = 0; jj < NUM ;++jj){
-      int c_c_offset = col + jj * TILE_WIDTH;
-      if(c_r_offset < m && c_c_offset < n)
-        c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
-    }
-  }
-}
 
 template<bool has_bias>
-__global__ void kernel_matrix_mul_opt(
+__global__ void kernel_gemm_opt(
     char4 *A, // k*m 
     char4  *B, // k*n
     int32_t *C, // m*n
@@ -266,7 +187,7 @@ inline __device__ int4 vec4Mul(const signed char a, const char4 b){
 texture<char4, 1, cudaReadModeElementType> texRefA;
 texture<char4, 1, cudaReadModeElementType> texRefB;
 template<const int BS, const int NA, const int NB, const bool hasBias>
-__global__ void kernel_matrix_mul_opt6(
+__global__ void kernel_gemm_nano(
     const char4* __restrict__ A,
     const char4* __restrict__ B,
     int *C, // m*n
@@ -375,6 +296,65 @@ __global__ void kernel_matrix_mul_opt6(
     }
   }
 }
+template<int NUMA, int NUMB, int TILE, bool hasBias>
+__global__ void kernel_gemm_nano2(
+    const int8_t * __restrict__ a, // m*k 
+    const int8_t * __restrict__ b, // k*n
+    int32_t *c, // m*n
+    int32_t m, int32_t k, int32_t n, int32_t *bias, int TM, int TK, int TN){
+  __shared__ int8_t sharedm[TILE * NUMA][TILE];
+  __shared__ int8_t sharedn[TILE][TILE * NUMB];
+  int bx = blockIdx.x;
+  int by = blockIdx.y;
+  int tx = threadIdx.x;
+  int ty = threadIdx.y;
+  int row = by*TILE * NUMA + ty;
+  int col = bx*TILE * NUMB + tx;
+  int sum[NUMA][NUMB]= {{0}};
+
+  for(int i = 0; i < TK/TILE; i++)
+  {
+#pragma unroll
+    for(int ii = 0; ii < NUMA; ++ii){
+      sharedm[ty + ii*TILE][tx] = a[(row + ii*TILE)*TK + i * TILE + tx];
+    }
+#pragma unroll
+    for(int jj = 0; jj < NUMB; ++jj){
+      sharedn[ty][tx + jj*TILE] = b[(i*TILE + ty)*TN + col + jj*TILE];
+    }
+    __syncthreads();
+
+    for(int kk = 0; kk < TILE; ++kk){
+#pragma unroll
+      for(int ii = 0; ii < NUMA; ++ii){
+#pragma unroll
+        for(int jj = 0; jj < NUMB; ++jj){
+          sum[ii][jj] += sharedm[ii*TILE+ ty][kk] * sharedn[kk][tx + jj*TILE];
+        }
+      }
+    }
+    __syncthreads();
+  }
+  if(hasBias){
+#pragma unroll
+    for(int ii = 0; ii < NUMA; ++ii){
+      int c_r_offset = row + ii * TILE;
+      int biasV = bias[c_r_offset];
+#pragma unroll
+      for(int jj = 0; jj < NUMB ;++jj){
+        sum[ii][jj] += biasV;
+      }
+    }
+  }
+  for(int ii = 0; ii < NUMA; ++ii){
+    int c_r_offset = row + ii * TILE;
+    for(int jj = 0; jj < NUMB ;++jj){
+      int c_c_offset = col + jj * TILE;
+      if(c_r_offset < m && c_c_offset < n)
+      c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
+    }
+  }
+}
 
 inline void im2col_gpu(const int32_t* data_im, const int channels,
         const int height, const int width, const int kernel_h, const int kernel_w,
@@ -419,164 +399,129 @@ const char* cuda_conv2d(
   const int N = o_h * o_w;
   const int TN = (N + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   const int BS = 8;
-  const int NA = 2;
-  const int NB = 2;
+ // const int NA = 2;
+ // const int NB = 2;
+  const int NUMA = 8;
+  const int NUMB = 8;
   dim3 bDim1(BS, BS, 1);
-  //int gh = TM/4 / BS / NA;
-  //int gw = TN/4 / BS / NB;
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
   int gw = TN / 64;
   dim3 gDim(gw, gh, 1);
 
-  //double start = omp_get_wtime();
   cudaMemset(ext_space, 0, sizeof(int32_t)*ext_space_size);
   int8_t *d_f = (int8_t*)ext_space;
   int8_t *d_col = d_f + TM * TK;
 
- // int blockSize = 256;
- // int gridSize = getGridSize(fn, blockSize);
-  //kernel_int32_to_int8<<<gridSize, blockSize>>>(dev_f, d_f, fn);
   dim3 bSize(8, 8, 1);
   dim3 gSize((K+7)/8, (M+7)/8, 1);
+#ifdef NANO
+  kernel_int32_to_int8<<<gSize, bSize>>>(dev_f, d_f, M, K);
+#else
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
-  //cudaDeviceSynchronize();
-  //double tran_end = omp_get_wtime();
-  //printf("%d %d %d %d transpose: %.5f\n", M, K, TM, TK, tran_end-start);
-  
-  //cudaBindTexture(0, texRefA, (char4*)d_f);
-  //cudaBindTexture(0, texRefB, (char4*)d_col);
+#endif
+
   for(int i = 0; i < o_n; i++){
     im2col_gpu(dev_i + i * i_c * i_h * i_w,
         i_c, i_h, i_w, f_h, f_w, padding_h, padding_w, stride_h, stride_w, 
         dilation_h, dilation_w, d_col);
 
-  //  cudaDeviceSynchronize();
-  //  double im2col_end = omp_get_wtime();
-  //  printf("%d %d %d im2col: %.5f\n", TM, TK, TN, im2col_end-tran_end);
-
+    //cudaEvent_t start, stop;
+    //cudaEventCreate(&start);
+    //cudaEventCreate(&stop);
+    //cudaEventRecord(start, 0);
     if(dev_b == NULL){
-      if(true)//(TM > 256 && TN > 256)
-        kernel_matrix_mul_opt6<BS, NA, NB, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      else
-        kernel_matrix_mul_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#ifdef NANO
+      //kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<NUMA, NUMB, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+#else
+      kernel_gemm_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#endif
     }
     else{
-      if(true)//(TM > 256 && TN > 256)
-        kernel_matrix_mul_opt6<BS, NA, NB, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      else
-        kernel_matrix_mul_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#ifdef NANO
+      //kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<NUMA, NUMB, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+#else
+      kernel_gemm_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
+#endif
     }
-  //  cudaDeviceSynchronize();
-  //  double end = omp_get_wtime();
-  //  printf("%d %d %d matrix_mul: %.5f\n", TM, TK, TN, end-im2col_end);
+    //cudaDeviceSynchronize();
+    //cudaEventRecord(stop, 0);
+    //cudaEventSynchronize(stop);
+    //float cost_time;
+    //cudaEventElapsedTime(&cost_time, start,  stop);
+
+    //printf("()%d %d %d), (%d %d %d): %.5f\n", M, K, N, TM, TK, TN, cost_time);
   }
 
-  //cudaUnbindTexture(texRefA);
-  //cudaUnbindTexture(texRefB);
   print_to_file(dev_i, o_n * i_c* i_h * i_w, "conv2d_x.txt");
   print_to_file(dev_o, o_n * o_c * o_h * o_w, "conv2d.txt");
   //return check_cuda_error(error);
   return "";
 }
 
-template<int BS>
 __global__ void kernel_depthwise_conv2d(
-    const int32_t * __restrict__ input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
-    const int32_t * __restrict__ filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
-    const int32_t * __restrict__ bias,
+    int32_t *input, int32_t i_n, int32_t i_c, int32_t i_h, int32_t i_w,
+    int32_t *filter, int32_t f_n, int32_t f_c, int32_t f_h, int32_t f_w,
+    int32_t *bias,
     int32_t padding_h, int32_t padding_w,
     int32_t stride_h, int32_t stride_w,
     int32_t dilation_h, int32_t dilation_w, 
     int32_t groups,
-    int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w)
-{
-  int g_x = blockDim.x * blockIdx.x + threadIdx.x;
-  int l_y = threadIdx.y; 
-  int l_x = threadIdx.x;
-  int tmp_f_h = (f_h - 1) * dilation_h + 1; // for dilation, to be optimized
-  int tmp_f_w = (f_w - 1) * dilation_w + 1;
-  int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; // for stride
-  int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
-  int perBlockOneImageY = (tmp_o_h+BS-1) / BS;
-  int perBlockOneImageX = (tmp_o_w+BS-1) / BS;
-  int l_o_c = blockIdx.y / perBlockOneImageY;
-  int l_f_c = l_o_c % o_c;
-  int l_o_hi = blockIdx.y % perBlockOneImageY;
-  int l_o_wi = blockIdx.x % perBlockOneImageX;
-  int l_o_h = l_o_hi * BS + l_y;
-  //    int l_o_w = l_o_wi * BS + l_x;
-  if(l_o_h >= tmp_o_h || g_x >= tmp_o_w) return;
-
-  const int32_t F_H = f_h;
-  const int32_t F_W = f_w;
-  //    __shared__ int32_t shared_i[BS + F_H - 1][BS + F_W - 1];
-  int32_t sih = BS + tmp_f_h - 1;
-  int32_t siw = BS + tmp_f_w - 1;
-  extern __shared__ int32_t  share[];
-  int32_t *shared_i = (int32_t*)share; 
-  int32_t *shared_f = &share[sih * siw];
-
-  int32_t sum = 0; 
-  int min_s_y = (l_o_hi+1) * BS <= tmp_o_h ? BS : tmp_o_h%BS;
-  int min_s_x = (l_o_wi+1) * BS <= tmp_o_w ? BS : tmp_o_w%BS;
-
-  //load input to shared
-  int l_i_h = l_o_h - padding_h;
-  int i_y = l_o_c * i_h + l_i_h;
-  int i_x = g_x - padding_w;
-  // 0~2-> -1~1
-  if(l_i_h < 0 || i_x < 0 || l_i_h >= i_h || i_x >= i_w)
-    shared_i[l_y*siw + l_x] = 0;
-  else
-    shared_i[l_y*siw + l_x] = input[i_y * i_w + i_x];
-
-  if(l_y < tmp_f_h-1){
-    for(int i = l_y; i < tmp_f_h-1; i+=min_s_y){
-      if(l_i_h+min_s_y+i-l_y < 0 || i_x < 0 || l_i_h+min_s_y+i-l_y >= i_h || i_x >= i_w)
-        shared_i[(i+min_s_y)*siw + l_x] = 0;
-      else
-        shared_i[(i + min_s_y)*siw + l_x] = input[(i_y + min_s_y + i - l_y) * i_w + i_x]; 
-    }
+    int32_t *output, int32_t o_n, int32_t o_c, int32_t o_h, int32_t o_w){
+  const int SW = blockDim.x * stride_w + f_w * dilation_w;
+  const int SH = blockDim.y * stride_h + f_h * dilation_h;
+  extern __shared__ int8_t cache[];
+  int8_t *cache_input = cache;//SH*SW 
+  int8_t *cache_filter = cache + SH * SW;//filter size < BS*BS
+  //one block calc one channel
+  int batch = blockIdx.y;
+  int channel = blockIdx.x;
+  int ly = threadIdx.y;
+  int lx = threadIdx.x;
+  int tid = ly * blockDim.x + lx;
+  int nfilter = f_h * f_w;
+  int32_t *pInput = input + batch * i_c * i_h * i_w +  channel * i_h * i_w;
+  int32_t *pFilter = filter + channel * f_h * f_w; 
+  int32_t *pOut = output + batch * o_c * o_h * o_w + channel * o_h * o_w;
+  int biasV = 0;
+  for(int i = tid; i < nfilter; i += blockDim.x * blockDim.y){
+    cache_filter[i] = (int8_t)pFilter[i];
   }
-  if(l_x < tmp_f_w-1){
-    for(int i = l_x; i < tmp_f_w-1; i+= min_s_x){
-      if(l_i_h < 0 || i_x+min_s_x+i-l_x < 0 || l_i_h >= i_h || i_x+min_s_x+i-l_x >= i_w)
-        shared_i[l_y * siw + i+min_s_x] = 0;
-      else
-        shared_i[l_y * siw + i + min_s_x] = input[i_y * i_w + i_x + min_s_x + i - l_x];
-    }
-  }
-  if(l_y < tmp_f_h-1 && l_x < tmp_f_w-1){
-    for(int i = l_y; i < tmp_f_h-1; i+=min_s_y){
-      for(int j = l_x; j < tmp_f_w-1; j+=min_s_x){
-        if(l_i_h+min_s_y+i-l_y < 0 || i_x+min_s_x+j-l_x < 0 || l_i_h+min_s_y+i-l_y >= i_h || i_x+min_s_x+j-l_x >= i_w)
-          shared_i[(i+min_s_y) * siw + j+min_s_x] = 0;
-        else
-          shared_i[(i+min_s_y) * siw + j+min_s_x] = input[(i_y+min_s_y + i-l_y)*i_w + i_x + min_s_x + j - l_x];
+  if(bias != NULL) biasV = bias[channel];
+
+  __syncthreads();
+
+  for(int y = 0; y < o_h; y += blockDim.y){
+    for(int x = 0; x < o_w; x += blockDim.x){
+      for(int yn = ly; yn < SH; yn+=blockDim.y){
+        for(int xn = lx; xn < SW; xn+= blockDim.x){
+          cache_input[yn * SW + xn] = 0;
+        }
       }
+      __syncthreads();
+      //load input to share
+      for(int yn = ly; yn < SH && y*stride_h+yn-padding_h < i_h; yn += blockDim.y){
+        for(int xn = lx; xn < SW && x*stride_w+xn-padding_w < i_w; xn += blockDim.x){
+          if(y*stride_h+yn-padding_h >= 0 && x*stride_w+xn-padding_w >= 0)
+            cache_input[(yn) * SW + xn] = (int8_t)pInput[(y*stride_h+yn-padding_h)*i_w + x*stride_w+xn-padding_w];
+        }
+      }
+      __syncthreads();
+
+      int32_t sum = 0;
+      for(int fy = 0; fy < f_h; ++fy){
+        for(int fx = 0; fx < f_w; ++fx){
+          int32_t ih  = ly * stride_h + fy * dilation_h;
+          int32_t iw = lx * stride_w + fx * dilation_w;
+          sum += cache_input[ih * SW + iw] * cache_filter[fy * f_w + fx];
+        }
+      }
+      if(y+ly < o_h && x+lx < o_w)
+      pOut[(y + ly) * o_w + x + lx] = sum + biasV;
+      __syncthreads();
     }
-  }
-
-  //load filter to shared;
-  if(l_y < F_H && l_x < F_W){
-    for(int i = l_y; i < F_H; i+= min_s_y)
-      for(int j = l_x; j < F_W; j+=min_s_x)
-        shared_f[i*F_W + j] = filter[l_f_c * F_H * F_W + i * F_W + j];
-  }
-  __syncthreads();
-
-  for(int fy = 0; fy < F_H; fy++){
-    for(int fx = 0; fx < F_W; fx++){
-      sum += shared_i[(l_y+fy*dilation_h)*siw + l_x+fx*dilation_w] * shared_f[fy*F_W + fx];
-    }
-  } 
-  __syncthreads();
-
-  if(l_o_h % stride_h == 0 && g_x % stride_w == 0){
-    //int oi = l_o_c * o_h * o_w + l_o_h * o_w + g_x;
-    int oi = l_o_c * o_h * o_w + l_o_h/stride_h * o_w + g_x/stride_w;
-    output[oi] = sum + (bias != NULL ? bias[l_o_c%o_c] : 0);
   }
 }
 __global__ void kernel_depthwise_conv2d_no_shared(
@@ -695,25 +640,44 @@ const char* cuda_groupwise_conv2d(
   int32_t *dev_i = input, *dev_f = filter, *dev_o = output, *dev_b = bias;
 
   const int BS = 16;
-  int b_h = BS;
-  int b_w = BS;
-  int tmp_f_h = (f_h - 1) * dilation_h + 1; 
-  int tmp_f_w = (f_w - 1) * dilation_w + 1;
-  int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; 
-  int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
-  int32_t g_h = o_n * o_c * ((tmp_o_h + b_h - 1) / b_h); 
-  int32_t g_w = (tmp_o_w + b_w - 1) / b_w;
-  dim3 bDim(b_w, b_h, 1);
-  dim3 gDim(g_w, g_h, 1);
-  kernel_groupwise_conv2d_no_shared<<<gDim, bDim>>>(
-      dev_i, i_n, i_c, i_h, i_w,
-      dev_f, f_n, f_c, f_h, f_w,
-      dev_b, 
-      padding_h, padding_w,
-      stride_h, stride_w,
-      dilation_h, dilation_w,
-      groups,
-      dev_o, o_n, o_c, o_h, o_w);
+  const int SW = BS * stride_w + f_w * dilation_w;
+  const int SH = BS * stride_h + f_h * dilation_h;
+  size_t share_size = SH * SW * sizeof(int8_t) + f_h * f_w * sizeof(int8_t);
+  if(groups == o_c && share_size <= 48*1024){
+    dim3 blockSize(BS, BS, 1);
+    dim3 gridSize(o_c, i_n, 1);
+    //assert(share_size < 32*1024);
+    kernel_depthwise_conv2d<<<gridSize, blockSize, share_size>>>(
+        input, i_n, i_c, i_h, i_w, 
+        filter, o_c, f_c, f_h, f_w, 
+        bias,
+        padding_h, padding_w, 
+        stride_h, stride_w,
+        dilation_h, dilation_w, 
+        groups, 
+        output, o_n, o_c, o_h, o_w);
+  }else{
+    const int BS = 16;
+    int b_h = BS;
+    int b_w = BS;
+    int tmp_f_h = (f_h - 1) * dilation_h + 1; 
+    int tmp_f_w = (f_w - 1) * dilation_w + 1;
+    int tmp_o_h = i_h + 2 * padding_h - tmp_f_h + 1; 
+    int tmp_o_w = i_w + 2 * padding_w - tmp_f_w + 1;
+    int32_t g_h = o_n * o_c * ((tmp_o_h + b_h - 1) / b_h); 
+    int32_t g_w = (tmp_o_w + b_w - 1) / b_w;
+    dim3 bDim(b_w, b_h, 1);
+    dim3 gDim(g_w, g_h, 1);
+    kernel_groupwise_conv2d_no_shared<<<gDim, bDim>>>(
+        dev_i, i_n, i_c, i_h, i_w,
+        dev_f, f_n, f_c, f_h, f_w,
+        dev_b, 
+        padding_h, padding_w,
+        stride_h, stride_w,
+        dilation_h, dilation_w,
+        groups,
+        dev_o, o_n, o_c, o_h, o_w);
+  }
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){
     error_code = ERROR_KERNEL;

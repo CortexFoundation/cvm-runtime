@@ -80,6 +80,9 @@ if(ENABLE_CUDA)
         ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
+    if(ENABLE_NANO)
+      add_definitions(-DNANO)
+    endif()
       
     file(GLOB RUNTIME_CUDA_SRCS src/runtime/cuda/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
