@@ -80,7 +80,7 @@ if(ENABLE_CUDA)
         ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
-    if(ENABLE_NANO)
+    if(USE_NANO)
       add_definitions(-DNANO)
     endif()
       

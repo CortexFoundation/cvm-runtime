@@ -416,8 +416,8 @@ const char* cuda_conv2d(
   const int BS = 8;
  // const int NA = 2;
  // const int NB = 2;
-  const int NUMA = 8;
-  const int NUMB = 8;
+  //const int NUMA = 8;
+  //const int NUMB = 8;
   dim3 bDim1(BS, BS, 1);
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
@@ -428,11 +428,13 @@ const char* cuda_conv2d(
   int8_t *d_f = (int8_t*)ext_space;
   int8_t *d_col = d_f + TM * TK;
 
+#ifdef NANO
   dim3 bSize(8, 8, 1);
   dim3 gSize((K+31)/32, (M+7)/8, 1);
-#ifdef NANO
   kernel_int32_to_int8<<<gSize, bSize>>>(dev_f, (char4*)d_f, M, K);
 #else
+  dim3 bSize(8, 8, 1);
+  dim3 gSize((K+7)/8, (M+7)/8, 1);
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
 #endif
 
