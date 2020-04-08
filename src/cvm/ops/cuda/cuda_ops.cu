@@ -52,7 +52,6 @@ const char* cuda_dense(
     int32_t *c,
     const int m, const int k, const int n, int32_t* bias, int& error_code){
   int32_t *dev_a = a, *dev_b = b, *dev_c = c, *dev_bias = bias;
-  if(bias != NULL) useBias = 1;
   printf("%d %d %d\n", m, k, n);
 
   dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);

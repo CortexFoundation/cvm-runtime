@@ -450,7 +450,7 @@ const char* cuda_conv2d(
     if(dev_b == NULL){
 #ifdef NANO
       //kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      kernel_gemm_nano2<NUMA, NUMB, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<8, 8, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif
@@ -458,7 +458,7 @@ const char* cuda_conv2d(
     else{
 #ifdef NANO
       //kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      kernel_gemm_nano2<NUMA, NUMB, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<8, 8, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif
