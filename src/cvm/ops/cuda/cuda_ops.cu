@@ -3,12 +3,15 @@
 
 namespace cvm{
 namespace runtime{
-#define TILE_WIDTH 16
+#define TILE_WIDTH 8
+  
+  
+template<bool useBias>
 __global__ void kernel_dense(
-    int32_t *A, // m*k 
-    int32_t *B, // was transposed, n*k
+    const int32_t * __restrict__ A, // m*k 
+    const int32_t * __restrict__ B, // was transposed, n*k
     int32_t *C, // m*n
-    int32_t m, int32_t k, int32_t n, int32_t *bias, int32_t useBias){
+    int32_t m, int32_t k, int32_t n, int32_t *bias){
   __shared__ int32_t sharedM[TILE_WIDTH][TILE_WIDTH];
   __shared__ int32_t sharedN[TILE_WIDTH][TILE_WIDTH];
   int bx = blockIdx.x;
@@ -26,10 +29,11 @@ __global__ void kernel_dense(
     else
       sharedM[ty][tx] = 0;
 
-    if(i*TILE_WIDTH + ty < k && col < n)//n*k
-      sharedN[tx][ty] = B[col * k + i * TILE_WIDTH + ty];
+    if(i*TILE_WIDTH + tx < k && bx*TILE_WIDTH + ty < n)//n*k
+      //sharedN[tx][ty] = B[col * k + i * TILE_WIDTH + ty];
+      sharedN[ty][tx] = B[(bx*TILE_WIDTH + ty) * k + i * TILE_WIDTH + tx];
     else
-      sharedN[tx][ty] = 0;
+      sharedN[ty][tx] = 0;
     __syncthreads();
 
     for(int j = 0; j < TILE_WIDTH; j++)
@@ -37,7 +41,7 @@ __global__ void kernel_dense(
     __syncthreads();
   }
   if (row < m && col < n){
-    if(useBias == 1) sum += bias[col];
+    if(useBias) sum += bias[col];
     C[row*n + col] = sum;
   }
 }
@@ -47,14 +51,18 @@ const char* cuda_dense(
     int32_t *b,
     int32_t *c,
     const int m, const int k, const int n, int32_t* bias, int& error_code){
-  int32_t *dev_a = a, *dev_b = b, *dev_c = c, *dev_bias = bias, useBias = 0;
+  int32_t *dev_a = a, *dev_b = b, *dev_c = c, *dev_bias = bias;
   if(bias != NULL) useBias = 1;
+  printf("%d %d %d\n", m, k, n);
 
   dim3 bDim(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = (m + TILE_WIDTH - 1) / TILE_WIDTH;
   int gw = (n + TILE_WIDTH - 1) / TILE_WIDTH;
   dim3 gDim(gw, gh, 1);
-  kernel_dense<<<gDim, bDim>>>(dev_a, dev_b, dev_c, m, k, n, dev_bias, useBias);
+  if(bias != NULL)
+    kernel_dense<true><<<gDim, bDim>>>(dev_a, dev_b, dev_c, m, k, n, dev_bias);
+  else
+    kernel_dense<false><<<gDim, bDim>>>(dev_a, dev_b, dev_c, m, k, n, dev_bias);
 
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){
