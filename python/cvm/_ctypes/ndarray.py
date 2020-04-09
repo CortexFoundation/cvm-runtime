@@ -54,6 +54,7 @@ class CVMDataType(ctypes.Structure):
         self.lanes = int(arr[1]) if len(arr) > 1 else 1
         bits = 32
 
+
         if head.startswith("int"):
             self.code = 0
             head = head[3:]
@@ -344,3 +345,20 @@ def array(arr, ctx=cpu(0)):
     if not isinstance(arr, (np.ndarray, NDArray)):
         arr = np.array(arr)
     return empty(arr.shape, arr.dtype, ctx).copyfrom(arr)
+
+class CVMByteArray(ctypes.Structure):
+    _field_ = [('data', ctypes.c_void_p),
+               ('size', ctypes.c_int64)]
+
+def save(dict_data):
+    data = []
+    for k, v in dict_data.items():
+        pk = ctypes.c_char_p(bytes(k, encoding='utf-8'))
+        data.append(ctypes.cast(pk, ctypes.c_void_p))
+        data.append(ctypes.cast(v.handle, ctypes.c_void_p))
+
+    ret = CVMByteArray()
+    arr = (ctypes.c_void_p * len(data))(*data)
+    check_call(_LIB.CVMSaveParamsDict(ctypes.byref(arr), len(data), ctypes.byref(ret)))
+    return ret
+
