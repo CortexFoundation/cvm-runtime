@@ -230,6 +230,10 @@ def _init_symbol_module(symbol_class, root_namespace):
     for i in range(size.value):
         op_names.append(py_str(plist[i]))
 
+    python_mod_path = "{}.symbol".format(root_namespace)
+    print ("Register cvm library into python module: {}".format(
+            python_mod_path))
+    print ("Load the operators: {}\n".format(op_names))
     module_obj = sys.modules["%s.symbol" % root_namespace]
     #module_obj_contrib = sys.modules["%s.contrib" % root_namespace]
     #module_internal = sys.modules["%s._symbol_internal" % root_namespace]
@@ -239,7 +243,7 @@ def _init_symbol_module(symbol_class, root_namespace):
         function = _make_atomic_symbol_function(hdl, name)
         if function.__name__.startswith('_contrib_'):
             #setattr(module_obj_contrib, function.__name__.split('_contrib_')[1], function)
-            print("set attr contrib")
+            pass
         elif function.__name__.startswith('_'):
             #setattr(module_internal, function.__name__, function)
             setattr(module_obj, function.__name__, function)

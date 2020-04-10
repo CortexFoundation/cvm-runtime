@@ -339,7 +339,7 @@ class Symbol(SymbolBase):
             self.handle, deps.handle))
 
 
-def Variable(name, init=None, **kwargs):
+def var(name, init=None, **kwargs):
     """Create a symbolic variable with specified name.
 
     Parameters
