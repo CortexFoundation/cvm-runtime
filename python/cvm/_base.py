@@ -39,7 +39,7 @@ else:
     py_str = lambda x: x
 
 
-cvm_uint = ctypes.c_uint
+nn_uint = ctypes.c_uint
 OpHandle = ctypes.c_void_p
 SymbolHandle = ctypes.c_void_p
 #GraphHandle = ctypes.c_void_p

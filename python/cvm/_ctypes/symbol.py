@@ -30,12 +30,9 @@ from ..base import check_call
 from ..name import NameManager
 from ..attribute import AttrScope
 from .. import libinfo
+from .lib import _LIB
 import os
 
-_LIB_PATH = libinfo.find_lib_path()
-_LIB_NAME = os.path.basename(_LIB_PATH[0])
-#TODO (wlt)
-_LIB = ctypes.CDLL(_LIB_PATH[0], ctypes.RTLD_GLOBAL)
 
 class SymbolBase(object):
     """Symbol is symbolic graph."""

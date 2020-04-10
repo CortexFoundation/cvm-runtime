@@ -4,11 +4,8 @@ import numpy as np
 
 from .. import libinfo
 from ..base import check_call
+from .lib import _LIB
 
-_LIB_PATH = libinfo.find_lib_path()
-_LIB_NAME = os.path.basename(_LIB_PATH[0])
-#TODO (wlt)
-_LIB = ctypes.CDLL(_LIB_PATH[0], ctypes.RTLD_GLOBAL)
 
 class CVMContext(ctypes.Structure):
     _fields_ = [("device_type", ctypes.c_int),

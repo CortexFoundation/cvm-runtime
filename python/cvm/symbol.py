@@ -31,13 +31,10 @@ import numpy as np
 from . import _base
 from ._base import _all_var_init
 from .base import check_call as _check_call
+from ._ctypes.lib import _LIB
 from .attribute import AttrScope
 from . import libinfo
 
-_LIB_PATH = libinfo.find_lib_path()
-_LIB_NAME = _os.path.basename(_LIB_PATH[0])
-#TODO (wlt)
-_LIB = _ctypes.CDLL(_LIB_PATH[0], _ctypes.RTLD_GLOBAL)
 # Use different verison of SymbolBase
 # When possible, use cython to speedup part of computation.
 
@@ -380,7 +377,7 @@ def Variable(name, init=None, **kwargs):
     return ret
 
 
-def Group(symbols):
+def Group(*symbols):
     """Create a symbol that groups symbols together.
 
     Parameters
@@ -396,7 +393,8 @@ def Group(symbols):
     ihandles = []
     for sym in symbols:
         if not isinstance(sym, Symbol):
-            raise TypeError('Expect Symbols in the list input')
+            raise TypeError("Expect Input Symbols vs. {}".format(
+                    type(sym)))
         ihandles.append(sym.handle)
     handle = _base.SymbolHandle()
     _check_call(_LIB.CVMSymbolCreateGroup(
