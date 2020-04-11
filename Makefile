@@ -38,7 +38,7 @@ test_formal: ${TEST_FORMALS}
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 python: lib
-	. env.sh
+	bash env.sh
 
 clean:
 	  rm -rf ./build/*
