@@ -111,9 +111,9 @@ int main(){
     return 0;
   }
 
-  const char *key[] = {"shape_inputs", "dtype_inputs", "target"};
-  const char *json_value[] = {"[\"list_shape\", [[1]]]", "[\"list_int\", [8]]", "\"str\", \"cpu\""};
-  for(int i = 0; i < 2; i++){
+  const char *key[] = {"shape_inputs", "dtype_inputs", "precision_inputs", "target"};
+  const char *json_value[] = {"[\"list_shape\", [[1]]]", "[\"list_int\", [8]]", "[\"list_int\", [8]]", "\"str\", \"cpu\""};
+  for(int i = 0; i < 3; i++){
     ret = CVMGraphSetJSONAttr(graph, key[i], json_value[i]);
     if(ret != 0){
       printf("graph set json attr (%d, %s) failed.\n", i, key[i]);
@@ -122,8 +122,8 @@ int main(){
   }
   
   GraphHandle dstGraph;
-  const char* pass_names[] = {"InferShape", "InferType", "GraphCompile"};
-  ret = CVMGraphApplyPasses(graph, 3, pass_names, &dstGraph);
+  const char* pass_names[] = {"InferShape", "InferType", "InferPrecision", "GraphCompile"};
+  ret = CVMGraphApplyPasses(graph, 4, pass_names, &dstGraph);
   if(ret != 0){
     printf("apply pass GraphCompile failed.\n");
     return 0;

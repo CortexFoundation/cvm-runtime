@@ -128,6 +128,17 @@ inline Graph InferType(Graph graph,
   return ApplyPass(std::move(graph), "InferType");
 }
 
+inline Graph InferPrecision(Graph graph,
+                       DTypeVector prec_inputs,
+                       std::string prec_attr_key = "") {
+  if (prec_inputs.size() != 0) {
+    graph.attrs["precision_inputs"] = std::make_shared<any>(std::move(prec_inputs));
+  }
+  if (prec_attr_key.length() != 0) {
+    graph.attrs["precision_attr_key"] = std::make_shared<any>(std::move(prec_attr_key));
+  }
+  return ApplyPass(std::move(graph), "InferPrecision");
+}
 /*!
  * \brief Place the devices for each operator in the graph.
  *
