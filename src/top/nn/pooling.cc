@@ -68,9 +68,9 @@ inline bool Pool2DInferShape(const cvm::NodeAttrs& attrs,
   VerifyAttrRange(param.strides[1], "MaxPool2D.strides[1]", 1);
 
   VerifyAttrRange(param.pool_size[0], "MaxPool2D.pool_size[0]", 
-      0, dshape[hidx] + pad_h + 1);
+      0, dshape[hidx] + pad_h);
   VerifyAttrRange(param.pool_size[1], "MaxPool2D.pool_size[1]", 
-      0, dshape[widx] + pad_w + 1);
+      0, dshape[widx] + pad_w);
 
   dim_t tpad[2] = { param.padding[0], param.padding[0]};
   if(param.padding.ndim() == 2U){
