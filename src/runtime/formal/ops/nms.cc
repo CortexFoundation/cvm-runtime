@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <stdint.h>
 #include <string.h>
+#include <cvm/top/nn.h>
 
-#include "../common.h"
 #include "ops.h"
 
 namespace cvm {

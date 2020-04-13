@@ -1,15 +1,21 @@
 #include "cuda_ops.h"
-#include "../common.h"
 
 namespace cvm{
 namespace runtime{
 
-__global__ void kernel_int32_to_int8(const int32_t *in_data, int8_t *out_data, const int M, const int K){
+__global__ void kernel_int32_to_int8(const int32_t *in_data, char4 *out_data, const int M, const int K){
   int tidx = threadIdx.x + blockDim.x * blockIdx.x;
   int tidy = threadIdx.y + blockDim.y * blockIdx.y;
   const int TK = (K + 63) / 64 * 64;
-  if(tidy < M && tidx < K){
-    out_data[tidy * TK + tidx] = in_data[tidy * K + tidx];
+  char value[4] = {0};
+  if(tidy < M){
+#pragma unroll
+    for(int i = 0; i < 4; i++){
+      if(tidx * 4 + i < K){
+        value[i]= in_data[tidy * K + tidx*4+i];
+      }
+    }
+    out_data[tidy * TK/4 + tidx] = make_char4(value[0], value[1], value[2], value[3]);
   }
 }
 
@@ -302,25 +308,33 @@ __global__ void kernel_gemm_nano2(
     const int8_t * __restrict__ b, // k*n
     int32_t *c, // m*n
     int32_t m, int32_t k, int32_t n, int32_t *bias, int TM, int TK, int TN){
-  __shared__ int8_t sharedm[TILE * NUMA][TILE];
-  __shared__ int8_t sharedn[TILE][TILE * NUMB];
+  __shared__ int8_t sharedm[64*8];
+  __shared__ int8_t sharedn[8*64];
   int bx = blockIdx.x;
   int by = blockIdx.y;
-  int tx = threadIdx.x;
-  int ty = threadIdx.y;
+  int8_t tx = threadIdx.x;
+  int8_t ty = threadIdx.y;
   int row = by*TILE * NUMA + ty;
+  int row2 = by*TILE * NUMA + ty*4;
   int col = bx*TILE * NUMB + tx;
+  int col2 = bx*TILE*2 + tx;
   int sum[NUMA][NUMB]= {{0}};
+  //const char4* pb = (const char4*)b;
+  //const char4* pa = (const char4*)a;
 
   for(int i = 0; i < TK/TILE; i++)
   {
 #pragma unroll
-    for(int ii = 0; ii < NUMA; ++ii){
-      sharedm[ty + ii*TILE][tx] = a[(row + ii*TILE)*TK + i * TILE + tx];
+    for(int ii = 0; ii < 2; ++ii){
+      int r = tx >> 1;
+      int c = tx & 1;
+      char4 ta = ((char4*)a)[(row2 + r + ii*TILE*4)*(TK>>2) + i * 2 + c];
+      ((char4*)sharedm)[(ty * 4 + r + ii * TILE * 4) * 2 + c] = ta;
     }
 #pragma unroll
-    for(int jj = 0; jj < NUMB; ++jj){
-      sharedn[ty][tx + jj*TILE] = b[(i*TILE + ty)*TN + col + jj*TILE];
+    for(int jj = 0; jj < 2; ++jj){
+      char4 tb = ((char4*)b)[(i*TILE + ty)*(TN>>2) + col2 +jj*TILE];
+      ((char4*)sharedn)[ty * 16 + tx + jj * TILE] = tb;
     }
     __syncthreads();
 
@@ -328,8 +342,8 @@ __global__ void kernel_gemm_nano2(
 #pragma unroll
       for(int ii = 0; ii < NUMA; ++ii){
 #pragma unroll
-        for(int jj = 0; jj < NUMB; ++jj){
-          sum[ii][jj] += sharedm[ii*TILE+ ty][kk] * sharedn[kk][tx + jj*TILE];
+        for(int jj = 0; jj < 8; ++jj){
+          sum[ii][jj] += sharedm[(ii*TILE+ ty) * 8 + kk] * sharedn[kk * 64 + tx + jj*TILE];
         }
       }
     }
@@ -348,7 +362,7 @@ __global__ void kernel_gemm_nano2(
   }
   for(int ii = 0; ii < NUMA; ++ii){
     int c_r_offset = row + ii * TILE;
-    for(int jj = 0; jj < NUMB ;++jj){
+    for(int jj = 0; jj < NUMB;++jj){
       int c_c_offset = col + jj * TILE;
       if(c_r_offset < m && c_c_offset < n)
       c[(c_r_offset)*n + c_c_offset] = sum[ii][jj];
@@ -401,8 +415,8 @@ const char* cuda_conv2d(
   const int BS = 8;
  // const int NA = 2;
  // const int NB = 2;
-  const int NUMA = 8;
-  const int NUMB = 8;
+  //const int NUMA = 8;
+  //const int NUMB = 8;
   dim3 bDim1(BS, BS, 1);
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
@@ -413,11 +427,13 @@ const char* cuda_conv2d(
   int8_t *d_f = (int8_t*)ext_space;
   int8_t *d_col = d_f + TM * TK;
 
+#ifdef NANO
+  dim3 bSize(8, 8, 1);
+  dim3 gSize((K+31)/32, (M+7)/8, 1);
+  kernel_int32_to_int8<<<gSize, bSize>>>(dev_f, (char4*)d_f, M, K);
+#else
   dim3 bSize(8, 8, 1);
   dim3 gSize((K+7)/8, (M+7)/8, 1);
-#ifdef NANO
-  kernel_int32_to_int8<<<gSize, bSize>>>(dev_f, d_f, M, K);
-#else
   kernel_transpose_i32_to_i8<<<gSize, bSize>>>(dev_f, d_f, M, K, TM, TK);
 #endif
 
@@ -433,7 +449,7 @@ const char* cuda_conv2d(
     if(dev_b == NULL){
 #ifdef NANO
       //kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      kernel_gemm_nano2<NUMA, NUMB, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<8, 8, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<false><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif
@@ -441,7 +457,7 @@ const char* cuda_conv2d(
     else{
 #ifdef NANO
       //kernel_gemm_nano<BS, 2, 2, true><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
-      kernel_gemm_nano2<NUMA, NUMB, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
+      kernel_gemm_nano2<8, 8, BS, true><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
       kernel_gemm_opt<true><<<gDim, bDim2>>>((char4*)d_f, (char4*)d_col, dev_o + i * o_c * o_h * o_w, M, K, N, dev_b, TM, TN, TK);
 #endif

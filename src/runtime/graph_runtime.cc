@@ -9,6 +9,7 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
 #include <cvm/runtime/device_api.h>
+#include <cvm/errors.h>
 #include <cvm/op_attr_types.h>
 
 #include <algorithm>
@@ -34,6 +35,24 @@ namespace cvm {
 namespace runtime {
 
 CVMUTIL_REGISTER_PARAMETER(CVMOpParam);
+
+// parser
+inline void CVMOpParamParser(cvm::NodeAttrs* attrs) {
+  CVMOpParam param;
+  param.Init(attrs->dict);
+  attrs->parsed = std::move(param);
+}
+
+CVM_REGISTER_OP(cvm_op)
+.set_attr_parser(CVMOpParamParser)
+.set_num_inputs([](const NodeAttrs& attrs) {
+    const CVMOpParam& param = cvm::get<CVMOpParam>(attrs.parsed);
+    return param.num_inputs;
+})
+.set_num_outputs([](const NodeAttrs& attrs) {
+    const CVMOpParam& param = cvm::get<CVMOpParam>(attrs.parsed);
+    return param.num_outputs;
+});
 
 /*!
  * \brief Run all the operations one by one.
@@ -633,8 +652,14 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
 
   const DLTensor* ext_space = extra_space_.operator->();
+#ifdef PROFILE
   auto& times = this->times;
-  return [arg_ptr, op, func, ext_space, &times](){
+#endif
+  return [arg_ptr, op, func, ext_space
+#ifdef PROFILE
+    , &times
+#endif
+  ](){
 #ifdef PROFILE
     if(times.find(op) == times.end()) times[op] = 0;
     double start = omp_get_wtime();
@@ -811,3 +836,62 @@ CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
   });
 }  // namespace runtime
 }  // namespace cvm
+
+int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
+  API_BEGIN();
+  CHECK_EQ(params_size % 2, 0u);
+  size_t num_params = params_size / 2;
+  std::vector<std::string> names;
+  names.reserve(num_params);
+  std::vector<DLTensor*> arrays;
+  arrays.reserve(num_params);
+  for (size_t i = 0; i < num_params * 2; i += 2) {
+    names.emplace_back(std::string((char*)params[i]));
+    arrays.emplace_back((DLTensor*)params[i+1]);
+  } 
+  CVMRuntimeEntry* e = CVMAPIRuntimeStore::Get();
+  utils::MemoryStringStream strm(&e->ret_str);
+  utils::Stream* fo = &strm;
+  uint64_t header = cvm::runtime::kCVMNDArrayListMagic, reserved = 0;
+  fo->Write(header);
+  fo->Write(reserved);
+  fo->Write(names);
+  {
+    uint64_t sz = static_cast<uint64_t>(arrays.size());
+    fo->Write(sz);
+    for (size_t i = 0; i < sz; ++i) {
+      cvm::runtime::SaveDLTensor(fo, arrays[i]);
+    }
+  }
+
+  ret->data = e->ret_str.c_str();
+  ret->size = e->ret_str.size();
+
+  //test
+  //{
+  //  printf("test save load param \n");
+  //  utils::MemoryStringStream fo(const_cast<std::string*>(&e->ret_str));
+  //  utils::Stream* strm = &fo;
+  //  uint64_t header, reserved;
+  //  VERIFY(strm->Read(&header))
+  //    << "Invalid parameters file format";
+  //  VERIFY(header == cvm::runtime::kCVMNDArrayListMagic)
+  //    << "Invalid parameters file format";
+  //  VERIFY(strm->Read(&reserved))
+  //    << "Invalid parameters file format";
+
+  //  std::vector<std::string> names;
+  //  VERIFY(strm->Read(&names))
+  //    << "Invalid parameters file format";
+  //  uint64_t sz;
+  //  strm->Read(&sz);
+  //  size_t size = static_cast<size_t>(sz);
+  //  VERIFY(size == names.size())
+  //    << "Invalid parameters file format";
+  //  for(size_t i = 0; i < names.size(); i++){
+  //    printf("names %d = %s\n", i, names[i].c_str());
+  //  }
+  //
+  //}
+  API_END();
+}

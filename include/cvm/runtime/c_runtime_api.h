@@ -412,6 +412,8 @@ CVM_DLL int CVMArrayCopyFromTo(CVMArrayHandle from,
                                CVMArrayHandle to,
                                CVMStreamHandle stream);
 
+CVM_DLL int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* re);
+
 #ifdef __cplusplus
 }  // CVM_EXTERN_C
 #endif

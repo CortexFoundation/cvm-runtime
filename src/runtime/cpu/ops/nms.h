@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <stdint.h>
 #include <string.h>
-#include "../common.h"
 
 int64_t iou(const int32_t *rect1, const int32_t *rect2, const int32_t format);
 void get_valid_count(const int32_t *x_data, int32_t *y_data, int32_t *valid_count_data, const int32_t batchs, const int32_t n, const int32_t k, const int32_t score_threshold);

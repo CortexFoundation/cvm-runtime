@@ -44,8 +44,6 @@ Graph InferAttr(Graph &&ret,
   const IndexedGraph& idx = ret.indexed_graph();
   static auto& finfer_shape =
       Op::GetAttr<FInferNodeEntryAttr<AttrType> >(infer_name);
-  static auto& is_backward =
-      Op::GetAttr<TIsBackward>("TIsBackward");
   // gradient function, used to get node correspondence.
   //static auto& fgrad =
   //    Op::GetAttr<FGradient>("FGradient");
@@ -65,7 +63,7 @@ Graph InferAttr(Graph &&ret,
       rshape[idx.entry_id(idx.input_nodes()[i], 0)] = shape_args[i];
     }
     // erase the provided arguments
-    ret.attrs.erase(input_name);
+    //ret.attrs.erase(input_name);
   }
 
   // get the shape hints
@@ -109,49 +107,6 @@ Graph InferAttr(Graph &&ret,
           CHECK(is >> rshape[out_ent_id]) << "Invalid attribute";
         }
       }
-    } else if (is_backward.get(inode.source->op(), false) && inode.control_deps.size()) {
-      //CHECK_GE(inode.control_deps.size(), 1U)
-      //  << "BackwardOp need to have control_deps to its forward op";
-      //const IndexedGraph::Node& fnode = idx[inode.control_deps[0]];
-      //NodePtr fwd_ptr = inode.source->control_deps[0];
-      //CHECK(fwd_ptr->op() != nullptr) << "Forward op cannot be a variable";
-      //// use gradient function to find out the correspondence.
-      //std::vector<NodeEntry> ograd(fwd_ptr->num_outputs());
-      //for (size_t i = 0; i < ograd.size(); ++i) {
-      //  ograd[i].index = static_cast<uint32_t>(i);
-      //}
-      //// input gradient list
-      //auto igrad = fgrad[fwd_ptr->op()](fwd_ptr, ograd);
-      //const Node* igrad_node = nullptr;
-      //// Input gradient assignement
-      //for (size_t i = 0; i < igrad.size(); ++i) {
-      //  if (igrad[i].node->op() == inode.source->op()) {
-      //    uint32_t eid = idx.entry_id(nid, igrad[i].index);
-      //    if (fis_none(rshape[eid])) {
-      //      rshape[eid] = rshape[idx.entry_id(fnode.inputs[i])];
-      //    } else if (!fis_none(rshape[idx.entry_id(fnode.inputs[i])])) {
-      //      CHECK_EQ(rshape[eid], rshape[idx.entry_id(fnode.inputs[i])])
-      //          << "Backward shape inconsistent with the forward shape";
-      //    }
-      //    if (igrad_node == nullptr) {
-      //      igrad_node = igrad[i].node.get();
-      //    } else {
-      //      CHECK(igrad_node == igrad[i].node.get());
-      //    }
-      //  }
-      //}
-      //// out grad entries
-      //CHECK(igrad_node != nullptr)
-      //  << "Cannot find matching backward op for " << inode.source->attrs.name;
-      //for (size_t i = 0; i < igrad_node->inputs.size(); ++i) {
-      //  const NodeEntry& e = igrad_node->inputs[i];
-      //  if (e.node == nullptr) {
-      //    uint32_t eid = idx.entry_id(inode.inputs[i]);
-      //    if (fis_none(rshape[eid])) {
-      //      rshape[eid] = rshape[idx.entry_id(inode.control_deps[0], e.index)];
-      //    }
-      //  }
-      //}
     } else {
       bool forward_known = true;
       // Forward operator inference.
@@ -217,7 +172,7 @@ Graph InferAttr(Graph &&ret,
   // set the shapes
   ret.attrs[attr_name] = std::make_shared<any>(std::move(rshape));
   // number of nodes who knows the shape.
-  ret.attrs[unknown_name] = std::make_shared<any>(num_unknown);
+  //ret.attrs[unknown_name] = std::make_shared<any>(num_unknown);
   return std::move(ret);
 }
 

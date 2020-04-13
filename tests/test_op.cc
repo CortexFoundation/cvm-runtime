@@ -34,6 +34,7 @@ std::unordered_map<int, DLDeviceType> const APIDevTypeMap = {
   {0, kDLCPU},
   {1, kDLGPU},
   {2, kDLFORMAL},
+  {3, kDLOpenCL},
 };
 
 int dtype_code{kDLInt};

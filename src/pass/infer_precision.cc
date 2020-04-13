@@ -54,33 +54,42 @@ Graph InferPrecision(Graph &&ret) {
   using AttrVector = std::vector<int>;
   const IndexedGraph& idx = ret.indexed_graph();
   static auto& finfer_prec =
-      Op::GetAttr<FInferNodeEntryAttr<int> >("FInferPrecision");
-  static auto& is_backward =
-      Op::GetAttr<TIsBackward>("TIsBackward");
-  // gradient function, used to get node correspondence.
-  //static auto& fgrad =
-  //   Op::GetAttr<FGradient>("FGradient");
-  // reshape shape vector
-  AttrVector rshape;
-  if (ret.attrs.count("precision") != 0) {
-    rshape = ret.MoveCopyAttr<AttrVector>("precision");
+      Op::GetAttr<cvm::FInferPrecision>("FInferPrecision");
+
+  AttrVector precision;
+  std::vector<TShape> rshape;
+  rshape.resize(idx.num_node_entries(), TShape());
+  precision.resize(idx.num_node_entries(), -1);
+
+  const char* input_name = "precision_inputs";
+  if (ret.attrs.count(input_name) != 0 && ret.attrs.count("shape_inputs") != 0) {
+    const AttrVector& prec_args = ret.GetAttr<AttrVector>(input_name);
+    for (size_t i = 0; i < prec_args.size(); ++i) {
+      precision[idx.entry_id(idx.input_nodes()[i], 0)] = prec_args[i];
+    }
+    const std::vector<TShape>& shape_args = ret.GetAttr<std::vector<TShape>>("shape_inputs");
+    for (size_t i = 0; i < shape_args.size(); ++i) {
+      rshape[idx.entry_id(idx.input_nodes()[i], 0)] = shape_args[i];
+    }
   } else {
-    rshape.resize(idx.num_node_entries(), -1);
+    precision.resize(idx.num_node_entries(), -1);
+    rshape.resize(idx.num_node_entries(), TShape());
   }
 
   // get the shape hints
-  std::string shape_hints_key = std::string("precision") + "_hints";
-  if (ret.attrs.count(shape_hints_key)) {
-    NodeEntryMap<int> shape_hints =
-      ret.GetAttr<NodeEntryMap<int>>(shape_hints_key);
-    for (const auto& kv : shape_hints) {
-      NodeEntry e = kv.first;
-      if (idx.exist(e.node.get())) {
-        rshape[idx.entry_id(kv.first)] = kv.second;
-      }
-    }
-  }
+//  std::string shape_hints_key = std::string("precision") + "_hints";
+//  if (ret.attrs.count(shape_hints_key)) {
+//    NodeEntryMap<int> shape_hints =
+//      ret.GetAttr<NodeEntryMap<int>>(shape_hints_key);
+//    for (const auto& kv : shape_hints) {
+//      NodeEntry e = kv.first;
+//      if (idx.exist(e.node.get())) {
+//        precision[idx.entry_id(kv.first)] = kv.second;
+//      }
+//    }
+//  }
 
+  
   std::string shape_attr_key;
   if (ret.attrs.count("precision_attr_key") != 0) {
     shape_attr_key = ret.GetAttr<std::string>("precision_attr_key");
@@ -89,8 +98,10 @@ Graph InferPrecision(Graph &&ret) {
   } else {
     shape_attr_key = "precision";
   }
+
   // Temp space for shape inference.
-  std::vector<int> ishape, oshape;
+  std::vector<int> iprec, oprec;
+  std::vector<TShape> shapes;
 
   // inference step function for nid
   auto infer_step = [&](uint32_t nid, bool last_iter) {
@@ -103,75 +114,37 @@ Graph InferPrecision(Graph &&ret) {
       CHECK_EQ(num_outputs, 1U);
       const uint32_t out_ent_id = idx.entry_id(nid, 0);
 //      std::cout << "Variable at " << nid << " " <<  inode.source->attrs.name << std::endl;
-      if (shape_attr_key.length() != 0 && is_none(rshape[out_ent_id])) {
+      if (shape_attr_key.length() != 0 && is_none(precision[out_ent_id])) {
         auto it = inode.source->attrs.dict.find(shape_attr_key);
         if (it != inode.source->attrs.dict.end()) {
           std::istringstream is(it->second);
           CHECK(is >> rshape[out_ent_id]) << "Invalid attribute";
         }
       }
-    } else if (is_backward.get(inode.source->op(), false) && inode.control_deps.size()) {
-      //CHECK_GE(inode.control_deps.size(), 1U)
-      //  << "BackwardOp need to have control_deps to its forward op";
-      //const IndexedGraph::Node& fnode = idx[inode.control_deps[0]];
-      //NodePtr fwd_ptr = inode.source->control_deps[0];
-      //CHECK(fwd_ptr->op() != nullptr) << "Forward op cannot be a variable";
-      //// use gradient function to find out the correspondence.
-      //std::vector<NodeEntry> ograd(fwd_ptr->num_outputs());
-      //for (size_t i = 0; i < ograd.size(); ++i) {
-      //  ograd[i].index = static_cast<uint32_t>(i);
-      //}
-      //// input gradient list
-      //auto igrad = fgrad[fwd_ptr->op()](fwd_ptr, ograd);
-      //const Node* igrad_node = nullptr;
-      //// Input gradient assignement
-      //for (size_t i = 0; i < igrad.size(); ++i) {
-      //  if (igrad[i].node->op() == inode.source->op()) {
-      //    uint32_t eid = idx.entry_id(nid, igrad[i].index);
-      //    if (is_none(rshape[eid])) {
-      //      rshape[eid] = rshape[idx.entry_id(fnode.inputs[i])];
-      //    } else if (!is_none(rshape[idx.entry_id(fnode.inputs[i])])) {
-      //      CHECK_EQ(rshape[eid], rshape[idx.entry_id(fnode.inputs[i])])
-      //          << "Backward shape inconsistent with the forward shape";
-      //    }
-      //    if (igrad_node == nullptr) {
-      //      igrad_node = igrad[i].node.get();
-      //    } else {
-      //      CHECK(igrad_node == igrad[i].node.get());
-      //    }
-      //  }
-      //}
-      //// out grad entries
-      //CHECK(igrad_node != nullptr)
-      //  << "Cannot find matching backward op for " << inode.source->attrs.name;
-      //for (size_t i = 0; i < igrad_node->inputs.size(); ++i) {
-      //  const NodeEntry& e = igrad_node->inputs[i];
-      //  if (e.node == nullptr) {
-      //    uint32_t eid = idx.entry_id(inode.inputs[i]);
-      //    if (is_none(rshape[eid])) {
-      //      rshape[eid] = rshape[idx.entry_id(inode.control_deps[0], e.index)];
-      //    }
-      //  }
-      //}
     } else {
       bool forward_known = true;
       // Forward operator inference.
-      ishape.resize(num_inputs, -1);
-      for (uint32_t i = 0; i < ishape.size(); ++i) {
-        ishape[i] = rshape[idx.entry_id(inode.inputs[i])];
-        if (is_none(ishape[i])) forward_known = false;
+      shapes.resize(num_inputs + num_outputs, TShape());
+      iprec.resize(num_inputs, -1);
+      for (uint32_t i = 0; i < num_inputs; ++i) {
+        const auto& eid = idx.entry_id(inode.inputs[i]);
+        iprec[i] = precision[eid];
+        shapes[i]= rshape[eid];
+        if (is_none(iprec[i])) forward_known = false;
       }
-      oshape.resize(num_outputs, -1);
-      for (uint32_t i = 0; i < oshape.size(); ++i) {
-        oshape[i] = rshape[idx.entry_id(nid, i)];
-        if (is_none(oshape[i])) forward_known = false;
+      oprec.resize(num_outputs, -1);
+      for (uint32_t i = 0; i < num_outputs; ++i) {
+        const auto& eid = idx.entry_id(nid, i);
+        oprec[i] = precision[eid];
+        shapes[num_inputs + i] = rshape[eid];
+        if (is_none(oprec[i])) forward_known = false;
       }
-      auto finfer = finfer_prec.get(inode.source->op(), InferPrecisionForward);
+      auto finfer = finfer_prec.get(inode.source->op(), nullptr);
       if (!forward_known) {
         if (finfer != nullptr) {
           // Call inference function of the operator.
           try {
-            forward_known = finfer(inode.source->attrs, &ishape, &oshape);
+            forward_known = finfer(inode.source->attrs, &shapes, &iprec, &oprec);
           } catch (const std::exception& e) {
             throw utils::Error("Error in operator " + inode.source->attrs.name + ": " + e.what());
           }
@@ -183,11 +156,12 @@ Graph InferPrecision(Graph &&ret) {
         }
       }
       // Save to the result map.
-      for (uint32_t i = 0; i < num_inputs; ++i) {
-        rshape[idx.entry_id(inode.inputs[i])] = ishape[i];
-      }
+      //for (uint32_t i = 0; i < num_inputs; ++i) {
+      //  rshape[idx.entry_id(inode.inputs[i])] = ishape[i];
+      //}
       for (uint32_t i = 0; i < num_outputs; ++i) {
-        rshape[idx.entry_id(nid, i)] = oshape[i];
+       // rshape[idx.entry_id(nid, i)] = oshape[i];
+        precision[idx.entry_id(nid, i)] = oprec[i];
       }
     }
   };
@@ -209,16 +183,16 @@ Graph InferPrecision(Graph &&ret) {
     last_num_unknown = num_unknown;
     num_unknown = 0;
     for (size_t j = 0; j < idx.num_node_entries(); ++j) {
-      if (is_none(rshape[j])) {
+      if (is_none(precision[j])) {
         ++num_unknown;
       }
     }
     ++i;
   } while (num_unknown > 0 && last_num_unknown > num_unknown);
   // set the precisions
-  ret.attrs["precision"] = std::make_shared<any>(std::move(rshape));
+  ret.attrs["precision"] = std::make_shared<any>(std::move(oprec));
   // number of nodes who knows the precision.
-  ret.attrs["precision_num_unknown_nodes"] = std::make_shared<any>(num_unknown);
+  //ret.attrs["precision_num_unknown_nodes"] = std::make_shared<any>(num_unknown);
   return std::move(ret);
 }
 
