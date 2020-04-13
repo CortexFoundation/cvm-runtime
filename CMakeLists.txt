@@ -94,6 +94,26 @@ if(ENABLE_CUDA)
     list(APPEND RUNTIME_SRCS ${CUDA_LIBS})
 endif()
 
+if(ENABLE_OPENCL)
+  message(STATUS "ENABLE OPENCL")
+
+# list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
+#  list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDART_LIBRARY})
+#  list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDA_LIBRARY})
+
+  set(CMAKE_C_FLAGS "-lOpenCL ${CMAKE_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "-lOpenCL ${CMAKE_CXX_FLAGS}")
+
+  file(GLOB RUNTIME_OPENCL_SRCS src/runtime/devapi/opencl/*.cc)
+  list(APPEND RUNTIME_SRCS ${RUNTIME_OPENCL_SRCS})
+
+  file(GLOB CVM_OPS_OPENCL_SRCS src/runtime/ops/opencl/*.cc)
+  list(APPEND RUNTIME_SRCS ${CVM_OPS_OPENCL_SRCS})
+
+endif()
+
+list(APPEND RUNTIME_SRCS ${CVM_SRCS})
+
 file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/nn/*.cc
                        src/top/tensor/*.cc)
