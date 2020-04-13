@@ -41,23 +41,23 @@ set (LIBRARY_NAME cvm)
 # Source file lists
 file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
-                       src/runtime/devapi/cpu/*.cc)
+                       src/runtime/cpu/devapi/*.cc)
 
 file(GLOB CVM_SRCS src/compiler/*.cc
                    src/pass/*.cc)
 
 if(ENABLE_CPU)
     message(STATUS "ENABLE CPU")
-    file(GLOB CVM_OPS_CPU_SRCS src/runtime/ops/cpu/*.cc)
+    file(GLOB CVM_OPS_CPU_SRCS src/runtime/cpu/ops/*.cc)
     list(APPEND RUNTIME_SRCS ${CVM_OPS_CPU_SRCS})
 endif()
 
 if(ENABLE_FORMAL)
     message(STATUS "ENABLE FORMALIZATION")
-    file(GLOB RUNTIME_FORMAL_SRCS src/runtime/devapi/formal/*.cc)
+    file(GLOB RUNTIME_FORMAL_SRCS src/runtime/formal/devapi/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_FORMAL_SRCS})
 
-    file(GLOB CVM_OPS_FORMAL_SRCS src/runtime/ops/formal/*.cc)
+    file(GLOB CVM_OPS_FORMAL_SRCS src/runtime/formal/ops/*.cc)
     list(APPEND RUNTIME_SRCS ${CVM_OPS_FORMAL_SRCS})
 endif()
 
@@ -83,13 +83,13 @@ if(ENABLE_CUDA)
       add_definitions(-DNANO)
     endif()
       
-    file(GLOB RUNTIME_CUDA_SRCS src/runtime/devapi/cuda/*.cc)
+    file(GLOB RUNTIME_CUDA_SRCS src/runtime/cuda/devapi/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
 
-    file(GLOB CVM_OPS_CUDA_SRCS src/runtime/ops/cuda/*.cc)
+    file(GLOB CVM_OPS_CUDA_SRCS src/runtime/cuda/ops/*.cc)
     list(APPEND RUNTIME_SRCS ${CVM_OPS_CUDA_SRCS})
 
-    file(GLOB CUDA_SRCS src/runtime/ops/cuda/*.cu)
+    file(GLOB CUDA_SRCS src/runtime/cuda/ops/*.cu)
     cuda_compile(CUDA_LIBS ${CUDA_SRCS})
     list(APPEND RUNTIME_SRCS ${CUDA_LIBS})
 endif()
@@ -104,10 +104,10 @@ if(ENABLE_OPENCL)
   set(CMAKE_C_FLAGS "-lOpenCL ${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "-lOpenCL ${CMAKE_CXX_FLAGS}")
 
-  file(GLOB RUNTIME_OPENCL_SRCS src/runtime/devapi/opencl/*.cc)
+  file(GLOB RUNTIME_OPENCL_SRCS src/runtime/opencl/devapi/*.cc)
   list(APPEND RUNTIME_SRCS ${RUNTIME_OPENCL_SRCS})
 
-  file(GLOB CVM_OPS_OPENCL_SRCS src/runtime/ops/opencl/*.cc)
+  file(GLOB CVM_OPS_OPENCL_SRCS src/runtime/opencl/ops/*.cc)
   list(APPEND RUNTIME_SRCS ${CVM_OPS_OPENCL_SRCS})
 
 endif()
