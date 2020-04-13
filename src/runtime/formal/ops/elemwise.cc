@@ -3,18 +3,6 @@
 namespace cvm {
 namespace runtime {
   
-typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
-
-inline void elemwise(DLTensor *args0, DLTensor *args1, DLTensor *args2, const elemwise_func& f){
-  int32_t *a = static_cast<int32_t*>(args0->data);
-  int32_t *b = static_cast<int32_t*>(args1->data);
-  int32_t *c = static_cast<int32_t*>(args2->data);
-
-  for(uint64_t i = 0; i < getSize(args0); i++){
-    c[i] = f(a[i], b[i]);
-  }
-
-}
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_add")
     .set_body([](CVMArgs args, CVMRetValue *ret)
@@ -23,10 +11,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_add")
   DLTensor *args1 = args[1];
   DLTensor *args2 = args[2];
   
-  auto f = [](int32_t a, int32_t b) -> int32_t {
-    return a + b; 
-  };
-  elemwise(args0, args1, args2, f);
+  int32_t *a = static_cast<int32_t*>(args0->data);
+  int32_t *b = static_cast<int32_t*>(args1->data);
+  int32_t *c = static_cast<int32_t*>(args2->data);
+
+  for(uint64_t i = 0; i < getSize(args0); i++){
+    c[i] = a[i] + b[i];
+  }
   print_to_file(args2, "elemwise_add.txt");
 });
 
@@ -37,10 +28,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_sub")
   DLTensor *args1 = args[1];
   DLTensor *args2 = args[2];
 
-  auto f = [](int32_t a, int32_t b) -> int32_t {
-    return a - b; 
-  };
-  elemwise(args0, args1, args2, f);
+  int32_t *a = static_cast<int32_t*>(args0->data);
+  int32_t *b = static_cast<int32_t*>(args1->data);
+  int32_t *c = static_cast<int32_t*>(args2->data);
+
+  for(uint64_t i = 0; i < getSize(args0); i++){
+    c[i] = a[i] - b[i];
+  }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
@@ -50,13 +44,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
    void *_attr = args[2];
    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
    auto& param = cvm::get<cvm::top::ClipParam>(attr->parsed);
-   int32_t max = param.a_max;
-   int32_t min = param.a_min;
+   int32_t a_max = param.a_max;
+   int32_t a_min = param.a_min;
    int32_t *x_data = static_cast<int32_t*>(x->data);
    int32_t *y_data = static_cast<int32_t*>(y->data);
    for (uint64_t i = 0; i < getSize(x); i++) {
-    y_data[i] = std::max(std::min(max, x_data[i]), min);
-   }
+      if (x_data[i] >= a_max){
+        y_data[i] = a_max;
+      } else if (x_data[i] <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        y_data[i] = x_data[i];
+      }
+    }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
@@ -96,14 +96,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
   auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
   auto &param = cvm::get<cvm::top::CVMClipParam>(attr->parsed);
   int32_t precision = param.precision;
-  int32_t min = -(((int64_t)1 << (precision-1))-1);
-  int32_t max = -min;
+  int32_t a_min = -(((int64_t)1 << (precision-1))-1);
+  int32_t a_max = -a_min;
 
   for(uint64_t i = 0; i < getSize(x); i++){
-    int32_t tmp = x_data[i];
-    if (tmp > max) tmp = max;
-    else if (tmp < min) tmp = min;
-    y_data[i] = tmp;
+      if (x_data[i] >= a_max){
+        y_data[i] = a_max;
+      } else if (x_data[i] <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        y_data[i] = x_data[i];
+      }
   }
   print_to_file(y, "clip.txt");
 }
