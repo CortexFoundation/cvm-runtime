@@ -43,8 +43,7 @@ file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
                        src/runtime/devapi/cpu/*.cc)
 
-file(GLOB CVM_SRCS src/cvm/*.cc
-                   src/compiler/*.cc
+file(GLOB CVM_SRCS src/compiler/*.cc
                    src/pass/*.cc)
 
 if(ENABLE_CPU)
