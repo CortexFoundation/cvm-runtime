@@ -29,13 +29,13 @@ test_gpu: ${TEST_GPUS}
 test_formal: ${TEST_FORMALS}
 
 %_cpu: ${TESTS}/%.cc lib
-	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=0 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=0 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 %_gpu: ${TESTS}/%.cc lib
-	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=1 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=1 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 %_formal: ${TESTS}/%.cc lib
-	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
+	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 python: lib
 	bash env.sh

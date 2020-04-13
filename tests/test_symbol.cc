@@ -3,7 +3,6 @@
 #include <iostream>
 #include <numeric>
 #include <thread>
-#include <omp.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>

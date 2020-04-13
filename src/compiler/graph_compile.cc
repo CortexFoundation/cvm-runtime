@@ -34,7 +34,7 @@
 #include <cvm/tuple.h>
 //#include <tvm/lowered_func.h>
 #include <cvm/runtime/packed_func.h>
-#include "../graph_runtime.h"
+#include "../runtime/graph_runtime.h"
 
 #include "graph_fuse.h"
 #include "pattern_util.h"
