@@ -44,15 +44,21 @@ const PassFunctionReg* FindPassDep(const std::string&attr_name) {
 Graph ApplyPasses(Graph g,
                   const std::vector<std::string>& pass) {
   std::vector<const PassFunctionReg*> fpass;
+  std::unordered_map<const PassFunctionReg*, std::string> idicator;
   for (auto& name : pass) {
     auto* reg = utils::Registry<PassFunctionReg>::Find(name);
     CHECK(reg != nullptr)
         << "Cannot find pass " << name << " in the registry";
     fpass.push_back(reg);
-    std::cout << "name = " << name << std::endl;
+    idicator[reg] = name;
   }
 
   for (auto r : fpass) {
+    std::cout << "Apply pass [" << idicator[r]
+      << "] with attrs: ";
+    for (auto p : g.attrs) std::cout << p.first << " ";
+    std::cout << "\n";
+
     for (auto& dep : r->graph_attr_dependency) {
       if (g.attrs.count(dep) == 0) {
         auto* pass_dep = FindPassDep(dep);
@@ -68,7 +74,6 @@ Graph ApplyPasses(Graph g,
     }
     g = r->body(std::move(g));
   }
-  std::cout << "apply pass end" << std::endl;
 
   return g;
 }

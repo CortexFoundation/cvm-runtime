@@ -15,9 +15,6 @@ endif()
 # include directories
 include_directories("include")
 
-# initial variables
-set(CVM_RUNTIME_LINKER_LIBS "")
-
 # Generic compilation options
 set(CMAKE_C_FLAGS "-fsigned-char -Wall -fPIC ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fsigned-char -Wall -fPIC -std=c++11 ${CMAKE_CXX_FLAGS}")
@@ -36,29 +33,33 @@ if(PROFILE)
   endif()
 endif()
 
+# compile source files
+set (CVM_RUNTIME_LINKER_LIBS "")
+set (EXECUTE_NAME cvm_runtime)
+set (LIBRARY_NAME cvm)
+
 # Source file lists
 file(GLOB RUNTIME_SRCS src/core/*.cc
                        src/runtime/*.cc
-                       src/runtime/cpu/*.cc)
+                       src/runtime/devapi/cpu/*.cc)
 
 file(GLOB CVM_SRCS src/cvm/*.cc
-                   src/cvm/compiler/*.cc
-                   src/cvm/pass/*.cc)
-set (EXECUTE_NAME cvm_runtime)
+                   src/compiler/*.cc
+                   src/pass/*.cc)
 
 if(ENABLE_CPU)
     message(STATUS "ENABLE CPU")
-    file(GLOB CVM_OPS_CPU_SRCS src/cvm/ops/cpu/*.cc)
-    list(APPEND CVM_SRCS ${CVM_OPS_CPU_SRCS})
+    file(GLOB CVM_OPS_CPU_SRCS src/runtime/ops/cpu/*.cc)
+    list(APPEND RUNTIME_SRCS ${CVM_OPS_CPU_SRCS})
 endif()
 
 if(ENABLE_FORMAL)
     message(STATUS "ENABLE FORMALIZATION")
-    file(GLOB RUNTIME_FORMAL_SRCS src/runtime/formal/*.cc)
+    file(GLOB RUNTIME_FORMAL_SRCS src/runtime/devapi/formal/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_FORMAL_SRCS})
 
-    file(GLOB CVM_OPS_FORMAL_SRCS src/cvm/ops/formal/*.cc)
-    list(APPEND CVM_SRCS ${CVM_OPS_FORMAL_SRCS})
+    file(GLOB CVM_OPS_FORMAL_SRCS src/runtime/ops/formal/*.cc)
+    list(APPEND RUNTIME_SRCS ${CVM_OPS_FORMAL_SRCS})
 endif()
 
 if(ENABLE_CUDA)
@@ -76,23 +77,22 @@ if(ENABLE_CUDA)
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDA_LIBRARY})
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
-    set(CUDA_NVCC_FLAGS 
-        ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
+    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
     if(USE_NANO)
       add_definitions(-DNANO)
     endif()
       
-    file(GLOB RUNTIME_CUDA_SRCS src/runtime/cuda/*.cc)
+    file(GLOB RUNTIME_CUDA_SRCS src/runtime/devapi/cuda/*.cc)
     list(APPEND RUNTIME_SRCS ${RUNTIME_CUDA_SRCS})
 
-    file(GLOB CVM_OPS_CUDA_SRCS src/cvm/ops/cuda/*.cc)
-    list(APPEND CVM_SRCS ${CVM_OPS_CUDA_SRCS})
+    file(GLOB CVM_OPS_CUDA_SRCS src/runtime/ops/cuda/*.cc)
+    list(APPEND RUNTIME_SRCS ${CVM_OPS_CUDA_SRCS})
 
-    file(GLOB CUDA_SRCS src/cvm/ops/cuda/*.cu)
+    file(GLOB CUDA_SRCS src/runtime/ops/cuda/*.cu)
     cuda_compile(CUDA_LIBS ${CUDA_SRCS})
-    list(APPEND CVM_SRCS ${CUDA_LIBS})
+    list(APPEND RUNTIME_SRCS ${CUDA_LIBS})
 endif()
 
 if(ENABLE_OPENCL)
@@ -105,11 +105,11 @@ if(ENABLE_OPENCL)
   set(CMAKE_C_FLAGS "-lOpenCL ${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "-lOpenCL ${CMAKE_CXX_FLAGS}")
 
-  file(GLOB RUNTIME_OPENCL_SRCS src/runtime/opencl/*.cc)
+  file(GLOB RUNTIME_OPENCL_SRCS src/runtime/devapi/opencl/*.cc)
   list(APPEND RUNTIME_SRCS ${RUNTIME_OPENCL_SRCS})
 
-  file(GLOB CVM_OPS_OPENCL_SRCS src/cvm/ops/opencl/*.cc)
-  list(APPEND CVM_SRCS ${CVM_OPS_OPENCL_SRCS})
+  file(GLOB CVM_OPS_OPENCL_SRCS src/runtime/ops/opencl/*.cc)
+  list(APPEND RUNTIME_SRCS ${CVM_OPS_OPENCL_SRCS})
 
 endif()
 
@@ -122,3 +122,9 @@ list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 
 add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
 target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
+
+list(APPEND CVM_SRCS ${RUNTIME_SRCS})
+add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
+target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})
+
+

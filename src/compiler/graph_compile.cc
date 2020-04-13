@@ -34,7 +34,7 @@
 #include <cvm/tuple.h>
 //#include <tvm/lowered_func.h>
 #include <cvm/runtime/packed_func.h>
-#include "../graph_runtime.h"
+#include "../runtime/graph_runtime.h"
 
 #include "graph_fuse.h"
 #include "pattern_util.h"
@@ -50,9 +50,7 @@ using namespace cvm;
 // - Give separate memory to each variable.
 // - Tie the memory of output/lhs in assign node properly
 //   so the execution of assign can have side effect.
-cvm::Graph DecorateMemoryPlan(
-    cvm::Graph g,
-    const std::vector<int>& assign_flag) {
+cvm::Graph DecorateMemoryPlan(cvm::Graph g) {
   const IndexedGraph& idx = g.indexed_graph();
   StorageVector storage_vec = g.MoveCopyAttr<StorageVector>("storage_id");
   g.attrs.erase("storage_allocated_bytes");
@@ -69,17 +67,6 @@ cvm::Graph DecorateMemoryPlan(
   }
   for (uint32_t nid : idx.input_nodes()) {
     storage_vec[idx.entry_id(nid, 0)] = max_id++;
-  }
-  // Tie up the assign node storage properly.
-  for (uint32_t nid = 0 ; nid < idx.num_nodes(); ++nid) {
-    if (assign_flag[nid] == 0) continue;
-    const auto& inode = idx[nid];
-    int var_storage_id = storage_vec[idx.entry_id(inode.inputs[0])];
-    storage_vec[idx.entry_id(nid, 0)] = var_storage_id;
-
-    if (assign_flag[nid] == 2) {
-      storage_vec[idx.entry_id(inode.inputs[1])] = var_storage_id;
-    }
   }
   g.attrs["storage_id"] = std::make_shared<any>(std::move(storage_vec));
   return g;
@@ -103,17 +90,9 @@ std::string GetUniqeName(
 }
 
 cvm::Graph GraphCompile(const cvm::Graph& g) {
-  printf("start graph compile\n");
   // Get attributes from the graph.
   const ShapeVector& shape_vec = g.GetAttr<ShapeVector>("shape");
-  const DTypeVector& dtype_vec = g.GetAttr<DTypeVector>("dtype");
-  const DTypeVector& precision_vec = g.GetAttr<DTypeVector>("precision");
-  //const GroupVec& group_vec = g.GetAttr<GroupVec>("group_root");
-  //const PatternVec& pattern_vec = g.GetAttr<PatternVec>("pattern");
   std::unordered_map<std::string, int> name_map;
-
-  //CHECK(g.HasAttr("fused_entry")) << "Fusion hasn't been applied yet.";
-  //FuseEntryVec fuse_entries = g.GetAttr<FuseEntryVec>("fused_entry");
 
   // collect op attributes
   const IndexedGraph& idx = g.indexed_graph();
@@ -121,19 +100,19 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
   std::vector<std::string> op_attrs(idx.num_node_entries(), "{}");
   for (uint32_t nid = 0; nid < idx.num_nodes(); ++nid) {
     const auto& inode = idx[nid];
-    printf("\"name\":\"%s\"\n", inode.source->attrs.name.c_str());
+
     const auto& attrs_dict = inode.source->attrs.dict;
-    //auto search = attrs_dict.find("precision");
-    //int precision = -1;
-    //if (search != attrs_dict.end()) {
-    //  CHECK_EQ(inode.source->num_outputs(), 1U)
-    //    << "variable precision must be 1 outputs";
-    //  precision = std::stoi(search->second);
-    //}
-    //for (uint32_t i = 0; i < inode.source->num_outputs(); ++i) {
-    //  uint32_t eid = idx.entry_id(nid, i);
-    //  prec_vec[eid] = precision;
-    //}
+    auto search = attrs_dict.find("precision");
+    int precision = -1;
+    if (search != attrs_dict.end()) {
+     CHECK_EQ(inode.source->num_outputs(), 1U)
+       << "variable precision must be 1 outputs";
+     precision = std::stoi(search->second);
+    }
+    for (uint32_t i = 0; i < inode.source->num_outputs(); ++i) {
+     uint32_t eid = idx.entry_id(nid, i);
+     prec_vec[eid] = precision;
+    }
     std::vector<std::string> attr_vec;
     for (auto& item: inode.source->attrs.dict) {
         std::stringstream tss;
@@ -152,7 +131,7 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
     printf("%s\n", attrs.c_str());
   }
 
-  //const cvm::Op* cvm_op = cvm::Op::Get("cvm_op");
+  const cvm::Op* cvm_op = cvm::Op::Get("cvm_op");
   std::unordered_map<uint32_t, cvm::NodePtr> old_new;
   for (uint32_t nid = 0; nid < idx.num_nodes(); ++nid) {
     const auto& inode = idx[nid];
@@ -163,40 +142,29 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
       old_new[nid] = np;
       continue;
     }
-    //int root_id = group_vec[nid];
-    //if (static_cast<int>(nid) != root_id) continue;
 
     //// Handle normal op
-    //FuseEntry& fe = fuse_entries[root_id];
-    //const IndexedGraph& subidx = fe.subgraph.indexed_graph();
     cvm::NodePtr np = cvm::Node::Create();
-    //np->attrs.op = cvm_op;
+    np->attrs.op = cvm_op;
     auto& op_name = inode.source->attrs.op->name;
     np->attrs.op = cvm::Op::Get(op_name);
     np->attrs.name = GetUniqeName(name_map, op_name);
     runtime::CVMOpParam param;
     param.func_name = op_name;
-    //param.num_inputs = static_cast<uint32_t>(fe.imap.size());
-    //param.num_outputs = static_cast<uint32_t>(fe.subgraph.outputs.size());
-    //param.flatten_data = fe.flatten_data;
-    param.num_inputs = np->attrs.op->num_inputs;
-    param.num_outputs = np->attrs.op->num_outputs;
-    param.flatten_data = 0;
+    param.num_inputs = inode.inputs.size();
+    param.num_outputs = inode.source->num_outputs();
+    param.flatten_data = false;
     param.UpdateDict(&(np->attrs.dict));
     np->attrs.parsed = std::move(param);
 
-    //for (uint32_t sub_input_id : subidx.input_nodes()) {
-    //  // Need to make sure subgraph input order is consistent to the order of
-    //  // the graph input.
-    //  auto rit = fe.reverse_imap.find(subidx[sub_input_id].source);
-    //  CHECK(rit != fe.reverse_imap.end());
-    //  const IndexedGraph::NodeEntry& e = rit->second;
-    //  auto it = old_new.find(e.node_id);
-    //  CHECK(it != old_new.end())
-    //      << "cannot find node_id=" << e.node_id;
-    //  np->inputs.emplace_back(
-    //      cvm::NodeEntry{it->second, e.index, e.version});
-    //}
+    for (auto e : inode.inputs) {
+      auto it = old_new.find(e.node_id);
+      CHECK(it != old_new.end())
+        << "cannot find node_id=" << e.node_id;
+      np->inputs.emplace_back(
+          cvm::NodeEntry{it->second, e.index, e.version});
+    }
+
     for (const uint32_t node_id : inode.control_deps) {
       auto it = old_new.find(node_id);
       CHECK(it != old_new.end());
@@ -207,7 +175,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
 
   cvm::Graph ret;
   for (const auto& e : idx.outputs()) {
-    //auto it = old_new.find(group_vec[e.node_id]);
     auto it = old_new.find(e.node_id);
     CHECK(it != old_new.end())
         << "cannot find node_id=" << e.node_id;
@@ -215,18 +182,11 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
         cvm::NodeEntry{it->second, e.index, e.version});
   }
 
-  // Reference counter of each op node.
-  // For now, always store result when an op is referred more than once.
-  std::vector<uint32_t> ref_count = GetNodeRefCounts(idx);
-  for (const auto& e : idx.outputs()) {
-    // This line will realize all the outputs.
-    ref_count[e.node_id] += 1;
-  }
-
   const IndexedGraph& new_idx = ret.indexed_graph();
+  std::cout << idx.num_nodes() << " vs. "
+    << new_idx.num_nodes() << std::endl;
 
   ShapeVector new_shape_vec = ShapeVector(new_idx.num_node_entries(), TShape());
-  DTypeVector new_dtype_vec = DTypeVector(new_idx.num_node_entries());
   std::vector<int> new_prec_vec(new_idx.num_node_entries(), -1);
   std::vector<std::string> new_dltype_vec(new_idx.num_node_entries());
   std::vector<std::string>  new_op_attrs(new_idx.num_nodes());
@@ -234,42 +194,34 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
     uint32_t nid = kv.first;
     const auto& inode = idx[nid];
     uint32_t new_nid = new_idx.node_id(kv.second.get());
-    //new_op_attrs[new_nid] = op_attrs[nid];
-    //for (uint32_t i = 0; i < inode.source->num_outputs(); ++i) {
-    //  uint32_t new_eid = new_idx.entry_id(new_idx.node_id(kv.second.get()), i);
-    //  uint32_t old_eid = idx.entry_id(nid, i);
-    //  new_shape_vec[new_eid] = shape_vec[old_eid];
-    //  new_dtype_vec[new_eid] = dtype_vec[old_eid];
-    //  new_prec_vec[new_eid] = prec_vec[old_eid];
-    //  new_dltype_vec[new_eid] = "int32";
-    //}
+    new_op_attrs.at(new_nid) = op_attrs.at(nid);
+    for (uint32_t i = 0; i < inode.source->num_outputs(); ++i) {
+      uint32_t new_eid = new_idx.entry_id(new_idx.node_id(kv.second.get()), i);
+      uint32_t old_eid = idx.entry_id(nid, i);
+      new_shape_vec.at(new_eid) = shape_vec.at(old_eid);
+      new_prec_vec.at(new_eid) = prec_vec.at(old_eid);
+      new_dltype_vec.at(new_eid) = "int32";
+    }
+    std::cout << "\n";
   }
 
   ret.attrs["shape"] = std::make_shared<any>(std::move(new_shape_vec));
-  ret.attrs["dtype"] = std::make_shared<any>(std::move(new_dtype_vec));
 
   ret = cvm::ApplyPass(ret, "PlanMemory");
-  //ret = DecorateMemoryPlan(ret, assign_flag);
+  ret = DecorateMemoryPlan(ret);
 
   CHECK_EQ(new_idx.num_nodes(), new_op_attrs.size())
     << "OpAttrs is not consistant with nodes " << new_idx.num_nodes()
     << " vs. " << new_op_attrs.size();
-  ret.attrs.erase("dtype");
   ret.attrs["precision"] = std::make_shared<any>(std::move(new_prec_vec));
   ret.attrs["dltype"] = std::make_shared<any>(std::move(new_dltype_vec));
   ret.attrs["op_attrs"] = std::make_shared<any>(std::move(new_op_attrs));
-  printf("end graph compile\n");
   return ret;
 }
 
 CVM_REGISTER_PASS(GraphCompile)
     .set_body(GraphCompile)
-    .depend_graph_attr("shape")
-    .depend_graph_attr("dtype");
-//    .depend_graph_attr("fused_entry")
-//    .depend_graph_attr("group_root")
-//    .depend_graph_attr("pattern");
-
+    .depend_graph_attr("shape");
 
 }  // namespace compiler
 }  // namespace cvm

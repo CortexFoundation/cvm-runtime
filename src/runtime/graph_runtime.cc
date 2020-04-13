@@ -36,6 +36,24 @@ namespace runtime {
 
 CVMUTIL_REGISTER_PARAMETER(CVMOpParam);
 
+// parser
+inline void CVMOpParamParser(cvm::NodeAttrs* attrs) {
+  CVMOpParam param;
+  param.Init(attrs->dict);
+  attrs->parsed = std::move(param);
+}
+
+CVM_REGISTER_OP(cvm_op)
+.set_attr_parser(CVMOpParamParser)
+.set_num_inputs([](const NodeAttrs& attrs) {
+    const CVMOpParam& param = cvm::get<CVMOpParam>(attrs.parsed);
+    return param.num_inputs;
+})
+.set_num_outputs([](const NodeAttrs& attrs) {
+    const CVMOpParam& param = cvm::get<CVMOpParam>(attrs.parsed);
+    return param.num_outputs;
+});
+
 /*!
  * \brief Run all the operations one by one.
  */
@@ -634,9 +652,14 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
 
   const DLTensor* ext_space = extra_space_.operator->();
+#ifdef PROFILE
   auto& times = this->times;
-  return [arg_ptr, op, func, ext_space, &times](){
-    printf("%s\n", op.c_str());
+#endif
+  return [arg_ptr, op, func, ext_space
+#ifdef PROFILE
+    , &times
+#endif
+  ](){
 #ifdef PROFILE
     if(times.find(op) == times.end()) times[op] = 0;
     double start = omp_get_wtime();

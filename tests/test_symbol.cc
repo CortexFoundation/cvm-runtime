@@ -3,7 +3,6 @@
 #include <iostream>
 #include <numeric>
 #include <thread>
-#include <omp.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>
@@ -16,8 +15,10 @@
 #include <cvm/c_symbol_api.h>
 #include <cvm/symbolic.h>
 #include <cvm/c_api_graph.h>
+#include <cvm/graph.h>
 #include <unordered_map>
 #include <string>
+#include <fstream>
 
 using namespace std;
 
@@ -122,12 +123,26 @@ int main(){
   }
   
   GraphHandle dstGraph;
-  const char* pass_names[] = {"InferShape", "InferType", "InferPrecision", "GraphCompile"};
-  ret = CVMGraphApplyPasses(graph, 4, pass_names, &dstGraph);
+  // const char* pass_names[] = {"InferShape", "InferType", "InferPrecision", "GraphCompile"};
+  const char* pass_names[] = {"InferShape", "GraphCompile", "SaveJSON"};
+  ret = CVMGraphApplyPasses(graph, 3, pass_names, &dstGraph);
   if(ret != 0){
     printf("apply pass GraphCompile failed.\n");
     return 0;
   }
+
+  const char* json_str;
+  int success;
+  ret = CVMGraphGetJSONAttr(dstGraph, "json", &json_str, &success);
+  if(ret != 0 || success == 0){
+    printf("get json string failed.\n");
+    return 0;
+  }
+
+  std::ofstream of("./tmp.txt");
+  of << json_str;
+  of.close();
+
   CVMGraphFree(graph);
   return 0;
 }
