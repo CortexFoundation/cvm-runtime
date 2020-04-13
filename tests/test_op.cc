@@ -657,16 +657,16 @@ int main() {
   // test_op("concatenate");//pass
   // test_op("transpose");// pass
   // test_op("take");
-   test_op("clip");
-   test_op("cvm_clip");
+   //test_op("clip");
+   //test_op("cvm_clip");
   // test_op("elemwise_add");
   // test_op("elemwise_sub");
   // test_op("non_max_suppression");
-  // test_op("broadcast_sub");
-  // test_op("broadcast_add");
-  // test_op("broadcast_mul");
-  // test_op("broadcast_max");
-  // test_op("broadcast_div");
-  // test_op("broadcast_greater");
+   test_op("broadcast_sub");
+   test_op("broadcast_add");
+   test_op("broadcast_mul");
+   test_op("broadcast_max");
+   test_op("broadcast_div");
+   test_op("broadcast_greater");
   return 0;
 }
