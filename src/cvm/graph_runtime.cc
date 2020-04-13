@@ -636,6 +636,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   const DLTensor* ext_space = extra_space_.operator->();
   auto& times = this->times;
   return [arg_ptr, op, func, ext_space, &times](){
+    printf("%s\n", op.c_str());
 #ifdef PROFILE
     if(times.find(op) == times.end()) times[op] = 0;
     double start = omp_get_wtime();

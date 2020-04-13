@@ -29,6 +29,13 @@ inline uint64_t getSize(DLTensor *dlTensor){
   }
   return size;
 }
+inline uint64_t getSize(DLTensor *dlTensor){
+  uint64_t size = 1;
+  for(int i = 0; i < dlTensor->ndim; i++){
+    size *= dlTensor->shape[i];
+  }
+  return size;
+}
 
 inline void deal_error(int error_code, const char* errorStr){
   if(error_code == NON_ERROR){
