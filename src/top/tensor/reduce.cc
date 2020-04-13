@@ -30,7 +30,7 @@ inline TShape GetReduceAxes(const uint32_t indim,
   TShape in_axis = axis;
   for (auto& i : in_axis) {
     i = i < 0 ? i + indim : i;
-    VerifyAttrRange(i, "reduce.axis", 0, indim);
+    VerifyAttrRange(i, "reduce.axis", 0, indim-1);
   }
   std::sort(in_axis.begin(), in_axis.end());
   for(size_t i = 0; i < in_axis.ndim()-1; i++){
