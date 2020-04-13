@@ -658,8 +658,9 @@ int main() {
   test_op("transpose");// pass
   test_op("take");
   test_op("elemwise_add");
-  test_op("elemwise_sub");
   test_op("non_max_suppression");
+  test_op("broadcast_add");
+  test_op("broadcast_sub");
   test_op("broadcast_mul");
   test_op("broadcast_max");
   test_op("broadcast_div");
