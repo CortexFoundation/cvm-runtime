@@ -48,6 +48,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
    int32_t a_min = param.a_min;
    int32_t *x_data = static_cast<int32_t*>(x->data);
    int32_t *y_data = static_cast<int32_t*>(y->data);
+   // y = a_max, x >= a_max
+   // y = x, a_min < x < a_max
+   // y = a_min, x <= a_min
    for (uint64_t i = 0; i < getSize(x); i++) {
       if (x_data[i] >= a_max){
         y_data[i] = a_max;
@@ -96,9 +99,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
   auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
   auto &param = cvm::get<cvm::top::CVMClipParam>(attr->parsed);
   int32_t precision = param.precision;
-  int32_t a_min = -(((int64_t)1 << (precision-1))-1);
+  // a_min = -alhpa
+  // a_max = alpha
+  // alpha = 2^(precision-1) - 1
+  // Y = clip(X, -alpha, alpha)
+  int64_t alpha =  (((int64_t)1 << (precision-1))-1);
+  int32_t a_min = -alpha;
   int32_t a_max = -a_min;
-
   for(uint64_t i = 0; i < getSize(x); i++){
       if (x_data[i] >= a_max){
         y_data[i] = a_max;
@@ -114,17 +121,31 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_right_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    auto X = CVMArg2Data<int32_t>(args[0]);
-    auto Y = CVMArg2Data<int32_t>(args[1]);
+    DLTensor *x = args[0];
+    DLTensor *y = args[1];
+    int32_t *x_data = static_cast<int32_t*>(x->data);
+    int32_t *y_data = static_cast<int32_t*>(y->data);
     auto params = CVMArg2Attr<top::CVMRightShiftParam>(args[2]);
 
     int64_t max_size = CVMArgSize(args[0]);
-
-    int32_t alpha = (1 << (params.precision - 1)) - 1;
+    // alpha = 2^(precision-1) - 1
+    // beta = 2^(shift_bit-1)
+    // T = floor((floor(X / beta) + 1) / 2)
+    // Y = clip(T, -alpha, alpha)
+    int32_t precision = params.precision;
+    int64_t alpha =  (((int64_t)1 << (precision-1))-1);
+    int32_t a_min = -alpha;
+    int32_t a_max = -a_min;
     for (uint64_t i = 0; i < max_size; ++i) {
-      int t = X[i] >> (params.shift_bit - 1);
-      t = (t + 1) >> 1;
-      Y[i] = std::min(std::max(t, -alpha), alpha);
+      int T = x_data[i] >> (params.shift_bit - 1);
+      T = (T + 1) >> 1;
+      if (T >= a_max){
+        y_data[i] = a_max;
+      } else if (x_data[i] <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        y_data[i] = x_data[i];
+      }
     }
 
 });

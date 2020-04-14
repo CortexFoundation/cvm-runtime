@@ -658,7 +658,8 @@ int main() {
   // test_op("transpose");// pass
   // test_op("take");
    //test_op("clip");
-   //test_op("cvm_clip");
+  // test_op("cvm_clip");
+   //test_op("cvm_right_shift");
   // test_op("elemwise_add");
   // test_op("elemwise_sub");
   // test_op("non_max_suppression");
