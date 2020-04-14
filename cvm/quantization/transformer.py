@@ -187,6 +187,7 @@ class MRT:
                      'sigmoid', 'exp', 'softmax']:
             op_precs[name] = 8
         op_precs['sum'] = 8
+        op_precs['L2Normalization'] = 8
         for name in ['broadcast_add', 'broadcast_sub',
                      'elemwise_add', 'elemwise_sub', 'slice_like']:
             op_precs[name] = 16

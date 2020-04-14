@@ -1585,10 +1585,33 @@ class Squeeze(Transformer):
 @register_transformer("L2Normalization")
 class L2Normalization(Transformer):
     def quantize(self, op, **kwargs):
+        scales = kwargs['scales']
         name, op_name = op.attr('name'), op.attr('op_name')
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
-        iscale = kwargs['scales'][name]
-        exit()
+        cns = [c.attr('name') for c in childs]
+        X, xname = childs[0], cns[0]
+
+        oprec = kwargs['op_input_precs'][op_name]
+        X, xprec, xs = requant(
+            childs[0], oprec, oname=name, **kwargs)
+
+        ishp = kwargs['infer_shapes'][xname][get_entry_id(X)]
+        # TODO(ryt): mprec is not tight enough
+        # especially when `mode` is `channel`
+        mprec = get_bit(np.product(ishp)) + xprec*2
+        # assert mprec < 32
+
+        attrs['eps'] = str(eval(attrs.get('eps', '1e-10')) * xs)
+        op = get_mxnet_op(op_name)(X, **attrs, name=name)
+
+        scales[name] = xs
+        kwargs['precs'][name][OUT_KEY] = \
+            get_bit(kwargs['th_dict'][name] * xs)
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                     op_name, name, scales[name], cns)
+        return op
 
 
 def _ft_multi_input(op):
