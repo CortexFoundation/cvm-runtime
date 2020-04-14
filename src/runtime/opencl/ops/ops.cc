@@ -26,18 +26,18 @@ inline uint64_t getSize(DLTensor *dlTensor){
   }
   return size;
 }
+
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.elemwise_add")
   .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
       DLTensor *a = args[0];
       DLTensor *b = args[1];
       DLTensor *c = args[2];
-      int32_t *a_data = static_cast<int32_t*>(a->data);
-      int32_t *b_data = static_cast<int32_t*>(b->data);
-      int32_t *c_data = static_cast<int32_t*>(c->data);
+      void *a_data = (a->data);
+      void *b_data = (b->data);
+      void *c_data = (c->data);
       uint64_t n = getSize(a);
       int error_code = 0;
-      const char *errorStr = opencl_elemwise_add(a_data, b_data, c_data, n, error_code);
-      //deal_error(error_code, errorStr);
+      opencl_elemwise_add(a_data, b_data, c_data, n);
 
 });
 
