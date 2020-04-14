@@ -1582,6 +1582,7 @@ class Squeeze(Transformer):
 
 @register_pass("fuse_transpose")
 @register_pass("rewrite")
+@register_pass("prepare_for_compile")
 @register_transformer("L2Normalization")
 class L2Normalization(Transformer):
     def quantize(self, op, **kwargs):
