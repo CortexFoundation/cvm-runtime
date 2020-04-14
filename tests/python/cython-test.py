@@ -1,24 +1,22 @@
 from __future__ import print_function
+import cvm
 from cvm import utils
-from cvm.base import CVMContext, CPU, GPU, FORMAL
-from cvm.dll import libcvm
+from cvm.runtime import libcvm
 import numpy as np
 import os
 import time
 
 # model_root = "/data/std_out/resnet50_mxg"
 # model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
-model_root = "/data/wlt/resnet18_v1_tfm"
+model_root = "/data/std_out/resnet18_v1_tfm"
 
-CVMContext.set_global(GPU)
-
-device_id = 0
+ctx = cvm.cpu()
 
 graph_json, graph_params = utils.load_model(
     os.path.join(model_root, "symbol"),
     os.path.join(model_root, "params"))
 
-lib = libcvm.CVM(graph_json, graph_params, device_id)
+lib = libcvm.CVMRuntime(graph_json, graph_params, cvm.kDLCPU, 0)
 
 data_path = os.path.join(model_root, "data.npy")
 input_data = utils.load_np_data(data_path)

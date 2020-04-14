@@ -3,20 +3,25 @@ import os
 import numpy as np
 
 from .. import libinfo
-from ..base import check_call, CVMContext
+from .._base import check_call
+from ..common import cpu, runtime_context
 from .lib import _LIB
 
 NetworkHandle = ctypes.c_void_p
 
+def CVMAPILoadModel(json_str, param_bytes, ctx=None):
+    if ctx is None:
+        ctx = cpu(0)
+    ctx = runtime_context(ctx)
 
-def CVMAPILoadModel(json_str, param_bytes, device_id=0):
-    dev_type = CVMContext.DEV_TYPE()
     net = NetworkHandle()
+    if isinstance(json_str, str):
+        json_str = json_str.encode("utf-8")
     check_call(_LIB.CVMAPILoadModel(
         ctypes.c_char_p(json_str), ctypes.c_int(len(json_str)),
         ctypes.c_char_p(param_bytes), ctypes.c_int(len(param_bytes)),
         ctypes.byref(net),
-        dev_type, ctypes.c_int(device_id)))
+        ctx.device_type, ctx.device_id))
     return net
 
 def CVMAPIFreeModel(net):

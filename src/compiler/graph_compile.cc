@@ -147,7 +147,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
     cvm::NodePtr np = cvm::Node::Create();
     np->attrs.op = cvm_op;
     auto& op_name = inode.source->attrs.op->name;
-    np->attrs.op = cvm::Op::Get(op_name);
     np->attrs.name = GetUniqeName(name_map, op_name);
     runtime::CVMOpParam param;
     param.func_name = op_name;
@@ -176,6 +175,7 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
   cvm::Graph ret;
   for (const auto& e : idx.outputs()) {
     auto it = old_new.find(e.node_id);
+    std::cout << "collect new operator: " << it->second->attrs.name << std::endl;
     CHECK(it != old_new.end())
         << "cannot find node_id=" << e.node_id;
     ret.outputs.emplace_back(
@@ -183,8 +183,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
   }
 
   const IndexedGraph& new_idx = ret.indexed_graph();
-  std::cout << idx.num_nodes() << " vs. "
-    << new_idx.num_nodes() << std::endl;
 
   ShapeVector new_shape_vec = ShapeVector(new_idx.num_node_entries(), TShape());
   std::vector<int> new_prec_vec(new_idx.num_node_entries(), -1);

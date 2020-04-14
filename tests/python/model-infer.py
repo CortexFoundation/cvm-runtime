@@ -1,20 +1,18 @@
-from cvm.base import CVMContext, CPU, GPU, FORMAL
-from cvm.dll import CVMAPILoadModel, CVMAPIInference
-from cvm.dll import CVMAPIGetOutputLength, CVMAPIFreeModel
+import cvm
+from cvm.runtime import CVMAPILoadModel, CVMAPIInference
+from cvm.runtime import CVMAPIGetOutputLength, CVMAPIFreeModel
 from cvm import utils
 
 import os
 import time
 
-# CVMContext.set_global(CPU)
-CVMContext.set_global(GPU)
-# CVMContext.set_global(FORMAL)
+ctx = cvm.cpu()
 
 # model_root = "/home/serving/tvm-cvm/data/jetson/"
-#  model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
 #  model_root = "/tmp/resnet18_v1_tfm/"
 # model_root = "/data/mrt/ssd_512_mobilenet1.0_voc_tfm"
-model_root = "/data/std_out/cvm_mnist/"
+#  model_root = "/data/std_out/cvm_mnist/"
 #  model_root = "/data/std_out/resnet50_v2"
 # model_root = "/data/std_out/ssd"
 # model_root = "/data/std_out/resnet50_mxg/"
