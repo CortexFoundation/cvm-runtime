@@ -1,5 +1,4 @@
 #include "cuda_ops.h"
-#include "../common.h"
 
 namespace cvm{
 namespace runtime{

@@ -3,7 +3,6 @@
 #include <iostream>
 #include <numeric>
 #include <thread>
-#include <omp.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>
@@ -16,8 +15,11 @@
 #include <cvm/c_symbol_api.h>
 #include <cvm/symbolic.h>
 #include <cvm/c_api_graph.h>
+#include <cvm/graph.h>
 #include <unordered_map>
 #include <string>
+#include <vector>
+#include <fstream>
 
 using namespace std;
 
@@ -111,9 +113,9 @@ int main(){
     return 0;
   }
 
-  const char *key[] = {"shape_inputs", "dtype_inputs", "target"};
-  const char *json_value[] = {"[\"list_shape\", [[1]]]", "[\"list_int\", [8]]", "\"str\", \"cpu\""};
-  for(int i = 0; i < 2; i++){
+  const char *key[] = {"shape_inputs", "dtype_inputs", "precision_inputs", "target"};
+  const char *json_value[] = {"[\"list_shape\", [[1]]]", "[\"list_int\", [8]]", "[\"list_int\", [8]]", "\"str\", \"cpu\""};
+  for(int i = 0; i < 3; i++){
     ret = CVMGraphSetJSONAttr(graph, key[i], json_value[i]);
     if(ret != 0){
       printf("graph set json attr (%d, %s) failed.\n", i, key[i]);
@@ -122,12 +124,26 @@ int main(){
   }
   
   GraphHandle dstGraph;
-  const char* pass_names[] = {"InferShape", "InferType", "GraphCompile"};
+  // const char* pass_names[] = {"InferShape", "InferType", "InferPrecision", "GraphCompile"};
+  const char* pass_names[] = {"InferShape", "GraphCompile", "SaveJSON"};
   ret = CVMGraphApplyPasses(graph, 3, pass_names, &dstGraph);
   if(ret != 0){
     printf("apply pass GraphCompile failed.\n");
     return 0;
   }
+
+  const char* json_str;
+  int success;
+  ret = CVMGraphGetJSONAttr(dstGraph, "json", &json_str, &success);
+  if(ret != 0 || success == 0){
+    printf("get json string failed.\n");
+    return 0;
+  }
+
+  std::ofstream of("./tmp.txt");
+  of << json_str;
+  of.close();
+
   CVMGraphFree(graph);
   return 0;
 }

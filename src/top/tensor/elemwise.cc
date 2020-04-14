@@ -82,8 +82,8 @@ Example::
   IN_PREC_CHECK(iattr, attrs.name);
   auto& param = cvm::get<ClipParam>(attrs.parsed);
   int32_t r = ((int64_t)1<<31) - 1;
-  VerifyAttrRange(param.a_max, "clip.a_max", -r, r+1);
-  VerifyAttrRange(param.a_min, "clip.a_min", -r, r+1);
+  VerifyAttrRange(param.a_max, "clip.a_max", -r, r);
+  VerifyAttrRange(param.a_min, "clip.a_min", -r, r);
   VERIFY(param.a_min < param.a_max) << "clip a_min must less than a_max";
   int64_t range = std::max(std::abs(param.a_max), std::abs(param.a_min));
   (*oattr)[0] = GetNumberPrecision(range);
@@ -130,7 +130,7 @@ Example::
      std::vector<int>* oattr) -> bool {
   IN_PREC_CHECK(iattr, attrs.name);
   auto& param = cvm::get<CVMClipParam>(attrs.parsed);
-  VerifyAttrRange(param.precision, "cvm_clip.precision", 1, 33);
+  VerifyAttrRange(param.precision, "cvm_clip.precision", 1, 32);
   (*oattr)[0] = param.precision;
   return true;
 })
@@ -163,8 +163,8 @@ CVM_REGISTER_OP(cvm_left_shift)
    std::vector<int>* oattr) -> bool {
   IN_PREC_CHECK(iattr, attrs.name);
   auto& param = cvm::get<CVMLeftShiftParam>(attrs.parsed);
-  VerifyAttrRange(param.precision, "cvm_left_shift.precision", 1, 33);
-  VerifyAttrRange(param.shift_bit, "cvm_left_shift.shift_bit", 1, 33);
+  VerifyAttrRange(param.precision, "cvm_left_shift.precision", 1, 32);
+  VerifyAttrRange(param.shift_bit, "cvm_left_shift.shift_bit", 1, 32);
   if (iattr->at(0) + param.shift_bit > 32) return false;
   (*oattr)[0] = param.precision;
   return true;
@@ -203,8 +203,8 @@ which means to implement via tricky equation.
    std::vector<int>* oattr) -> bool {
   IN_PREC_CHECK(iattr, attrs.name);
   auto& param = cvm::get<CVMRightShiftParam>(attrs.parsed);
-  VerifyAttrRange(param.precision, "cvm_right_shift.precision", 1, 33);
-  VerifyAttrRange(param.shift_bit, "cvm_right_shift.shift_bit", 1, 33);
+  VerifyAttrRange(param.precision, "cvm_right_shift.precision", 1, 32);
+  VerifyAttrRange(param.shift_bit, "cvm_right_shift.shift_bit", 1, 32);
   (*oattr)[0] = param.precision;
   return true;
 })

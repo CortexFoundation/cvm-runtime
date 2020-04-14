@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 from . import symbol as _sym
+from . import graph
 
 def argmax(out):
     return np.argmax(out)
@@ -104,9 +105,9 @@ MULTIPYE_OUTS_NODE = [
 def entry_id(sym):
     oindex = 0
     if sym.attr('op_name') in MULTIPYE_OUTS_NODE:
-        raise NotImplementedError("not implemented")
-        # graph = nnvm.graph.create(sym)
-        # oindex = json.loads(graph.json())['heads'][0][1]
+        # raise NotImplementedError("not implemented")
+        graph = graph.create(sym)
+        oindex = json.loads(graph.json())['heads'][0][1]
     return oindex
 
 def node_entry(sym, graph):
@@ -120,7 +121,7 @@ def node_entry(sym, graph):
 def topo_visit(symbol, params, callback=None,
                logger=logging, **kwargs):
     graph = {}
-    params = {k:v[:] for k, v in params.items()}
+    # params = {k:v[:] for k, v in params.items()}
     for op in topo_sort(symbol, logger=logger):
         name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = op.get_children(), op.list_attr()

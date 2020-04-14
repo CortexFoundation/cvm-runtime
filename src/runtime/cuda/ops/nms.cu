@@ -1,8 +1,8 @@
 #include <cuda.h>
 #include <thrust/sort.h>
 #include <thrust/execution_policy.h>
+#include <cvm/top/nn.h>
 #include "cuda_ops.h"
-#include "../common.h"
 
 namespace cvm{
 namespace runtime{

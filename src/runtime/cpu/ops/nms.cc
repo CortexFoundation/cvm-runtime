@@ -1,5 +1,5 @@
 #include "nms.h"
-
+#include <cvm/top/nn.h>
 
 int64_t iou(const int32_t *rect1, const int32_t *rect2, const int32_t format){
     int32_t x1_min = format == FORMAT_CORNER ? rect1[0] : rect1[0] - rect1[2]/2;

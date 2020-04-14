@@ -72,7 +72,7 @@ class GraphAllocator {
   static const StorageID kDynamicStorageID = -3;
 
   // request a free storage
-  StorageID Request(int dev_id, int dtype, TShape shape, uint32_t node_id) {
+  StorageID Request(int dev_id, TShape shape, uint32_t node_id) {
     if (shape.ndim() == 0) return kBadStorageID;
     // search memory block in [size / match_range_, size * match_range_)
     // TODO(tqchen) add size of the dtype, assume 4 bytes for now
@@ -203,7 +203,6 @@ size_t AllocMemory(const Graph& ret, const IndexedGraph& idx,
 
   // Get attributes from the graph
   const ShapeVector& shape_vec = ret.GetAttr<ShapeVector>("shape");
-  const DTypeVector& dtype_vec = ret.GetAttr<DTypeVector>("dtype");
   const DeviceVector* device_vec = nullptr;
 
   if (ret.attrs.count("device") != 0) {
@@ -239,16 +238,13 @@ size_t AllocMemory(const Graph& ret, const IndexedGraph& idx,
                                       inode.source->attrs).size() == inode.source->num_inputs());
         // Identity should only be true if shape.Size() and types match
         bool real_identity = identity[ipair] &&
-                             shape_vec[eid_out].Size() == shape_vec[eid_in].Size() &&
-                             dtype_vec[eid_out] == dtype_vec[eid_in];
+                             shape_vec[eid_out].Size() == shape_vec[eid_in].Size();
         if (taken[kv.first] == false &&
             sid_out == GraphAllocator::kBadStorageID &&
             sid_in >= 0 &&
             ((storage_ref_count[sid_in] == 1 && !ignore_all_inputs) || real_identity) &&
             entry_ref_count[eid_out] > 0 &&
-            shape_vec[eid_out].Size() == shape_vec[eid_in].Size() &&
-             (dtype_vec[eid_out] == dtype_vec[eid_in] ||
-             GetDTypeSize(dtype_vec[eid_out]) == GetDTypeSize(dtype_vec[eid_in]))) {
+            shape_vec[eid_out].Size() == shape_vec[eid_in].Size()) {
           // inplace optimization
           taken[kv.first] = true;
           storage[eid_out] = sid_in;
@@ -276,7 +272,7 @@ size_t AllocMemory(const Graph& ret, const IndexedGraph& idx,
     }
     for (auto rit = eids.rbegin(); rit != eids.rend(); ++rit) {
         uint32_t eid = rit->second;
-        auto sid = allocator->Request(dev_id, dtype_vec[eid], shape_vec[eid], nid);
+        auto sid = allocator->Request(dev_id, shape_vec[eid], nid);
         if (sid >= 0) {
           storage_ref_count[sid] = entry_ref_count[eid];
         }
@@ -404,7 +400,6 @@ CVM_REGISTER_PASS(PlanMemory)
 .describe("Plan the memory allocation of each node entries.")
 .set_body(PlanMemory)
 .set_change_graph(false)
-.depend_graph_attr("dtype")
 .depend_graph_attr("shape")
 .provide_graph_attr("storage_id")
 .provide_graph_attr("storage_inplace_index");

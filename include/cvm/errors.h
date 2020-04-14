@@ -12,7 +12,7 @@
 #include <cvm/symbolic.h>
 #include <exception>
 
-#define PRINT(e) // printf("ERROR: %s\n", e);
+#define PRINT(e) printf("ERROR: %s\n", e);
 #define API_BEGIN() try {
 
 #define API_END_HANDLE_ERROR(finalize) \

@@ -33,7 +33,7 @@ inline bool RepeatShape(const cvm::NodeAttrs& attrs,
   VERIFY_GT(param.repeats, 0) 
     << "operator " << attrs.name << " repeats:" << param.repeats
     << " must greater than 0";
-  VerifyAttrRange(axis, "repeat.axis", -ndim, ndim);
+  VerifyAttrRange(axis, "repeat.axis", -ndim, ndim-1);
   const int pivot = axis < 0 ? ndim + axis : axis;
   std::vector<int64_t> oshape;
   for (int i = 0; i < pivot; ++i) {
@@ -177,7 +177,7 @@ inline bool ConcatenateInferShape(const NodeAttrs& attrs,
   bool has_zero = false;
   VERIFY(!in_shape->empty());
   int ndim = in_shape->at(0).ndim();
-  VerifyAttrRange(param.axis, "concatenate.axis", -ndim, ndim);
+  VerifyAttrRange(param.axis, "concatenate.axis", -ndim, ndim-1);
   int axis = param.axis >= 0 ? param.axis : ndim + param.axis;
   for(size_t i = 0; i < in_shape->size(); ++i){
     VERIFY_EQ(in_shape->at(i).ndim(), ndim);
@@ -312,7 +312,7 @@ inline bool ExpandDimsInferShape(const NodeAttrs& attrs,
   VERIFY_EQ(in_shape->size(), 1U);
   const TShape& dshape = in_shape->at(0);
   int ndim = static_cast<int>(dshape.ndim());
-  VerifyAttrRange(param.axis, "expand_dims.axis", -ndim-1, ndim+1);
+  VerifyAttrRange(param.axis, "expand_dims.axis", -ndim-1, ndim);
   VerifyAttrRange(param.num_newaxis, "expand_dims.num_newaxis");
   int axis = param.axis < 0 ? ndim + param.axis + 1 : param.axis;
   std::vector<dim_t> oshape;
@@ -523,7 +523,7 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
   } else {
     std::unordered_set<dim_t> axis_checker;
     for (size_t i = 0; i < param.axis.ndim(); ++i) {
-      VerifyAttrRange(param.axis[i], "squeeze.axis", -ndim, ndim);
+      VerifyAttrRange(param.axis[i], "squeeze.axis", -ndim, ndim-1);
       int real_axis;
       if (param.axis[i] < 0) {
         real_axis = param.axis[i] + ndim;
@@ -604,7 +604,7 @@ inline bool TransposeShape(const cvm::NodeAttrs& attrs,
     TShape axes(param.axes);
     for (int i = 0; i < ndim; ++i) {
       int64_t new_axis = axes[i];
-      VerifyAttrRange(new_axis, "transpose.axis", -ndim, ndim);
+      VerifyAttrRange(new_axis, "transpose.axis", -ndim, ndim-1);
       if (new_axis < 0) {
         new_axis += ndim;
         axes[i] = new_axis;
@@ -807,7 +807,7 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
     }
   } else {
     int axis = param.axis.value();
-    VerifyAttrRange(axis, "take.axis", -ndim, ndim);
+    VerifyAttrRange(axis, "take.axis", -ndim, ndim-1);
     if (axis < 0) {
       axis += ndim;
     }
@@ -989,7 +989,7 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
   } else {
     for (auto i : param.axis) {
       VerifyAttrRange(i, "slice_like.axis",
-          -src_shape.ndim(), target_shape.ndim());
+          -src_shape.ndim(), target_shape.ndim()-1);
       if (i < 0) {
         i = src_shape.ndim() + i;
       }

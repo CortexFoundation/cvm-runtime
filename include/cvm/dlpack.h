@@ -21,6 +21,7 @@ typedef enum {
   /*! \brief CUDA GPU device */
   kDLGPU = 2,
   kDLFORMAL = 3,
+  kDLOpenCL = 4,
 } DLDeviceType;
 
 /*!

@@ -32,10 +32,10 @@ inline void VerifyAttrRange(
     const std::string& name, 
     const int32_t min = ATTR_MIN_VALUE, 
     const int32_t max = ATTR_MAX_VALUE) {
-  VERIFY(min <= val && val < max)
+  VERIFY(min <= val && val <= max)
     << "attribute " << name 
     << " value: " << val
-    << " out of range [" << min << ", " << max << ")";
+    << " out of range [" << min << ", " << max << "]";
 }
 
 /*!
