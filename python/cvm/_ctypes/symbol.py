@@ -26,7 +26,7 @@ import sys
 from .._base import c_array, c_str, py_str
 from .._base import SymbolHandle, OpHandle
 from .._base import ctypes2docstring
-from ..base import check_call
+from .._base import check_call
 from ..name import NameManager
 from ..attribute import AttrScope
 from .. import libinfo

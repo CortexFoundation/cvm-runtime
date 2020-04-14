@@ -42,7 +42,7 @@ else:
 nn_uint = ctypes.c_uint
 OpHandle = ctypes.c_void_p
 SymbolHandle = ctypes.c_void_p
-#GraphHandle = ctypes.c_void_p
+GraphHandle = ctypes.c_void_p
 
 # Global dict of str to symbol to initialize variables
 _all_var_init = {}
@@ -170,3 +170,12 @@ def ctypes2docstring(num_args, arg_names, arg_types, arg_descs, remove_dup=True)
                '%s\n')
     doc_str = doc_str % ('\n'.join(param_str))
     return doc_str
+
+class Status:
+    SUCCEED = 0
+    ERROR_LOGIC = 1
+    ERROR_RUNTIME = 2
+
+def check_call(ret):
+    if ret != Status.SUCCEED:
+        raise Exception("API called with error code: %d" % ret)
