@@ -29,7 +29,7 @@ if __name__ == "__main__":
     param_bytes = nd.save_param_dict(params)
 
     model = cvm.runtime.CVMAPILoadModel(
-        json_str, param_bytes, cvm.cpu())
+        json_str, param_bytes, cvm.gpu())
     data = nd.array([-30, 0, 10], dtype="int8").as_runtime_input()
     print (len(data))
     out = cvm.runtime.CVMAPIInference(

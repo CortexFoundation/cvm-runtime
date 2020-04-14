@@ -19,6 +19,11 @@
 #include <CL/opencl.h>
 #endif
 
+#include <sys/stat.h>
+#include <unistd.h>
+#include <iostream>
+#include <fstream>
+
 inline const char* CLGetErrorString(cl_int error) {
   switch (error) {
     case CL_SUCCESS: return "CL_SUCCESS";
@@ -83,6 +88,25 @@ inline const char* CLGetErrorString(cl_int error) {
   }
 #endif
 
+  inline std::vector<unsigned char> read_binary_file(const std::string& xclbin_file_name) {
+    std::cout << "INFO: Reading " << xclbin_file_name << std::endl;
+
+    if (access(xclbin_file_name.c_str(), R_OK) != 0) {
+      printf("ERROR: %s xclbin not available please build\n",
+	xclbin_file_name.c_str());
+      exit(EXIT_FAILURE);
+    }
+    //Loading XCL Bin into char buffer
+    std::cout << "Loading: '" << xclbin_file_name.c_str() << "'\n";
+    std::ifstream bin_file(xclbin_file_name.c_str(), std::ifstream::binary);
+    bin_file.seekg(0, bin_file.end);
+    auto nb = bin_file.tellg();
+    bin_file.seekg(0, bin_file.beg);
+    std::vector<unsigned char> buf;
+    buf.resize(nb);
+    bin_file.read(reinterpret_cast<char *>(buf.data()), nb);
+    return buf;
+  }
 
 namespace cvm {
 namespace runtime {
@@ -135,7 +159,8 @@ class OpenCLDeviceAPI final : public DeviceAPI {
                            const std::string& platform_name = ""); 
 
   virtual void Init() {
-    Init("opencl", "gpu");
+    //Init("opencl", "gpu");
+    Init("opencl", "accelerator", "Xilinx");
   }
 
   void SetDevice(CVMContext ctx) final {
@@ -167,6 +192,15 @@ class OpenCLDeviceAPI final : public DeviceAPI {
     program = clCreateProgramWithSource(context, 1, (const char**)&source, (const size_t*)&size, &ret);         
     OPENCL_CHECK_ERROR(ret);
     OPENCL_CALL(clBuildProgram(program, 1, &devices[device_id], NULL, NULL, NULL)); 
+  }
+  void CompileProgramWithBinary(const std::string filename){
+     std::vector<unsigned char> binary = read_binary_file(filename);
+     const unsigned char *binary_data = binary.data();
+     size_t size = binary.size();
+     int binary_status;
+     cl_int err_code;
+     program = clCreateProgramWithBinary(context, 1, &devices[device_id],&size, (const unsigned char**)&binary_data, &binary_status, &err_code); 
+     OPENCL_CHECK_ERROR(err_code);
   }
 };
 

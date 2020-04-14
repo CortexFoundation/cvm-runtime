@@ -95,6 +95,7 @@ namespace runtime {
       OPENCL_CHECK_ERROR(err_code);
     }
     initialized_ = true;
+    CompileProgramWithBinary("vadd.xclbin");
   }
 
   void OpenCLDeviceAPI::GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) {
