@@ -145,10 +145,10 @@ if __name__ == "__main__":
                          dtype=int_t, dval=logging.NOTSET)
     utils.log_init(level=verbosity)
     logger = logging.getLogger("log.main")
-    default_dir = path.expanduser("~/cvm-runtime/python/data")
-    assert path.exists(default_dir), \
-        "Please create the folder `data` in the working directory first"
+    default_dir = path.expanduser("~/data")
     model_dir = _get_val(cfg, sec, 'Model_dir', dval=default_dir)
+    assert path.exists(model_dir), \
+        "Please create the folder `data` first"
     model_name = _get_val(cfg, sec, 'Model_name')
     model_prefix = path.join(model_dir, model_name)
     model_ctx = _get_ctx(cfg, sec)
