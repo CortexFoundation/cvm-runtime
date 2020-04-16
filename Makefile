@@ -13,6 +13,7 @@ dep:
 	@cp cmake/config.cmake . --update
 	@mkdir -p ${BUILD}
 	@mkdir -p ${BUILD}/${TESTS}
+	@mkdir -p ${BUILD}/fpga
 
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
@@ -41,6 +42,12 @@ test_opencl: ${TEST_OPENCL}
 
 %_opencl: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
+
+TARGET=sw_emu
+PLATFORM=xilinx_u50_gen3x16_xdma_201920_3
+
+fpga:src/runtime/opencl/ops/fpga/*.cpp
+	v++ -t ${TARGET} --platform=${PLATFORM} -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $< 
 
 python: lib
 	bash env.sh
