@@ -46,8 +46,20 @@ test_opencl: ${TEST_OPENCL}
 TARGET=sw_emu
 PLATFORM=xilinx_u50_gen3x16_xdma_201920_3
 
-fpga:src/runtime/opencl/ops/fpga/*.cpp
-	v++ -t ${TARGET} --platform=${PLATFORM} -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $< 
+FPGA_SRC=$(wildcard src/runtime/opencl/ops/fpga/*.cpp)
+#FPGA_TEMP_OUT=$(patsubst ${BUILD}/fpga/%.xo, $(notdir $(FPGA_SRC)))
+FPGA_OBJS=$(patsubst %.cpp,%.xo,$(FPGA_SRC))
+
+FPGA_OUT=ops.${TARGET}.xclbin
+fpga:$(FPGA_OBJS)
+	v++ -t $(TARGET) --platform=$(PLATFORM) -l -o $(FPGA_OUT) $(FPGA_OBJS)
+%.xo:%.cpp
+#v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $<
+	v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '$@' $<
+	rm $@.*
+
+#fpga:src/runtime/opencl/ops/fpga/*.cpp
+#	v++ -t ${TARGET} --platform=${PLATFORM} -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $< 
 
 python: lib
 	bash env.sh

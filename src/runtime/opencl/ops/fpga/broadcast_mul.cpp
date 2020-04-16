@@ -4,9 +4,10 @@
 
 extern "C"
 {
-    void broadcast_mul(const int *a, const int b, int *c, const int n)
+    void broadcast_mul(const int *a, const int* b, int *c, const int n)
     {
 #pragma HLS INTERFACE m_axi port = a offset = slave bundle = gmem
+#pragma HLS INTERFACE m_axi port = b offset = slave bundle = gmem
 #pragma HLS INTERFACE m_axi port = c offset = slave bundle = gmem
 #pragma HLS INTERFACE s_axilite port = a bundle = control
 #pragma HLS INTERFACE s_axilite port = b bundle = control
@@ -32,7 +33,7 @@ extern "C"
             for (int j = 0; j < chunk_size; j++)
             {
 				#pragma HLS PIPELINE II = 1
-                vout_buffer[j] = v1_buffer[j] * b;
+                vout_buffer[j] = v1_buffer[j] * b[0];
             }
         write:
             for (int j = 0; j < chunk_size; j++)

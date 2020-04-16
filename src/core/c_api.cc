@@ -17,6 +17,7 @@ std::unordered_map<int, DLDeviceType> const APIDevTypeMap = {
   {0, kDLCPU},
   {1, kDLGPU},
   {2, kDLFORMAL},
+  {3, kDLOpenCL},
 };
 
 int CVMAPILoadModel(const char *graph_json, int graph_strlen,

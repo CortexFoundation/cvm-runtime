@@ -26,7 +26,7 @@ shift:
     for(int j = 0; j < chunk_size; j++){
       #pragma HLS PIPELINE II=1
       int tmp = buf_i[j];
-      tmp = (tmp >> (shift_b -1) + 1) >> 1;
+      tmp = ((tmp >> (shift_b -1)) + 1) >> 1;
       tmp = tmp > max ? max : tmp;
       buf_o[j] = tmp < min ? min : tmp;
     }

@@ -25,15 +25,35 @@ void init(){
   static bool is_init = false;
   if(!is_init){
     openclDeviceAPI = (cvm::runtime::OpenCLDeviceAPI*)cvm::runtime::DeviceAPI::Get(ctx);
+    is_init = true;
     //openclDeviceAPI->CompileProgram(kernel_str);
   }
 }
 
-cl_kernel get_kernel(const char* kernel_name){
+void print_to_file(const void *buffer, const int n, const char*filename){
+  int *data = new int[n];
+  clEnqueueReadBuffer(openclDeviceAPI->queue, (cl_mem)buffer, CL_TRUE, 0, n*sizeof(int), data, 0, NULL, NULL);
+  FILE *fp = fopen(filename, "a+");
+  for(int i = 0; i < n && i < 1000; i++){
+    fprintf(fp, "%d ", data[i]);
+  }
+  fprintf(fp, "\n");
+  fclose(fp);
+  delete data;
+}
+
+cl_kernel get_kernel(const std::string& kernel_name){
   cl_int ret;
-  cl_kernel clkernel = clCreateKernel(openclDeviceAPI->program, kernel_name, &ret);
+  static std::map<std::string, cl_kernel> kernel_map;
+  if(kernel_map.count(kernel_name) > 0){
+    return kernel_map[kernel_name];
+  } 
+
+  cl_kernel clkernel = clCreateKernel(openclDeviceAPI->program, kernel_name.c_str(), &ret);
+  printf("get kernel %s\n", kernel_name.c_str());
   OPENCL_CHECK_ERROR(ret);
   
+  kernel_map[kernel_name] = clkernel;
   return clkernel; 
 }
 
@@ -66,36 +86,47 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
     const int oh, const int ow,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
-    const int dilation_h, const int dilation_w){
+    const int dilation_h, const int dilation_w, bool use_bias){
   init();
-  cl_kernel kernel = get_kernel("conv");
+  printf("call conv2d (%d %d) (%d %d) (%d %d) (%d %d)\n", kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w);
+  cl_kernel kernel = use_bias == false ? get_kernel("conv") : get_kernel("conv_bias");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), weight);
-  clSetKernelArg(kernel, 2, sizeof(cl_mem), output);
-  clSetKernelArg(kernel, 3, sizeof(int), (void*)&batch);
-  clSetKernelArg(kernel, 4, sizeof(int), (void*)&c);
-  clSetKernelArg(kernel, 5, sizeof(int), (void*)&h);
-  clSetKernelArg(kernel, 6, sizeof(int), (void*)&w);
-  clSetKernelArg(kernel, 7, sizeof(int), (void*)&oc);
-  clSetKernelArg(kernel, 8, sizeof(int), (void*)&oh);
-  clSetKernelArg(kernel, 9, sizeof(int), (void*)&ow);
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&weight);
+  if(use_bias){
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bias);
+  }
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&c);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&oc);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&kh);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&kw);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&oh);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ow);
 
+  printf("exe kernel\n");
   exe_kernel(kernel);
+  print_to_file(input, batch*h*w*c, "/media/nvme/data/mnist/conv_x.txt");
+  print_to_file(output, batch*oh*ow*oc, "/media/nvme/data/mnist/conv.txt");
 }
 
-void opencl_max_pool2d(const int* input, int* output,
+void opencl_max_pool2d(const void* input, void* output,
 	const int batch, const int c, const int h, const int w,
 	const int kh, const int kw,   
 	const int oh, const int ow,
 	const int pad_h, const int pad_w,             
 	const int stride_h, const int stride_w){      
   init();
+  printf("call max_pool2d\n");
   cl_kernel kernel = get_kernel("pool");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&bufi);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&bufo);
-  clSetKernelArg(kernel, 2, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, 2, sizeof(int), (void*)&batch);
   clSetKernelArg(kernel, 3, sizeof(int), (void*)&c);
   clSetKernelArg(kernel, 4, sizeof(int), (void*)&h);
   clSetKernelArg(kernel, 5, sizeof(int), (void*)&w);
@@ -109,59 +140,100 @@ void opencl_max_pool2d(const int* input, int* output,
   clSetKernelArg(kernel, 13, sizeof(int), (void*)&stride_w);
 
   exe_kernel(kernel);
+  print_to_file(output, batch*c*oh*ow, "/media/nvme/data/mnist/pool.txt");
 }
 
-void opencl_cvm_clip(const int *input, int*output, const int n, const int precision){
+void opencl_cvm_clip(const void *input, void*output, const int n, const int precision){
   const int32_t min = -(((int64_t)1 << (precision-1))-1);
   const int32_t max = -min;
 
   init();
+  printf("call cvm clip\n");
   cl_kernel kernel = get_kernel("cvm_clip");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), output);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&output);
   clSetKernelArg(kernel, 2, sizeof(int), (void*)&n);
   clSetKernelArg(kernel, 3, sizeof(int), (void*)&min);
   clSetKernelArg(kernel, 4, sizeof(int), (void*)&max);
 
   exe_kernel(kernel);
+  print_to_file(output, n, "/media/nvme/data/mnist/cvm_clip.txt");
 }
 
-void opencl_cvm_right_shift(const int *input, int *output, const int shift_b, const int n, const int precision){
-  const int32_t minV = -(((int64_t)1 << (precision - 1)) - 1);
-  const int32_t maxV = -minV;
+void opencl_cvm_right_shift(const void *input, void *output, const int shift_b, const int n, const int precision){
+  const int32_t min = -(((int64_t)1 << (precision - 1)) - 1);
+  const int32_t max = -min;
 
   init();
+  printf("call cvm right shift\n");
   cl_kernel kernel = get_kernel("cvm_right_shift");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), output);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&output);
   clSetKernelArg(kernel, 2, sizeof(int), (void*)&shift_b);
   clSetKernelArg(kernel, 3, sizeof(int), (void*)&n);
   clSetKernelArg(kernel, 4, sizeof(int), (void*)&min);
   clSetKernelArg(kernel, 5, sizeof(int), (void*)&max);
 
-  exe_kernel();
+  exe_kernel(kernel);
+  print_to_file(input, n, "/media/nvme/data/mnist/cvm_right_shift_x.txt");
+  print_to_file(output, n, "/media/nvme/data/mnist/cvm_right_shift.txt");
 }
 
-void opencl_relu(const int* input, int*output, const int n){
+void opencl_relu(const void* input, void*output, const int n){
   init();
+  printf("call relu\n");
   cl_kernel kernel = get_kernel("relu");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), output);
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&output);
   clSetKernelArg(kernel, 2, sizeof(int), (void*)&n);
-  exe_kernel();
+  exe_kernel(kernel);
+  print_to_file(input, n, "/media/nvme/data/mnist/relu_x.txt");
+  print_to_file(output, n, "/media/nvme/data/mnist/relu.txt");
 }
 
-void opencl_flatten(const int* input, int*output, const int n){
+void opencl_flatten(const void* input, void*output, const int n){
   init();
+  printf("call flatten\n");
 
   if(input == output) return;
-  clEnqueueCopyBuffer(openclDeviceAPI->queue, input, output, 0, 0, n * sizeof(int), 0, NULL, NULL);
+  clEnqueueCopyBuffer(openclDeviceAPI->queue, (cl_mem)input, (cl_mem)output, 0, 0, n * sizeof(int), 0, NULL, NULL);
 }
 
-#endif
+void opencl_broadcast_mul(const void *a, const void* b, void *c, const int n){
+  init();
+  printf("call broadcast mul\n");
+  cl_kernel kernel = get_kernel("broadcast_mul");
+
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&a);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&b);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&c);
+  clSetKernelArg(kernel, 3, sizeof(int), (void*)&n);
+
+  exe_kernel(kernel);
+  print_to_file(a, n, "/media/nvme/data/mnist/broadcast_mul_a.txt");
+  print_to_file(b, 1, "/media/nvme/data/mnist/broadcast_mul_b.txt");
+  print_to_file(c, n, "/media/nvme/data/mnist/broadcast_mul.txt");
+}
   
+void opencl_dense(const void *a, const void *b, const void *bias, void *c, const int M, const int N, const int K, bool use_bias){
+  init();
+  printf("call dense\n");
+  cl_kernel kernel = use_bias == false ? get_kernel("dense") : get_kernel("dense_bias");
+
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&a);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&b);
+  if(use_bias)
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bias);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&c);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&M);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&N);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&K);
+
+  exe_kernel(kernel);
+}
 #endif
   

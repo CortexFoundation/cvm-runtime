@@ -1,14 +1,15 @@
-
 extern "C"
 {
-void dense(const int *a, const int *b, int *c, const int M, const int N, const int K)
+void dense_bias(const int *a, const int *b, const int* bias, int *c, const int M, const int N, const int K)
 {
 #pragma HLS INTERFACE m_axi port = a offset = slave bundle = gmem
 #pragma HLS INTERFACE m_axi port = b offset = slave bundle = gmem
+#pragma HLS INTERFACE m_axi port = bias offset = slave bundle = gmem
 #pragma HLS INTERFACE m_axi port = c offset = slave bundle = gmem
 
 #pragma HLS INTERFACE s_axilite port = a bundle = control
 #pragma HLS INTERFACE s_axilite port = b bundle = control
+#pragma HLS INTERFACE s_axilite port = bias bundle = control
 #pragma HLS INTERFACE s_axilite port = c bundle = control
 
 #pragma HLS INTERFACE s_axilite port = M bundle = control
@@ -40,7 +41,7 @@ dense:
 #pragma HLS PIPELINE II = 1
             sum += a[(i + q) * K + r] * b[(j + p) * K + r];
           }
-          c[(i + q) * N + j + p] = sum;
+          c[(i + q) * N + j + p] = sum + bias[j+p];
         }
       }
     }

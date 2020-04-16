@@ -36,7 +36,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.elemwise_add")
       void *b_data = (b->data);
       void *c_data = (c->data);
       uint64_t n = getSize(a);
-      int error_code = 0;
+      //int error_code = 0;
       opencl_elemwise_add(a_data, b_data, c_data, n);
 
 });
@@ -59,16 +59,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       }
       auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
       auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
-      int groups = param.groups;
+      //int groups = param.groups;
       int dilation[2] = {static_cast<int>(param.dilation[0]), static_cast<int>(param.dilation[1])};
-      //int kernel_size[2] = {static_cast<int>(param.kernel_size[0]), static_cast<int>(param.kernel_size[1])};
       int padding[2] = {static_cast<int>(param.padding[0]), static_cast<int>(param.padding[1])};
       int strides[2] = {static_cast<int>(param.strides[0]), static_cast<int>(param.strides[1])};
+      bool use_bias = param.use_bias;
 
-      //    int stride_h = strides[0];
-      //    int stride_w = strides[1];
-      //    int dilation_h = dilation[0];
-      //    int dilation_w = dilation[1];
 
       void* x_data = x->data;
       void* w_data = w->data;
@@ -76,7 +72,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       void* b_data = b != nullptr ? b->data : nullptr;
 
       int out_channels = static_cast<int>(w->shape[0]);
-      int filter_c = static_cast<int>(w->shape[1]);
+      //int filter_c = static_cast<int>(w->shape[1]);
       int filter_h = static_cast<int>(w->shape[2]);
       int filter_w = static_cast<int>(w->shape[3]);
       int t_filter_h = (filter_h - 1) * dilation[0] + 1;
@@ -95,7 +91,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
           o_h, o_w, 
           padding[0], padding[1],
           strides[0], strides[1],
-          dilation[0], dilation[1]);
+          dilation[0], dilation[1],
+          use_bias);
 
       //int error_code = NON_ERROR;
       //const char* errorStr = "";
@@ -135,28 +132,35 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.dense")
       DLTensor *w = args[1];
       DLTensor *bias = nullptr;
       DLTensor *y = nullptr;
-      int32_t* bias_data = nullptr;
+      void* bias_data = nullptr;
+      void* _attr;
       if(ndim == 5){
         bias = args[2];
         y = args[3];
-        bias_data = static_cast<int32_t*>(bias->data);
+        bias_data = bias->data;
+        _attr = args[4];
       } else{
         y = args[2];
+        _attr = args[3];
       }
 
-      auto x_data = static_cast<int32_t*>(x->data);
-      auto y_data = static_cast<int32_t*>(y->data);
-      auto w_data = static_cast<int32_t*>(w->data);
-      int error_code = NON_ERROR;
-      const char* errorStr = opencl_dense(
-          x_data, w_data, y_data,
-          static_cast<int32_t>(x->shape[0]),
-          static_cast<int32_t>(x->shape[1]),
-          static_cast<int32_t>(y->shape[1]),
-          bias_data,
-          error_code);
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::DenseParam>(attr->parsed);
+      void* x_data = x->data;
+      void* y_data = y->data;
+      void* w_data = w->data;
+      bool use_bias = param.use_bias;
+      opencl_dense(x_data, w_data, bias_data, y_data, y->shape[0], y->shape[1], x->shape[1], use_bias);
+      //int error_code = NON_ERROR;
+      //const char* errorStr = opencl_dense(
+      //    x_data, w_data, y_data,
+      //    static_cast<int32_t>(x->shape[0]),
+      //    static_cast<int32_t>(x->shape[1]),
+      //    static_cast<int32_t>(y->shape[1]),
+      //    bias_data,
+      //    error_code);
 
-      deal_error(error_code, errorStr);
+      //deal_error(error_code, errorStr);
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.relu")
@@ -194,22 +198,25 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_mul")
       DLTensor *args0 = args[0];
       DLTensor *args1 = args[1];
       DLTensor *args2 = args[2];
-      int32_t *a = static_cast<int32_t*>(args0->data);
-      int32_t *b = static_cast<int32_t*>(args1->data);
-      int32_t *c = static_cast<int32_t*>(args2->data);
-      int64_t *ashape = static_cast<int64_t*>(args0->shape);
-      int32_t adim = static_cast<int32_t>(args0->ndim);
+      void *a = args0->data;
+      void *b = args1->data;
+      void *c = args2->data;
+      //int64_t *ashape = static_cast<int64_t*>(args0->shape);
+      //int32_t adim = static_cast<int32_t>(args0->ndim);
       int64_t *bshape = static_cast<int64_t*>(args1->shape);
       int32_t bdim = static_cast<int32_t>(args1->ndim);
-      int64_t *cshape = static_cast<int64_t*>(args2->shape);
-      int32_t cdim = static_cast<int32_t>(args2->ndim);
+      //int64_t *cshape = static_cast<int64_t*>(args2->shape);
+      //int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-      int error_code = NON_ERROR;
-      const char* errorStr = opencl_broadcast_mul(a, b, c, getSize(args2),
-          ashape, adim,
-          bshape, bdim,
-          cshape, cdim, error_code);
-      deal_error(error_code, errorStr);
+      if(bdim == 1 && bshape[0] == 1)
+        opencl_broadcast_mul(a, b, c, getSize(args0));
+      else printf("no support b dim > 1\n");
+      //int error_code = NON_ERROR;
+      //const char* errorStr = opencl_broadcast_mul(a, b, c, getSize(args2),
+      //    ashape, adim,
+      //    bshape, bdim,
+      //    cshape, cdim, error_code);
+      //deal_error(error_code, errorStr);
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.max_pool2d")
@@ -238,7 +245,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.max_pool2d")
 
       int n_batch = static_cast<int>(x->shape[0]);
       int in_channels = static_cast<int>(x->shape[1]);
-      int out_channels = in_channels;
+      //int out_channels = in_channels;
       int x_h = static_cast<int>(x->shape[2]);
       int x_w = static_cast<int>(x->shape[3]);
       //  int o_h = (x_h + 2 * padding[0] - filter_h) / strides[0] + 1;
@@ -296,7 +303,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.cvm_right_shift")
       void* a_data = a->data;
       void* c_data = c->data;
 
-      opencl_cvm_right_shift(a_data, c_data, b, getSize(a), precisoin);
+      opencl_cvm_right_shift(a_data, c_data, b, getSize(a), precision);
       //int error_code = NON_ERROR;
       //const char* errorStr = opencl_cvm_right_shift(
       //    a_data,
