@@ -387,6 +387,11 @@ def sym_calibrate(symbol, params, data, **kwargs):
             out = get_nd_op(op_name)(*nd_inputs, **attr)
             for n, _ in cinfos:
                 assert n in deps
+                if name not in deps[n]:
+                    # for op like: op = broadcast_mul(X, X)
+                    # `cinfos` will have duplicate entries
+                    # avoid removing more than once
+                    continue
                 deps[n].remove(name)
                 if len(deps[n]) == 0:
                     del out_cache[n]

@@ -1581,38 +1581,71 @@ class Squeeze(Transformer):
 
 
 @register_pass("fuse_transpose")
-@register_pass("rewrite")
-@register_pass("prepare_for_compile")
 @register_transformer("L2Normalization")
 class L2Normalization(Transformer):
-    def quantize(self, op, **kwargs):
-        scales = kwargs['scales']
+    def rewrite(self, op, **kwargs):
         name, op_name = op.attr('name'), op.attr('op_name')
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
         cns = [c.attr('name') for c in childs]
         X, xname = childs[0], cns[0]
 
-        oprec = kwargs['op_input_precs'][op_name]
-        X, xprec, xs = requant(
-            childs[0], oprec, oname=name, **kwargs)
+        mode = attrs.get('mode', 'instance')
+        eps_val = eval(attrs.get('eps', '1e-10'))
+        eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
 
-        ishp = kwargs['infer_shapes'][xname][get_entry_id(X)]
-        # TODO(ryt): mprec is not tight enough
-        # especially when `mode` is `channel`
-        mprec = get_bit(np.product(ishp)) + xprec*2
-        # assert mprec < 32
-
-        attrs['eps'] = str(eval(attrs.get('eps', '1e-10')) * xs)
-        op = get_mxnet_op(op_name)(X, **attrs, name=name)
-
-        scales[name] = xs
-        kwargs['precs'][name][OUT_KEY] = \
-            get_bit(kwargs['th_dict'][name] * xs)
-
-        logger = logging.getLogger('log.mrt.realize')
-        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
-                     op_name, name, scales[name], cns)
+        product = mx.sym.broadcast_mul(X, X)
+        if mode == "channel":
+            axis = [1]
+        elif mode == "instance":
+            axis = [1,2,3]
+        elif mode == "spatial":
+            axis = [2,3]
+        else:
+            assert "not valid `mode` type: %s" % mode
+        sum_reduce = mx.sym.sum(product, axis=axis)
+        plus_eps = mx.sym.broadcast_add(sum_reduce, eps)
+        op = mx.sym.sqrt(plus_eps)
+        shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
+        for i in axis:
+            op = mx.sym.expand_dims(op, axis=i)
+            op = mx.sym.repeat(op, repeats=shape[i], axis=i)
+        op = mx.sym.broadcast_div(X, op, name=name)
         return op
+
+    # def quantize(self, op, **kwargs):
+        # scales = kwargs['scales']
+        # name, op_name = op.attr('name'), op.attr('op_name')
+        # attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        # cns = [c.attr('name') for c in childs]
+        # X, xname = childs[0], cns[0]
+
+        # oprec = kwargs['op_input_precs'][op_name]
+        # X, xprec, xs = requant(
+            # childs[0], oprec, oname=name, **kwargs)
+
+        # ishp = kwargs['infer_shapes'][xname][get_entry_id(X)]
+        # # TODO(ryt): mprec is not tight enough
+        # # especially when `mode` is `channel`
+        # mprec = get_bit(np.product(ishp)) + xprec*2
+        # # assert mprec < 32
+
+        # attrs['eps'] = str(eval(attrs.get('eps', '1e-10')) * xs)
+        # op = get_mxnet_op(op_name)(X, **attrs, name=name)
+
+        # scales[name] = xs
+        # kwargs['precs'][name][OUT_KEY] = \
+            # get_bit(kwargs['th_dict'][name] * xs)
+
+        # logger = logging.getLogger('log.mrt.realize')
+        # logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                     # op_name, name, scales[name], cns)
+        # return op
+
+@register_pass("fuse_transpose")
+@register_transformer("sqrt")
+class Sqrt(Transformer):
+    def quantize(self, op, **kwargs):
+        pass
 
 
 def _ft_multi_input(op):
