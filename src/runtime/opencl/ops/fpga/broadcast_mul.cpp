@@ -25,20 +25,19 @@ extern "C"
         read1:
             for (int j = 0; j < chunk_size; j++)
             {
-#pragma HLS PIPELINE II = 1
+				#pragma HLS PIPELINE II = 1
                 v1_buffer[j] = a[i + j];
             }
         broadcast_mul:
             for (int j = 0; j < chunk_size; j++)
             {
-#pragma HLS PIPELINE II = 1
-
+				#pragma HLS PIPELINE II = 1
                 vout_buffer[j] = v1_buffer[j] * b;
             }
         write:
             for (int j = 0; j < chunk_size; j++)
             {
-#pragma HLS PIPELINE II = 1
+				#pragma HLS PIPELINE II = 1
                 c[i + j] = vout_buffer[j];
             }
         }
