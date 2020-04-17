@@ -399,11 +399,6 @@ if __name__ == "__main__":
 
         def evalfunc(data, label):
             data = sim.load_real_data(data, 'data', inputs_ext)
-            # data_file = "/home/ryt/data/ssd_512_vgg16_atrous_voc_data"
-            # nd.save(data_file, data)
-            # label_file = "/home/ryt/data/ssd_512_vgg16_atrous_voc_label"
-            # nd.save(label_file, label)
-            # exit()
             outs = forward(graph, data, ctx=ctx)
             acc = dataset.validate(metric, outs, label)
             return acc
@@ -420,9 +415,6 @@ if __name__ == "__main__":
 
         def quantize(data, label):
             data = sim.load_real_data(data, 'data', inputs_ext)
-            # qdata_file = "/home/ryt/data/ssd_512_vgg16_atrous_voc_qdata"
-            # nd.save(qdata_file, data)
-            # exit()
             outs = forward(qgraph, data, ctx)
             outs = outs / oscales[0] if olen == 1 \
                 else [(t / oscales[i]) for i, t in enumerate(outs)]
