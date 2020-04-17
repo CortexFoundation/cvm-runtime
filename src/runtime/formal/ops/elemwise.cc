@@ -44,19 +44,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
    void *_attr = args[2];
    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
    auto& param = cvm::get<cvm::top::ClipParam>(attr->parsed);
-   int32_t a_max = param.a_max;
-   int32_t a_min = param.a_min;
+   int64_t a_max = param.a_max;
+   int64_t a_min = param.a_min;
    int32_t *x_data = static_cast<int32_t*>(x->data);
    int32_t *y_data = static_cast<int32_t*>(y->data);
-   // y = a_max, x >= a_max
-   // y = x, a_min < x < a_max
-   // y = a_min, x <= a_min
    for (uint64_t i = 0; i < getSize(x); i++) {
+      // y = a_max, x >= a_max
       if (x_data[i] >= a_max){
         y_data[i] = a_max;
+        // y = a_min, x <= a_min
       } else if (x_data[i] <= a_min) {
         y_data[i] = a_min;
       } else {
+        // y = x, a_min < x < a_max
         y_data[i] = x_data[i];
       }
     }
@@ -98,14 +98,14 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
   void *_attr = args[2];
   auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
   auto &param = cvm::get<cvm::top::CVMClipParam>(attr->parsed);
-  int32_t precision = param.precision;
+  int64_t precision = param.precision;
+  // alpha = 2^(precision-1) - 1
+  int64_t alpha =  (((int64_t)1 << (precision-1))-1);
   // a_min = -alhpa
   // a_max = alpha
-  // alpha = 2^(precision-1) - 1
+  int64_t a_min = -alpha;
+  int64_t a_max = -a_min;
   // Y = clip(X, -alpha, alpha)
-  int64_t alpha =  (((int64_t)1 << (precision-1))-1);
-  int32_t a_min = -alpha;
-  int32_t a_max = -a_min;
   for(uint64_t i = 0; i < getSize(x); i++){
       if (x_data[i] >= a_max){
         y_data[i] = a_max;
@@ -127,24 +127,22 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_right_shift")
     int32_t *y_data = static_cast<int32_t*>(y->data);
     auto params = CVMArg2Attr<top::CVMRightShiftParam>(args[2]);
 
-    int64_t max_size = CVMArgSize(args[0]);
-    // alpha = 2^(precision-1) - 1
-    // beta = 2^(shift_bit-1)
-    // T = floor((floor(X / beta) + 1) / 2)
-    // Y = clip(T, -alpha, alpha)
     int32_t precision = params.precision;
-    int64_t alpha =  (((int64_t)1 << (precision-1))-1);
+    // alpha = 2^(precision-1) - 1
+    int32_t alpha =  (((int64_t)1 << (precision-1))-1);
+    // Y = clip(T, -alpha, alpha)
     int32_t a_min = -alpha;
-    int32_t a_max = -a_min;
-    for (uint64_t i = 0; i < max_size; ++i) {
-      int T = x_data[i] >> (params.shift_bit - 1);
-      T = (T + 1) >> 1;
-      if (T >= a_max){
+    int32_t a_max = alpha;
+    auto size = getSize(x);
+    for (uint64_t i = 0; i < size; ++i) {
+      // T = floor((floor(X >> (shift_bit - 1)) + 1) >> 1)
+      int32_t T = ((x_data[i] >> (params.shift_bit - 1)) + 1) >> 1;
+      if (T > a_max){
         y_data[i] = a_max;
-      } else if (x_data[i] <= a_min) {
+      } else if (T < a_min) {
         y_data[i] = a_min;
       } else {
-        y_data[i] = x_data[i];
+        y_data[i] = T;
       }
     }
 
