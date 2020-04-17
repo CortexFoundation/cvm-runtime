@@ -1,15 +1,16 @@
 import tensorflow as tf
 from tensorflow.core.framework import graph_pb2
-from tensorflow_parser import TFParser
+# from tensorflow_parser import TFParser
 
 import mxnet as mx
 from mxnet import ndarray as nd
 
 import sym_utils as sutils
 import dataset as ds
-import from_tensorflow as ftf
+# import from_tensorflow as ftf
 import tfm_pass as tpass
 import sim_quant_helper as sim
+import cvm_op
 
 import sys
 import numpy as np
@@ -19,7 +20,7 @@ from os import path
 
 from tfm_pass import convert_params_dtype
 
-def get_mxnet_outs(symbol, params, data, check_point, ctx=mx.gpu()):
+def get_mxnet_outs(symbol, params, data, check_point, ctx=mx.cpu()):
     data = nd.array(data)
     _, deps = sutils.topo_sort(symbol, with_deps=True)
     out_cache, ans = {}, {}
@@ -39,6 +40,11 @@ def get_mxnet_outs(symbol, params, data, check_point, ctx=mx.gpu()):
             out = sutils.get_nd_op(op_name)(*nd_inputs, **attr)
             for n, _ in cinfos:
                 assert n in deps
+                if name not in deps[n]:
+                    # for op like: op = broadcast_mul(X, X)
+                    # `cinfos` will have duplicate entries
+                    # avoid removing more than once
+                    continue
                 deps[n].remove(name)
                 if len(deps[n]) == 0:
                     del out_cache[n]
@@ -50,7 +56,8 @@ def get_mxnet_outs(symbol, params, data, check_point, ctx=mx.gpu()):
     print("itermediate result calculated from start_point: `data` to check_point: `%s`"%check_point)
     sutils.topo_visit_transformer(symbol, params, _impl, deps=deps, data=data)
     out_cache.clear()
-    res = ans[check_point].asnumpy()
+    # res = ans[check_point].asnumpy()
+    res = ans[check_point]
     return res
 
 def get_tensorflow_outs(model, data, check_point, start_point):
@@ -67,7 +74,7 @@ def get_tensorflow_outs(model, data, check_point, start_point):
         res = sess.run(output_tensor, {name_start: data})
     return res
 
-def calculate_res(data1, data2, ctx=mx.gpu()):
+def calculate_res(data1, data2, ctx=mx.cpu()):
     assert data1.shape == data2.shape
     ndims = np.product(data1.shape)
     data1 = np.reshape(data1, (ndims,))
@@ -77,6 +84,25 @@ def calculate_res(data1, data2, ctx=mx.gpu()):
     norm2 = np.linalg.norm(data2)
     norm_res = np.linalg.norm(res)
     print(norm1, norm2, norm_res)
+
+def calculate_norm(x, y):
+    assert x.shape == y.shape
+    ndims = np.product(x.shape)
+    x = nd.reshape(x, shape=(ndims,))
+    y = nd.reshape(y, shape=(ndims,))
+    res = x-y
+    nx = nd.norm(x)
+    ny = nd.norm(y)
+    nr = nd.norm(res)
+    print("saving...")
+    f = "/home/ryt/data/cmp_"
+    names = ["nx", "ny", "nr"]
+    objs = [nx, ny, nr]
+    for obj in objs:
+        print(type(obj), obj.shape)
+    for i in range(3):
+        nd.save(f+names[i], objs[i])
+    print('success')
 
 def get_metric(outs, label):
     outs = nd.array(outs)
@@ -119,15 +145,15 @@ def load_data_2(input_size=224, batch_size=1, redownload=False, layout='NHWC'):
 
 def load_data_3(modelname, input_size=224, batch_size=1, layout='NHWC', quantized=False):
     if quantized:
-        data = nd.load(path.expanduser('~/tvm-cvm/data/tf_'+modelname+'_qdata'))[0].asnumpy()
+        data = nd.load(path.expanduser('~/data/' + modelname + '_qdata'))[0].asnumpy()
     else:
-        data = nd.load(path.expanduser('~/tvm-cvm/data/tf_'+modelname+'_data'))[0].asnumpy()
-    label = nd.load(path.expanduser('~/tvm-cvm/data/test_label'))[0].asnumpy()
+        data = nd.load(path.expanduser('~/data/' + modelname + '_data'))[0].asnumpy()
+    label = nd.load(path.expanduser('~/data/' + modelname + '_label'))[0].asnumpy()
     if layout == 'NHWC':
         data = np.transpose(data, axes=[0,2,3,1])
     return data, label
 
-mx_dir = path.expanduser("~/tvm-cvm/data")
+mx_dir = path.expanduser("~/data")
 
 def cmp_model(modelname, batch_size=160, revise_outs=False,
               tf_check_point=None, mx_check_point=None,
@@ -177,9 +203,9 @@ def run_mx(modelname, batch_size=160, quantized=False,
            mx_check_point=None, float_dtype="float32",
            evaluate=False):
     input_size = model_input_size[modelname]
-    suffix = ".base.quantize" if quantized else ""
-    symbol_file = path.join(mx_dir, "tf_"+modelname+suffix+".json")
-    params_file = path.join(mx_dir, "tf_"+modelname+suffix+".params")
+    suffix = ".mrt.quantize" if quantized else ""
+    symbol_file = path.join(mx_dir, modelname+suffix+".json")
+    params_file = path.join(mx_dir, modelname+suffix+".params")
     symbol = mx.sym.load(symbol_file)
     params = mx.nd.load(params_file)
     params = tpass.convert_params_dtype(params, dest_dtype="float32")
@@ -189,7 +215,7 @@ def run_mx(modelname, batch_size=160, quantized=False,
         modelname, batch_size=batch_size, input_size=input_size,
         layout='NCHW', quantized=quantized)
     if quantized:
-        ext_file = path.join(mx_dir, "tf_"+modelname+suffix+".ext")
+        ext_file = path.join(mx_dir, modelname+suffix+".ext")
         _, _, _, scales = sim.load_ext(ext_file)
     else:
         op_names = tpass.collect_op_names(symbol, params)
@@ -211,13 +237,16 @@ def cmp_quantize(modelname, evaluate=False):
 
     # mxnet org model
     mx_outs = run_mx(modelname, mx_check_point=mx_check_point, evaluate=evaluate)
+    print('\n\n\n\n\n\n')
 
     # mxnet quantized model
     mxq_outs = run_mx(
         modelname, quantized=True, mx_check_point=mxq_check_point, evaluate=evaluate)
+    print('\n\n\n\n\n\n')
 
     # compare the result between mx and mxq
-    calculate_res(mx_outs, mxq_outs)
+    # calculate_res(mx_outs, mxq_outs)
+    calculate_norm(mx_outs, mxq_outs)
     exit()
 
 model_input_size = {
@@ -233,6 +262,7 @@ model_input_size = {
                 "mobilenet_v1_1.0_224_lite": 224,
                 "mobilenet_v2_1.0_224_lite": 224,
                 "resnet_v2_101_lite": 224,
+                "ssd_512_vgg16_atrous_voc": 512,
             }
 
 mx_check_points = {
@@ -248,6 +278,7 @@ mx_check_points = {
                     "mobilenet_v1_1.0_224_lite": "transpose5",
                     "mobilenet_v2_1.0_224_lite": "slice_axis0",
                     "resnet_v2_101_lite": None,
+                    "ssd_512_vgg16_atrous_voc": "ssd0_vggatrousextractor0_broadcast_mul0",
                 }
 
 mxq_check_points = {
@@ -263,6 +294,7 @@ mxq_check_points = {
                     "mobilenet_v1_1.0_224_lite": "clip0",
                     "mobilenet_v2_1.0_224_lite": "slice_axis0",
                     "resnet_v2_101_lite": None,
+                    "ssd_512_vgg16_atrous_voc": "ssd0_vggatrousextractor0_broadcast_mul0",
                 }
 
 tf_check_points = {
