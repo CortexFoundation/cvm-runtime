@@ -398,7 +398,6 @@ if __name__ == "__main__":
             return outs
 
         def evalfunc(data, label):
-            data = sim.load_real_data(data, 'data', inputs_ext)
             outs = forward(graph, data, ctx=ctx)
             acc = dataset.validate(metric, outs, label)
             return acc
