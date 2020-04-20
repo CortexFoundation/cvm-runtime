@@ -17,6 +17,6 @@ def test_nd_save(ctx=mx.gpu()):
     print('success')
 
 if __name__ == '__main__':
-    # test_nd_op()
-    test_nd_save(ctx=mx.cpu())
+    test_nd_op()
+    # test_nd_save(ctx=mx.cpu())
 
