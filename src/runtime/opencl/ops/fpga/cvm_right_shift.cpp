@@ -2,7 +2,7 @@
 extern "C" {
 void cvm_right_shift(const int *input, int *output, const int shift_b, const int n, const int min, const int max){
 #pragma HLS INTERFACE m_axi port=input offset=slave bundle=gmem
-#pragma HLS INTERFACE m_axi port=output offset=slace bundle=gmem
+#pragma HLS INTERFACE m_axi port=output offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=input bundle=control
 #pragma HLS INTERFACE s_axilite port=output bundle=control
 #pragma HLS INTERFACE s_axilite port=shift_b bundle=control

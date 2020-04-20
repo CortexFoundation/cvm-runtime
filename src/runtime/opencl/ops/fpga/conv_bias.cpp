@@ -31,22 +31,24 @@ void conv_bias(const int* input, const int* weight, const int *bias, int* output
   //#pragma HLS INTERFACE s_axilite port=dilation_w bundle=control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
+  const int BLOCK_SIZE = 8;
+  const int MAX_KERNEL_SIZE=3;
   //blocks: 8*8
-  int bufi[11][11];
-  int bufw[3][3];
-  int bufo[8][8];
+  int bufw[MAX_KERNEL_SIZE][MAX_KERNEL_SIZE];
+  int bufo[BLOCK_SIZE][BLOCK_SIZE];
+  int bufi[BLOCK_SIZE+MAX_KERNEL_SIZE][BLOCK_SIZE+MAX_KERNEL_SIZE];
 
   for(int n = 0; n < batch; n++){
     for(int i = 0; i < oc; i++){
-      for(int y = 0; y < oh; y+=8){
-        for(int x = 0; x < ow; x+=8){
-          int chunk_size_y = 8;
-          int chunk_size_x = 8;
-          if(y + 8 > oh) chunk_size_y = oh - y;
-          if(x + 8 > ow) chunk_size_x = ow - x;
+      for(int y = 0; y < oh; y+=BLOCK_SIZE){
+        for(int x = 0; x < ow; x+=BLOCK_SIZE){
+          int chunk_size_y = BLOCK_SIZE;
+          int chunk_size_x = BLOCK_SIZE;
+          if(y + BLOCK_SIZE > oh) chunk_size_y = oh - y;
+          if(x + BLOCK_SIZE > ow) chunk_size_x = ow - x;
 
-          for(int iy = 0; iy < 8; iy++){
-            for(int ix = 0; ix < 8; ix++){
+          for(int iy = 0; iy < BLOCK_SIZE; iy++){
+            for(int ix = 0; ix < BLOCK_SIZE; ix++){
 #pragma HLS PIPELINE II=1
               bufo[iy][ix] = 0;
             }
@@ -70,12 +72,14 @@ read2:
 madd:
             for(int iy = 0; iy < chunk_size_y; iy++){
               for(int ix = 0; ix < chunk_size_x; ix++){
+#pragma HLS PIPELINE II=1
+                int sum = 0;
                 for(int fy = 0; fy < kh; fy++){
                   for(int fx = 0; fx < kw; fx++){
-#pragma HLS PIPELINE II=1
-                    bufo[iy][ix] += bufi[iy + fy][ix + fx] * bufw[fy][fx];
+                    sum += bufi[iy + fy][ix + fx] * bufw[fy][fx];
                   }
                 }
+                bufo[iy][ix] += sum;
               }
             }
           }	

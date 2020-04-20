@@ -240,7 +240,7 @@ a bias vector is created and added to the outputs.
       std::vector<TShape>* shapes,
       std::vector<int>* iprecs,
       const DLContext& ctx) -> int64_t {
-    if(ctx.device_type == kDLGPU){
+    if(ctx.device_type == kDLGPU || ctx.device_type == kDLOpenCL){
       TShape xshape = shapes->at(0);
       TShape wshape = shapes->at(1);
       const Conv2DParam& param = cvm::get<Conv2DParam>(attrs.parsed);

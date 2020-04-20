@@ -95,7 +95,7 @@ namespace runtime {
       OPENCL_CHECK_ERROR(err_code);
     }
     initialized_ = true;
-    CompileProgramWithBinary("ops.sw_emu.xclbin");
+    CompileProgramWithBinary("ops.xclbin");
   }
 
   void OpenCLDeviceAPI::GetAttr(CVMContext ctx, DeviceAttrKind kind, CVMRetValue* rv) {

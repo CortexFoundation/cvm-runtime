@@ -1,7 +1,7 @@
 extern "C" {
 void conv(const int* input, const int* weight, int* output,
     const int batch, const int c, const int h, const int w,
-    const int oc, //const int kh, const int kw,    //3*3 
+    const int oc, const int kh, const int kw,    //3*3 
     const int oh, const int ow){
   //const int pad_h, const int pad_w,            //0 
   //const int stride_h, const int stride_w,      //1 
@@ -17,8 +17,8 @@ void conv(const int* input, const int* weight, int* output,
 #pragma HLS INTERFACE s_axilite port=h bundle=control
 #pragma HLS INTERFACE s_axilite port=w bundle=control
 #pragma HLS INTERFACE s_axilite port=oc bundle=control
-  //#pragma HLS INTERFACE s_axilite port=kh bundle=control
-  //#pragma HLS INTERFACE s_axilite port=kw bundle=control
+#pragma HLS INTERFACE s_axilite port=kh bundle=control
+#pragma HLS INTERFACE s_axilite port=kw bundle=control
 #pragma HLS INTERFACE s_axilite port=oh bundle=control
 #pragma HLS INTERFACE s_axilite port=ow bundle=control
   //#pragma HLS INTERFACE s_axilite port=pad_h bundle=control
@@ -52,15 +52,15 @@ void conv(const int* input, const int* weight, int* output,
 
           for(int ic = 0; ic < c; ic++){
 read1:
-            for(int fy = 0; fy < 3; fy++){
-              for(int fx = 0; fx < 3; fx++){
+            for(int fy = 0; fy < kh; fy++){
+              for(int fx = 0; fx < kw; fx++){
 #pragma HLS PIPELINE II=1
-                bufw[fy][fx] = weight[i * c * 9 + ic * 9 + fy * 3 + fx];
+                bufw[fy][fx] = weight[i * c * kh*kw + ic * kh*kw + fy * kw + fx];
               }
             }
 read2:
-            for(int ih = 0; ih < chunk_size_y + 3; ih++){
-              for(int iw = 0; iw < chunk_size_x + 3; iw++){
+            for(int ih = 0; ih < chunk_size_y + kh; ih++){
+              for(int iw = 0; iw < chunk_size_x + kw; iw++){
 #pragma HLS PIPELINE II=1
                 bufi[ih][iw] = input[n*c*h*w + ic*h*w + (y+ih)*w + x+iw]; 
               }
@@ -68,8 +68,8 @@ read2:
 madd:
             for(int iy = 0; iy < chunk_size_y; iy++){
               for(int ix = 0; ix < chunk_size_x; ix++){
-                for(int fy = 0; fy < 3; fy++){
-                  for(int fx = 0; fx < 3; fx++){
+                for(int fy = 0; fy < kh; fy++){
+                  for(int fx = 0; fx < kw; fx++){
 #pragma HLS PIPELINE II=1
                     bufo[iy][ix] += bufi[iy + fy][ix + fx] * bufw[fy][fx];
                   }

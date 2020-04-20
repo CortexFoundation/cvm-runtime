@@ -85,6 +85,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       int o_h = (x_h + 2 * padding[0] - t_filter_h) / strides[0] + 1;
       int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
+      void *ext_space = args.ext_space->data;
+      int32_t ext_space_size = args.ext_space->shape[0];
       opencl_conv2d(x_data, w_data, b_data, y_data, 
           n_batch, in_channels, x_h, x_w, 
           out_channels, filter_h, filter_w, 
@@ -92,7 +94,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
           padding[0], padding[1],
           strides[0], strides[1],
           dilation[0], dilation[1],
-          use_bias);
+          use_bias,
+          ext_space);
 
       //int error_code = NON_ERROR;
       //const char* errorStr = "";

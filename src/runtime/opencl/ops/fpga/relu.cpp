@@ -1,9 +1,9 @@
 extern "C" {
-void relu(const int* input, int*output, const int n){
+void relu(const int* input, int*relu_output, const int n){
 #pragma HLS INTERFACE m_axi port=input offset=slave bundle=gmem
-#pragma HLS INTERFACE m_axi port=output offset=slace bundle=gmem
+#pragma HLS INTERFACE m_axi port=relu_output offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=input bundle=control
-#pragma HLS INTERFACE s_axilite port=output bundle=control
+#pragma HLS INTERFACE s_axilite port=relu_output bundle=control
 #pragma HLS INTERFACE s_axilite port=n bundle=control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
@@ -27,7 +27,7 @@ shift:
 write:
     for(int j = 0; j < chunk_size; j++){
       #pragma HLS PIPELINE II=1
-      output[i+j] = buf_o[j];
+      relu_output[i+j] = buf_o[j];
     }
   }
 }

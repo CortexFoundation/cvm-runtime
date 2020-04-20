@@ -9,9 +9,7 @@ void dense_bias(const int *a, const int *b, const int* bias, int *c, const int M
 
 #pragma HLS INTERFACE s_axilite port = a bundle = control
 #pragma HLS INTERFACE s_axilite port = b bundle = control
-#pragma HLS INTERFACE s_axilite port = bias bundle = control
 #pragma HLS INTERFACE s_axilite port = c bundle = control
-
 #pragma HLS INTERFACE s_axilite port = M bundle = control
 #pragma HLS INTERFACE s_axilite port = N bundle = control
 #pragma HLS INTERFACE s_axilite port = K bundle = control
