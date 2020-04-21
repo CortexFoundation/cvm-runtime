@@ -95,7 +95,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
           strides[0], strides[1],
           dilation[0], dilation[1],
           use_bias,
-          ext_space);
+          ext_space, ext_space_size);
 
       //int error_code = NON_ERROR;
       //const char* errorStr = "";

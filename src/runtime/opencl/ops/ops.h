@@ -30,15 +30,17 @@ void init(){
   }
 }
 
-//#define CVM_OPENCL_PRINT_RESULT
+#define CVM_OPENCL_PRINT_RESULT
 void print_to_file(const void *buffer, const int n, const char*filename){
 #ifdef CVM_OPENCL_PRINT_RESULT
-  printf("save to file\n");
   int *data = new int[n];
   clEnqueueReadBuffer(openclDeviceAPI->queue, (cl_mem)buffer, CL_TRUE, 0, n*sizeof(int), data, 0, NULL, NULL);
   FILE *fp = fopen(filename, "a+");
-  for(int i = 0; i < n && i < 1000; i++){
-    fprintf(fp, "%d ", data[i]);
+  for(int i = 0, j = 0; i < n && j < 1000; i++){
+    if(data[i] != 0){
+      fprintf(fp, "%d ", data[i]);
+      j++;
+    }
   }
   fprintf(fp, "\n");
   fclose(fp);
@@ -58,6 +60,7 @@ cl_kernel get_kernel(const std::string& kernel_name){
   OPENCL_CHECK_ERROR(ret);
   
   kernel_map[kernel_name] = clkernel;
+  //TODO(zkh) release kernel
   return clkernel; 
 }
 
@@ -96,75 +99,94 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w, bool use_bias,
-    void *ext_space){
-  cl_kernel kernel = use_bias == false ? get_kernel("conv") : get_kernel("conv_bias");
-
-  int index = 0;
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&weight);
-  if(use_bias){
-    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bias);
-  }
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&c);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&h);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&w);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&oc);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&kh);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&kw);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&oh);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ow);
-  //printf("exe conv2d: (%d %d %d %d),(%d %d %d), (%d %d), (%d %d), (%d %d), %d %d\n", batch, c, h, w, oc, kh, kw, oh, ow, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w);
-  exe_kernel(kernel);
-  print_to_file(input, batch*h*w*c, "/media/nvme/data/mnist/conv_x.txt");
-  print_to_file(output, batch*oh*ow*oc, "/media/nvme/data/mnist/conv.txt");
-//
-  
-  //const int M = oc;
-  //const int K = c * kh * kw;
-  //const int N = oh * ow;
-
-  //cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
-  //cl_kernel im2col = get_kernel("im2col");
-  //cl_kernel gemm = get_kernel("gemm");
+    void *ext_space, const int ext_space_size){
+  //cl_kernel kernel = use_bias == false ? get_kernel("conv") : get_kernel("conv_bias");
 
   //int index = 0;
-  //int n = M*K;
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&weight);
+  //if(use_bias){
+  //  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bias);
+  //}
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&c);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&h);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&w);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&oc);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&kh);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&kw);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&oh);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&ow);
+  ////printf("exe conv2d: (%d %d %d %d),(%d %d %d), (%d %d), (%d %d), (%d %d), %d %d\n", batch, c, h, w, oc, kh, kw, oh, ow, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w);
+  //exe_kernel(kernel);
+//
+  
+  const int M = oc;
+  const int K = c * kh * kw;
+  const int N = oh * ow;
+
+  //cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
+  cl_kernel im2col = get_kernel("im2col");
+  cl_kernel gemm = use_bias ? get_kernel("gemm_bias") : get_kernel("gemm");
+
+  int index = 0;
+  int n = M*K;
   //clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&weight);
   //clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&ext_space);
   //clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&n);
   //exe_kernel(int32_to_int8);
 
-  //index = 0;
-  //int offset = M*K;
-  //n = c *oh *ow;
-  //clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&input);
-  //clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&ext_space);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&n);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&h);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&w);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&kh);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&kw);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_h);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_w);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_h);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_w);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_h);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
+  int zero = 0;
+  clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)ext_space, &zero, sizeof(int), 0, sizeof(int)*ext_space_size, 0, NULL, NULL);
+  static double im2col_time = 0;
+  static double gemm_time = 0;
+  clock_t start = clock();
+  index = 0;
+  int offset = M*K;
+  n = c *oh *ow;
+  printf("%d %d %d %d, %d %d %d\n", batch, c, h, w, oc, kh, kw);
+  clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&ext_space);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&n);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&h);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&w);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&kh);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&kw);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_h);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_w);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_h);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_w);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_h);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
   //clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
-  //exe_kernel(im2col);
+  exe_kernel(im2col);
+  print_to_file(ext_space, K*N, "/media/nvme/data/mnist/im2col.txt");
+  clFinish(openclDeviceAPI->queue);
 
-  //index = 0;
-  //clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
-  //clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&output);
-  //clSetKernelArg(gemm, index++, sizeof(int), (void*)&M);
-  //clSetKernelArg(gemm, index++, sizeof(int), (void*)&K);
-  //clSetKernelArg(gemm, index++, sizeof(int), (void*)&N);
-  //exe_kernel(gemm);
+  clock_t im2col_end = clock();
 
+  printf("%d %d %d\n", M, K, N);
+  index = 0;
+  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&weight);
+  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
+  if(use_bias)
+    clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&bias);
+  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(gemm, index++, sizeof(int), (void*)&M);
+  clSetKernelArg(gemm, index++, sizeof(int), (void*)&K);
+  clSetKernelArg(gemm, index++, sizeof(int), (void*)&N);
+  exe_kernel(gemm);
+  clFinish(openclDeviceAPI->queue);
+  clock_t end = clock();
+  im2col_time += (double)(im2col_end - start) / CLOCKS_PER_SEC;
+  gemm_time += (double)(end - im2col_end) / CLOCKS_PER_SEC;
+  printf("im2col : %.4f, gemm: %.4f\n", im2col_time, gemm_time);
+
+  print_to_file(input, batch*h*w*c, "/media/nvme/data/mnist/conv_x.txt");
+  print_to_file(output, batch*oh*ow*oc, "/media/nvme/data/mnist/conv.txt");
 }
 
 void opencl_max_pool2d(const void* input, void* output,
