@@ -34,13 +34,6 @@ def test_sym_nnvm(batch_size=10, iter_num=10):
 
     version = "v3"
     dump_sym, dump_params, dump_ext = load_fname(version, "mrt", True)
-    '''
-    byr---------
-    ./data/tf_inceptionv3.mrt.json
-    ./data/tf_inceptionv3.mrt.params
-    ./data/tf_inceptionv3.mrt.ext
-    byr--------
-    '''
     sym, params = mx.sym.load(dump_sym), nd.load(dump_params)
     (inputs_ext,) = sim.load_ext(dump_ext)
     data_iter = ds.load_imagenet_rec(batch_size, 299)
@@ -189,8 +182,8 @@ if __name__ == '__main__':
                     datadir="/data/wlt", ctx=mx.gpu(3))
         exit()
 
-    test_sym_nnvm(1, 0)
-    # test_sym_pass(16, 10)
+    #  test_sym_nnvm(1, 0)
+    test_sym_pass(16, 10)
     # test_sym_pass(160, 1000, quantize=False)
     # test_mxnet_sym(1)
     # validate(700, 100000)
