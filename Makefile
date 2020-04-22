@@ -43,7 +43,7 @@ test_opencl: ${TEST_OPENCL}
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
 python: lib
-	bash env.sh
+	bash install/env.sh
 
 clean:
-	  rm -rf ./build/*
+	rm -rf ./build/*
