@@ -19,9 +19,22 @@ def test_abs():
     sym, params = utils.topo_visit(sym, params, _print)
     return sym, params
 
+def test_l2norm():
+    x = cvm.sym.var('data', shape=(2,2,2), precision=8)
+    params = {}
+    sym = cvm.sym.l2norm(x, mode='channel')
+
+    def _print(sym, params, graph):
+        # print (sym.attr('op_name'), sym.attr('name'), graph.keys())
+        name, op_name = sym.attr('name'), sym.attr('op_name')
+        print("name: %20s,      op_name: %20s"%(name, op_name))
+
+    sym, params = utils.topo_visit(sym, params, _print)
+    return sym, params
 
 if __name__ == "__main__":
     sym, params = test_abs()
+    exit()
     graph = cvm.graph.build(sym, params)
     print (graph.json())
 
