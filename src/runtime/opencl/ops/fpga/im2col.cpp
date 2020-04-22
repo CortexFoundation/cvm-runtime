@@ -49,7 +49,11 @@ void im2col(const int * data_im,
         int h_im = h_offset + i * dilation_h;
         int w_im = w_offset + j * dilation_w;
         //*data_col_ptr = data_im_ptr[i*dilation_h * width + j * dilation_w];
-        data_col[dst_index] = data_im[src_index + i*dilation_h * width + j * dilation_w];
+        if(h_im < 0 || w_im < 0 || h_im >= height || w_im >= width){
+          data_col[dst_index] = 0;
+        }else{
+          data_col[dst_index] = data_im[src_index + i*dilation_h * width + j * dilation_w];
+        }
           //(h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) ?
           //(data_im_ptr[i * dilation_h * width + j * dilation_w]) : 0;
         //data_col_ptr += height_col * width_col;

@@ -43,7 +43,7 @@ test_opencl: ${TEST_OPENCL}
 %_opencl: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
-TARGET=hw
+TARGET=hw_emu
 PLATFORM=xilinx_u50_gen3x16_xdma_201920_3
 
 FPGA_SRC=$(wildcard src/runtime/opencl/ops/fpga/*.cpp)

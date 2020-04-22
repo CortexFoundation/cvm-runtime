@@ -6,6 +6,7 @@
 #include <cvm/dlpack.h>
 #include <cvm/runtime/device_api.h>
 #include "../devapi/opencl_device_api.h"
+#include <omp.h>
 
 const std::string kernel_str = R"(
   __kernel void elemwise_add(__global const int* a, __global const int* b, __global int *c, int n){
@@ -30,7 +31,7 @@ void init(){
   }
 }
 
-#define CVM_OPENCL_PRINT_RESULT
+//#define CVM_OPENCL_PRINT_RESULT
 void print_to_file(const void *buffer, const int n, const char*filename){
 #ifdef CVM_OPENCL_PRINT_RESULT
   int *data = new int[n];
@@ -141,7 +142,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)ext_space, &zero, sizeof(int), 0, sizeof(int)*ext_space_size, 0, NULL, NULL);
   static double im2col_time = 0;
   static double gemm_time = 0;
-  clock_t start = clock();
+  double start = omp_get_wtime();
   index = 0;
   int offset = M*K;
   n = c *oh *ow;
@@ -166,7 +167,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   print_to_file(ext_space, K*N, "/media/nvme/data/mnist/im2col.txt");
   clFinish(openclDeviceAPI->queue);
 
-  clock_t im2col_end = clock();
+  double im2col_end = omp_get_wtime();
 
   printf("%d %d %d\n", M, K, N);
   index = 0;
@@ -180,9 +181,9 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   clSetKernelArg(gemm, index++, sizeof(int), (void*)&N);
   exe_kernel(gemm);
   clFinish(openclDeviceAPI->queue);
-  clock_t end = clock();
-  im2col_time += (double)(im2col_end - start) / CLOCKS_PER_SEC;
-  gemm_time += (double)(end - im2col_end) / CLOCKS_PER_SEC;
+  double end = omp_get_wtime();
+  im2col_time += (double)(im2col_end - start);
+  gemm_time += (double)(end - im2col_end);
   printf("im2col : %.4f, gemm: %.4f\n", im2col_time, gemm_time);
 
   print_to_file(input, batch*h*w*c, "/media/nvme/data/mnist/conv_x.txt");
