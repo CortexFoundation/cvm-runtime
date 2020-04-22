@@ -602,9 +602,6 @@ struct Handler<any> {
     Handler<std::string>::Read(reader, &type_name);
     std::unordered_map<std::string, AnyJSONManager::Entry>&
         tmap = AnyJSONManager::Global()->type_map_;
-    for(auto t : tmap){
-      std::cout << t.first << std::endl;
-    }
     auto it = tmap.find(type_name);
     CHECK(it != tmap.end() && it->first == type_name)
         << "Typename " << type_name << " has not been registered via CVMUTIL_JSON_ENABLE_ANY";

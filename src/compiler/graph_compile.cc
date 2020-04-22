@@ -128,7 +128,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
     ss << "}";
     std::string attrs = ss.str();
     op_attrs[nid] = attrs;
-    printf("%s\n", attrs.c_str());
   }
 
   const cvm::Op* cvm_op = cvm::Op::Get("cvm_op");
@@ -175,7 +174,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
   cvm::Graph ret;
   for (const auto& e : idx.outputs()) {
     auto it = old_new.find(e.node_id);
-    std::cout << "collect new operator: " << it->second->attrs.name << std::endl;
     CHECK(it != old_new.end())
         << "cannot find node_id=" << e.node_id;
     ret.outputs.emplace_back(
@@ -200,7 +198,6 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
       new_prec_vec.at(new_eid) = prec_vec.at(old_eid);
       new_dltype_vec.at(new_eid) = "int32";
     }
-    std::cout << "\n";
   }
 
   ret.attrs["shape"] = std::make_shared<any>(std::move(new_shape_vec));

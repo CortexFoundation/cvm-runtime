@@ -34,9 +34,11 @@ def test_l2norm():
 
 if __name__ == "__main__":
     sym, params = test_abs()
-    exit()
-    graph = cvm.graph.build(sym, params)
-    print (graph.json())
+    # exit()
+    graph, params = cvm.graph.build(sym, params)
+
+    print ("graph json build done!!!")
+    # print (graph.json())
 
     json_str = graph.json()
     param_bytes = nd.save_param_dict(params)
