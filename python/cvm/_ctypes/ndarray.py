@@ -22,6 +22,11 @@ class CVMDataType(ctypes.Structure):
         if isinstance(type_str, np.dtype):
             type_str = str(type_str)
 
+        if not isinstance(type_str, str):
+            raise RuntimeError("CVMDataType only support numpy.dtype " +
+                "or string indicator like int32 instead of {}".format(
+                    type(type_str)))
+
         if type_str == "bool":
             self.bits = 1
             self.code = 1
