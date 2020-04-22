@@ -21,7 +21,7 @@ import cvm_op   # pylint: disable=unused-import
 
 import tfm_pass as tpass
 from tfm_pass import OUT_KEY, convert_params_dtype
-from tfm_pass import sym_calibrate, quantize, to_nnvm
+from tfm_pass import sym_calibrate, quantize, to_cvm
 from tfm_pass import prepare_for_compile, fuse_constant
 from tfm_pass import calculate_ops, collect_op_names
 
@@ -356,13 +356,13 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
     model = reduce_graph(model, input_shapes)
     symbol, params = model.symbol, model.params
 
-    nnvm_sym, params = to_nnvm(symbol, params)
+    cvm_sym, params = to_cvm(symbol, params)
     logger.info("Transform Mxnet symbol into CVM finished")
-    dtype, nnvm_params = "int32", {}
+    dtype, cvm_params = "int32", {}
     exit()
     import tvm
     tvm_ctx = tvm.context(target, 0)
-    for sym in topo_sort(nnvm_sym):
+    for sym in topo_sort(cvm_sym):
         if sutils.is_params(sym, params):
             key, value = sym.attr('name'), params[sym.attr('name')]
             flat = value.asnumpy()
@@ -370,34 +370,32 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
                 "key: {}\nvalue: {}".format(key, value)
             assert (flat.astype(dtype).astype("float64") == flat).all(), \
                 "key: {}\nvalue: {}".format(key, value)
-            nnvm_params[key] = tvm.nd.array(flat.astype(dtype), tvm_ctx)
+            cvm_params[key] = tvm.nd.array(flat.astype(dtype), tvm_ctx)
         elif sutils.is_inputs(sym, params):
             assert sym.attr('name') == 'data'
 
     # compile to JSON&Bytes format
-    # graph = nnvm.graph.create(nnvm_sym)
-    # open("/tmp/tmp.nnvm.json", "w").write(graph.json())
     logger.info("Compile into CVM graph")
-    with nnvm.compiler.build_config(opt_level=0):
-        deploy_graph, _, nnvm_params = nnvm.compiler.build(
-            nnvm_sym, target=target, shape=input_shapes,
-            params=nnvm_params, dtype=dtype)
+    with cvm.compiler.build_config(opt_level=0):
+        deploy_graph, _, cvm_params = cvm.compiler.build(
+            cvm_sym, target=target, shape=input_shapes,
+            params=cvm_params, dtype=dtype)
 
     # tvm parameters reduce
     logger.info("Parameters precision reduce")
-    for sym in topo_sort(nnvm_sym):
-        if sutils.is_params(sym, nnvm_params):
+    for sym in topo_sort(cvm_sym):
+        if sutils.is_params(sym, cvm_params):
             name, attr = sym.attr('name'), sym.list_attr()
             precision = sutils.get_attr(attr, "precision")
             dtype = "int32" if precision > 8 else "int8"
-            nnvm_params[name] = tvm.nd.array(
+            cvm_params[name] = tvm.nd.array(
                 params[name].asnumpy().astype(dtype), tvm_ctx)
 
     # dump
     logger.info("CVM Json&Params dump")
     with open(path.join(datadir, "symbol"), "w") as fout:
         fout.write(deploy_graph.json())
-    param_bytes = nnvm.compiler.save_param_dict(nnvm_params)
+    param_bytes = cvm.compiler.save_param_dict(cvm_params)
     with open(path.join(datadir, "params"), "wb") as fout:
         fout.write(param_bytes)
-    return deploy_graph, nnvm_params
+    return deploy_graph, cvm_params

@@ -129,7 +129,7 @@ def prepare_for_compile(symbol, params):
 
 
 @N.register_nm("cvm")
-def to_nnvm(symbol, params):
+def to_cvm(symbol, params):
     infer_shapes = infer_shape(symbol, params)
     graph = {}
     for op in topo_sort(symbol):
