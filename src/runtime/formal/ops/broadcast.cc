@@ -7,59 +7,56 @@ double cvm_op_broadcast_cnt = 0;
 
 typedef std::function<int32_t(int32_t a, int32_t b)> broadcast_func;
 
-static void broadcast(DLTensor *args0, 
-                      DLTensor* args1, 
-                      DLTensor* args2, 
+static void broadcast(cvm::runtime::CVMArgValue A, 
+                      cvm::runtime::CVMArgValue B, 
+                      cvm::runtime::CVMArgValue Y, 
                       broadcast_func const &f){
-    // inputs: A (args0), B(args1)
-    // outputs: Y (args2)
+    // inputs: A, B
+    // outputs: Y
     // A.shape = (m_0, m_1,,, m_{M-1})
     // B.shape = (n_0, n_1,,, n_{N-1})
+    auto A_shape = CVMArgShape(A);
+    auto B_shape = CVMArgShape(B);
+    auto Y_shape = CVMArgShape(Y);
+
     // K = max(M, N)
-    int K = args2->ndim;
-    std::vector<int64_t> d_k, a_k, b_k, SA, SB;
-    for (auto i = 0; i < K; i++){
-      a_k.push_back(0);
-      b_k.push_back(0);
-      d_k.push_back(0);
-      SA.push_back(0);
-      SB.push_back(0);
-    }
+    int K = Y_shape.size();
+    // SA represents the new shape of A, that is obtained through 
+    // extending A.shape into K dimension by prefixing with 1 
+    std::vector<int64_t> SA(K, 1);
     // SA_i = m_{i-K+M}, i >= K - M
     // SA_i = 1, i < K - M
+    for (auto i = 0; i < K; i++){
+      if (i >= K - A_shape.size()){
+        SA[i] = A_shape[i - K + A_shape.size()]; 
+      }
+    }
+    // SB represents the new shape of B, that is obtained through 
+    // extending B.shape into K dimension by prefixing with 1 
+    std::vector<int64_t> SB(K, 1);
     // SB_i = n_{i-K+N}, i >= K-N
     // SB_i = 1, i < K - N
     for (auto i = 0; i < K; i++){
-      if (i < K - args0->ndim){
-        SA[i] = 1;
-      } else {
-        SA[i] = args0->shape[i - K + args0->ndim]; 
-      }
-
-      if (i < K - args1->ndim){
-        SB[i] = 1;
-      } else {
-        SB[i] = args1->shape[i - K + args1->ndim]; 
+      if (i >= K - B_shape.size()){
+        SB[i] = B_shape[i - K + B_shape.size()]; 
       }
     }
-    int32_t *a = static_cast<int32_t*>(args0->data);
-    int32_t *b = static_cast<int32_t*>(args1->data);
-    int32_t *c = static_cast<int32_t*>(args2->data);
+    // d_k, a_k, b_k represent the coordinate index of Y.shape, SA, SB, respectively
+    std::vector<int64_t> d_k(K, 0), a_k(K, 0), b_k(K, 0);
+    auto a = CVMArg2Data<int32_t>(A); 
+    auto b = CVMArg2Data<int32_t>(B); 
+    auto c = CVMArg2Data<int32_t>(Y); 
     // Y.shape = (k_0, k_1,,, k_{K-1}), k_i = max(SA_i, SB_i)  
     // For \forall i \in [0, K)], d_{i} \in [0, k_{i})
-    for (uint64_t j = 0; j < getSize(args2); j++){
+    for (uint64_t j = 0; j < getSize(Y); j++){
       for (int i = 0; i < K; i++){
         // a_i = min(d_{i}, SA_i-1)
-        if (SA[i] - 1 < d_k[i])
-          a_k[i] = SA[i] - 1;
-        else
-          a_k[i] = d_k[i];
+        if (SA[i] - 1 < d_k[i]) a_k[i] = SA[i] - 1;
+        else a_k[i] = d_k[i];
 
         // b_i = min(d_{i}, SB_i-1)
-        if (SB[i] - 1 < d_k[i])
-          b_k[i] = SB[i] - 1;
-        else
-          b_k[i] = d_k[i];
+        if (SB[i] - 1 < d_k[i]) b_k[i] = SB[i] - 1;
+        else b_k[i] = d_k[i];
       }
       // index0 = the number of (a_0, a_1,,, a_{K-1}) on decimal digit
       int index0 = a_k[0];
@@ -74,14 +71,14 @@ static void broadcast(DLTensor *args0,
       // index2 = the number of (d_0, d_1,,, d_{K-1}) on decimal digit
       int index2 = d_k[0];
       for (int i = 1; i < K; i++){
-        index2 = index2 * args2->shape[i] + d_k[i];
+        index2 = index2 * Y_shape[i] + d_k[i];
       }
       // Y[d_0, d_1,,, d_{K-1}] = f(A[a_0, a_1,,, a_{K-1}], B[b_0, b_1,,, b_{K-1}])
       c[index2] = f(a[index0], b[index1]);
 
       d_k[K-1]++; 
       for (int i = K-1; i > 0; i--){
-        if (d_k[i] == args2->shape[i]){
+        if (d_k[i] == Y_shape[i]){
           d_k[i] = 0;
           d_k[i-1]++;
         }
@@ -92,9 +89,9 @@ static void broadcast(DLTensor *args0,
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_add")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return a + b;
     };
@@ -104,9 +101,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_add")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_sub")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return a - b;
     };
@@ -116,9 +113,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_sub")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_mul")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return a * b;
     };
@@ -128,9 +125,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_mul")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_max")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return a > b ? a : b;
     };
@@ -140,9 +137,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_max")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_div")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return b == 0 ? 0 : a/b;
     };
@@ -152,9 +149,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_div")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.broadcast_greater")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *args0 = args[0];
-    DLTensor *args1 = args[1];
-    DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
     broadcast_func f = [](int32_t a, int32_t b) -> int32_t {
       return a > b;
     };

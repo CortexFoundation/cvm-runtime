@@ -4,37 +4,48 @@ namespace cvm {
 namespace runtime {
   
 
+typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
+
+static void elemwise(cvm::runtime::CVMArgValue A, 
+                      cvm::runtime::CVMArgValue B, 
+                      cvm::runtime::CVMArgValue Y, 
+                      elemwise_func const &f){
+    // inputs: A, B
+    // outputs: Y
+    auto a = CVMArg2Data<int32_t>(A); 
+    auto b = CVMArg2Data<int32_t>(B); 
+    auto c = CVMArg2Data<int32_t>(Y); 
+    for(uint64_t i = 0; i < getSize(A); i++){
+      c[i] = f(a[i], b[i]);
+    }
+}
+
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_add")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-  DLTensor *args0 = args[0];
-  DLTensor *args1 = args[1];
-  DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
   
-  int32_t *a = static_cast<int32_t*>(args0->data);
-  int32_t *b = static_cast<int32_t*>(args1->data);
-  int32_t *c = static_cast<int32_t*>(args2->data);
+  elemwise_func f = [](int32_t a, int32_t b) -> int32_t {
+    return a + b;
+  };
 
-  for(uint64_t i = 0; i < getSize(args0); i++){
-    c[i] = a[i] + b[i];
-  }
-  print_to_file(args2, "elemwise_add.txt");
+  elemwise(args0, args1, args2, f);
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_sub")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-  DLTensor *args0 = args[0];
-  DLTensor *args1 = args[1];
-  DLTensor *args2 = args[2];
+    auto args0 = args[0];
+    auto args1 = args[1];
+    auto args2 = args[2];
 
-  int32_t *a = static_cast<int32_t*>(args0->data);
-  int32_t *b = static_cast<int32_t*>(args1->data);
-  int32_t *c = static_cast<int32_t*>(args2->data);
+  elemwise_func f = [](int32_t a, int32_t b) -> int32_t {
+    return a - b;
+  };
 
-  for(uint64_t i = 0; i < getSize(args0); i++){
-    c[i] = a[i] - b[i];
-  }
+  elemwise(args0, args1, args2, f);
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
