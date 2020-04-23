@@ -277,14 +277,15 @@ def build(graph, params, shape=None):
         graph = create(graph)
 
     shape = shape if shape else {}
-    _update_shape_dtype(shape, params)
-    ishape, _ = infer_shape(graph, **shape)
-    shape.update(zip(graph.index.input_names, ishape))
+    shape = _update_shape_dtype(shape, params)
+
+    #  ishape, _ = infer_shape(graph, **shape)
+    #  shape.update(zip(graph.index.input_names, ishape))
 
     graph = set_shape_inputs(graph, shape)
     graph = graph.apply("InferShape")
     graph = graph.apply("GraphCompile")
-    return graph
+    return graph, params
 
 
 

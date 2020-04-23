@@ -43,7 +43,7 @@ if __name__ == "__main__":
     sym, params = test_clip()
     #  exit()
     graph = cvm.graph.build(sym, params)
-    print (graph.json())
+    # print (graph.json())
 
     json_str = graph.json()
     param_bytes = nd.save_param_dict(params)

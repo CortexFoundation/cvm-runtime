@@ -3,7 +3,7 @@ from mxnet import ndarray as nd
 from mxnet.symbol import _internal
 from mxnet import symbol as _sym
 
-from transformer import Model
+from mrt import transformer
 
 import numpy as np
 import logging
