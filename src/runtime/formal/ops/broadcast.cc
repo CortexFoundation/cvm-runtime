@@ -15,6 +15,26 @@ int32_t CVMShapeEnd(const cvm::runtime::CVMArgValue& av){
   return CVMArgSize(av);
 }
 
+//  Convert an index (id_1, id_2,,, id_n) into a number using shape (s_1, s_2,,, s_n) as its base.
+int64_t Index2Number(const std::vector<int64_t>& shape, const std::vector<int64_t>& index){
+      auto number = index[0];
+      for (auto i = 1; i < shape.size(); i++){
+        number = number * shape[i] + index[i];
+      }
+      return number;
+}
+
+//  Add index (id_1, id_2,,, id_n) with 1 using shape (s_1, s_2,,, s_n) as its shape
+void IndexBaseShapeAddOne(const std::vector<int64_t>& shape, std::vector<int64_t>& index){
+      index[shape.size()-1]++; 
+      for (auto i = shape.size()-1; i > 0; i--){
+        if (index[i] == shape[i]){
+          index[i] = 0;
+          index[i-1]++;
+        }
+      }
+}
+
 static void broadcast(cvm::runtime::CVMArgValue& A, 
                       cvm::runtime::CVMArgValue& B, 
                       cvm::runtime::CVMArgValue& Y, 
@@ -29,27 +49,27 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
 
     // K = max(M, N)
     auto K = Y_shape.size();
+    
     // SA represents the new shape of A, that is obtained through 
     // extending A.shape into K dimension by prefixing with 1 
-    std::vector<int64_t> SA(K, 1);
-    // SA_i = m_{i-K+M}, i >= K - M
     // SA_i = 1, i < K - M
-    for (auto i = K - A_shape.size(); i < K; i++){
-        SA[i] = A_shape[i - K + A_shape.size()]; 
-    }
+    std::vector<int64_t> SA(K - A_shape.size(), 1);
+    // SA_i = m_{i-K+M}, i >= K - M
+    SA.insert(SA.end(), A_shape.begin(), A_shape.end());
+    
     // SB represents the new shape of B, that is obtained through 
     // extending B.shape into K dimension by prefixing with 1 
-    std::vector<int64_t> SB(K, 1);
-    // SB_i = n_{i-K+N}, i >= K-N
     // SB_i = 1, i < K - N
-    for (auto i = K - B_shape.size(); i < K; i++){
-        SB[i] = B_shape[i - K + B_shape.size()]; 
-    }
+    std::vector<int64_t> SB(K - B_shape.size(), 1);
+    // SB_i = n_{i-K+N}, i >= K-N
+    SB.insert(SB.end(), B_shape.begin(), B_shape.end());
+    
     // d_k, a_k, b_k represent the coordinate index of Y.shape, SA, SB, respectively
     std::vector<int64_t> d_k(K, 0), a_k(K, 0), b_k(K, 0);
     auto a = CVMArg2Data<int32_t>(A); 
     auto b = CVMArg2Data<int32_t>(B); 
     auto c = CVMArg2Data<int32_t>(Y); 
+    
     // Y.shape = (k_0, k_1,,, k_{K-1}), k_i = max(SA_i, SB_i)  
     // For \forall i \in [0, K)], d_{i} \in [0, k_{i})
     for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
@@ -62,31 +82,18 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
         if (SB[i] - 1 < d_k[i]) b_k[i] = SB[i] - 1;
         else b_k[i] = d_k[i];
       }
+      
       // index0 = the number of (a_0, a_1,,, a_{K-1}) on decimal digit
-      int index0 = a_k[0];
-      for (auto i = 1; i < K; i++){
-        index0 = index0 * SA[i] + a_k[i];
-      } 
+      int index0 = Index2Number(SA, a_k);
       // index1 = the number of (b_0, b_1,,, b_{K-1}) on decimal digit
-      int index1 = b_k[0];
-      for (auto i = 1; i < K; i++){
-        index1 = index1 * SB[i] + b_k[i];
-      } 
+      int index1 = Index2Number(SB, b_k);
       // index2 = the number of (d_0, d_1,,, d_{K-1}) on decimal digit
-      int index2 = d_k[0];
-      for (auto i = 1; i < K; i++){
-        index2 = index2 * Y_shape[i] + d_k[i];
-      }
+      int index2 = Index2Number(Y_shape, d_k);
+      
       // Y[d_0, d_1,,, d_{K-1}] = f(A[a_0, a_1,,, a_{K-1}], B[b_0, b_1,,, b_{K-1}])
       c[index2] = f(a[index0], b[index1]);
 
-      d_k[K-1]++; 
-      for (auto i = K-1; i > 0; i--){
-        if (d_k[i] == Y_shape[i]){
-          d_k[i] = 0;
-          d_k[i-1]++;
-        }
-      }
+      IndexBaseShapeAddOne(Y_shape, d_k);
     }
 
 }
