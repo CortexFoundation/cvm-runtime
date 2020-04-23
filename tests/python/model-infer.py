@@ -9,7 +9,8 @@ import time
 ctx = cvm.cpu()
 
 # model_root = "/home/serving/tvm-cvm/data/jetson/"
-model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+# model_root = "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/"
+model_root = "/data/ryt/alexnet_tfm"
 #  model_root = "/tmp/resnet18_v1_tfm/"
 # model_root = "/data/mrt/ssd_512_mobilenet1.0_voc_tfm"
 #  model_root = "/data/std_out/cvm_mnist/"
