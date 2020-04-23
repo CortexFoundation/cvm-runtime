@@ -30,7 +30,7 @@ import numpy as np
 
 from . import _base
 from ._base import _all_var_init
-from .base import check_call as _check_call
+from ._base import check_call as _check_call
 from ._ctypes.lib import _LIB
 from .attribute import AttrScope
 from . import libinfo

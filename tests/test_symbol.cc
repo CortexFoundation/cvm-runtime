@@ -18,6 +18,7 @@
 #include <cvm/graph.h>
 #include <unordered_map>
 #include <string>
+#include <vector>
 #include <fstream>
 
 using namespace std;

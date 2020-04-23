@@ -65,7 +65,8 @@ const char* cuda_clip(const int32_t *x, int32_t *y, const uint64_t n, const int3
   int new_n = n / 4;
   int threadSize = 256;
   int blockSize = getGridSize(new_n, threadSize);
-  kernel_clip4<<<blockSize, threadSize>>>((int4*)x, (int4*)y, new_n, max, min);
+  if(new_n > 0)
+    kernel_clip4<<<blockSize, threadSize>>>((int4*)x, (int4*)y, new_n, max, min);
   kernel_clip<<<1, 32>>>(x+new_n*4, y+new_n*4, n-new_n*4, max, min);
   cudaError_t error = cudaGetLastError();
   if(cudaSuccess != error){

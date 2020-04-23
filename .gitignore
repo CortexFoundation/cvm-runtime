@@ -42,5 +42,6 @@ compile_commands.json
 # binary
 tests/test_model*
 tests/test_op*
+tests/ipy
 
 config.cmake
