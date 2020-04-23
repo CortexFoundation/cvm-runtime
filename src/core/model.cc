@@ -245,13 +245,20 @@ void CVMModel::SaveTensor(std::vector<DLTensor*> outputs, char* mem) {
       // TODO(wentao): verify in model load.
       VERIFY(false) << "detection model output cannot concat";
     }
+  } else if (output_bytes_ == 4){
+    int32_t* ref = static_cast<int32_t*>((void*)mem);
+    for (size_t k = 0; k < outputs.size(); ++k) {
+      int32_t const* data = static_cast<int32_t*>(outputs[k]->data);
+      memcpy(ref, data, sizeof(int32_t) * out_size_[k]);
+      ref += out_size_[k];
+    }
   } else {
-      for (size_t k = 0; k < outputs.size(); ++k) {
-        auto data = static_cast<int*>(outputs[k]->data);
-        for (int i = 0; i < out_size_[k]; ++i) {
-          *mem++ = static_cast<int8_t>(data[i]);
-        }
+    for (size_t k = 0; k < outputs.size(); ++k) {
+      int32_t const* data = static_cast<int32_t*>(outputs[k]->data);
+      for (int i = 0; i < out_size_[k]; ++i) {
+        *mem++ = static_cast<int8_t>(data[i]);
       }
+    }
   }
 }
 
