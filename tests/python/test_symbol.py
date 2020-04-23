@@ -22,7 +22,7 @@ def test_abs():
 def test_clip():
     x = cvm.sym.var('data', shape=(3), precision=16)
     y = cvm.sym.cvm_right_shift(x, shift_bit=8, precision=8)
-    y = cvm.sym.cvm_clip(y, precision=18)
+    y = cvm.sym.cvm_clip(y, precision=8)
     return y, {}
 
 def test_l2norm():
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     #  sym, params = test_abs()
     sym, params = test_clip()
     #  exit()
-    graph = cvm.graph.build(sym, params)
+    graph, _ = cvm.graph.build(sym, params)
     # print (graph.json())
 
     json_str = graph.json()
