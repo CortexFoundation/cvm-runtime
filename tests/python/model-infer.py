@@ -17,7 +17,9 @@ ctx = cvm.cpu()
 # model_root = "/data/std_out/ssd"
 # model_root = "/data/std_out/resnet50_mxg/"
 # model_root = "/data/ryt/alexnet_tfm"
-model_root = "/data/ryt/ssd_512_vgg16_atrous_voc_tfm"
+# model_root = "/data/ryt/ssd_512_vgg16_atrous_voc_tfm"
+# model_root = "/data/ryt/ssd_300_vgg16_atrous_voc_tfm"
+model_root = "/data/ryt/cifar_resnet20_v1_tfm"
 
 json, params = utils.load_model(
         os.path.join(model_root, "symbol"),
@@ -34,8 +36,8 @@ iter_num = 1
 start = time.time()
 for i in range(iter_num):
     out = CVMAPIInference(net, data)
-    # utils.classification_output(out)
-    utils.detection_output(out)
+    utils.classification_output(out)
+    # utils.detection_output(out)
 end = time.time()
 print ("Infer Time: ", (end - start) * 1e3 / iter_num, " ms")
 

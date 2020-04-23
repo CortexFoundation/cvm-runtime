@@ -336,7 +336,7 @@ class Pad(Transformer):
             "nnvm pad symbol only support `constant` pad"
         del attrs['mode']
 
-        pad_value = eval(attrs.get('constant_value', 0))
+        pad_value = eval(attrs.get('constant_value', '0'))
         assert type(pad_value).__name__ in ['int', 'float'], \
             "not a valid value: attrs['constant_value']"
         attrs['pad_value'] = pad_value

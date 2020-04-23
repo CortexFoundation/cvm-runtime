@@ -442,7 +442,40 @@ if __name__ == "__main__":
         dump_data, _ = dataset.iter_func()()
         dump_data = sim.load_real_data(
             dump_data.astype("float64"), 'data', mrt.get_inputs_ext())
-        np.save(path.join(dump_dir, model_name_tfm, "data.npy"),
+        model_root = path.join(dump_dir, model_name_tfm)
+        np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
         logger.info("`%s` stage finished" % sec)
+
+    # inference
+    import cvm
+    from cvm.runtime import CVMAPILoadModel, CVMAPIInference
+    from cvm.runtime import CVMAPIGetOutputLength, CVMAPIFreeModel
+    from cvm import utils as cutils
+
+    import os
+    import time
+
+    ctx_inf = cvm.gpu(0)
+    json, params = cutils.load_model(
+            os.path.join(model_root, "symbol"),
+            os.path.join(model_root, "params"))
+    net = CVMAPILoadModel(json, params, ctx=ctx_inf)
+    print(CVMAPIGetOutputLength(net),
+        cvm.runtime.CVMAPIGetOutputTypeSize(net))
+    data_path = os.path.join(model_root, "data.npy")
+    data = cutils.load_np_data(data_path)
+    iter_num = 1
+    start = time.time()
+    for i in range(iter_num):
+        out_inf = CVMAPIInference(net, data)
+    end = time.time()
+    print ("Infer Time: ", (end - start) * 1e3 / iter_num, " ms")
+    CVMAPIFreeModel(net)
+    out_q = forward(qgraph, dump_data.astype('float32'), ctx)
+    dtype = 'int8' if output_precision == 8 else 'int32'
+    out_q = out_q.asnumpy().astype(dtype).tolist()[0]
+    assert len(out_q) == len(out_inf)
+    res = [out_q[i]-out_inf[i] for i in range(len(out_q))]
+    print(res)
 
