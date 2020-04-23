@@ -1599,6 +1599,7 @@ class L2Normalization(Transformer):
         scale_product = xs*xs
 
         # sum
+        # TODO(ryt): precision check align with runtime infer precision
         mode = attrs.get('mode', 'instance')
         if mode == "channel":
             axis = [1]
@@ -1611,7 +1612,7 @@ class L2Normalization(Transformer):
         sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'))
 
         # broadcast_add eps
-        eps_val = eval(attrs.get('eps', '1e-10')) * scale_product
+        eps_val = int(eval(attrs.get('eps', '1e-10')) * scale_product)
         eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
         add_eps = mx.sym.broadcast_add(sum_reduce, eps, N.n('l2norm_add'))
 
@@ -1636,6 +1637,7 @@ class L2Normalization(Transformer):
         return op
 
 @register_pass("prepare_for_compile")
+@register_pass("compile")
 @register_transformer("sqrt")
 class Sqrt(Transformer):
     pass

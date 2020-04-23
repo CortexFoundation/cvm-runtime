@@ -194,6 +194,7 @@ const char* cuda_sum(const int32_t *x, int32_t *y, const uint64_t xsize, const u
 const char* cuda_reshape(const int32_t *x, int32_t *y, uint64_t size, int& error_code);
 const char* cuda_log(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
+const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_cvm_clip(const int32_t* x, const int32_t precision, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_max(const int32_t *x, int32_t *y, const uint64_t xsize, const uint64_t ysize,
     const int64_t *xshape, const int64_t *yshape, const int32_t* realAxis, const int32_t* flag,

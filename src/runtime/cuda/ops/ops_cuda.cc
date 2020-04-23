@@ -596,6 +596,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.gpu.abs")
       deal_error(error_code, errorStr);
   });
 
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.sqrt")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *dlx = args[0];
+      DLTensor *y = args[1];
+      int32_t *y_data = static_cast<int32_t*>(y->data);
+      int32_t* x = static_cast<int32_t*>(dlx->data);
+      int error_code = NON_ERROR;
+      const char* errorStr = cuda_sqrt(x, y_data, getSize(dlx), error_code);
+      deal_error(error_code, errorStr);
+  });
+
 CVM_REGISTER_GLOBAL("cvm.runtime.gpu.max")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *dlx = args[0];

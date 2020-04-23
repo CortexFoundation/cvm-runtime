@@ -152,6 +152,25 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
+__global__ void kernel_sqrt(const int32_t *x, int32_t *y, const uint64_t n){
+  int tid = threadIdx.x + blockDim.x * blockIdx.x;
+  for(uint64_t i = tid; i < n; i += gridDim.x*blockDim.x){
+    y[i] = x[i] < 0 ? 0 : static_cast<int32_t>(sqrt(static_cast<double>(x[i])));
+  }
+}
+const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code){
+  const int32_t *dev_x = x;
+  int32_t *dev_y = y;
+  int bSize = 256;
+  int gSize = getGridSize(n, bSize);//(n + bSize - 1) / bSize;
+  kernel_sqrt<<<gSize, bSize>>>(dev_x, dev_y, n);
+  cudaError_t error = cudaGetLastError();
+  if(cudaSuccess != error){
+    error_code = ERROR_KERNEL;
+  }
+  return check_cuda_error(error);
+}
+
 __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int64_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
   int32_t lid = threadIdx.x;

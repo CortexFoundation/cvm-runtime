@@ -21,6 +21,26 @@ CVM_REGISTER_ELEMWISE_UNARY_OP(abs)
 .set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
 .set_support_level(3);
 
+// sqrt
+CVM_REGISTER_ELEMWISE_UNARY_OP(sqrt)
+.describe(R"doc(CVM clip input with precision.
+
+.. math::
+  assert x >= 0
+  tmp = floor(sqrt(X))
+  Y = cvm_clip(tmp, precision)
+)doc" CVM_ADD_FILELINE)
+.set_attr<FInferPrecision>("FInferPrecision",
+  [](const NodeAttrs& attrs,
+     std::vector<TShape>* shapes,
+     std::vector<int>* iattr,
+     std::vector<int>* oattr) -> bool {
+  IN_PREC_CHECK(iattr, attrs.name);
+  (*oattr)[0] = (iattr->at(0) >> 1) + 1;
+  return true;
+})
+.set_support_level(3);
+
 // cvm_precision
 CVM_REGISTER_ELEMWISE_UNARY_OP(cvm_precision)
 .describe(R"code(Returns the precision of input array, computed element-wise.

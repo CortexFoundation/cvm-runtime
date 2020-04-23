@@ -297,6 +297,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.abs")
     }
 });
 
+CVM_REGISTER_GLOBAL("cvm.runtime.formal.sqrt")
+.set_body([](CVMArgs args, CVMRetValue *ret){
+    DLTensor *x = args[0];
+    DLTensor *y = args[1];
+    int32_t *y_data = static_cast<int32_t*>(y->data);
+    int32_t* x_data = static_cast<int32_t*>(x->data);
+    for(uint64_t i = 0; i < getSize(x); i++){
+      y_data[i] = x_data[i] < 0 ? 0 : static_cast<int32_t>(std::sqrt(x_data[i]));
+    }
+});
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 .set_body([](CVMArgs args, CVMRetValue *ret){
