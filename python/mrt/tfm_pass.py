@@ -87,6 +87,10 @@ def quantize(symbol, params, th_dict, precs, scales, op_input_precs,
             th_dict[clip_name] = th_dict[name]
             precs[clip_name] = { OUT_KEY: tight_prec }
             scales[clip_name] = scales[name]
+            if name in precs and name in precs[name]:
+                oprec = precs[name][name]
+                del precs[name][name]
+                precs[clip_name][clip_name] = oprec
 
         return op
 
