@@ -23,19 +23,6 @@ inline int32_t broadcast_i_index(int64_t* oshape, uint64_t o_index, int64_t* ish
 
 typedef std::function<int32_t(int32_t a, int32_t b)> broadcast_func;
 
-struct DLTensor {
-  int* data;
-  int64_t *shape;
-  int ndim;
-};
-
-uint64_t getSize(DLTensor *dl){
-  uint64_t size = 1;
-  for(int i = 0; i < dl->ndim; i++){
-    size *= dl->shape[i]; 
-  }
-  return size;
-}
 void broadcast(DLTensor *args0, DLTensor* args1, DLTensor* args2, broadcast_func const &f){
   int32_t *a = static_cast<int32_t*>(args0->data);
   int32_t *b = static_cast<int32_t*>(args1->data);

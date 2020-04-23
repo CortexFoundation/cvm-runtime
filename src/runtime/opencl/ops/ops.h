@@ -17,6 +17,18 @@ const std::string kernel_str = R"(
   } 
 )";
 
+#define MAX_DIM 6
+template<typename T1, typename T2>
+inline void get_opencl_shape(const T1 *ishape, const int dim, T2 *oshape){
+  int shift = MAX_DIM - dim;
+  for(int i = 0; i < MAX_DIM; i++){
+    oshape[i] = 1;
+    if(i >= shift){
+      oshape[i] = ishape[i - shift];
+    }
+  }
+}
+
 const DLContext ctx = {kDLOpenCL, 0};
 
 cvm::runtime::OpenCLDeviceAPI *openclDeviceAPI = NULL;
@@ -65,7 +77,17 @@ cl_kernel get_kernel(const std::string& kernel_name){
   return clkernel; 
 }
 
-void exe_kernel(cl_kernel kernel, int32_t n){
+void set_kernel_args(const cl_kernel& kernel, std::vector<cl_mem>& mems, std::vector<int>& iargs){
+  int index = 0;
+  for(size_t i = 0; i < mems.size(); i++){
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&mems[i]); 
+  }
+  for(size_t i = 0; i < iargs.size(); i++){
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&iargs[i]);
+  }
+}
+
+void exe_kernel(cl_kernel kernel, int n){
   //clEnqueueTask(openclDeviceAPI->queue, kernel,0, NULL, NULL);
   size_t local_size = 256;
   size_t global_size = (n + 255) / 256 * 256;
@@ -82,7 +104,7 @@ void exe_kernel(cl_kernel kernel){
 #endif 
 }
 
-void opencl_elemwise_add(void *a, void *b, void *c, uint64_t n){
+void opencl_elemwise_add(void *a, void *b, void *c, uint n){
   cl_kernel kernel = get_kernel("vadd");
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&a);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&b);
@@ -127,16 +149,16 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   const int K = c * kh * kw;
   const int N = oh * ow;
 
-  //cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
+  //cl_kernel into_int8 = get_kernel("into_int8"); 
   cl_kernel im2col = get_kernel("im2col");
   cl_kernel gemm = use_bias ? get_kernel("gemm_bias") : get_kernel("gemm");
 
   int index = 0;
   int n = M*K;
-  //clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&weight);
-  //clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&ext_space);
-  //clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&n);
-  //exe_kernel(int32_to_int8);
+  //clSetKernelArg(into_int8, index++, sizeof(cl_mem), (void*)&weight);
+  //clSetKernelArg(into_int8, index++, sizeof(cl_mem), (void*)&ext_space);
+  //clSetKernelArg(into_int8, index++, sizeof(int), (void*)&n);
+  //exe_kernel(into_int8);
 
   int zero = 0;
   clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)ext_space, &zero, sizeof(int), 0, sizeof(int)*ext_space_size, 0, NULL, NULL);
@@ -144,7 +166,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   static double gemm_time = 0;
   double start = omp_get_wtime();
   index = 0;
-  int offset = M*K;
+  //int offset = M*K;
   n = c *oh *ow;
   printf("%d %d %d %d, %d %d %d\n", batch, c, h, w, oc, kh, kw);
   clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&input);
@@ -219,8 +241,8 @@ void opencl_max_pool2d(const void* input, void* output,
 }
 
 void opencl_cvm_clip(const void *input, void*output, const int n, const int precision){
-  const int32_t min = -(((int64_t)1 << (precision-1))-1);
-  const int32_t max = -min;
+  const int min = -(((int)1 << (precision-1))-1);
+  const int max = -min;
 
   cl_kernel kernel = get_kernel("cvm_clip");
 
@@ -236,8 +258,8 @@ void opencl_cvm_clip(const void *input, void*output, const int n, const int prec
 }
 
 void opencl_cvm_right_shift(const void *input, void *output, const int shift_b, const int n, const int precision){
-  const int32_t min = -(((int64_t)1 << (precision - 1)) - 1);
-  const int32_t max = -min;
+  const int min = -(((int)1 << (precision - 1)) - 1);
+  const int max = -min;
 
   cl_kernel kernel = get_kernel("cvm_right_shift");
 
@@ -303,6 +325,104 @@ void opencl_dense(const void *a, const void *b, const void *bias, void *c, const
 
   //printf("exe dense\n");
   exe_kernel(kernel);
+}
+
+void opencl_concatenate(void **inputs, int *ishapes, const int ninput, const int ndim, void *output,const int64_t* oshape, const int axis, int* axisSize){
+
+  cl_kernel kernel = get_kernel("concatenate");
+
+  int y_size = 1;
+  for (int i = 0; i < axis; ++i) y_size *= oshape[i];
+  int axis_batch = 1;
+  for (int i = axis+1; i < ndim; ++i) axis_batch *= oshape[i];
+
+  int y_start_idx = 0;
+  int y_axis_batch = oshape[axis] * axis_batch;
+  for (int m = 0; m < ninput; ++m) {
+    void* Ix = inputs[m];
+    int x_axis_batch = ishapes[m*ndim+axis] * axis_batch;
+
+    int n = x_axis_batch * y_size;
+  
+    int index = 0;
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&Ix);
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&y_axis_batch);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&x_axis_batch);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&y_start_idx);
+    exe_kernel(kernel);
+    y_start_idx += x_axis_batch;
+  }
+}
+
+#define REDUCE_MAX 0
+#define REDUCE_SUM 1
+void opencl_reduce(const void *x, void *y, const uint xsize, const uint ysize, const int64_t *xshape, const int64_t *yshape, const int* realAxis, const int* flag, const int *every_xdim_size, const int axis_size,const int xndim, const int yndim, const int axis_ndim, const int type){
+  int dev_xshape[MAX_DIM], dev_yshape[MAX_DIM];
+  int dev_every_xdim_size[MAX_DIM];
+  int dev_flag[MAX_DIM], dev_axis[MAX_DIM];
+  if(axis_ndim == 0){
+    cl_kernel kernel = get_kernel("reduce_zero");
+    int index = 0;
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x);
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&xsize);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
+  }else{
+    get_opencl_shape(xshape, xndim, dev_xshape);
+    get_opencl_shape(yshape, yndim, dev_yshape);
+    get_opencl_shape(realAxis, axis_ndim, dev_axis);
+    get_opencl_shape(every_xdim_size, xndim, dev_every_xdim_size);
+    get_opencl_shape(flag, xndim, dev_flag);
+
+    cl_kernel kernel = get_kernel("reduce");
+
+    int index = 0;
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x);
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&axis_ndim);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&xndim);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&yndim);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&ysize);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&axis_size);
+
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[0]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[1]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[2]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[3]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[4]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_xshape[5]);
+
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[0]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[1]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[2]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[3]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[4]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_yshape[5]);
+
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[0]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[1]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[2]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[3]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[4]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_axis[5]);
+
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[0]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[1]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[2]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[3]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[4]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_every_xdim_size[5]);
+
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[0]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[1]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[2]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[3]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[4]);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[5]);
+  }
 }
 #endif
   

@@ -9,6 +9,36 @@
 #include <CL/opencl.h>
 #include <assert.h>
 
+struct DLTensor {
+  int* data;
+  int *shape;
+  int ndim;
+  DLTensor(int ndim){
+    this->ndim = ndim;
+    shape = new int[ndim];
+  }
+};
+
+int getSize(DLTensor *dl){
+  int size = 1;
+  for(int i = 0; i < dl->ndim; i++){
+    size *= dl->shape[i]; 
+  }
+  return size;
+}
+
+#define MAX_DIM 6
+template<typename T>
+inline void get_cuda_shape(const T *ishape, const int dim, T *oshape){
+  int shift = MAX_DIM - dim;
+  for(int i = 0; i < MAX_DIM; i++){
+    oshape[i] = 1;
+    if(i >= shift){
+      oshape[i] = ishape[i - shift];
+    }
+  }
+}
+
 inline std::vector<unsigned char> read_binary_file(const std::string& xclbin_file_name) {
     std::cout << "INFO: Reading " << xclbin_file_name << std::endl;
 

@@ -317,5 +317,198 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.cvm_right_shift")
       //    error_code);
       //deal_error(error_code, errorStr);
   });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.concatenate")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      int len = args.num_args;
+      DLTensor *input0 = args[0];
+      void *_attr = args[--len];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::ConcatenateParam>(attr->parsed);
+      DLTensor *output = args[--len];
+      int32_t axis = param.axis;
+      int32_t ndim = static_cast<int32_t>(input0->ndim);
+      if(axis < 0) axis += ndim;
+
+      std::vector<void*> input_data(len);
+      std::vector<int> input_shape(len*ndim);
+      std::vector<int32_t > axisSize(len);
+      int64_t preSize = 0;
+      for(int i = 0; i < len; i++){
+        DLTensor *input = args[i];
+        input_data[i] = input->data;
+        memcpy(&input_shape[i*ndim], input->shape, ndim * sizeof(int64_t));
+        axisSize[i] = preSize;
+        preSize += input->shape[axis];
+      }
+      void *out_data = output->data;
+      opencl_concatenate(input_data.data(), input_shape.data(), len, ndim, out_data, output->shape, axis, axisSize.data());
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.sum")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *dlx = args[0];
+      DLTensor *y = args[1];
+      void *y_data = y->data;
+      void * x = dlx->data;
+      void* _attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::ReduceParam>(attr->parsed);
+      TShape axis = param.axis;
+      int64_t *axis_data = axis.begin();
+      for(size_t i = 0; i < axis.ndim(); i++){
+        if(axis_data[i] < 0) axis_data[i] += dlx->ndim;
+      }
+      //bool keepdims = param.keepdims;
+      std::vector<int> raxis;
+      bool exclude = param.exclude;
+      if(!exclude){
+        for(size_t i = 0; i < axis.ndim(); i++){
+          raxis.push_back(axis[i]);
+        }
+      }else{
+        raxis.resize(dlx->ndim - axis.ndim());
+        for(int32_t i = 0, k = 0; i < dlx->ndim; i++){
+          bool flag = false;
+          for(uint32_t j = 0; j < axis.ndim(); j++){
+            if(axis_data[j] == i) {
+              flag = true;
+              break;
+            }
+          }
+          if(!flag){
+            raxis[k++] = i;
+          }
+        }
+      }
+
+      if(exclude && raxis.size() == 0){
+        opencl_flatten(x, y_data, getSize(dlx));
+      }
+      else if(raxis.size() == 0){
+        opencl_reduce(x, y_data, getSize(dlx), getSize(y),
+            dlx->shape, y->shape, NULL, NULL,
+            NULL, 0, dlx->ndim, y->ndim, raxis.size(), REDUCE_SUM);
+      }else{
+        std::vector<int32_t> realAxis(raxis.size());
+        std::shared_ptr<int32_t> flag(new int32_t[dlx->ndim]);
+        std::memset(flag.get(), 0, sizeof(int32_t)*dlx->ndim);
+        for(uint32_t i = 0; i < raxis.size(); i++){
+          int32_t val = raxis[i];
+          realAxis[i] = val;
+          flag.get()[val] = 1;
+        }
+        std::sort(realAxis.begin(), realAxis.end());
+        realAxis.resize(std::unique(realAxis.begin(), realAxis.end()) - realAxis.begin());
+
+        int axis_size = 1;
+        for(uint32_t i = 0; i < realAxis.size(); i++){
+          axis_size *= dlx->shape[realAxis[i]];
+        }
+        std::vector<int> every_xdim_size(dlx->ndim, 1);
+        for(int i = dlx->ndim-2; i >= 0; i--){
+          every_xdim_size[i] = dlx->shape[i+1] * every_xdim_size[i+1];
+        }
+
+        int32_t yndim = y->ndim;
+        std::vector<int64_t> yshape(y->ndim);
+        for(int32_t i = 0; i < y->ndim; i++){
+          yshape[i] = y->shape[i];
+        }
+        for(int32_t i = 0, j = 0; i < y->ndim; i++){
+          if(y->shape[i] == 1) {
+            yndim -= 1;
+          }else{
+            yshape[j++] = y->shape[i];
+          }
+        }
+        opencl_reduce(x, y_data, getSize(dlx), getSize(y),
+            dlx->shape, yshape.data(), realAxis.data(), flag.get(),
+            every_xdim_size.data(), axis_size, dlx->ndim, yndim, raxis.size(), REDUCE_SUM);
+      }
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.max")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *dlx = args[0];
+      DLTensor *y = args[1];
+      void *y_data = y->data;
+      void* x = dlx->data;
+      void* _attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::ReduceParam>(attr->parsed);
+      TShape axis = param.axis;
+      int64_t *axis_data = axis.begin();
+      for(size_t i = 0; i < axis.ndim(); i++){
+      if(axis_data[i] < 0) axis_data[i] += dlx->ndim;
+      }
+      //bool keepdims = param.keepdims;
+      std::vector<int> raxis;
+      bool exclude = param.exclude;
+      if(!exclude){
+        for(size_t i = 0; i < axis.ndim(); i++){
+        raxis.push_back(axis[i]);
+        }
+      }else{
+        raxis.resize(dlx->ndim - axis.ndim());
+        for(int i = 0, k = 0; i < dlx->ndim; i++){
+          bool flag = false;
+          for(size_t j = 0; j < axis.ndim(); j++){
+            if(axis_data[j] == i) {
+              flag = true;
+              break;
+            }
+          }
+          if(!flag){
+            raxis[k++] = i;
+          }
+        }
+      }
+
+      if(exclude && raxis.size() == 0){
+        opencl_flatten(x, y_data, getSize(dlx));
+      }
+      else if(raxis.size() == 0){
+        opencl_reduce(x, y_data, getSize(dlx), getSize(y),
+            dlx->shape, y->shape, NULL, NULL,
+            NULL, 0, dlx->ndim, y->ndim, raxis.size(), REDUCE_MAX);
+      }else{
+        std::vector<int32_t> realAxis(raxis.size());
+        std::shared_ptr<int32_t> flag(new int32_t[dlx->ndim]);
+        std::memset(flag.get(), 0, sizeof(int32_t)*dlx->ndim);
+        for(uint32_t i = 0; i < raxis.size(); i++){
+          int32_t val = raxis[i];
+          realAxis[i] = val;
+          flag.get()[val] = 1;
+        }
+        std::sort(realAxis.begin(), realAxis.end());
+        realAxis.resize(std::unique(realAxis.begin(), realAxis.end()) - realAxis.begin());
+
+        int axis_size = 1;
+        for(uint32_t i = 0; i < realAxis.size(); i++){
+          axis_size *= dlx->shape[realAxis[i]];
+        }
+        std::vector<int> every_xdim_size(dlx->ndim, 1);
+        for(int i = dlx->ndim-2; i >= 0; i--){
+          every_xdim_size[i] = dlx->shape[i+1] * every_xdim_size[i+1];
+        }
+
+        int32_t yndim = y->ndim;
+        std::vector<int64_t> yshape(y->ndim);
+        for(int i = 0; i < y->ndim; i++){
+          yshape[i] = y->shape[i];
+        }
+        for(int i = 0, j = 0; i < y->ndim; i++){
+          if(y->shape[i] == 1) {
+            yndim -= 1;
+          }else{
+            yshape[j++] = y->shape[i];
+          }
+        }
+        opencl_reduce(x, y_data, getSize(dlx), getSize(y),
+            dlx->shape, yshape.data(), realAxis.data(), flag.get(),
+            every_xdim_size.data(), axis_size, dlx->ndim, yndim, raxis.size(), REDUCE_MAX);
+      }
+  });
 }
 }
