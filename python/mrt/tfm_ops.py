@@ -1582,6 +1582,7 @@ class Squeeze(Transformer):
 
 @register_pass("fuse_transpose")
 @register_pass("rewrite")
+# @register_pass("prepare_for_compile") # only for restore
 @register_transformer("L2Normalization")
 class L2Normalization(Transformer):
     def quantize(self, op, **kwargs):
@@ -1594,7 +1595,7 @@ class L2Normalization(Transformer):
         # broadcast_mul
         oprec = kwargs['op_input_precs'][op_name]
         X, xprec, xs = requant(X, oprec, oname=name, **kwargs)
-        product = mx.sym.broadcast_mul(X, X)
+        product = mx.sym.broadcast_mul(X, X, name=N.n('L2norm_mul'))
         scale_product = xs*xs
 
         # sum
@@ -1607,22 +1608,22 @@ class L2Normalization(Transformer):
             axis = [2,3]
         else:
             assert "not valid `mode` type: %s" % mode
-        sum_reduce = mx.sym.sum(product, axis=axis)
+        sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'))
 
         # broadcast_add eps
         eps_val = eval(attrs.get('eps', '1e-10')) * scale_product
         eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
-        add_eps = mx.sym.broadcast_add(sum_reduce, eps)
+        add_eps = mx.sym.broadcast_add(sum_reduce, eps, N.n('l2norm_add'))
 
         # get root
-        op = mx.sym.sqrt(add_eps)
+        op = mx.sym.sqrt(add_eps, N.n('l2norm_root'))
 
         # exert `expand_dims` and `repeat` on `op` 
         # to get the same shape as 'X'
         shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
         for i in axis:
-            op = mx.sym.expand_dims(op, axis=i)
-            op = mx.sym.repeat(op, repeats=shape[i], axis=i)
+            op = mx.sym.expand_dims(op, axis=i, name=N.n('l2norm_exp'))
+            op = mx.sym.repeat(op, repeats=shape[i], axis=i, name=N.n('l2norm_rp'))
 
         # since `op` and `X`
         op = mx.sym.broadcast_div(X, op, name=name)
