@@ -3,12 +3,12 @@ import math
 import numpy as np
 import time
 
-from tfm_utils import get_bit, scale, requant
-from sym_utils import is_var, is_params, is_inputs
-from tfm_base import *
-import dataset as ds
-import utils
-import sim_quant_helper as sim
+from .tfm_utils import get_bit, scale, requant
+from .sym_utils import is_var, is_params, is_inputs
+from .tfm_base import *
+from . import dataset as ds
+from . import utils
+from . import sim_quant_helper as sim
 
 # === symbol pass == 
 

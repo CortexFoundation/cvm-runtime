@@ -1,5 +1,6 @@
-from sym_utils import *
 import numpy as np
+
+from .sym_utils import *
 
 class Transformer(object):
     """ Base transformer object
