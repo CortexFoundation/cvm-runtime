@@ -50,6 +50,8 @@ extern "C"
                         c[k++] = a[m];
                     r++;
                 }
+                for (int m = left * N; m < (right + 1) * N; m++)
+                    a[m] = c[m];
             }
         }
     }
