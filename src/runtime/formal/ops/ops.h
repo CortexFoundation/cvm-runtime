@@ -30,6 +30,10 @@ namespace cvm{
 namespace runtime {
 // #define CVM_PRINT_OP_RESULT
 //
+
+int32_t CVMShapeBegin(const cvm::runtime::CVMArgValue& av);
+int32_t CVMShapeEnd(const cvm::runtime::CVMArgValue& av);
+
 template<typename DType>
 inline DType* CVMArg2Data(cvm::runtime::CVMArgValue const& av) {
   DLTensor *tensor = av.operator DLTensor *();
