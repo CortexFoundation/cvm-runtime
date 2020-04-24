@@ -6,16 +6,16 @@ from mxnet import ndarray as nd
 import mxnet as mx
 import cvm
 
-from tfm_utils import get_bit, get_range, scale, get_bit_cnt, \
+from .tfm_utils import get_bit, get_range, scale, get_bit_cnt, \
                       requant, requant_operator, requant_parameter, \
                       realize
-from sym_utils import get_attr, sym_iter, is_params, is_inputs, \
+from .sym_utils import get_attr, sym_iter, is_params, is_inputs, \
                       nd_array, get_mxnet_op, get_nnvm_op, nd_const, \
                       get_entry_id
-import sym_utils as sutils
-from tfm_base import register_pass, register_transformer, Transformer, \
+from . import sym_utils as sutils
+from .tfm_base import register_pass, register_transformer, Transformer, \
                      N, OUT_KEY, MAX_BIT
-import sim_quant_helper as sim
+from . import sim_quant_helper as sim
 
 
 @register_pass("validate")

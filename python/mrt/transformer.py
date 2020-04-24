@@ -16,19 +16,19 @@ from mxnet import gluon, ndarray as nd
 import cvm
 
 # import as registry pattern
-import tfm_ops  # pylint: disable=unused-import
-import cvm_op   # pylint: disable=unused-import
+from . import tfm_ops  # pylint: disable=unused-import
+from . import cvm_op   # pylint: disable=unused-import
 
-import tfm_pass as tpass
-from tfm_pass import OUT_KEY, convert_params_dtype
-from tfm_pass import sym_calibrate, quantize, to_cvm
-from tfm_pass import prepare_for_compile, fuse_constant
-from tfm_pass import calculate_ops, collect_op_names
+from . import tfm_pass as tpass
+from .tfm_pass import OUT_KEY, convert_params_dtype
+from .tfm_pass import sym_calibrate, quantize, to_cvm
+from .tfm_pass import prepare_for_compile, fuse_constant
+from .tfm_pass import calculate_ops, collect_op_names
 
-import sym_utils as sutils
-from sym_utils import topo_sort, sym_iter, get_mxnet_op
-import utils
-import sim_quant_helper as sim
+from . import sym_utils as sutils
+from .sym_utils import topo_sort, sym_iter, get_mxnet_op
+from . import utils
+from . import sim_quant_helper as sim
 
 # TODO: collect hyper-parameters
 
