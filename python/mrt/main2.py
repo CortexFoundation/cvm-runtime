@@ -464,7 +464,10 @@ if __name__ == "__main__":
     print(CVMAPIGetOutputLength(net),
         cvm.runtime.CVMAPIGetOutputTypeSize(net))
     data_path = os.path.join(model_root, "data.npy")
-    data = cutils.load_np_data(data_path)
+    if ds_name == 'trec':
+        data = np.load(data_path).astype('int32').tobytes()
+    else:
+        data = np.load(data_path).tobytes()
     iter_num = 1
     start = time.time()
     for i in range(iter_num):
@@ -477,5 +480,7 @@ if __name__ == "__main__":
     out_q = out_q.asnumpy().astype(dtype).tolist()[0]
     assert len(out_q) == len(out_inf)
     res = [out_q[i]-out_inf[i] for i in range(len(out_q))]
+    # print(out_q)
+    # print(out_inf)
     print(res)
 
