@@ -850,7 +850,6 @@ class BroadcastMul(Transformer):
             infer_prec = xprec + bprec
             precs[name][OUT_KEY] = infer_prec
 
-
         logger = logging.getLogger('log.mrt.realize')
         logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
                      op_name, name, scales[name], cns)
@@ -1289,18 +1288,12 @@ class Clip(Transformer):
         name, X_name = op.attr('name'), X.attr('name')
         attrs = op.list_attr()
 
-        # a_max = sutils.get_attr(attrs, "a_max")
-        # out = mx.sym.relu(X, name=N.n('relu'))
-        # precs[out.attr('name')] = {
-            # OUT_KEY: precs[X_name][OUT_KEY]}
-        # scales[out.attr('name')] = scales[X_name]
-        # return out
-
+        # `a_max`, `a_min` and precision should be align with CVM-Runtime
         scales[name] = iscale = scales[X.attr('name')]
-        a_min = sutils.get_attr(attrs, "a_min") * iscale
-        a_max = sutils.get_attr(attrs, "a_max") * iscale
-        precs[name][OUT_KEY] = min(get_bit(th_dict[name]*iscale), get_bit(int(a_max)))
-        return mx.sym.clip(X, a_min=int(a_min), a_max=int(a_max), name=name)
+        a_min = int(sutils.get_attr(attrs, "a_min") * iscale)
+        a_max = int(sutils.get_attr(attrs, "a_max") * iscale)
+        precs[name][OUT_KEY] = get_bit(a_max)
+        return mx.sym.clip(X, a_min=a_min, a_max=a_max, name=name)
 
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
