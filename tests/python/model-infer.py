@@ -19,7 +19,9 @@ ctx = cvm.cpu()
 # model_root = "/data/ryt/alexnet_tfm"
 # model_root = "/data/ryt/ssd_512_vgg16_atrous_voc_tfm"
 # model_root = "/data/ryt/ssd_300_vgg16_atrous_voc_tfm"
-model_root = "/data/ryt/cifar_resnet20_v1_tfm"
+# model_root = "/data/ryt/cifar_resnet20_v1_tfm"
+# model_root = "/data/ryt/ssd_512_resnet50_v1_voc_tfm"
+model_root = "/data/ryt/ssd_512_mobilenet1.0_voc_tfm"
 
 json, params = utils.load_model(
         os.path.join(model_root, "symbol"),
@@ -36,13 +38,55 @@ iter_num = 1
 start = time.time()
 for i in range(iter_num):
     out = CVMAPIInference(net, data)
-    utils.classification_output(out)
-    # utils.detection_output(out)
+    # utils.classification_output(out)
+    utils.detection_output(out)
 end = time.time()
 print ("Infer Time: ", (end - start) * 1e3 / iter_num, " ms")
 
 CVMAPIFreeModel(net)
 
-# utils.detection_output(out)
-#  utils.classification_output(out)
+import numpy as np
+
+import mxnet as mx
+from mxnet import ndarray as nd
+import gluoncv as gluon
+
+from mrt import sim_quant_helper as sim
+from mrt.transformer import reduce_graph, Model
+
+data = nd.array(np.load(data_path))
+input_shape = data.shape
+model_name = "ssd_512_mobilenet1.0_voc.all.quantize"
+sym_file = "/home/ryt/data/" + model_name + ".json"
+prm_file = "/home/ryt/data/" + model_name + ".params"
+ext_file = "/home/ryt/data/" + model_name + ".ext"
+_, _, _, inputs_ext, _, _ = sim.load_ext(ext_file)
+model = Model.load(sym_file, prm_file)
+model = reduce_graph(model, {'data': input_shape})
+ctx = [mx.gpu(0)]
+graph = model.to_graph(ctx=ctx)
+data = sim.load_real_data(data, 'data', inputs_ext)
+data = gluon.utils.split_and_load(
+    data, ctx_list=ctx, batch_axis=0, even_split=False)
+outs = [graph(d) for d in data]
+olen = len(model.symbol)
+if olen == 1:
+    outs = nd.concatenate(outs)
+else:
+    outs = [nd.concatenate([outs[i][j] \
+        for i in range(len(outs))]) for j in range(olen)]
+arr = [o.asnumpy().astype('int32').tolist()[0] for o in outs]
+outs = []
+for i in range(100):
+    nums = [arr[0][i][0]]+[arr[1][i][0]]+arr[2][i][:]
+    for num in nums:
+        outs.append(num)
+assert len(out) == len(outs)
+print(out)
+print(outs)
+res = [out[i]-outs[i] for i in range(len(out))]
+# print(res)
+
+
+
 
