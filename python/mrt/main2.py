@@ -7,13 +7,13 @@ import numpy as np
 import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
-from transformer import Model, reduce_graph, MRT
-from gluon_zoo import save_model
-import dataset as ds
-import sim_quant_helper as sim
-import utils
-import sym_utils as sutils
-import cvm_op
+from mrt.transformer import Model, reduce_graph, MRT
+from mrt.gluon_zoo import save_model
+from mrt import dataset as ds
+from mrt import sim_quant_helper as sim
+from mrt import utils
+from mrt import sym_utils as sutils
+from mrt import cvm_op
 
 def set_batch(input_shape, batch):
     return [batch if s == -1 else s for s in input_shape]
