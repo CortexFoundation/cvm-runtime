@@ -59,7 +59,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       }
       auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
       auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
-      //int groups = param.groups;
+      int groups = param.groups;
       int dilation[2] = {static_cast<int>(param.dilation[0]), static_cast<int>(param.dilation[1])};
       int padding[2] = {static_cast<int>(param.padding[0]), static_cast<int>(param.padding[1])};
       int strides[2] = {static_cast<int>(param.strides[0]), static_cast<int>(param.strides[1])};
@@ -72,7 +72,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       void* b_data = b != nullptr ? b->data : nullptr;
 
       int out_channels = static_cast<int>(w->shape[0]);
-      //int filter_c = static_cast<int>(w->shape[1]);
+      int filter_c = static_cast<int>(w->shape[1]);
       int filter_h = static_cast<int>(w->shape[2]);
       int filter_w = static_cast<int>(w->shape[3]);
       int t_filter_h = (filter_h - 1) * dilation[0] + 1;
@@ -85,47 +85,29 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.conv2d")
       int o_h = (x_h + 2 * padding[0] - t_filter_h) / strides[0] + 1;
       int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
-      void *ext_space = args.ext_space->data;
-      int32_t ext_space_size = args.ext_space->shape[0];
-      opencl_conv2d(x_data, w_data, b_data, y_data, 
-          n_batch, in_channels, x_h, x_w, 
-          out_channels, filter_h, filter_w, 
-          o_h, o_w, 
-          padding[0], padding[1],
-          strides[0], strides[1],
-          dilation[0], dilation[1],
-          use_bias,
-          ext_space, ext_space_size);
-
-      //int error_code = NON_ERROR;
-      //const char* errorStr = "";
-      //if(groups == 1){
-      //  int32_t *ext_space = static_cast<int32_t*>(args.ext_space->data);
-      //  int32_t ext_space_size = args.ext_space->shape[0];
-      //  errorStr = opencl_conv2d(
-      //      x_data, n_batch, in_channels, x_h, x_w,
-      //      w_data, out_channels, in_channels, filter_h, filter_w,
-      //      b_data,
-      //      padding[0], padding[1],
-      //      strides[0], strides[1],
-      //      dilation[0], dilation[1],
-      //      groups,
-      //      y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, 
-      //      ext_space,
-      //      ext_space_size,
-      //      error_code);
-      //}else{
-      //  errorStr = opencl_groupwise_conv2d(
-      //      x_data, n_batch, in_channels, x_h, x_w,
-      //      w_data, out_channels, filter_c, filter_h, filter_w,
-      //      b_data,
-      //      padding[0], padding[1],
-      //      strides[0], strides[1],
-      //      dilation[0], dilation[1],
-      //      groups,
-      //      y_data, n_batch, out_channels, o_h, o_w, x->ctx.device_id, error_code);
-      //}
-      //deal_error(error_code, errorStr);
+      if(groups == 1){
+        void *ext_space = args.ext_space->data;
+        int32_t ext_space_size = args.ext_space->shape[0];
+        opencl_conv2d(x_data, w_data, b_data, y_data, 
+            n_batch, in_channels, x_h, x_w, 
+            out_channels, filter_h, filter_w, 
+            o_h, o_w, 
+            padding[0], padding[1],
+            strides[0], strides[1],
+            dilation[0], dilation[1],
+            use_bias,
+            ext_space, ext_space_size);
+      }else{
+        opencl_groupwise_conv2d(x_data, n_batch, in_channels, x_h, x_w, 
+            w_data, filter_c, filter_h, filter_w,
+            y_data, out_channels, o_h, o_w, 
+            b_data,
+            padding[0], padding[1],
+            strides[0], strides[1],
+            dilation[0], dilation[1],
+            groups, 
+            use_bias);
+      }
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.dense")
@@ -318,7 +300,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.cvm_right_shift")
       //deal_error(error_code, errorStr);
   });
 
-CVM_REGISTER_GLOBAL("cvm.runtime.gpu.concatenate")
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.concatenate")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       int len = args.num_args;
       DLTensor *input0 = args[0];
@@ -510,17 +492,287 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.max")
             every_xdim_size.data(), axis_size, dlx->ndim, yndim, raxis.size(), REDUCE_MAX);
       }
   });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.get_valid_counts")
+  .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
+      DLTensor *x = args[0];
+      DLTensor *valid_count = args[1];
+      DLTensor *y = args[2];
+      void* _attr = args[3];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::GetValidCountsParam>(attr->parsed);
+
+      int32_t score_threshold = param.score_threshold;
+
+      int32_t batchs = x->shape[0];
+      int32_t n = x->shape[1];
+      int32_t k = x->shape[2];
+
+      void *x_data = static_cast<int32_t*>(x->data);
+      void *valid_count_data = static_cast<int32_t*>(valid_count->data);
+      void *y_data = static_cast<int32_t*>(y->data);
+//      void *ext_space = static_cast<int32_t*>(args.ext_space->data);
+
+      opencl_get_valid_count(x_data, y_data, valid_count_data, batchs, n, k, score_threshold);
+  });
+
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.non_max_suppression")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
-    auto X = CVMArg2Data<int32_t>(args[0]);
-    auto valid_count = CVMArg2Data<int32_t>(args[1]);
-    auto Y = CVMArg2Data<int32_t>(args[2]);
-    auto params = CVMArg2Attr<top::NonMaximumSuppressionParam>(args[3]);
-    auto x_shape = CVMArgShape(args[0]);
+    DLTensor *dlx = args[0];
+    DLTensor *dlv = args[1];
+    DLTensor *dly = args[2];
+    void *X = dlx->data;
+    void *valid_count = dlv->data;
+    void *Y = dly->data;
+    void* _attr = args[3];
+    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+    auto &params = cvm::get<cvm::top::NonMaximumSuppressionParam>(attr->parsed);
+    //auto params = CVMArg2Attr<top::NonMaximumSuppressionParam>(args[3]);
+    auto x_shape = dlx->shape;
     int32_t B = x_shape[0];
     int32_t N = x_shape[1];
     int32_t K = x_shape[2];
     opencl_non_max_suppression(X, valid_count, Y, B, N, K, params.force_suppress, params.iou_threshold, params.max_output_size, params.top_k);
-  }
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.repeat")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+      void *_attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::RepeatParam>(attr->parsed);
+      void *x_data = x->data;
+      void *y_data = y->data;
+      int32_t axis = param.axis;
+      int32_t repeat = param.repeats;
+      int ndim = x->ndim;
+      if(axis < 0) axis = axis + ndim;
+
+      opencl_repeat(
+          x_data, y_data, x->shape, y->shape, getSize(y), x->ndim, y->ndim, axis, repeat);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.tile")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+
+      void *x_data = x->data;
+      void *y_data = y->data;
+
+      int32_t yndim = y->ndim;
+      int32_t xndim = x->ndim;
+
+      opencl_tile(x_data, y_data, getSize(y), yndim, xndim, x->shape, y->shape);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.transpose")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+      void *_attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::TransposeParam>(attr->parsed);
+
+      TShape axes = param.axes;
+      int64_t *axes_data = axes.begin();
+      for(uint32_t i = 0; i < axes.ndim(); i++){
+        if(axes_data[i] < 0) axes_data[i] += x->ndim;
+      }
+
+      void *x_data = x->data;
+      void *y_data = y->data;
+      int ndim = y->ndim;
+      opencl_transpose(x_data, axes_data, y_data, x->shape, y->shape, ndim, getSize(y), axes.ndim());
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.strided_slice")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+      void *_attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::StridedSliceParam>(attr->parsed);
+
+      void *x_data = x->data;
+      void *y_data = y->data;
+      TShape begin = param.begin;
+      TShape end = param.end;
+      TShape stride = param.stride;
+      //int ndim = y->ndim;
+      int32_t num_axis = x->ndim;
+      int64_t *dshp = x->shape;
+      std::vector<int64_t> begin_vec;
+      std::copy(begin.begin(), begin.end(), std::back_inserter(begin_vec));
+      for (dim_t i = begin_vec.size(); i < num_axis; ++i) {
+        begin_vec.push_back(0);
+      }
+
+      std::vector<int64_t> stride_vec;
+      std::copy(stride.begin(), stride.end(), std::back_inserter(stride_vec));
+      for (dim_t i = stride_vec.size(); i < num_axis; ++i) {
+        stride_vec.push_back(1);
+      }
+
+      for (size_t i = 0; i < begin_vec.size(); ++i) {
+        int64_t begin_range = stride_vec[i] < 0 ? -1 : 0;
+        int64_t end_range = stride_vec[i] < 0 ? dshp[i] -1 : dshp[i];
+        int64_t begin = begin_vec[i];
+        if (begin < 0) begin += dshp[i];
+        begin_vec[i]= std::min(std::max(begin, begin_range), end_range);
+      }
+
+      opencl_stride_slice(x_data, y_data, begin_vec.data(), begin.ndim(), stride_vec.data(),
+          x->shape, y->shape, stride.ndim(), y->ndim, getSize(y), x->ndim);
+      //int error_code = NON_ERROR;
+      //const char *errorStr = cuda_stride_slice(x_data, y_data, begin_vec.data(), begin.ndim(), stride_vec.data(),
+      //    x->shape, y->shape, stride.ndim(), y->ndim, getSize(y), x->ndim, error_code);
+      //deal_error(error_code, errorStr);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.slice_like")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      //DLTensor *shape = args[1];
+      DLTensor *y = args[2];
+      void* _attr = args[3];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::SliceLikeParam>(attr->parsed);
+      Tuple<int> axis = param.axis;
+      // int *axis_data = axis.begin();
+
+      void *x_data = x->data;
+      void *y_data = y->data;
+      int ndim = x->ndim;
+
+      opencl_slice_like(x_data, y_data, x->shape, y->shape, getSize(y), ndim);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.take")
+  .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
+      DLTensor *x = args[0];
+      DLTensor *indices = args[1];
+      DLTensor *y = args[2];
+      void *_attr = args[3];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::TakeParam>(attr->parsed);
+
+      void *x_data = x->data;
+      void *indices_data = indices->data;
+      void *y_data = y->data;
+
+      if(param.axis.has_value()){
+      int32_t axis = param.axis.value();
+      if(axis < 0){
+        axis += x->ndim;
+      }
+      opencl_take(x_data, indices_data, y_data, x->shape, y->shape,
+          indices->shape, y->ndim, x->ndim, indices->ndim, getSize(y), axis);
+      }else{
+        opencl_take(x_data, indices_data, y_data, getSize(y), getSize(x));
+      }
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.cvm_lut")
+  .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
+      DLTensor *x = args[0];
+      DLTensor *indices = args[1];
+      DLTensor *y = args[2];
+
+      void *x_data = x->data;
+      void *indices_data = indices->data;
+      void *y_data = y->data;
+      //    take(indices, x, y);
+      opencl_take(indices_data, x_data, y_data, getSize(y), getSize(x));
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.upsampling")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+
+      void *_attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::UpSamplingParam>(attr->parsed);
+      uint32_t scale = {(uint32_t)param.scale};
+      uint32_t h = x->shape[2], w = x->shape[3];
+      uint32_t oh = y->shape[2], ow = y->shape[3];
+      uint32_t n_batch = x->shape[0], n_channels = x->shape[1];
+
+      auto x_data = x->data;
+      auto y_data = y->data;
+
+      opencl_upsampling_nearest(x_data, y_data, scale, h, w, oh, ow, n_batch, n_channels);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.squeeze")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *ishape = args[0];
+      DLTensor *oshape = args[1];
+      void *ishape_data = ishape->data;
+      void *oshape_data = oshape->data;
+      if(ishape_data == oshape_data){
+        return;
+      }
+      opencl_flatten(ishape_data, oshape_data, getSize(ishape));
+});
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.where")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+    DLTensor *condition = args[0];
+    DLTensor *x = args[1];
+    DLTensor *y = args[2];
+    DLTensor *result = args[3];
+
+    void *x_data = x->data;
+    void *y_data = y->data;
+    void *condition_data = condition->data;
+    void *result_data = result->data;
+
+    uint64_t size = 1;
+    for(int32_t i = 1; i < result->ndim; i++){
+      size *= result->shape[i];
+    }
+    
+    bool same_shape = x->ndim == condition->ndim;
+    uint64_t n = same_shape ? getSize(result) : size;
+
+    opencl_where(x_data, y_data, condition_data, result_data, same_shape, n, result->shape[0]);
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.expand_dims")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *ishape = args[0];
+      DLTensor *oshape = args[1];
+      //void *_attr = args[2];
+      //auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      //auto &param = cvm::get<cvm::top::ExpandDimsParam>(attr->parsed);
+
+      //int32_t axis = param.axis;
+      void *ishape_data = ishape->data;
+      void *oshape_data = oshape->data;
+
+      opencl_flatten(ishape_data, oshape_data, getSize(oshape));
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.negative")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+      void *x_data = x->data;
+      void *y_data = y->data;
+
+      opencl_negative(x_data, y_data, getSize(y));
+  });
+
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.cvm_precision")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *dlx = args[0];
+      DLTensor *y = args[1];
+      void *y_data = y->data;
+      void *x = dlx->data;
+      opencl_log(x, y_data, getSize(y));
+  });
 }
 }

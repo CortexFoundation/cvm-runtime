@@ -1,7 +1,8 @@
 extern "C"
 {
 
-    void recursion_sort(int *a, int *c, const int M, const int N, const int K)
+    void recursion_sort(int *a, int *c, const int M, const int N, const int K, 
+        const int a_offset, const int c_offset)
     {
 #pragma HLS INTERFACE m_axi port = a offset = slave bundle = gmem
 #pragma HLS INTERFACE m_axi port = c offset = slave bundle = gmem
@@ -12,6 +13,9 @@ extern "C"
 #pragma HLS INTERFACE s_axilite port = M bundle = control
 #pragma HLS INTERFACE s_axilite port = N bundle = control
 #pragma HLS INTERFACE s_axilite port = K bundle = control
+
+#pragma HLS INTERFACE s_axilite port = a_offset bundle = control
+#pragma HLS INTERFACE s_axilite port = c_offset bundle = control
 
 #pragma HLS INTERFACE s_axilite port = return bundle = control
         for (int i = 2; i < M * 2; i *= 2)
@@ -25,33 +29,33 @@ extern "C"
 
                 int k = left * N, l = left, r = mid + 1;
                 while (l <= mid && r <= right)
-                    if (a[l * N + K] <= a[r * N + K])
+                    if (a[l * N + K] > a[r * N + K])
                     {
                         for (int m = l * N; m < l * N + N; m++)
-                            c[k++] = a[m];
+                            c[c_offset + k++] = a[a_offset + m];
                         l++;
                     }
                     else
                     {
                         for (int m = r * N; m < r * N + N; m++)
-                            c[k++] = a[m];
+                            c[c_offset + k++] = a[a_offset + m];
                         r++;
                     }
 
                 while (l <= mid)
                 {
                     for (int m = l * N; m < l * N + N; m++)
-                        c[k++] = a[m];
+                        c[c_offset + k++] = a[a_offset + m];
                     l++;
                 }
                 while (r <= right)
                 {
                     for (int m = r * N; m < r * N + N; m++)
-                        c[k++] = a[m];
+                        c[c_offset + k++] = a[a_offset + m];
                     r++;
                 }
                 for (int m = left * N; m < (right + 1) * N; m++)
-                    a[m] = c[m];
+                    a[c_offset + m] = c[a_offset + m];
             }
         }
     }

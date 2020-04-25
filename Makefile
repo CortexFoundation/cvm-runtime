@@ -52,10 +52,10 @@ FPGA_OBJS=$(patsubst %.cpp,%.xo,$(FPGA_SRC))
 
 FPGA_OUT=ops.${TARGET}.xclbin
 fpga:$(FPGA_OBJS)
-	v++ -O2 -t $(TARGET) --platform=$(PLATFORM) -l -o $(FPGA_OUT) $(FPGA_OBJS)
+	v++ -t $(TARGET) --platform=$(PLATFORM) -l -o $(FPGA_OUT) $(FPGA_OBJS)
 %.xo:%.cpp
 #v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $<
-	v++ -O2 -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '$@' $<
+	v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '$@' $<
 	rm $@.*
 
 cleanfpga:

@@ -23,7 +23,7 @@ void gemm_bias(const char *A, const char* B, const int* bias, int *C, const int 
   const int TK = (K+63)/64*64;
   const int TN = (N+63)/64*64;
 
-  int offset = TM*TK;
+  int offset = TK*TN;
 
 #pragma HLS ARRAY_PARTITION variable = bufC dim = 2 complete
 #pragma HLS ARRAY_PARTITION variable = bufB dim = 2 complete
@@ -52,7 +52,7 @@ readA:
 #pragma HLS PIPELINE II=1
           for(int kk = 0; kk < BLOCK_SIZE; kk++){
 #pragma HLS UNROLL factor=2
-            bufA[ii][kk] = A[(i+ii)*TK + k + kk];
+            bufA[ii][kk] = A[offset + (i+ii)*TK + k + kk];
           }
         }
 
@@ -61,7 +61,7 @@ readB:
 #pragma HLS PIPELINE II=1
           for(int jj = 0; jj < BLOCK_SIZE; jj++){
 #pragma HLS UNROLL factor=2
-            bufB[kk][jj] = B[offset + (k + kk)*TN + j + jj];
+            bufB[kk][jj] = B[(k + kk)*TN + j + jj];
           }
         }
 

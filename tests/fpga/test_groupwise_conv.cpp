@@ -49,15 +49,57 @@ void groupwise_conv2d_fpga(
    int32_t *w_data, int32_t filter_c, int32_t filter_h, int32_t filter_w,
    int32_t *y_data, int32_t out_channels, int32_t o_h, int32_t o_w,
    int32_t *b_data,
-   int32_t padding[2], int32_t stride_h, int32_t stride_w, int32_t dilation_h, int32_t dilation_w,
+   int32_t pad_h, int pad_w, int32_t stride_h, int32_t stride_w, int32_t dilation_h, int32_t dilation_w,
    int32_t groups){
+  const int nx = n_batch*in_channels*x_h*x_w;
+  const int nw = out_channels*filter_h*filter_w*filter_c;
+  const int ny = n_batch*out_channels*o_h*o_w;
   
+  cl_int code;
+  cl_mem bufx = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*nx, NULL, &code);
+  cl_mem bufw = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*nw, NULL, &code);
+  cl_mem bufb;
+  if(b_data != NULL) bufb = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*out_channels, NULL, &code);
+  cl_mem bufy = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*ny, NULL, &code);
+
+  clEnqueueWriteBuffer(queue, bufx, CL_TRUE, 0, sizeof(int) * nx, x_data, 0, NULL, NULL);
+  clEnqueueWriteBuffer(queue, bufw, CL_TRUE, 0, sizeof(int) * nw, w_data, 0, NULL, NULL);
+  clEnqueueWriteBuffer(queue, bufb, CL_TRUE, 0, sizeof(int) * out_channels, b_data, 0, NULL, NULL);
+
+  cl_kernel kernel = clCreateKernel(program, "groupwise_conv2d", &code);
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufx);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufw);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufb);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufy);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n_batch);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&in_channels);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&x_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&x_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&filter_c);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&filter_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&filter_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&out_channels);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&o_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&o_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&pad_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&pad_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&stride_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&stride_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&dilation_h);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&dilation_w);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&groups);
+  bool use_bias = b_data == NULL;
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&use_bias);
+  
+  clEnqueueTask(queue, kernel, 0, NULL, NULL);
+  clEnqueueReadBuffer(queue, bufy, CL_TRUE, 0, sizeof(int)*ny, y_data, 0, NULL, NULL);
 }
 
 int main(){
-//  init_opencl("ops.xclbin");
+  init_opencl("ops.xclbin");
   const int n = 1;
-  const int c = 1;
+  const int c = 16;
   const int h = 8;
   const int w = 8;
   const int oc = 16;
@@ -71,25 +113,30 @@ int main(){
   const int stride_w = 1;
   const int dilation_h = 1;
   const int dilation_w = 1;
-  const int groups = 1;
+  const int groups = 2;
+  const int kc = c / groups;
 
   const int nx = n*c*h*w;
-  const int nw = oc*kh*kw*c;
+  const int nw = oc*kh*kw*kc;
   const int ny = n*oc*oh*ow;
   int *x_data = new int[nx];
   int *w_data = new int[nw];
-  int *bias = new int[oc];
+  int *bias = NULL;//new int[oc];
   int *y_data = new int[ny];
+  int *y_data2 = new int[ny];
   for(int i = 0;i < nx; i++){
     x_data[i] = i % 127;
   }
   for(int i = 0; i < nw; i++){
     w_data[i] = i % 127;
   }
-  for(int i = 0; i < oc; i++){
-    bias[i] = i % 127;
-  }
+  //for(int i = 0; i < oc; i++){
+  //  bias[i] = i % 127;
+  //}
 
-  groupwise_conv2d(x_data, n, c, h, w, w_data, c, kh, kw, y_data, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
+  groupwise_conv2d(x_data, n, c, h, w, w_data, kc, kh, kw, y_data, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
+  groupwise_conv2d(x_data, n, c, h, w, w_data, kc, kh, kw, y_data2, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
+
+  verify(y_data, y_data2, ny);
   return 0;
 }

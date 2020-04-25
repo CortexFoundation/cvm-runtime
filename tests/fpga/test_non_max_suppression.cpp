@@ -104,6 +104,15 @@ void nms_cpu(const int *inputs, const int *valid_count, int *outputs,
   }
 }
 
+void print(const int *tmp, int N, int K){
+    for(int i = 0; i < N; i++){
+      for(int j = 0; j < K; j++){
+        printf("%d ", tmp[i*K+j]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+}
 void nms_fpga(const int *inputs, const int *valid_count, int *outputs, 
       const int batch, const int N, const int K, 
       const bool force_suppress, const int iou_threshold,
@@ -139,6 +148,7 @@ void nms_fpga(const int *inputs, const int *valid_count, int *outputs,
     cl_mem bufO = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*N*K, NULL, &code);
     assert(code == CL_SUCCESS);
 
+    print(inputs + i_offset, N, K);
     cl_kernel kernel_sort = clCreateKernel(program, "recursion_sort", &code);
     clEnqueueWriteBuffer(queue, bufI, CL_TRUE, 0, sizeof(int)*K*N, inputs + i_offset, 0, nullptr, nullptr);
     int index = 0;
@@ -148,10 +158,17 @@ void nms_fpga(const int *inputs, const int *valid_count, int *outputs,
     clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&K);
     int score_index = 1;
     clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&score_index);
+    clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&i_offset);
+    clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&o_offset);
     clEnqueueTask(queue, kernel_sort, 0, NULL, NULL);
+    int *tmp = new int[N*K];
+    clEnqueueReadBuffer(queue, bufI, CL_TRUE, 0, sizeof(int)*N*K, tmp, 0, NULL, NULL);
+    print(tmp, N, K);
     //for(int i = 0; i < R.size(); i++){
     //  clEnqueueWriteBuffer(queue, bufI, CL_TRUE, sizeof(int)*(i_offset + i * K), sizeof(int)*K, R[i], 0, nullptr, nullptr);
     //}
+    int zero = -1;
+    clEnqueueFillBuffer(queue, bufO, &zero, sizeof(int), 0, sizeof(int) * N *K, 0, NULL, NULL);
 
     index = 0;
     cl_kernel kernel = clCreateKernel(program, "non_max_suppression", &code);
@@ -189,10 +206,19 @@ int main(){
   for(int i = 0; i < batchs * n * k; i++){
     inputs[i] = i % 127;
   }
+  for(int i = 0; i < batchs; i++){
+    valid_count[i] = 10;
+  }
+
+  print(inputs, n, k);
 
   nms_cpu(inputs, valid_count, outputs, batchs, n, k, force_suppress, iou_threshold, max_output_size, top_k);
+  printf("cpu output :\n");
+  print(outputs, n, k);
   nms_fpga(inputs, valid_count, outputs2, batchs, n, k, force_suppress, iou_threshold, max_output_size, top_k);
 
+  printf("fpga output :\n");
+  print(outputs2, n, k);
   verify(outputs, outputs2, batchs * n * k);
   return 0;
 }
