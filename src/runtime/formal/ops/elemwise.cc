@@ -106,36 +106,38 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_right_shift")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *a = args[0];
-    DLTensor *c = args[1];
-    void *_attr = args[2];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::CVMLeftShiftParam>(attr->parsed);
-    int32_t precision = param.precision;
-    int32_t b = param.shift_bit;std::string str_precision = args[2];
-    int32_t* a_data = static_cast<int32_t*>(a->data);
-    int32_t* c_data = static_cast<int32_t*>(c->data);
-    int32_t min = -(((int64_t)1 << (precision-1)) - 1);
-    int32_t max = -min;
-
-    for(uint64_t i = 0; i < getSize(a); i++){
-      int32_t shift_a = a_data[i] << b;
-      c_data[i] = std::max(std::min(shift_a, max), min);
+    auto x_data = CVMArg2Data<int32_t>(args[0]); 
+    auto y_data = CVMArg2Data<int32_t>(args[1]); 
+    auto params = CVMArg2Attr<cvm::top::CVMRightShiftParam>(args[2]);
+    int32_t precision = params.precision;
+    // alpha = 2^(precision-1) - 1
+    int32_t alpha =  (((int64_t)1 << (precision-1))-1);
+    int32_t a_min = -alpha;
+    int32_t a_max = alpha;
+    auto size = CVMArgSize(args[0]);
+    // T = X << shift_bit
+    std::vector<int32_t> T;
+    for (int32_t i = 0; i < size; ++i) {
+      T.push_back(x_data[i] << (int32_t)params.shift_bit); 
     }
+    // Y = clip(T, -alpha, alpha)
+    ClipAbstract(&T[0], y_data, a_max, a_min, size); 
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
-     DLTensor *x = args[0];
-     DLTensor *y = args[1];
-     int32_t* x_data = static_cast<int32_t*>(x->data);
-     int32_t* y_data = static_cast<int32_t*>(y->data);
-     if(x_data != y_data){
-        memcpy(y_data, x_data, getSize(x)*sizeof(int32_t));
-     }
-
-
+    auto X = args[0];
+    auto x_shape = CVMArgShape(X);
+    auto N = x_shape.size();
+    std::vector<int64_t> index(N, 0);
+    auto x_data = CVMArg2Data<int32_t>(args[0]); 
+    auto y_data = CVMArg2Data<int32_t>(args[1]); 
+    for (auto j = CVMShapeBegin(X); j < CVMShapeEnd(X); j++){
+      auto flatten_index = Index2Number(x_shape, index);
+      y_data[flatten_index] = x_data[flatten_index];
+      IndexBaseShapeAddOne(x_shape, index);
+    }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")

@@ -33,7 +33,11 @@ namespace runtime {
 
 int32_t CVMShapeBegin(const cvm::runtime::CVMArgValue& av);
 int32_t CVMShapeEnd(const cvm::runtime::CVMArgValue& av);
+int64_t Index2Number(const std::vector<int64_t>& shape, const std::vector<int64_t>& index);
+void IndexBaseShapeAddOne(const std::vector<int64_t>& shape, std::vector<int64_t>& index);
 
+  
+  
 template<typename DType>
 inline DType* CVMArg2Data(cvm::runtime::CVMArgValue const& av) {
   DLTensor *tensor = av.operator DLTensor *();
