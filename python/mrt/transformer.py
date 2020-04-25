@@ -358,10 +358,6 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
     cvm_sym, params = to_cvm(symbol, params)
     logger.info("Transform Mxnet symbol into CVM finished")
 
-    graph = cvm.graph.create(cvm_sym)
-    with open("/tmp/alexnet.json", "w") as f:
-        f.write(graph.json())
-
     dtype, cvm_params = "int32", {}
     cvm_ctx = cvm.context(target, 0)
     for sym in topo_sort(cvm_sym):
