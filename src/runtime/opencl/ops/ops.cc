@@ -510,5 +510,17 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.max")
             every_xdim_size.data(), axis_size, dlx->ndim, yndim, raxis.size(), REDUCE_MAX);
       }
   });
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.non_max_suppression")
+.set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
+    auto X = CVMArg2Data<int32_t>(args[0]);
+    auto valid_count = CVMArg2Data<int32_t>(args[1]);
+    auto Y = CVMArg2Data<int32_t>(args[2]);
+    auto params = CVMArg2Attr<top::NonMaximumSuppressionParam>(args[3]);
+    auto x_shape = CVMArgShape(args[0]);
+    int32_t B = x_shape[0];
+    int32_t N = x_shape[1];
+    int32_t K = x_shape[2];
+    opencl_non_max_suppression(X, valid_count, Y, B, N, K, params.force_suppress, params.iou_threshold, params.max_output_size, params.top_k);
+  }
 }
 }

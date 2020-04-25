@@ -101,7 +101,8 @@ void init_opencl(const std::string& bin_file_name){
   assert(init_success);
 }
 
-void verify(const int *a, const int *b, const int n){
+template<typename T>
+void verify(const T *a, const T *b, const int n){
   for(int i = 0; i < n; i++){
     if(a[i] != b[i]){
       std::cout << "verify failed: " << i << " : " << a[i] << ", " << b[i] << std::endl;

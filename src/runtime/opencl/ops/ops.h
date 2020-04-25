@@ -149,24 +149,29 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   const int K = c * kh * kw;
   const int N = oh * ow;
 
-  //cl_kernel into_int8 = get_kernel("into_int8"); 
+  cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
   cl_kernel im2col = get_kernel("im2col");
   cl_kernel gemm = use_bias ? get_kernel("gemm_bias") : get_kernel("gemm");
 
-  int index = 0;
-  int n = M*K;
-  //clSetKernelArg(into_int8, index++, sizeof(cl_mem), (void*)&weight);
-  //clSetKernelArg(into_int8, index++, sizeof(cl_mem), (void*)&ext_space);
-  //clSetKernelArg(into_int8, index++, sizeof(int), (void*)&n);
-  //exe_kernel(into_int8);
-
   int zero = 0;
   clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)ext_space, &zero, sizeof(int), 0, sizeof(int)*ext_space_size, 0, NULL, NULL);
+
+  int index = 0;
+  const int TM = (M+63)/64*64;
+  const int TK = (K+63)/64*64;
+  const int TN = (N+63)/64*64;
+  int n = M*K;
+  clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&weight);
+  clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&ext_space);
+  clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&M);
+  clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&K);
+  exe_kernel(int32_to_int8);
+
   static double im2col_time = 0;
   static double gemm_time = 0;
   double start = omp_get_wtime();
   index = 0;
-  //int offset = M*K;
+  int offset = TM*TK;
   n = c *oh *ow;
   printf("%d %d %d %d, %d %d %d\n", batch, c, h, w, oc, kh, kw);
   clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&input);
@@ -184,7 +189,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
   exe_kernel(im2col);
   print_to_file(ext_space, K*N, "/media/nvme/data/mnist/im2col.txt");
   clFinish(openclDeviceAPI->queue);
@@ -193,7 +198,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
 
   printf("%d %d %d\n", M, K, N);
   index = 0;
-  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&weight);
+  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
   clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
   if(use_bias)
     clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&bias);
@@ -424,5 +429,88 @@ void opencl_reduce(const void *x, void *y, const uint xsize, const uint ysize, c
     clSetKernelArg(kernel, index++, sizeof(int), (void*)&dev_flag[5]);
   }
 }
+
+void opencl_get_valid_count(const void *x_data, void *y_data, void *valid_count_data, const int32_t batch, const int32_t n, const int32_t k, const int32_t score_threshold){
+  cl_kernel kernel = get_kernel("get_valid_count");
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x_data);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&valid_count_data);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y_data);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&k);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&score_threshold);
+  exe_kernel(kernel);
+}
+
+void opencl_non_max_suppression(const void *inputs, const void *valid_count, void *outputs, 
+      const int batch, const int N, const int K, 
+      const bool force_suppress, const int iou_threshold,
+
+  cl_kernel kernel = get_kernel("non_max_suppression");
+  cl_kernel kernel_sort = get_kernel("recursion_sort");
+
+  std::share_ptr valid_count_data(new int[batch]);
+  clEnqueueReadBuffer(openclDeviceAPI->queue, valid_count, CL_TRUE, 0, sizeof(int) * batch, valid_count_data.get(), 0, nullptr, nullptr); 
+  int32_t B = batch;
+
+  for (int32_t b = 0; b < B; ++b) {
+    int32_t T = std::max(std::min(N, valid_count_data[b]), 0);
+    //std::vector<const int32_t*> R(T); // sorted X in score descending order
+    //for (int i = 0; i < T; ++i) R[i] = inputs + b * N * K + i * K;
+
+    //std::stable_sort(R.begin(), R.end(), 
+    //    [](const int32_t* a, const int32_t* b) -> bool {
+    //    return a[1] > b[1];
+    //    });
+    //
+    int index = 0;
+    clSetKernelArg(kernel_sort, index++, sizeof(cl_mem), (void*)&inputs);
+    clSetKernelArg(kernel_sort, index++, sizeof(cl_mem), (void*)&outputs);
+    clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&N);
+    clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&K);
+    int score_index = 1;
+    clSetKernelArg(kernel_sort, index++, sizeof(int), (void*)&score_index);
+
+    int32_t n_max = T; // n_max = min{T, MOS}
+    if (max_output_size >= 0)
+      n_max = std::min(n_max, max_output_size);
+    int32_t p_max = T; // p_max = min{TK, T}
+    if (top_k >= 0) 
+      p_max = std::min(p_max, top_k);
+
+    int32_t n = 0; // dynamic calculate union U, as Y index.
+    int32_t *y_batch = outputs + b * N * K; // temporary variable
+
+    int i_offset = b * N * K;
+    int o_offset = b * N * K;
+    cl_int code;
+    //cl_mem bufI = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*N*K, NULL, &code);
+    //assert(code == CL_SUCCESS);
+    //for(int i = 0; i < R.size(); i++){
+    //  clEnqueueWriteBuffer(queue, bufI, CL_TRUE, sizeof(int)*(i_offset + i * K), sizeof(int)*K, R[i], 0, nullptr, nullptr);
+    //}
+    //cl_mem bufO = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*N*K, NULL, &code);
+    //assert(code == CL_SUCCESS);
+
+    //cl_kernel kernel = clCreateKernel(program, "non_max_suppression", &code);
+    //assert(code == CL_SUCCESS);
+    index = 0;
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&inputs);
+    clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&outputs);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&n_max);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&p_max);
+    clSetKernelArg(kernel, index++, sizeof(bool), (void*)&force_suppress);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&iou_threshold);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&N);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&K);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&i_offset);
+    clSetKernelArg(kernel, index++, sizeof(int), (void*)&o_offset);
+
+    exe_kernel(kernel);
+    //clEnqueueTask(queue, kernel, 0, NULL, NULL); 
+    //clEnqueueReadBuffer(queue, bufO, CL_TRUE, sizeof(int) * o_offset, sizeof(int) *N*K, outputs + o_offset, 0, nullptr, nullptr); 
+  }
+}
+
 #endif
   

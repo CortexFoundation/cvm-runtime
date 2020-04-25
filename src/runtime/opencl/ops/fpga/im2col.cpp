@@ -1,12 +1,13 @@
+#define MATRIX_PAD 64
 extern "C"{
 void im2col(const int * data_im,
-    int* data_col,
+    char* data_col,
     const int n,
     const int height, const int width, const int kernel_h, const int kernel_w,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    const int height_col, const int width_col) {
+    const int height_col, const int width_col, const int offset) {
 #pragma HLS INTERFACE m_axi port=data_im offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=data_col offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=data_im  bundle=control
@@ -24,10 +25,12 @@ void im2col(const int * data_im,
 #pragma HLS INTERFACE s_axilite port=dilation_w bundle=control
 #pragma HLS INTERFACE s_axilite port=height_col bundle=control
 #pragma HLS INTERFACE s_axilite port=width_col bundle=control
+#pragma HLS INTERFACE s_axilite port=offset bundle=control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
   //int tid = threadIdx.x + blockDim.x * blockIdx.x;
   //for(int64_t index = tid; index < n; index += gridDim.x*blockDim.x){
+
   for(int index = 0; index < n; index++){
     const int h_index = index / width_col;
     const int h_col = h_index % height_col;
@@ -38,12 +41,15 @@ void im2col(const int * data_im,
     const int w_offset = w_col * stride_w - pad_w;
     //int* data_col_ptr = data_col;
     //data_col_ptr += (c_col * height_col + h_col) * width_col + w_col;
-    int dst_index = (c_col * height_col + h_col) * width_col + w_col;
+    //int dst_index = offset + (c_col * height_col + h_col) * width_col + w_col;
+    const int cols = height_col * width_col;
+    const int cols_offset = (cols + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
+    int dst_index = offset + c_col * cols_offset + h_col * width_col + w_col;
     //const int * data_im_ptr = data_im;
     //data_im_ptr += (c_im * height + h_offset) * width + w_offset;
     int src_index = (c_im * height + h_offset) * width + w_offset;
 
-//#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE
     for (int i = 0; i < kernel_h; ++i) {
       for (int j = 0; j < kernel_w; ++j) {
         int h_im = h_offset + i * dilation_h;
@@ -57,7 +63,7 @@ void im2col(const int * data_im,
         //(h_im >= 0 && w_im >= 0 && h_im < height && w_im < width) ?
         //(data_im_ptr[i * dilation_h * width + j * dilation_w]) : 0;
         //data_col_ptr += height_col * width_col;
-        dst_index += height_col * width_col;
+        dst_index += cols_offset;//height_col * width_col;
       }
     }
   }

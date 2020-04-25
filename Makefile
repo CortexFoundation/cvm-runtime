@@ -43,7 +43,7 @@ test_opencl: ${TEST_OPENCL}
 %_opencl: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
-TARGET=hw_emu
+TARGET=hw
 PLATFORM=xilinx_u50_gen3x16_xdma_201920_3
 
 FPGA_SRC=$(wildcard src/runtime/opencl/ops/fpga/*.cpp)
@@ -52,14 +52,14 @@ FPGA_OBJS=$(patsubst %.cpp,%.xo,$(FPGA_SRC))
 
 FPGA_OUT=ops.${TARGET}.xclbin
 fpga:$(FPGA_OBJS)
-	v++ -t $(TARGET) --platform=$(PLATFORM) -l -o $(FPGA_OUT) $(FPGA_OBJS)
+	v++ -O2 -t $(TARGET) --platform=$(PLATFORM) -l -o $(FPGA_OUT) $(FPGA_OBJS)
 %.xo:%.cpp
 #v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $<
-	v++ -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '$@' $<
+	v++ -O2 -t $(TARGET) --platform=$(PLATFORM) -c -k $(basename $(notdir $<)) -o '$@' $<
 	rm $@.*
 
 cleanfpga:
-	rm -f v++* src/runtime/opencl/ops/fpga/*.xo*
+	rm -f v++* *xclbin.* *.xo* src/runtime/opencl/ops/fpga/*.xo*
 #fpga:src/runtime/opencl/ops/fpga/*.cpp
 #	v++ -t ${TARGET} --platform=${PLATFORM} -c -k $(basename $(notdir $<)) -o '${BUILD}/fpga/$(basename $(notdir $<)).${TARGET}.xo' $< 
 

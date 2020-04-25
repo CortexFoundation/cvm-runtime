@@ -267,7 +267,7 @@ a bias vector is created and added to the outputs.
         N = (N + 63) / 64 * 64;
         int32_t fn = M * K;//oc * ic * fh * fw; //int8_t
         int32_t d_col_n = K*N;//ic * fh * fw * oh * ow; //int8_t 
-        return (fn + d_col_n) ;//* sizeof(int8_t) / sizeof(int32_t);
+        return (fn + d_col_n) * sizeof(int8_t) / sizeof(int32_t);
       }else{
         return  0;
       } 

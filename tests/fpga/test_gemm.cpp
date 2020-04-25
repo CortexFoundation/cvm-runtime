@@ -7,7 +7,7 @@
 #include "util.hpp"
 using namespace std;
 
-void gemm_cpu(const int* A, const int *B, const int *bias, int* C,
+void gemm_cpu(const char * A, const char *B, const int *bias, int* C,
 	const int M, const int K, const int N){
   for(int i = 0; i < M; i++){
     for(int j = 0; j < N; j++){
@@ -20,22 +20,27 @@ void gemm_cpu(const int* A, const int *B, const int *bias, int* C,
   }
 }
 
-void gemm_fpga(const int *A, const int *B, const int *bias, int *C, const int M, const int K, const int N){
+void gemm_fpga(const char *A, const char *B, const int *bias, int *C, const int M, const int K, const int N){
   cl_int code;
+  const int TM = (M+63)/64*64;
+  const int TK = (K+63)/64*64;
+  const int TN = (N+63)/64*64;
+  int size = TM*TK + TK*TN;
 
-  cl_mem bufA = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*M*K, NULL, &code);
-  cl_mem bufB = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*K*N, NULL, &code);
+  cl_mem buf_space = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char)*size, NULL, &code);
+  //cl_mem bufA = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*M*K, NULL, &code);
+  //cl_mem bufB = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char)*K*N, NULL, &code);
   cl_mem bufb = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*M, NULL, &code);
 
-  clEnqueueWriteBuffer(queue, bufA, CL_TRUE, 0, sizeof(int)*M*K, A, 0, nullptr, nullptr);
-  clEnqueueWriteBuffer(queue, bufB, CL_TRUE, 0, sizeof(int)*N*K, B, 0, nullptr, nullptr);
+  clEnqueueWriteBuffer(queue, buf_space, CL_TRUE, 0, sizeof(char)*M*K, A, 0, nullptr, nullptr);
+  clEnqueueWriteBuffer(queue, buf_space, CL_TRUE, sizeof(char)*TM*TK, sizeof(char)*N*K, B, 0, nullptr, nullptr);
   clEnqueueWriteBuffer(queue, bufb, CL_TRUE, 0, sizeof(int)*M, bias, 0, nullptr, nullptr);
 
   cl_mem bufC = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*M*N, NULL, &code);
   cl_kernel kernel = bias != NULL ? clCreateKernel(program, "gemm_bias", &code) : clCreateKernel(program, "gemm", &code);
   int index = 0;
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufA);
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufB);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&buf_space);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&buf_space);
   if(bias != NULL)
     clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufb);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufC);
@@ -55,8 +60,8 @@ int main(){
   const int M = 16;
   const int K = 16;
   const int N = 16;
-  int *A = new int[M*K];
-  int *B = new int[K*N];
+  char *A = new char[M*K];
+  char *B = new char[K*N];
   int *C = new int[M*N];
   int *C2 = new int[M*N];
   int *bias = new int[M];
