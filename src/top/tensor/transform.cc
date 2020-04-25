@@ -751,7 +751,7 @@ inline bool StridedSliceInferShape(const NodeAttrs& attrs,
   return true;
 }
 
-CVM_REGISTER_OP(slice)
+CVM_REGISTER_OP(strided_slice)
 .describe(R"code(Strided slice of an array.
 
 Examples::
@@ -775,7 +775,7 @@ Examples::
                                                 [[ 5.,  6.],
                                                  [ 7.,  8.]]]
 )code" CVM_ADD_FILELINE)
-.add_alias("strided_slice")
+// .add_alias("slice")
 .add_argument("data", "Tensor", "Array to be sliced")
 .add_arguments(StridedSliceParam::__FIELDS__())
 .set_attr_parser(StridedSliceParamParser)
