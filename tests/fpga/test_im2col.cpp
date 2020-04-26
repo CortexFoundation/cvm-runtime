@@ -16,7 +16,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    int * data_col, bool &has_negetive)
+    char* data_col, bool &has_negetive)
 {
   // auto data_col_init = data_col;
   const int output_h = (height + 2 * pad_h -
@@ -55,7 +55,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
   }
 }
 
-void im2col_fpga(const int *input, int *output, 
+void im2col_fpga(const int *input, char *output, 
     const int n, const int c, const int h, const int w,
     const int kh, const int kw, 
     const int pad_h, const int pad_w,
@@ -65,9 +65,11 @@ void im2col_fpga(const int *input, int *output,
   cl_int code;
   const int K = c * kh * kw;
   const int N = oh * ow;
+  const int TK = (K+63)/64*64;
+  const int TN = (N+63)/64*64;
   cl_mem bufi = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*n*c*h*w, NULL, &code);
   clEnqueueWriteBuffer(queue, bufi, CL_TRUE, 0, sizeof(int)*n*c*h*w, input, 0, nullptr, nullptr);
-  cl_mem bufo = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*K*N, NULL, &code);
+  cl_mem bufo = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(char)*TK*TN, NULL, &code);
 
   cl_kernel im2col = clCreateKernel(program, "im2col", &code);
   int index = 0;
@@ -87,12 +89,14 @@ void im2col_fpga(const int *input, int *output,
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
+  int offset = 0;
+  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
   clEnqueueTask(queue, im2col, 0, NULL, NULL);
-  clEnqueueReadBuffer(queue, bufo, CL_TRUE, 0, sizeof(int)*K*N, output, 0, nullptr, nullptr); 
+  clEnqueueReadBuffer(queue, bufo, CL_TRUE, 0, sizeof(char)*TK*TN, output, 0, nullptr, nullptr); 
 }
 int main(){
 
-  init_opencl("ops.hw_emu.xclbin");
+  init_opencl("ops.xclbin");
   const int n = 1;
   const int c = 1;
   const int h = 8;
@@ -110,8 +114,11 @@ int main(){
   const int dilation_w = 1;
   const int K = c * kh * kw;
   const int N = oh * ow;
+  const int TK = (K+63)/64*64;
+  const int TN = (N+63)/64*64;
   int num_kernels = c *oh *ow;
-  int input[n*c*h*w], output[K*N], output2[K*N];
+  int input[n*c*h*w];
+  char output[TK*TN], output2[TK*TN];
   for(int i = 0; i < n*c*h*w; i++){
     input[i] = i % 127;
   }
@@ -119,7 +126,16 @@ int main(){
   im2col_cpu(input, c, h, w, kh, kw, 0, 0, 1, 1, 1, 1, output, has_negetive);
   im2col_fpga(input, output2, n, c, h, w, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, oh, ow);
 
-  verify(output, output2, K*N);
+//  verify(output, output2, TK*TN);
+  for(int i = 0; i < K; i++){
+    for(int j = 0; j < N; j++){
+      if(output[i*N+j] != output2[i*TN+j]){
+        cout << "failed: " << i*N+j << ": " << (int)output[i*N+j] << "," << (int)output2[i*TN+j]<< endl;
+        return 0;
+      }
+    }
+  }
+  cout << "success\n";
 
   return 0;
 }
