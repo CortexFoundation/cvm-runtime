@@ -234,10 +234,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_mul")
       int64_t *cshape = static_cast<int64_t*>(args2->shape);
       int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-      if(bdim == 1 && bshape[0] == 1)
+      if(bdim == 1 && bshape[0] == 1){
         opencl_broadcast_mul(a, b, c, getSize(args0));
-      else 
+      }
+      else{ 
         opencl_broadcast(a, b, c, ashape, bshape, cshape, adim, bdim, cdim, getSize(args0), getSize(args1), getSize(args2), 2);
+      }
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_max")

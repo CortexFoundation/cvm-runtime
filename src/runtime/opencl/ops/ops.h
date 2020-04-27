@@ -44,7 +44,7 @@ void init(){
   }
 }
 
-//#define CVM_OPENCL_PRINT_RESULT
+#define CVM_OPENCL_PRINT_RESULT
 void print_to_file(const void *buffer, const int n, const char*filename){
 #ifdef CVM_OPENCL_PRINT_RESULT
   int *data = new int[n];
@@ -52,7 +52,7 @@ void print_to_file(const void *buffer, const int n, const char*filename){
   FILE *fp = fopen(filename, "a+");
   for(int i = 0, j = 0; i < n && j < 1000; i++){
     if(data[i] != 0){
-      fprintf(fp, "%d ", data[i]);
+      fprintf(fp, "%d ", (int)data[i]);
       j++;
     }
   }
@@ -154,7 +154,6 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   //cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
   cl_kernel im2col = get_kernel("im2col");
   cl_kernel gemm = use_bias ? get_kernel("gemm_bias") : get_kernel("gemm");
-  if(!use_bias) printf("use gemm \n");
 
   int zero = 0;
   clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)ext_space, &zero, sizeof(int), 0, sizeof(int)*ext_space_size, 0, NULL, NULL);
@@ -179,7 +178,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   index = 0;
   //int offset = TM*TK;
   n = c *oh *ow;
-  printf("%d %d %d %d, %d %d %d, %d %d, %d %d, %d %d\n", batch, c, h, w, oc, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w);
+  //printf("%d %d %d %d, %d %d %d, %d %d, %d %d, %d %d\n", batch, c, h, w, oc, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w);
   clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&input);
   clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&ext_space);
   clSetKernelArg(im2col, index++, sizeof(int), (void*)&n);
@@ -233,7 +232,6 @@ void opencl_groupwise_conv2d(
    bool use_bias){
   cl_kernel kernel = get_kernel("groupwise_conv2d");
   
-  printf("groupwise conv , use bias= %d \n", use_bias);
   //cl_kernel kernel = clCreateKernel(program, "groupwise_conv2d", &code);
   int index = 0;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x_data);
@@ -485,7 +483,6 @@ void opencl_reduce(const void *x, void *y, const uint xsize, const uint ysize, c
   int dev_every_xdim_size[MAX_DIM];
   int dev_flag[MAX_DIM], dev_axis[MAX_DIM];
   if(axis_ndim == 0){
-    printf("reduce zero: \n");
     cl_kernel kernel = get_kernel("reduce_zero");
     int index = 0;
     clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x);

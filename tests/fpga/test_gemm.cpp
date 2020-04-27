@@ -56,9 +56,9 @@ void gemm_fpga(const int *A, const int *B, const int *bias, int *C, const int M,
 int main(){
   init_opencl("ops.xclbin");
 
-  const int M = 16;
-  const int K = 16;
-  const int N = 16;
+  const int M = 2048;
+  const int K = 512;
+  const int N = 49;
   int*A = new int[M*K];
   int*B = new int[K*N];
   int *C = new int[M*N];

@@ -262,7 +262,7 @@ int test_models(int device_type = 0) {
 //    "/data/std_out/trec",
 //    // "/data/new_cvm/yolo3_darknet53_voc/data",
 //    "/data/lz_model_storage/dcnet_mnist_v1/data",
-    "/media/nvme/data/dcnet_mnist_v1/data",
+//    "/media/nvme/data/dcnet_mnist_v1/data",
     "/media/nvme/data/resnet50_mxg/",
 //    "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
 //    "/data/lz_model_storage/resnet50_v1_imagenet/data",
