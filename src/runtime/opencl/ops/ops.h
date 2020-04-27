@@ -105,12 +105,13 @@ void exe_kernel(cl_kernel kernel){
 #endif 
 }
 
-void opencl_elemwise_add(void *a, void *b, void *c, uint n){
-  cl_kernel kernel = get_kernel("vadd");
+void opencl_elemwise(void *a, void *b, void *c, const int n, const int type){
+  cl_kernel kernel = get_kernel("elemwise");
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&a);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&b);
   clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&c);
   clSetKernelArg(kernel, 3, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, 3, sizeof(int), (void*)&type);
 
   //exe_kernel(kernel, n);
   exe_kernel(kernel);
@@ -150,7 +151,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
   const int K = c * kh * kw;
   const int N = oh * ow;
 
-  cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
+  //cl_kernel int32_to_int8 = get_kernel("int32_to_int8"); 
   cl_kernel im2col = get_kernel("im2col");
   cl_kernel gemm = use_bias ? get_kernel("gemm_bias") : get_kernel("gemm");
 
@@ -159,17 +160,17 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
 
   int index = 0;
   //const int TM = (M+63)/64*64;
-  const int TK = (K+63)/64*64;
-  const int TN = (N+63)/64*64;
-  int offset = TK*TN;
+  //const int TK = (K+63)/64*64;
+  //const int TN = (N+63)/64*64;
+ // int offset = TK*TN;
   int n = M*K;
-  clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&weight);
-  clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&ext_space);
-  clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&M);
-  clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&K);
-  clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&offset);
-  exe_kernel(int32_to_int8);
-  clFlush(openclDeviceAPI->queue);
+ // clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&weight);
+ // clSetKernelArg(int32_to_int8, index++, sizeof(cl_mem), (void*)&ext_space);
+ // clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&M);
+ // clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&K);
+ // clSetKernelArg(int32_to_int8, index++, sizeof(int), (void*)&offset);
+ // exe_kernel(int32_to_int8);
+ // clFlush(openclDeviceAPI->queue);
 
   static double im2col_time = 0;
   static double gemm_time = 0;
@@ -203,7 +204,7 @@ void opencl_conv2d(void* input, void *weight, void *bias, void *output,
 
   printf("%d %d %d\n", M, K, N);
   index = 0;
-  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
+  clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&weight);
   clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&ext_space);
   if(use_bias)
     clSetKernelArg(gemm, index++, sizeof(cl_mem), (void*)&bias);
@@ -304,6 +305,21 @@ void opencl_cvm_clip(const void *input, void*output, const int n, const int prec
   print_to_file(output, n, "/media/nvme/data/mnist/cvm_clip.txt");
 }
 
+void opencl_clip(const void *input, void*output, const int n, const int max, const int min){
+  cl_kernel kernel = get_kernel("clip");
+
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&max);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&min);
+
+  //printf("exe cvm clip %d %d %d\n", n, min, max);
+  exe_kernel(kernel);
+  print_to_file(output, n, "/media/nvme/data/mnist/cvm_clip.txt");
+}
+
 void opencl_cvm_right_shift(const void *input, void *output, const int shift_b, const int n, const int precision){
   const int min = -(((int)1 << (precision - 1)) - 1);
   const int max = -min;
@@ -321,6 +337,20 @@ void opencl_cvm_right_shift(const void *input, void *output, const int shift_b, 
   exe_kernel(kernel);
   print_to_file(input, n, "/media/nvme/data/mnist/cvm_right_shift_x.txt");
   print_to_file(output, n, "/media/nvme/data/mnist/cvm_right_shift.txt");
+}
+void opencl_cvm_left_shift(const void *input, void *output, const int shift_b, const int n, const int precision){
+  cl_kernel kernel = get_kernel("cvm_left_shift");
+
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&shift_b);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&precision);
+
+  exe_kernel(kernel);
+  print_to_file(input, n, "/media/nvme/data/mnist/cvm_left_shift_x.txt");
+  print_to_file(output, n, "/media/nvme/data/mnist/cvm_left_shift.txt");
 }
 
 void opencl_relu(const void* input, void*output, const int n){
@@ -355,6 +385,49 @@ void opencl_broadcast_mul(const void *a, const void* b, void *c, const int n){
   print_to_file(a, n, "/media/nvme/data/mnist/broadcast_mul_a.txt");
   print_to_file(b, 1, "/media/nvme/data/mnist/broadcast_mul_b.txt");
   print_to_file(c, n, "/media/nvme/data/mnist/broadcast_mul.txt");
+}
+void opencl_broadcast(const void *a, const void* b, void *c, 
+    const int64_t* a_shape, const int64_t *b_shape, const int64_t *c_shape,
+    const int andim, const int bndim, const int cndim, const int asize, const int bsize, const int csize, const int type){
+  cl_kernel kernel = get_kernel("broadcast");
+
+  int ashape[MAX_DIM], bshape[MAX_DIM], cshape[MAX_DIM];
+  get_opencl_shape(a_shape, andim, ashape);
+  get_opencl_shape(b_shape, bndim, bshape);
+  get_opencl_shape(c_shape, cndim, cshape);
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&a);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&b);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&c);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&asize);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bsize);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&csize);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&andim);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bndim);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cndim);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[0]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[1]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[2]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[3]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[4]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&ashape[5]);
+
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[0]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[1]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[2]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[3]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[4]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&bshape[5]);
+
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[0]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[1]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[2]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[3]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[4]);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&cshape[5]);
+
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
+  exe_kernel(kernel);
 }
   
 void opencl_dense(const void *a, const void *b, const void *bias, void *c, const int M, const int N, const int K, bool use_bias){
@@ -860,7 +933,16 @@ void opencl_log(const void *x, void *y, const uint64_t n){
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
   exe_kernel(kernel);
-
 }
+
+void opencl_abs(const void *x, void *y, const uint64_t n){
+  cl_kernel kernel = get_kernel("abs");
+  int index = 0;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  exe_kernel(kernel);
+}
+
 #endif
   
