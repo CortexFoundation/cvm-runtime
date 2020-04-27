@@ -225,7 +225,7 @@ void Reduce_fpga(DLTensor *x, DLTensor *y, TShape& axis, bool exclude, const int
 int main(){
   init_opencl("ops.xclbin");
 
-  DLTensor x(4), y(2), y1(2);
+  DLTensor x(4), y(1), y1(1);
   TShape axis;
   bool exclude = false;
   reduce_func f = [](int& tmp, int value)->void {
@@ -234,16 +234,16 @@ int main(){
   };
   int type = 1;
 
-  x.shape[0] = 4;
-  x.shape[1] = 4;
-  x.shape[2] = 4;
-  x.shape[3] = 8;
+  x.shape[0] = 1; 
+  x.shape[1] = 2048;
+  x.shape[2] = 7;
+  x.shape[3] = 7;
   int sizeX = getSize(&x);
   x.data = new int[sizeX];
-  y.shape[0] = 4;
-  y.shape[1] = 4;
-  y1.shape[0] = 4;
-  y1.shape[1] = 4;
+  y.shape[0] = 2048;
+  //y.shape[1] = 4;
+  y1.shape[0] = 2048;
+  //y1.shape[1] = 4;
   int sizeY = getSize(&y);
   y.data = new int[sizeY];
   y1.data = new int[sizeY];
@@ -251,7 +251,7 @@ int main(){
   for(int i = 0; i < sizeX; i++)
     x.data[i] = i % 127;
 
-  axis.push_back(1);
+  axis.push_back(2);
   axis.push_back(3);
 
   Reduce(&x, &y, axis, exclude, f);

@@ -485,6 +485,7 @@ void opencl_reduce(const void *x, void *y, const uint xsize, const uint ysize, c
   int dev_every_xdim_size[MAX_DIM];
   int dev_flag[MAX_DIM], dev_axis[MAX_DIM];
   if(axis_ndim == 0){
+    printf("reduce zero: \n");
     cl_kernel kernel = get_kernel("reduce_zero");
     int index = 0;
     clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x);

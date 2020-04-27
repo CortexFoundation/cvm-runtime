@@ -16,7 +16,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    char* data_col, bool &has_negetive)
+    int * data_col, bool &has_negetive)
 {
   // auto data_col_init = data_col;
   const int output_h = (height + 2 * pad_h -
@@ -55,7 +55,7 @@ void im2col_cpu(const int32_t* data_im, const int channels,
   }
 }
 
-void im2col_fpga(const int *input, char *output, 
+void im2col_fpga(const int *input, int *output, 
     const int n, const int c, const int h, const int w,
     const int kh, const int kw, 
     const int pad_h, const int pad_w,
@@ -66,27 +66,45 @@ void im2col_fpga(const int *input, char *output,
   const int K = c * kh * kw;
   const int N = oh * ow;
   cl_mem bufi = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*n*c*h*w, NULL, &code);
+  assert(code == CL_SUCCESS);
   clEnqueueWriteBuffer(queue, bufi, CL_TRUE, 0, sizeof(int)*n*c*h*w, input, 0, nullptr, nullptr);
   cl_mem bufo = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int)*K*N, NULL, &code);
+  assert(code == CL_SUCCESS);
 
   cl_kernel im2col = clCreateKernel(program, "im2col", &code);
+  assert(code == CL_SUCCESS);
   int index = 0;
   int num_kernels = c *oh *ow;
-  clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&bufi);
-  clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&bufo);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&num_kernels);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&h);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&w);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&kh);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&kw);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_h);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_w);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_h);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_w);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_h);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
-  clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
+  code |= clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&bufi);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(cl_mem), (void*)&bufo);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&num_kernels);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&h);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&w);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&kh);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&kw);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_h);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&pad_w);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_h);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&stride_w);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_h);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&dilation_w);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&oh);
+  assert(code == CL_SUCCESS);
+  code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
+  assert(code == CL_SUCCESS);
   int offset = 0;
   //clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
   clEnqueueTask(queue, im2col, 0, NULL, NULL);
@@ -96,12 +114,12 @@ int main(){
 
   init_opencl("ops.xclbin");
   const int n = 1;
-  const int c = 1;
-  const int h = 8;
-  const int w = 8;
-  const int oc = 1;
-  const int kh = 3;
-  const int kw = 3;
+  const int c = 512;
+  const int h = 7;
+  const int w = 7;
+  const int oc = 2048;
+  const int kh = 1;
+  const int kw = 1;
   const int pad_h = 0;
   const int pad_w = 0;
   const int stride_h = 1;
@@ -116,13 +134,13 @@ int main(){
   const int N = oh * ow;
   int num_kernels = c *oh *ow;
   int input[n*c*h*w];
-  char output[K*N], output2[K*N];
+  int output[K*N], output2[K*N];
   for(int i = 0; i < n*c*h*w; i++){
     input[i] = i % 127;
   }
   bool has_negetive;
   im2col_cpu(input, c, h, w, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, output, has_negetive);
-  //im2col_fpga(input, output2, n, c, h, w, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, oh, ow);
+  im2col_fpga(input, output2, n, c, h, w, kh, kw, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, oh, ow);
 
 //  verify(output, output2, TK*TN);
   for(int i = 0; i < K; i++){
