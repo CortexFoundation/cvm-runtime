@@ -1,3 +1,4 @@
+#define MAX_DIM 6
 extern "C"{
 void tile(const int *x_data, int *y_data, const int ysize, const int yndim, const int xndim,
     const int xshp0, const int xshp1, const int xshp2, const int xshp3, const int xshp4, const int xshp5,

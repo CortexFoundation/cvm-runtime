@@ -1,5 +1,5 @@
 extern "C"{
-void abs(const int *x, int *y, const int n){
+void cvm_log(const int *x, int *y, const int n){
 #pragma HLS INTERFACE m_axi port=x offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=y offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=x bundle=control
@@ -10,9 +10,16 @@ void abs(const int *x, int *y, const int n){
   //for(int j = tid; j < n; j += gridDim.x * blockDim.x){
   for(int j = 0; j < n; j++){
 #pragma HLS PIPELINE
-    int x_item = x[j];
-    if(x_item < 0) x_item = -x_item;
-    y[j] = x_item;
+    int x_val = x[j];
+    if(x_val < 0) x_val = -x_val;
+    y[j] = 64;
+    for(int i = 1; i < 64; i++){
+      long long tmp = (long long)1 << i;
+      if(x_val < tmp){
+        y[j] = i;
+        break;
+      }
+    }
   }
 }
 }

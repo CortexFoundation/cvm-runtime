@@ -1,5 +1,5 @@
 extern "C"{
-void take_noaxis(const int *x_data, const int *indices_data, int *y_data, const int ysize, const int xsize){
+void take_no_axis(const int *x_data, const int *indices_data, int *y_data, const int ysize, const int xsize){
 #pragma HLS INTERFACE m_axi port=x_data offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=indices_data offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=y_data offset=slave bundle=gmem

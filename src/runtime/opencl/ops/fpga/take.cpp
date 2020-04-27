@@ -1,3 +1,6 @@
+#define MAX_DIM 6
+#define min(a, b) ((a) > (b) ? (b) : (a))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 extern "C"{
 void take(const int *x_data, const int *indices_data, int *y_data, const int yndim,
     const int xndim, const int indices_ndim, const int ysize, const int axis,

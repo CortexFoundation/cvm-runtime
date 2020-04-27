@@ -1,3 +1,4 @@
+#define MAX_DIM 6
 extern "C"{
 void transpose(const int *x_data, int *y_data, 
     const int ndim, const int ysize, 

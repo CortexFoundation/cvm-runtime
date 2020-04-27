@@ -1,3 +1,4 @@
+#define MAX_DIM 6
 extern "C"{
 void slice_like(const int *x_data, int *y_data, const int ysize, const int ndim,
     const int xshp0, const int xshp1, const int xshp2, const int xshp3, const int xshp4, const int xshp5,

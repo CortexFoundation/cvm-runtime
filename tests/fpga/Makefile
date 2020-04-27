@@ -1,7 +1,7 @@
 test_%:test_%.cpp util.hpp
 	g++ -g $< -o $@ -lOpenCL -std=c++11
 
-TARGET=hw_emu
+TARGET=sw_emu
 PLATFORM=xilinx_u50_gen3x16_xdma_201920_3
 
 %:
