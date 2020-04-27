@@ -124,29 +124,35 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
     ClipAbstract(&T[0], y_data, a_max, a_min, size); 
 });
 
+void FlattenX(int32_t *x, int32_t *y, const std::vector<int64_t>& x_shape, int Size){
+    auto N = x_shape.size();
+    std::vector<int64_t> index(N, 0);
+    for (auto j = 0; j < Size; j++){
+      auto flatten_index = Index2Number(x_shape, index);
+      y[flatten_index] = x[flatten_index];
+      IndexBaseShapeAddOne(x_shape, index);
+    }
+}
+
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
     auto X = args[0];
     auto x_shape = CVMArgShape(X);
-    auto N = x_shape.size();
-    std::vector<int64_t> index(N, 0);
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
-    for (auto j = CVMShapeBegin(X); j < CVMShapeEnd(X); j++){
-      auto flatten_index = Index2Number(x_shape, index);
-      y_data[flatten_index] = x_data[flatten_index];
-      IndexBaseShapeAddOne(x_shape, index);
-    }
+    FlattenX(x_data, y_data, x_shape, CVMShapeEnd(X));
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
     .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-  DLTensor *x = args[0];
-  DLTensor *y = args[1];
-  if(x->data == y->data) return;
-  std::memcpy(y->data, x->data, getSize(x) * sizeof(int32_t));
+    auto X = args[0];
+    auto x_shape = CVMArgShape(X);
+    auto x_data = CVMArg2Data<int32_t>(args[0]); 
+    auto y_data = CVMArg2Data<int32_t>(args[1]); 
+    if(x_data == y_data) return;
+    FlattenX(x_data, y_data, x_shape, CVMShapeEnd(X));
 });
 
 }
