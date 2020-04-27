@@ -6,9 +6,9 @@ namespace runtime {
 
 typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
 
-static void elemwise(cvm::runtime::CVMArgValue A, 
-                      cvm::runtime::CVMArgValue B, 
-                      cvm::runtime::CVMArgValue Y, 
+static void elemwise(const cvm::runtime::CVMArgValue& A, 
+                      const cvm::runtime::CVMArgValue& B, 
+                      const cvm::runtime::CVMArgValue& Y, 
                       elemwise_func const &f){
     // inputs: A, B
     // outputs: Y

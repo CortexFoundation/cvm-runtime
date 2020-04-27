@@ -7,33 +7,6 @@ double cvm_op_broadcast_cnt = 0;
 
 typedef std::function<int32_t(int32_t a, int32_t b)> broadcast_func;
 
-int32_t CVMShapeBegin(const cvm::runtime::CVMArgValue& av){
-  return 0;
-}
-
-int32_t CVMShapeEnd(const cvm::runtime::CVMArgValue& av){
-  return CVMArgSize(av);
-}
-
-//  Convert an index (id_1, id_2,,, id_n) into a number using shape (s_1, s_2,,, s_n) as its base.
-int64_t Index2Number(const std::vector<int64_t>& shape, const std::vector<int64_t>& index){
-      auto number = index[0];
-      for (auto i = 1; i < shape.size(); i++){
-        number = number * shape[i] + index[i];
-      }
-      return number;
-}
-
-//  Add index (id_1, id_2,,, id_n) with 1 using shape (s_1, s_2,,, s_n) as its shape
-void IndexBaseShapeAddOne(const std::vector<int64_t>& shape, std::vector<int64_t>& index){
-      index[shape.size()-1]++; 
-      for (auto i = shape.size()-1; i > 0; i--){
-        if (index[i] == shape[i]){
-          index[i] = 0;
-          index[i-1]++;
-        }
-      }
-}
 
 static void broadcast(cvm::runtime::CVMArgValue& A, 
                       cvm::runtime::CVMArgValue& B, 
