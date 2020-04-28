@@ -12,7 +12,7 @@ void concatenate(const int *input, int *output, const int y_axis_batch, const in
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
   for(int i = 0; i < n; i++){
-//#pragma HLS PIPELINE
+#pragma HLS PIPELINE
     int y_iter = i / x_axis_batch;
     int x_iter = i % x_axis_batch;
     output[offset + y_iter * y_axis_batch + x_iter] = input[y_iter * x_axis_batch + x_iter];

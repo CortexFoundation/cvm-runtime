@@ -176,6 +176,13 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.flatten")
       //    error_code);
       //deal_error(error_code, errorStr);
   });
+CVM_REGISTER_GLOBAL("cvm.runtime.opencl.reshape")
+  .set_body([](CVMArgs args, CVMRetValue* rv){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+
+      opencl_flatten(x->data, y->data, getSize(x));
+  });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_add")
   .set_body([](CVMArgs args, CVMRetValue *ret){
@@ -436,7 +443,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.concatenate")
       for(int i = 0; i < len; i++){
         DLTensor *input = args[i];
         input_data[i] = input->data;
-        memcpy(&input_shape[i*ndim], input->shape, ndim * sizeof(int64_t));
+        //memcpy(&input_shape[i*ndim], input->shape, ndim * sizeof(int));
+        for(int j = 0; j < ndim; j++){
+          input_shape[i*ndim + j] = input->shape[j];
+        }
         axisSize[i] = preSize;
         preSize += input->shape[axis];
       }
