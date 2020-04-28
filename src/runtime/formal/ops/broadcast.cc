@@ -48,12 +48,10 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
     for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
       for (auto i = 0; i < K; i++){
         // a_i = min(d_{i}, SA_i-1)
-        if (SA[i] - 1 < d_k[i]) a_k[i] = SA[i] - 1;
-        else a_k[i] = d_k[i];
+        a_k[i] = (SA[i] - 1 < d_k[i]) ? SA[i] - 1 : d_k[i];
 
         // b_i = min(d_{i}, SB_i-1)
-        if (SB[i] - 1 < d_k[i]) b_k[i] = SB[i] - 1;
-        else b_k[i] = d_k[i];
+        b_k[i] = (SB[i] - 1 < d_k[i]) ? SB[i] - 1 : d_k[i];
       }
       
       // index0 = the number of (a_0, a_1,,, a_{K-1}) on decimal digit

@@ -7,8 +7,8 @@ namespace runtime {
 typedef std::function<int32_t(int32_t a, int32_t b)> elemwise_func;
 
 static void elemwise(const cvm::runtime::CVMArgValue& A, 
-                      const cvm::runtime::CVMArgValue& B, 
-                      const cvm::runtime::CVMArgValue& Y, 
+                     const cvm::runtime::CVMArgValue& B, 
+                     const cvm::runtime::CVMArgValue& Y, 
                       elemwise_func const &f){
     // inputs: A, B
     // outputs: Y
@@ -124,14 +124,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
     ClipAbstract(&T[0], y_data, a_max, a_min, size); 
 });
 
-void FlattenX(int32_t *x, int32_t *y, const std::vector<int64_t>& x_shape, int Size){
-    auto N = x_shape.size();
-    std::vector<int64_t> index(N, 0);
-    for (auto j = 0; j < Size; j++){
-      auto flatten_index = Index2Number(x_shape, index);
-      y[flatten_index] = x[flatten_index];
-      IndexBaseShapeAddOne(x_shape, index);
-    }
+void FlattenX(int32_t *x, int32_t *y, int Size){
+    memcpy(y, x, Size*sizeof(int32_t));
 }
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
@@ -141,7 +135,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
     auto x_shape = CVMArgShape(X);
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
-    FlattenX(x_data, y_data, x_shape, CVMShapeEnd(X));
+    FlattenX(x_data, y_data, CVMShapeEnd(X));
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
@@ -152,7 +146,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
     if(x_data == y_data) return;
-    FlattenX(x_data, y_data, x_shape, CVMShapeEnd(X));
+    FlattenX(x_data, y_data, CVMShapeEnd(X));
 });
 
 }

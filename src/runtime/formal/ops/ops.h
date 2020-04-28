@@ -64,17 +64,17 @@ inline int64_t CVMArgSize(cvm::runtime::CVMArgValue const& av) {
   return size;
 }
 
-inline int32_t CVMShapeBegin(const cvm::runtime::CVMArgValue& av){
+inline int32_t CVMShapeBegin(cvm::runtime::CVMArgValue const& av){
   return 0;
 }
 
-inline int32_t CVMShapeEnd(const cvm::runtime::CVMArgValue& av){
+inline int32_t CVMShapeEnd(cvm::runtime::CVMArgValue const& av){
   return CVMArgSize(av);
 }
 
 //  Convert an index (id_1, id_2,,, id_n) into a number using shape (s_1, s_2,,, s_n) as its base.
 inline int64_t Index2Number(const std::vector<int64_t>& shape,
-    const std::vector<int64_t>& index){
+                            const std::vector<int64_t>& index){
       auto number = index[0];
       for (auto i = 1; i < shape.size(); i++){
         number = number * shape[i] + index[i];
@@ -84,13 +84,12 @@ inline int64_t Index2Number(const std::vector<int64_t>& shape,
 
 //  Add index (id_1, id_2,,, id_n) with 1 using shape (s_1, s_2,,, s_n) as its shape
 inline void IndexBaseShapeAddOne(const std::vector<int64_t>& shape,
-    std::vector<int64_t>& index){
-      index[shape.size()-1]++; 
-      for (auto i = shape.size()-1; i > 0; i--){
-        if (index[i] == shape[i]){
-          index[i] = 0;
-          index[i-1]++;
-        }
+                                 std::vector<int64_t>& index){
+      auto cnt = shape.size() - 1;
+      index[cnt]++;
+      while (cnt > 0 && index[cnt] == shape[cnt]){
+        index[cnt--] = 0;
+        index[cnt]++;
       }
 }
 
