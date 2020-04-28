@@ -18,20 +18,18 @@ int broadcast_eval(int type, int a, int b, int &c)
 
 int broadcast_i_index(int oshape[], int o_index, int ishape[], int idim, int odim)
 {
-    if (idim == 1 && ishape[0] == 1)
-        return 0;
     int index = 0;
     int allIndex = 1;
     for (int i = 0; i < idim; i++)
     {
         int idx = idim - 1 - i;
-        int ovar = o_index % oshape[idx + odim - idim];
-        if (ovar < ishape[idx])
+        int ovar = o_index % oshape[idx + odim - idim + MAX_DIM - odim];
+        if (ovar < ishape[idx + MAX_DIM - idim])
         {
             index += allIndex * ovar;
         }
-        allIndex = allIndex * ishape[idx];
-        o_index /= oshape[idx + odim - idim];
+        allIndex = allIndex * ishape[idx + MAX_DIM - idim];
+        o_index /= oshape[idx + odim - idim + MAX_DIM - odim];
     }
     return index;
 }
