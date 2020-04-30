@@ -1,7 +1,8 @@
 extern "C"{
-void groupwise_conv2d(
+void groupwise_conv2d_bias(
    const int *x_data, 
    const int *w_data, 
+   const int *b_data,
    int *y_data, 
    const int n_batch, const int in_channels, const int x_h, const int x_w,
    const int filter_c, const int filter_h, const int filter_w,
@@ -12,9 +13,11 @@ void groupwise_conv2d(
    const int groups){
 #pragma HLS INTERFACE m_axi port=x_data offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=w_data offset=slave bundle=gmem
+#pragma HLS INTERFACE m_axi port=b_data offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=y_data offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=x_data bundle=control
 #pragma HLS INTERFACE s_axilite port=w_data bundle=control
+#pragma HLS INTERFACE s_axilite port=b_data  bundle=control
 #pragma HLS INTERFACE s_axilite port=y_data bundle=control
 #pragma HLS INTERFACE s_axilite port=n_batch bundle=control
 #pragma HLS INTERFACE s_axilite port=in_channels_h bundle=control
@@ -57,7 +60,7 @@ void groupwise_conv2d(
               }
             }
           }
-          y_data[oi] = sum;
+          y_data[oi] = sum + b_data[oc];
         }
       }
     }

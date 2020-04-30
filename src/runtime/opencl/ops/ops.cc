@@ -135,16 +135,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.dense")
       void* w_data = w->data;
       bool use_bias = param.use_bias;
       opencl_dense(x_data, w_data, bias_data, y_data, y->shape[0], y->shape[1], x->shape[1], use_bias);
-      //int error_code = NON_ERROR;
-      //const char* errorStr = opencl_dense(
-      //    x_data, w_data, y_data,
-      //    static_cast<int32_t>(x->shape[0]),
-      //    static_cast<int32_t>(x->shape[1]),
-      //    static_cast<int32_t>(y->shape[1]),
-      //    bias_data,
-      //    error_code);
-
-      //deal_error(error_code, errorStr);
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.relu")
@@ -153,13 +143,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.relu")
       DLTensor *y = args[1];
 
       opencl_relu(x->data, y->data, getSize(x));
-      //int error_code = NON_ERROR;
-      //const char* errorStr = opencl_relu(
-      //    static_cast<int32_t*>(x->data),
-      //    static_cast<int32_t*>(y->data),
-      //    getSize(x),
-      //    error_code);
-      //deal_error(error_code, errorStr);
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.flatten")
@@ -168,13 +151,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.flatten")
       DLTensor *y = args[1];
 
       opencl_flatten(x->data, y->data, getSize(x));
-      //int error_code = NON_ERROR;
-      //const char* errorStr = opencl_flatten(
-      //    static_cast<int32_t*>(x->data),
-      //    static_cast<int32_t*>(y->data),
-      //    getSize(x),
-      //    error_code);
-      //deal_error(error_code, errorStr);
   });
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.reshape")
   .set_body([](CVMArgs args, CVMRetValue* rv){
@@ -199,9 +175,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_add")
       int64_t *cshape = static_cast<int64_t*>(args2->shape);
       int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-     // if(bdim == 1 && bshape[0] == 1)
-     //   opencl_broadcast_mul(a, b, c, getSize(args0));
-     // else printf("no support b dim > 1\n");
      opencl_broadcast(a, b, c, ashape, bshape, cshape, adim, bdim, cdim, getSize(args0), getSize(args1), getSize(args2), 0);
   });
 
@@ -241,12 +214,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_mul")
       int64_t *cshape = static_cast<int64_t*>(args2->shape);
       int32_t cdim = static_cast<int32_t>(args2->ndim);
 
-      if(bdim == 1 && bshape[0] == 1){
-        opencl_broadcast_mul(a, b, c, getSize(args0));
-      }
-      else{ 
-        opencl_broadcast(a, b, c, ashape, bshape, cshape, adim, bdim, cdim, getSize(args0), getSize(args1), getSize(args2), 2);
-      }
+      //if(bdim == 1 && bshape[0] == 1){
+      //  opencl_broadcast_mul(a, b, c, getSize(args0));
+      //}
+      //else{ 
+      opencl_broadcast(a, b, c, ashape, bshape, cshape, adim, bdim, cdim, getSize(args0), getSize(args1), getSize(args2), 2);
+      //}
   });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.opencl.broadcast_max")

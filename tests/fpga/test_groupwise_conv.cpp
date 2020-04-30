@@ -66,7 +66,8 @@ void groupwise_conv2d_fpga(
   clEnqueueWriteBuffer(queue, bufw, CL_TRUE, 0, sizeof(int) * nw, w_data, 0, NULL, NULL);
   clEnqueueWriteBuffer(queue, bufb, CL_TRUE, 0, sizeof(int) * out_channels, b_data, 0, NULL, NULL);
 
-  cl_kernel kernel = clCreateKernel(program, "groupwise_conv2d", &code);
+  bool use_bias = b_data == NULL;
+  cl_kernel kernel = use_bias ? clCreateKernel(program, "groupwise_conv2d_bias", &code) : clCreateKernel(program, "groupwise_conv2d", &code);
   int index = 0;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufx);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&bufw);
@@ -89,7 +90,6 @@ void groupwise_conv2d_fpga(
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&dilation_h);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&dilation_w);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&groups);
-  bool use_bias = b_data == NULL;
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&use_bias);
   
   clEnqueueTask(queue, kernel, 0, NULL, NULL);
@@ -135,7 +135,7 @@ int main(){
   //}
 
   groupwise_conv2d(x_data, n, c, h, w, w_data, kc, kh, kw, y_data, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
-  groupwise_conv2d(x_data, n, c, h, w, w_data, kc, kh, kw, y_data2, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
+  groupwise_conv2d_fpga(x_data, n, c, h, w, w_data, kc, kh, kw, y_data2, oc, oh, ow, bias, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, groups);
 
   verify(y_data, y_data2, ny);
   return 0;

@@ -37,7 +37,7 @@ void pool(const int* input, int* output,
               int max = min;
               for(int fy = 0; fy < kh; fy++){
                 for(int fx = 0; fx < kw; fx++){
-#pragma HLS PIPELINE II=1
+#pragma HLS PIPELINE
                   int index_y = (y+ih)*stride_h + fy - pad_h;
                   int index_x = (x+iw)*stride_w + fx - pad_w;
                   int tmp = min;

@@ -13,8 +13,16 @@ void where_shape0(const int *x_data, const int *y_data, const int *condition_dat
 #pragma HLS INTERFACE s_axilite port = return bundle = control
   for(int i = 0; i < shape0; i++){
     for(int j = 0; j < n; j++){
-#pragma HLS PIPELINE
-      result[i * n + j] = (condition_data[i] == 0 ? y_data[i * n + j] : x_data[i * n + j]);
+//#pragma HLS PIPELINE
+      int condition = condition_data[i];
+      int y = y_data[i*n+j];
+      int x = x_data[i*n+j];
+      //result[i * n + j] = (condition_data[i] == 0 ? y_data[i * n + j] : x_data[i * n + j]);
+      if(condition == 0){
+        result[i*n+j] = y;
+      }else{
+        result[i*n+j] = x;
+      }
     }
   }
 }

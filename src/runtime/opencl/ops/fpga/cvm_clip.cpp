@@ -24,11 +24,11 @@ read1:
     }
 clip:
     for(int j = 0; j < chunk_size; j++){
-      #pragma HLS PIPELINE II=1
+      #pragma HLS PIPELINE 
       int tmp = buf_i[j];
       if(tmp > max) tmp = max;
       if(tmp < min) tmp = min;
-      buf_o[j] = tmp < min ? min : tmp;
+      buf_o[j] = tmp ;//< min ? min : tmp;
     }
 write:
     for(int j = 0; j < chunk_size; j++){

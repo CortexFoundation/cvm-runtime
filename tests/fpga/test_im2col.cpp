@@ -106,24 +106,24 @@ void im2col_fpga(const int *input, int *output,
   code |= clSetKernelArg(im2col, index++, sizeof(int), (void*)&ow);
   assert(code == CL_SUCCESS);
   int offset = 0;
-  //clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
+  clSetKernelArg(im2col, index++, sizeof(int), (void*)&offset);
   clEnqueueTask(queue, im2col, 0, NULL, NULL);
   clEnqueueReadBuffer(queue, bufo, CL_TRUE, 0, sizeof(int)*K*N, output, 0, nullptr, nullptr); 
 }
 int main(){
-
+//16 4 7 7, 64 3 2, 1 3, 2 2, 1 1
   init_opencl("ops.xclbin");
   const int n = 1;
-  const int c = 512;
+  const int c = 4;
   const int h = 7;
   const int w = 7;
-  const int oc = 2048;
-  const int kh = 1;
-  const int kw = 1;
-  const int pad_h = 0;
-  const int pad_w = 0;
-  const int stride_h = 1;
-  const int stride_w = 1;
+  const int oc = 64;
+  const int kh = 3;
+  const int kw = 2;
+  const int pad_h = 1;
+  const int pad_w = 3;
+  const int stride_h = 2;
+  const int stride_w = 2;
   const int dilation_h = 1;
   const int dilation_w = 1;
   int t_filter_h = (kh - 1) * dilation_h + 1;

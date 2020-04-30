@@ -3,7 +3,7 @@ const int BLOCK_SIZE = 16;
 const unsigned int c_dim = BLOCK_SIZE;
 
 extern "C"{
-void gemm_bias(const int *A, const int * B, const int* bias, int *C, const int M, const int K, const int N){
+void gemm_bias(const int *A, const int * B, const int* bias, int *C, const int M, const int K, const int N, const int o_offset){
 #pragma HLS INTERFACE m_axi port=A offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=B offset=slave bundle=gmem1
 #pragma HLS INTERFACE m_axi port=bias offset=slave bundle=gmem
@@ -15,6 +15,7 @@ void gemm_bias(const int *A, const int * B, const int* bias, int *C, const int M
 #pragma HLS INTERFACE s_axilite port=M bundle=control
 #pragma HLS INTERFACE s_axilite port=K bundle=control
 #pragma HLS INTERFACE s_axilite port=N bundle=control
+#pragma HLS INTERFACE s_axilite port=o_offset bundle=control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
   char bufA[BLOCK_SIZE][BLOCK_SIZE];
   char bufB[BLOCK_SIZE][BLOCK_SIZE];
@@ -66,15 +67,15 @@ readB:
 
 madd:
         for(int ii = 0; ii < chunk_size_m; ii++){
-          for(int kk = 0; kk < BLOCK_SIZE; kk+=2){
+          for(int kk = 0; kk < chunk_size_k; kk+=1){
 #pragma HLS PIPELINE 
             int a = bufA[ii][kk];
-            int a1 = bufA[ii][kk+1];
-            for(int jj = 0; jj < BLOCK_SIZE; jj++){
+            //int a1 = bufA[ii][kk+1];
+            for(int jj = 0; jj < chunk_size_n; jj++){
 #pragma HLS UNROLL 
               int c = a * bufB[kk][jj];  
-              int c1 = a1 * bufB[kk+1][jj];  
-              bufC[ii][jj] += c + c1;
+              //int c1 = a1 * bufB[kk+1][jj];  
+              bufC[ii][jj] += c ;//+ c1;
             }
           }
         }
@@ -83,7 +84,7 @@ write:
       for(int ii = 0; ii < chunk_size_m; ii++){
         for(int jj = 0; jj < chunk_size_n; jj++){
 #pragma HLS PIPELINE II=1
-          C[(i+ii)*N + j+jj] = bufC[ii][jj] + bias[i+ii];
+          C[o_offset + (i+ii)*N + j+jj] = bufC[ii][jj] + bias[i+ii];
         }
       }
     }

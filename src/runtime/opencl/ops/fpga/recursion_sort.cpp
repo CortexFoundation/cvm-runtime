@@ -29,7 +29,7 @@ extern "C"
 
                 int k = left * N, l = left, r = mid + 1;
                 while (l <= mid && r <= right)
-                    if (a[l * N + K] > a[r * N + K])
+                    if (a[l * N + K] >= a[r * N + K])
                     {
                         for (int m = l * N; m < l * N + N; m++)
                             c[c_offset + k++] = a[a_offset + m];

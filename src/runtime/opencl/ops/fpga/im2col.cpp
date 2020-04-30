@@ -7,7 +7,8 @@ void im2col(const int * data_im,
     const int pad_h, const int pad_w,
     const int stride_h, const int stride_w,
     const int dilation_h, const int dilation_w,
-    const int height_col, const int width_col) {
+    const int height_col, const int width_col,
+    const int i_offset) {
 #pragma HLS INTERFACE m_axi port=data_im offset=slave bundle=gmem
 #pragma HLS INTERFACE m_axi port=data_col offset=slave bundle=gmem
 #pragma HLS INTERFACE s_axilite port=data_im  bundle=control
@@ -25,7 +26,7 @@ void im2col(const int * data_im,
 #pragma HLS INTERFACE s_axilite port=dilation_w bundle=control
 #pragma HLS INTERFACE s_axilite port=height_col bundle=control
 #pragma HLS INTERFACE s_axilite port=width_col bundle=control
-  //#pragma HLS INTERFACE s_axilite port=offset bundle=control
+#pragma HLS INTERFACE s_axilite port=i_offset bundle=control
 #pragma HLS INTERFACE s_axilite port = return bundle = control
 
   for(int index = 0; index < n; index++){
@@ -38,7 +39,7 @@ void im2col(const int * data_im,
     const int h_offset = h_col * stride_h - pad_h;
     const int w_offset = w_col * stride_w - pad_w;
     int dst_index = (c_col * height_col + h_col) * width_col + w_col;
-    int src_index = (c_im * height + h_offset) * width + w_offset;
+    int src_index = i_offset + (c_im * height + h_offset) * width + w_offset;
 
     for (int i = 0; i < kernel_h; ++i) {
       for (int j = 0; j < kernel_w; ++j) {

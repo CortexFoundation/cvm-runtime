@@ -203,6 +203,7 @@ namespace runtime {
       CVMStreamHandle stream) {
     this->Init();
     CHECK(stream == nullptr);
+    if(size == 0) return;
     if (IsOpenCLDevice(ctx_from) && IsOpenCLDevice(ctx_to)) {
       OPENCL_CALL(clEnqueueCopyBuffer(
             this->GetQueue(ctx_to),

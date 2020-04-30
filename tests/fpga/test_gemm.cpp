@@ -47,6 +47,8 @@ void gemm_fpga(const int *A, const int *B, const int *bias, int *C, const int M,
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&M);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&K);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&N);
+  int offset = 0;
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&offset);
   clEnqueueTask(queue, kernel, 0, NULL, NULL);
 
   clEnqueueReadBuffer(queue, bufC, CL_TRUE, 0, sizeof(int)*M*N, C, 0, nullptr, nullptr); 
@@ -55,10 +57,10 @@ void gemm_fpga(const int *A, const int *B, const int *bias, int *C, const int M,
 
 int main(){
   init_opencl("ops.xclbin");
-
-  const int M = 2048;
-  const int K = 512;
-  const int N = 49;
+//64 24 24
+  const int M = 64;
+  const int K = 24;
+  const int N = 24;
   int*A = new int[M*K];
   int*B = new int[K*N];
   int *C = new int[M*N];
