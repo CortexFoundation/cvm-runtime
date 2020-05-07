@@ -129,12 +129,14 @@ inline bool PadShape(const cvm::NodeAttrs& attrs,
 
   const PadParam& param = cvm::get<PadParam>(attrs.parsed);
   const auto& pad_width = param.pad_width;
+  const int pad_value = param.pad_value;
 
   uint32_t pdim = pad_width.ndim();
   VERIFY_EQ(pdim, 2*sdim);
   for (size_t i = 0; i < pdim; ++i) {
     VerifyAttrRange(pad_width[i], "pad.pad_width");
   }
+  VerifyAttrRange(pad_value, "pad.pad_value");
 
   std::vector<int64_t> oshape(sdim);
   for (size_t i = 0; i < sdim; ++i) {
