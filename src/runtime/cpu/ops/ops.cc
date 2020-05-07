@@ -701,7 +701,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cpu.pad")
         int col = o_i % y->shape[j];
         int lower = pad_width[2*j], upper = x->shape[j]+pad_width[2*j];
         if (col < lower || col >= upper) {
-          flag = false;  
+          flag = false;
           break;
         }
         o_i /= y->shape[j];

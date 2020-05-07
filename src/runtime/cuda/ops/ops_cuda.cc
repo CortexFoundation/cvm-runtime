@@ -796,6 +796,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.gpu.tile")
       deal_error(error_code, errorStr);
   });
 
+CVM_REGISTER_GLOBAL("cvm.runtime.gpu.pad")
+  .set_body([](CVMArgs args, CVMRetValue *ret){
+      DLTensor *x = args[0];
+      DLTensor *y = args[1];
+      void *_attr = args[2];
+      auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+      auto &param = cvm::get<cvm::top::PadParam>(attr->parsed);
+
+      int32_t xndim = x->ndim;
+
+      TShape pad_width = param.pad_width;
+      std::vector<int32_t> pad_data(xndim);
+      for (int i = 0; i < xndim; i++) {
+        pad_data[i] = pad_width[2*i];
+      }
+      int32_t pad_value = param.pad_value;
+
+      int32_t *x_data = static_cast<int32_t*>(x->data);
+      int32_t *y_data = static_cast<int32_t*>(y->data);
+
+
+      int error_code = NON_ERROR;
+      const char* errorStr = cuda_pad(x_data, pad_data.data(), pad_value, y_data, x->shape, y->shape, xndim, getSize(y), error_code);
+      deal_error(error_code, errorStr);
+  });
+
 CVM_REGISTER_GLOBAL("cvm.runtime.gpu.expand_dims")
   .set_body([](CVMArgs args, CVMRetValue *ret){
       DLTensor *ishape = args[0];
