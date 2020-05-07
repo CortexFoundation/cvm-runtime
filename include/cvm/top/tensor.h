@@ -54,6 +54,18 @@ struct TileParam : public utils::Parameter<TileParam> {
   }
 };
 
+struct PadParam : public utils::Parameter<PadParam> {
+  TShape pad_width;
+
+  CVMUTIL_DECLARE_PARAMETER(PadParam) {
+    CVMUTIL_DECLARE_FIELD(pad_width).set_default(TShape{0, 0, 0, 0, 0, 1, 0, 1})
+      .describe("Widths of the padding regions applied to the edges of each axis."
+                "It is a tuple of integer padding widths for each axis of the format"
+                "(before_1, after_1, ... , before_N, after_N)."
+                "It should be of length 2*N wgere N is the number of dimensions of the array."
+                "This is equivalent to pad_width in numpy.pad, but flattened.");
+  }
+};
 
 struct SplitParam : public utils::Parameter<SplitParam> {
   // numpy convention, only support indices, not support list.
