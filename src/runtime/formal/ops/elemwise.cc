@@ -96,12 +96,20 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_right_shift")
     int32_t a_max = alpha;
     auto size = CVMArgSize(args[0]);
     // T = floor((floor(X >> (shift_bit - 1)) + 1) >> 1)
-    std::vector<int32_t> T;
-    for (int32_t i = 0; i < size; ++i) {
-      T.push_back(((x_data[i] >> (params.shift_bit - 1)) + 1) >> 1); 
-    }
     // Y = clip(T, -alpha, alpha)
-    ClipAbstract(&T[0], y_data, a_max, a_min, size); 
+    for (uint32_t i = 0; i < size; i++) {
+      int32_t T = ((x_data[i] >> (params.shift_bit - 1)) + 1) >> 1;
+      // y = a_max, T >= a_max
+      if (T >= a_max){
+        y_data[i] = a_max;
+        // y = a_min, T <= a_min
+      } else if (T <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        // y = T, a_min < T < a_max
+        y_data[i] = T;
+      }
+    }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
@@ -116,12 +124,20 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
     int32_t a_max = alpha;
     auto size = CVMArgSize(args[0]);
     // T = X << shift_bit
-    std::vector<int32_t> T;
-    for (int32_t i = 0; i < size; ++i) {
-      T.push_back(x_data[i] << (int32_t)params.shift_bit); 
-    }
     // Y = clip(T, -alpha, alpha)
-    ClipAbstract(&T[0], y_data, a_max, a_min, size); 
+    for (uint32_t i = 0; i < size; i++) {
+      int32_t T = x_data[i] << (int32_t)params.shift_bit; 
+      // y = a_max, T >= a_max
+      if (T >= a_max){
+        y_data[i] = a_max;
+        // y = a_min, T <= a_min
+      } else if (T <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        // y = T, a_min < T < a_max
+        y_data[i] = T;
+      }
+    }
 });
 
 void FlattenX(int32_t *x, int32_t *y, int Size){
