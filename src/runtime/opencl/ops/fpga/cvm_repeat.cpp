@@ -1,6 +1,6 @@
 #define MAX_DIM 6
 extern "C"{
-void repeat(const int *x_data, int *y_data, const int ysize, const int ndim, const int axis, 
+void cvm_repeat(const int *x_data, int *y_data, const int ysize, const int ndim, const int axis, 
     const int repeat,
     const int xshp0, const int xshp1, const int xshp2, const int xshp3, const int xshp4, const int xshp5,
     const int yshp0, const int yshp1, const int yshp2, const int yshp3, const int yshp4, const int yshp5){

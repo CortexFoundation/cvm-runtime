@@ -30,8 +30,10 @@ shift:
       int tmp = buf_i[j];
       if(type == 0){ // right_shift
         tmp = ((tmp >> (shift_b -1)) + 1) >> 1;
-      }else{
+      }else if(type == 1){        // left_shift
         tmp = tmp << shift_b;
+      }else{
+        //clip   
       }
       if(tmp > max) tmp = max;
       if(tmp < min) tmp = min;

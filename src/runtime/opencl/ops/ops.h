@@ -341,13 +341,18 @@ void opencl_cvm_clip(const void *input, void*output, const int n, const int prec
   const int min = -(((int)1 << (precision-1))-1);
   const int max = -min;
 
-  cl_kernel kernel = get_kernel("cvm_clip");
+  cl_kernel kernel = get_kernel("cvm_shift");
 
-  clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&input);
-  clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&output);
-  clSetKernelArg(kernel, 2, sizeof(int), (void*)&n);
-  clSetKernelArg(kernel, 3, sizeof(int), (void*)&min);
-  clSetKernelArg(kernel, 4, sizeof(int), (void*)&max);
+  int index = 0;
+  const int shift_b = 0;
+  const int type = 2;
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
+  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&shift_b);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&min);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&max);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
 
   //printf("exe cvm clip %d %d %d\n", n, min, max);
   exe_kernel(kernel);
@@ -355,13 +360,17 @@ void opencl_cvm_clip(const void *input, void*output, const int n, const int prec
 }
 
 void opencl_clip(const void *input, void*output, const int n, const int max, const int min){
-  cl_kernel kernel = get_kernel("cvm_clip");
+  cl_kernel kernel = get_kernel("cvm_shift");
 
   int index = 0;
+  const int shift_b = 0;
+  const int type = 2;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&shift_b);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&max);
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&min);
 
   //printf("exe cvm clip %d %d %d\n", n, min, max);
@@ -410,12 +419,14 @@ void opencl_cvm_left_shift(const void *input, void *output, const int shift_b, c
 }
 
 void opencl_relu(const void* input, void*output, const int n){
-  cl_kernel kernel = get_kernel("relu");
+  cl_kernel kernel = get_kernel("cvm_math");
 
   int index = 0;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&input);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&output);
   clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  int type = 3;
+  clSetKernelArg(kernel, index++, sizeof(int), (void*)&type);
   exe_kernel(kernel);
 
   print_to_file(output, n, "relu.txt");
@@ -477,6 +488,9 @@ void opencl_broadcast(const void *a, const void* b, void *c,
 void opencl_dense(const void *a, const void *b, const void *bias, void *c, const int M, const int N, const int K, bool use_bias){
   cl_kernel kernel = use_bias == false ? get_kernel("dense") : get_kernel("dense_bias");
 
+  if(!use_bias){
+    printf("dense : use_bias = false\n");
+  }
   int index = 0;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&a);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&b);
@@ -593,21 +607,51 @@ void opencl_reduce(const void *x, void *y, const int xsize, const int ysize, con
 }
 
 void opencl_get_valid_count(const void *x_data, void *y_data, void *valid_count_data, const int32_t batch, const int32_t n, const int32_t k, const int32_t score_threshold){
-  cl_kernel kernel = get_kernel("get_valid_count");
-  int init_value = -1;
-  clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)y_data, &init_value, sizeof(int), 0, sizeof(int)*batch*n*k, 0, NULL, NULL);
-  int index = 0;
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x_data);
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&valid_count_data);
-  clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y_data);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&k);
-  clSetKernelArg(kernel, index++, sizeof(int), (void*)&score_threshold);
-  exe_kernel(kernel);
-  print_to_file(valid_count_data, batch, "valid_count.txt");
-  print_to_file(y_data, batch*n*k, "get_valid_count.txt");
-  print_to_file(x_data, batch*n*k, "get_valid_count_x.txt");
+  //cl_kernel kernel = get_kernel("get_valid_count");
+  //int init_value = -1;
+  //clEnqueueFillBuffer(openclDeviceAPI->queue, (cl_mem)y_data, &init_value, sizeof(int), 0, sizeof(int)*batch*n*k, 0, NULL, NULL);
+  //int index = 0;
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x_data);
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&valid_count_data);
+  //clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y_data);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&batch);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&n);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&k);
+  //clSetKernelArg(kernel, index++, sizeof(int), (void*)&score_threshold);
+  //exe_kernel(kernel);
+  //print_to_file(valid_count_data, batch, "valid_count.txt");
+  //print_to_file(y_data, batch*n*k, "get_valid_count.txt");
+  //print_to_file(x_data, batch*n*k, "get_valid_count_x.txt");
+
+  int *hx = new int[batch * n * k];
+  int *hy = new int[batch * n * k];
+  int *hv = new int[batch];
+  
+  clEnqueueReadBuffer(openclDeviceAPI->queue, (cl_mem)x_data, CL_TRUE, 0, sizeof(int) * batch * n * k, hx, 0, nullptr, nullptr); 
+
+  const int N = n;
+  const int K = k;
+  for(int i = 0; i < batch; i++){
+    int y_index = 0;
+    const int *input = hx + i * N * K;
+    int *output = hy + i * N * K;
+    for(int j = 0; j < N; j++){
+      const int *row = input + j * K;
+      if(row[1] > score_threshold){
+        for(int k = 0; k < K; k++){
+          output[y_index * K + k] = row[k]; 
+        }
+        y_index += 1;
+      }
+    }
+    hv[i] = y_index;
+  }
+
+  clEnqueueWriteBuffer(openclDeviceAPI->queue, (cl_mem)valid_count_data, CL_TRUE, 0, sizeof(int) * batch, hv, 0, nullptr, nullptr); 
+  clEnqueueWriteBuffer(openclDeviceAPI->queue, (cl_mem)y_data, CL_TRUE, 0, sizeof(int) * batch * n * k, hy, 0, nullptr, nullptr); 
+  delete hx;
+  delete hy;
+  delete hv;
 }
 
 inline int64_t iou(const int32_t *rect1, const int32_t *rect2, const int32_t format){
@@ -760,7 +804,7 @@ void opencl_repeat(const void *x_data, void *y_data, const int64_t *xshape,
   get_opencl_shape(xshape, xndim, dev_xshape);
   get_opencl_shape(yshape, yndim, dev_yshape);
 
-  cl_kernel kernel = get_kernel("repeat");
+  cl_kernel kernel = get_kernel("cvm_repeat");
   int index = 0;
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&x_data);
   clSetKernelArg(kernel, index++, sizeof(cl_mem), (void*)&y_data);

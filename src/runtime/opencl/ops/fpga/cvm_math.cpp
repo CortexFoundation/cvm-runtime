@@ -27,6 +27,9 @@ void cvm_math(const int *x, int *y, const int n, const int type){
       }
     }else if(type == 2){  // negative
       y[i] = -x_item;
+    }else if(type == 3){ // relu
+      if(x_item < 0) x_item = 0;
+      y[i] = x_item;
     }
   }
 }
