@@ -57,11 +57,12 @@ def download_files(category, files, base_url=src, root=dataset_dir):
 class Dataset:
     name = None
 
-    def __init__(self, input_shape, base_url=src, root=dataset_dir):
+    def __init__(self, input_shape, base_url=src, root=dataset_dir, dataset_dir=None):
         self.ishape = input_shape
 
         self.root_dir = download_files(
-            self.name, self.download_deps, base_url, root)
+            self.name, self.download_deps, base_url, root) \
+            if dataset_dir is None else dataset_dir
         for fname in self.download_deps:
             if fname.endswith(".tar") or fname.endswith(".tar.gz"):
                 extract_file(path.join(self.root_dir, fname), self.root_dir)

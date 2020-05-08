@@ -211,13 +211,15 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'dataset')
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir')
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp)
+        dataset = ds.DS_REG[ds_name](
+            shp, dataset_dir=dataset_dir if dataset_dir != '' else None)
         data_iter_func = dataset.iter_func()
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
         for i in range(calibrate_num):
