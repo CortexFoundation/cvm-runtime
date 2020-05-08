@@ -328,6 +328,9 @@ class Convolution(Transformer):
 @register_pass("prepare_for_compile")
 @register_transformer('Pad')
 class Pad(Transformer):
+    #TODO(ryt): currently pad_value is taken as 0
+    # revise pad_value with respect to scale
+    # if other constant value is taken into consideration
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
         attrs = kwargs['attr']
@@ -346,8 +349,8 @@ class Pad(Transformer):
         pad_width = list(eval(attrs['pad_width']))
         assert all([type(val).__name__ == 'int' for val in pad_width]), \
             "not a valid value: attrs['pad_width']"
-        attrs['pad_width'] = tuple([tuple((pad_width[i:i+2])) \
-            for i in range(0, len(pad_width), 2)])
+        #  attrs['pad_width'] = tuple([tuple((pad_width[i:i+2])) \
+            #  for i in range(0, len(pad_width), 2)])
 
         return get_nnvm_op('pad')(*childs, name=N.n('pad'), **attrs)
 
