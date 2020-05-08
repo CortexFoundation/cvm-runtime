@@ -194,7 +194,7 @@ const char* cuda_sum(const int32_t *x, int32_t *y, const uint64_t xsize, const u
 const char* cuda_reshape(const int32_t *x, int32_t *y, uint64_t size, int& error_code);
 const char* cuda_log(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
-const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
+// const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_cvm_clip(const int32_t* x, const int32_t precision, int32_t *y, const uint64_t n, int& error_code);
 const char* cuda_max(const int32_t *x, int32_t *y, const uint64_t xsize, const uint64_t ysize,
     const int64_t *xshape, const int64_t *yshape, const int32_t* realAxis, const int32_t* flag,
@@ -212,8 +212,8 @@ const char* cuda_upsampling_nearest(const int32_t *x_data, int32_t *y_data, cons
 const char* cuda_negative(const int32_t *x_data, int32_t *y_data, uint64_t n, int& error_code);
 const char* cuda_tile(const int32_t *x_data, int32_t *y_data, const uint64_t ysize, const int32_t yndim, const int32_t xndim,
         const int64_t *xshape, const int64_t *yshape, int& error_code);
-const char* cuda_pad(const int32_t *x_data, const int32_t *pad_data, const int32_t pad_value, int32_t *y_data,
-    const int64_t *xshape, const int64_t *yshape, const int32_t xndim, const uint64_t ysize, int& error_code);
+// const char* cuda_pad(const int32_t *x_data, const int32_t *pad_data, const int32_t pad_value, int32_t *y_data,
+    // const int64_t *xshape, const int64_t *yshape, const int32_t xndim, const uint64_t ysize, int& error_code);
 const char *cuda_expand_dims(const int32_t *ishape_data, int32_t *oshape_data, const int32_t axis, const uint64_t n, int& error_code);
 const char *cuda_squeeze(const int32_t *ishape_data, int32_t *oshape_data, const uint64_t n, int& error_code);
 const char* cuda_transpose(const int32_t *x_data, const int64_t *axes_data, int32_t *y_data,

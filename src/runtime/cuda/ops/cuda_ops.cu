@@ -152,24 +152,24 @@ const char* cuda_abs(const int32_t *x, int32_t *y, const uint64_t n, int& error_
   return check_cuda_error(error);
 }
 
-__global__ void kernel_sqrt(const int32_t *x, int32_t *y, const uint64_t n){
-  int tid = threadIdx.x + blockDim.x * blockIdx.x;
-  for(uint64_t i = tid; i < n; i += gridDim.x*blockDim.x){
-    y[i] = x[i] < 0 ? 0 : static_cast<int32_t>(sqrt(static_cast<double>(x[i])));
-  }
-}
-const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code){
-  const int32_t *dev_x = x;
-  int32_t *dev_y = y;
-  int bSize = 256;
-  int gSize = getGridSize(n, bSize);//(n + bSize - 1) / bSize;
-  kernel_sqrt<<<gSize, bSize>>>(dev_x, dev_y, n);
-  cudaError_t error = cudaGetLastError();
-  if(cudaSuccess != error){
-    error_code = ERROR_KERNEL;
-  }
-  return check_cuda_error(error);
-}
+/* __global__ void kernel_sqrt(const int32_t *x, int32_t *y, const uint64_t n){ */
+  /* int tid = threadIdx.x + blockDim.x * blockIdx.x; */
+  /* for(uint64_t i = tid; i < n; i += gridDim.x*blockDim.x){ */
+    /* y[i] = x[i] < 0 ? 0 : static_cast<int32_t>(sqrt(static_cast<double>(x[i]))); */
+  /* } */
+/* } */
+/* const char* cuda_sqrt(const int32_t *x, int32_t *y, const uint64_t n, int& error_code){ */
+  /* const int32_t *dev_x = x; */
+  /* int32_t *dev_y = y; */
+  /* int bSize = 256; */
+  /* int gSize = getGridSize(n, bSize);//(n + bSize - 1) / bSize; */
+  /* kernel_sqrt<<<gSize, bSize>>>(dev_x, dev_y, n); */
+  /* cudaError_t error = cudaGetLastError(); */
+  /* if(cudaSuccess != error){ */
+    /* error_code = ERROR_KERNEL; */
+  /* } */
+  /* return check_cuda_error(error); */
+/* } */
 
 __global__ void kernel_concatenate(int32_t **input, const int64_t *ishapes, const int32_t ndim, int32_t *out_data, const int32_t axis, const int64_t *axisSize, const int64_t oshape0, const int64_t oshape1, const int64_t oshape2, const int64_t oshape3, const int64_t oshape4, const int64_t oshape5){
   int32_t bid = blockIdx.x;
@@ -431,54 +431,54 @@ end:
   return check_cuda_error(cudaGetLastError());
 }
 
-__global__ void kernel_pad(const int32_t *x_data, int32_t *y_data, const uint64_t ndim, const int32_t ysize,
-    const int32_t xshp0, const int32_t xshp1, const int32_t xshp2, const int32_t xshp3, const int32_t xshp4, const int32_t xshp5,
-    const int32_t yshp0, const int32_t yshp1, const int32_t yshp2, const int32_t yshp3, const int64_t yshp4, const int64_t yshp5,
-    const int32_t pad0, const int32_t pad1, const int32_t pad2, const int32_t pad3, const int32_t pad4, const int32_t pad5,
-    const int32_t pad_value){
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5};
-  const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5};
-  const int32_t pad_before[MAX_DIM] = {pad0, pad1, pad2, pad3, pad4, pad5};
-  for(uint64_t i = tid; i < ysize; i+=gridDim.x*blockDim.x){
-    uint64_t o_i = i, in_i = 0, shapeSize = 1;
-    bool flag = true;
-    for(int j = ndim-1; j >= 0; j--){
-      int sj = j+MAX_DIM-ndim;
-      int col = o_i % yshape[sj];
-      int lower = pad_before[sj], upper = pad_before[sj]+pad_before[sj];
-      if (col < lower || col >= upper) {
-        flag = false;
-        break;
-      }
-      o_i /= yshape[j];
-      in_i += (col-lower) * shapeSize;
-      shapeSize *=  xshape[sj];
-    }
-    y_data[i] = flag ? x_data[in_i] : pad_value;
-  }
-}
-const char* cuda_pad(const int32_t *x_data, const int32_t *pad_data, const int32_t pad_value, int32_t *y_data,
-    const int64_t *xshape, const int64_t *yshape, const int32_t xndim, const uint64_t ysize, int& error_code){
-  int threadSize = 256;
-  int blockSize = getGridSize(ysize, threadSize);//(ysize + threadSize - 1) / threadSize;
-  int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM];
-  int32_t dev_pad[MAX_DIM];
-  get_cuda_shape(xshape, xndim, dev_xshape);
-  get_cuda_shape(yshape, xndim, dev_yshape);
-  get_cuda_shape(pad_data, xndim, dev_pad);
+/* __global__ void kernel_pad(const int32_t *x_data, int32_t *y_data, const uint64_t ndim, const int32_t ysize, */
+    /* const int32_t xshp0, const int32_t xshp1, const int32_t xshp2, const int32_t xshp3, const int32_t xshp4, const int32_t xshp5, */
+    /* const int32_t yshp0, const int32_t yshp1, const int32_t yshp2, const int32_t yshp3, const int64_t yshp4, const int64_t yshp5, */
+    /* const int32_t pad0, const int32_t pad1, const int32_t pad2, const int32_t pad3, const int32_t pad4, const int32_t pad5, */
+    /* const int32_t pad_value){ */
+  /* int tid = threadIdx.x + blockIdx.x * blockDim.x; */
+  /* const int64_t xshape[MAX_DIM] = {xshp0, xshp1, xshp2, xshp3, xshp4, xshp5}; */
+  /* const int64_t yshape[MAX_DIM] = {yshp0, yshp1, yshp2, yshp3, yshp4, yshp5}; */
+  /* const int32_t pad_before[MAX_DIM] = {pad0, pad1, pad2, pad3, pad4, pad5}; */
+  /* for(uint64_t i = tid; i < ysize; i+=gridDim.x*blockDim.x){ */
+    /* uint64_t o_i = i, in_i = 0, shapeSize = 1; */
+    /* bool flag = true; */
+    /* for(int j = ndim-1; j >= 0; j--){ */
+      /* int sj = j+MAX_DIM-ndim; */
+      /* int col = o_i % yshape[sj]; */
+      /* int lower = pad_before[sj], upper = pad_before[sj]+pad_before[sj]; */
+      /* if (col < lower || col >= upper) { */
+        /* flag = false; */
+        /* break; */
+      /* } */
+      /* o_i /= yshape[j]; */
+      /* in_i += (col-lower) * shapeSize; */
+      /* shapeSize *=  xshape[sj]; */
+    /* } */
+    /* y_data[i] = flag ? x_data[in_i] : pad_value; */
+  /* } */
+/* } */
+/* const char* cuda_pad(const int32_t *x_data, const int32_t *pad_data, const int32_t pad_value, int32_t *y_data, */
+    /* const int64_t *xshape, const int64_t *yshape, const int32_t xndim, const uint64_t ysize, int& error_code){ */
+  /* int threadSize = 256; */
+  /* int blockSize = getGridSize(ysize, threadSize);//(ysize + threadSize - 1) / threadSize; */
+  /* int64_t dev_xshape[MAX_DIM], dev_yshape[MAX_DIM]; */
+  /* int32_t dev_pad[MAX_DIM]; */
+  /* get_cuda_shape(xshape, xndim, dev_xshape); */
+  /* get_cuda_shape(yshape, xndim, dev_yshape); */
+  /* get_cuda_shape(pad_data, xndim, dev_pad); */
 
-  kernel_pad<<<blockSize, threadSize>>>(x_data, y_data, xndim, ysize,
-      dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5],
-      dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5],
-      dev_pad[0], dev_pad[1], dev_pad[2], dev_pad[3], dev_pad[4], dev_pad[5],
-      pad_value);
-  if(cudaSuccess != cudaGetLastError()){
-    error_code = ERROR_KERNEL;
-  }
+  /* kernel_pad<<<blockSize, threadSize>>>(x_data, y_data, xndim, ysize, */
+      /* dev_xshape[0], dev_xshape[1], dev_xshape[2], dev_xshape[3], dev_xshape[4], dev_xshape[5], */
+      /* dev_yshape[0], dev_yshape[1], dev_yshape[2], dev_yshape[3], dev_yshape[4], dev_yshape[5], */
+      /* dev_pad[0], dev_pad[1], dev_pad[2], dev_pad[3], dev_pad[4], dev_pad[5], */
+      /* pad_value); */
+  /* if(cudaSuccess != cudaGetLastError()){ */
+    /* error_code = ERROR_KERNEL; */
+  /* } */
 
-  return check_cuda_error(cudaGetLastError());
-}
+  /* return check_cuda_error(cudaGetLastError()); */
+/* } */
 
 const char *cuda_expand_dims(const int32_t *ishape_data, int32_t *oshape_data, const int32_t axis, const uint64_t n, int& error_code){
   if(oshape_data == ishape_data){
