@@ -303,6 +303,13 @@ if __name__ == "__main__":
         dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
         if dump:
             mrt.save(model_name_quant, datadir=model_dir)
+            oscales = mrt.get_output_scales()
+            inputs_ext = mrt.get_inputs_ext()
+            infos = ['oscales: ', oscales,
+                     'input_ext: ', inputs_ext,
+                     'input shapes: ', input_shape]
+            ext_all_file = path.join(model_dir, model_name+".all.quantize.ext")
+            sim.save_ext(ext_all_file, *infos)
         logger.info("`%s` stage finished" % sec)
     elif start_point == 4:
         _checkpoint_exist(
@@ -447,5 +454,10 @@ if __name__ == "__main__":
         model_root = path.join(dump_dir, model_name_tfm)
         np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
+        ext_file_tfm = path.join(model_root, model_name+".all.quantize.ext")
+        infos = ['oscales: ', oscales,
+                 'input_ext: ', inputs_ext,
+                 'input shapes: ', input_shape]
+        sim.save_ext(ext_file_tfm, *infos)
         logger.info("`%s` stage finished" % sec)
 

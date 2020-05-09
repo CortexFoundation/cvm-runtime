@@ -62,7 +62,7 @@ mkdir data
 
 The source files of MRT validation needed for the currently mainstream datasets and corresponding dataset label file (under `path/to/cvm-runtime/docs/mrt`) are:
 
-| dataset name | source files                                                 | dataset labels      |
+| Dataset Name | Source Files                                                 | Dataset Labels      |
 | ------------ | ------------------------------------------------------------ | ------------------- |
 | coco         | val2017.zip                                                  |                     |
 | voc          | VOCtest_06-Nov-2007.tar                                      | voc_labels.txt      |
@@ -76,7 +76,7 @@ Or download other custom dataset if needed.
 
 
 
-3.2. Preprocess Datasets
+3.2. Pre-process Datasets
 
 Please refer to https://gluon-cv.mxnet.io/build/examples_datasets/index.html for reference.
 
@@ -86,7 +86,7 @@ run `im2rec.py` as described in https://gluon-cv.mxnet.io/build/examples_dataset
 
 
 
-3.3. Predefined models
+3.3. Predefined Models
 
 Download predefined gluonzoo models, please refer to https://gluon-cv.mxnet.io/model_zoo/index.html for reference.
 
@@ -126,7 +126,17 @@ Create `<your_model_name>.ini` in `path/to/cvm-runtime/python/mrt/model_zoo`, pl
 
 3.5. Run MRT
 
- The main process of MRT is: `preparation`, `split model` (detection models only), `calibration`, `quantization`, `merge model` (detection models only), `evaluation` (optional) and `compilation` (optional).
+ MRT includes pre-process stages, quantization stage and post process stages, including `preparation`, `split model`, `calibration`, `quantization`, `merge model`, `evaluation` and `compilation`. The main work done in each stage is:
+
+| Stage        | Main Work                                                    |
+| ------------ | ------------------------------------------------------------ |
+| prepare      | Model initializtion: duplicate name check, attach input shape, fuse multiple inputs, input name replacement and validate attributes of operators, fuse multiple outputs, fuse constant, fuse transpose, equivalent operator transformation and get unique parameters. |
+| split model  | Split the given model with respect to the given operator names (detections models only). |
+| calibration  | Calibrate the current model after setting mrt data. See https://github.com/CortexFoundation/cvm-runtime/blob/ryt_tune/docs/mrt/mrt.md for related APIs. |
+| quantization | Quantize the current model after calibration. See https://github.com/CortexFoundation/cvm-runtime/blob/ryt_tune/docs/mrt/mrt.md for related APIs. |
+| merge model  | Merge the split models with respect to the given operator names (detections models only). |
+| evaluation   | (Optional stage) Compare the results between the predefined model and the quantized model based on the given dataset. See https://github.com/CortexFoundation/cvm-runtime/blob/ryt_tune/docs/mrt/mrt.md for model accuracy tested. |
+| compilation  | (Optional stage) Compile the quantized graph into cvm graph and dump the graph define, parameters, pre-quantize model ext and unit-batch test data. |
 
 Please run the following command under `path/to/cvm-runtime/` to execute the MRT:
 
