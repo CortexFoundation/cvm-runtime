@@ -60,17 +60,17 @@ mkdir data
 
 3.1. Download (Customize) dataset
 
-The source packages of MRT validation needed for the currently mainstream datasets are:
+The source files of MRT validation needed for the currently mainstream datasets and corresponding dataset label file (under `path/to/cvm-runtime/docs/mrt`) are:
 
-| dataset name | source                                                       |
-| ------------ | ------------------------------------------------------------ |
-| coco         | val2017.zip                                                  |
-| voc          | VOCtest_06-Nov-2007.tar                                      |
-| imagenet     | rec/val.rec, rec/val.idx                                     |
-| cifar10      | cifar-10-binary.tar.gz                                       |
-| quickdraw    | quickdraw_X.npy, quickdraw_y.npy (is_train=True)<br />or<br />quickdraw_X_test.npy, quickdraw_y_test.npy (is_train=False) |
-| mnist        | t10k-images-idx3-ubyte.gz, t10k-labels-idx1-ubyte.gz, train-images-idx3-ubyte.gz, train-labels-idx1-ubyte.gz |
-| trec         | TREC.train.pk, TREC.test.pk                                  |
+| dataset name | source files                                                 | dataset labels      |
+| ------------ | ------------------------------------------------------------ | ------------------- |
+| coco         | val2017.zip                                                  |                     |
+| voc          | VOCtest_06-Nov-2007.tar                                      | voc_labels.txt      |
+| imagenet     | rec/val.rec<br />rec/val.idx                                 | imagenet_labels.txt |
+| cifar10      | cifar-10-binary.tar.gz                                       |                     |
+| quickdraw    | quickdraw_X.npy<br />quickdraw_y.npy (is_train=True)<br />**or**<br />quickdraw_X_test.npy<br />quickdraw_y_test.npy (is_train=False) |                     |
+| mnist        | t10k-images-idx3-ubyte.gz<br />t10k-labels-idx1-ubyte.gz<br />train-images-idx3-ubyte.gz<br />train-labels-idx1-ubyte.gz |                     |
+| trec         | TREC.train.pk<br />TREC.test.pk                              |                     |
 
 Or download other custom dataset if needed.
 
