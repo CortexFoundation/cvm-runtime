@@ -1295,7 +1295,7 @@ class Clip(Transformer):
         scales[name] = iscale = scales[X.attr('name')]
         a_min = int(sutils.get_attr(attrs, "a_min") * iscale)
         a_max = int(sutils.get_attr(attrs, "a_max") * iscale)
-        precs[name][OUT_KEY] = get_bit(a_max)
+        precs[name][OUT_KEY] = get_bit(max(abs(a_min), a_max))
         return mx.sym.clip(X, a_min=a_min, a_max=a_max, name=name)
 
     def compile(self, op, **kwargs):
