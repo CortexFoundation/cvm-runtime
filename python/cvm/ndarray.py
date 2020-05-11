@@ -184,7 +184,7 @@ def empty(shape, dtype="int32", ctx=cpu()):
         ctypes.byref(handle)))
     return _make_array(handle)
 
-def array(arr, dtype="int32", ctx=cpu()):
+def array(arr, ctx=cpu()):
     """Create an array from source arr.
 
     Parameters
@@ -202,7 +202,7 @@ def array(arr, dtype="int32", ctx=cpu()):
     """
     if not isinstance(arr, (np.ndarray, NDArray)):
         arr = np.array(arr, np.int32)
-    return empty(arr.shape, dtype, ctx).copyfrom(arr)
+    return empty(arr.shape, arr.dtype, ctx).copyfrom(arr)
 
 def save_param_dict(dict_data):
     data = []
