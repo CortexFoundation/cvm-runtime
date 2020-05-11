@@ -328,6 +328,9 @@ class Convolution(Transformer):
 @register_pass("prepare_for_compile")
 @register_transformer('Pad')
 class Pad(Transformer):
+    #TODO(ryt): currently pad_value is taken as 0
+    # revise pad_value with respect to scale
+    # if other constant value is taken into consideration
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
         attrs = kwargs['attr']
@@ -336,7 +339,7 @@ class Pad(Transformer):
             "nnvm pad symbol only support `constant` pad"
         del attrs['mode']
 
-        pad_value = eval(attrs.get('constant_value', 0))
+        pad_value = eval(attrs.get('constant_value', '0'))
         assert type(pad_value).__name__ in ['int', 'float'], \
             "not a valid value: attrs['constant_value']"
         attrs['pad_value'] = pad_value
@@ -346,8 +349,8 @@ class Pad(Transformer):
         pad_width = list(eval(attrs['pad_width']))
         assert all([type(val).__name__ == 'int' for val in pad_width]), \
             "not a valid value: attrs['pad_width']"
-        attrs['pad_width'] = tuple([tuple((pad_width[i:i+2])) \
-            for i in range(0, len(pad_width), 2)])
+        #  attrs['pad_width'] = tuple([tuple((pad_width[i:i+2])) \
+            #  for i in range(0, len(pad_width), 2)])
 
         return get_nnvm_op('pad')(*childs, name=N.n('pad'), **attrs)
 
@@ -850,7 +853,6 @@ class BroadcastMul(Transformer):
             infer_prec = xprec + bprec
             precs[name][OUT_KEY] = infer_prec
 
-
         logger = logging.getLogger('log.mrt.realize')
         logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
                      op_name, name, scales[name], cns)
@@ -1289,18 +1291,12 @@ class Clip(Transformer):
         name, X_name = op.attr('name'), X.attr('name')
         attrs = op.list_attr()
 
-        # a_max = sutils.get_attr(attrs, "a_max")
-        # out = mx.sym.relu(X, name=N.n('relu'))
-        # precs[out.attr('name')] = {
-            # OUT_KEY: precs[X_name][OUT_KEY]}
-        # scales[out.attr('name')] = scales[X_name]
-        # return out
-
+        # `a_max`, `a_min` and precision should be align with CVM-Runtime
         scales[name] = iscale = scales[X.attr('name')]
-        a_min = sutils.get_attr(attrs, "a_min") * iscale
-        a_max = sutils.get_attr(attrs, "a_max") * iscale
-        precs[name][OUT_KEY] = min(get_bit(th_dict[name]*iscale), get_bit(int(a_max)))
-        return mx.sym.clip(X, a_min=int(a_min), a_max=int(a_max), name=name)
+        a_min = int(sutils.get_attr(attrs, "a_min") * iscale)
+        a_max = int(sutils.get_attr(attrs, "a_max") * iscale)
+        precs[name][OUT_KEY] = get_bit(max(abs(a_min), a_max))
+        return mx.sym.clip(X, a_min=a_min, a_max=a_max, name=name)
 
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
@@ -1599,6 +1595,7 @@ class L2Normalization(Transformer):
         scale_product = xs*xs
 
         # sum
+        # TODO(ryt): precision check align with runtime infer precision
         mode = attrs.get('mode', 'instance')
         if mode == "channel":
             axis = [1]
@@ -1611,7 +1608,7 @@ class L2Normalization(Transformer):
         sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'))
 
         # broadcast_add eps
-        eps_val = eval(attrs.get('eps', '1e-10')) * scale_product
+        eps_val = int(eval(attrs.get('eps', '1e-10')) * scale_product)
         eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
         add_eps = mx.sym.broadcast_add(sum_reduce, eps, N.n('l2norm_add'))
 
@@ -1636,6 +1633,7 @@ class L2Normalization(Transformer):
         return op
 
 @register_pass("prepare_for_compile")
+@register_pass("compile")
 @register_transformer("sqrt")
 class Sqrt(Transformer):
     pass

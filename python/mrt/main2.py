@@ -211,13 +211,15 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'dataset')
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir')
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp)
+        dataset = ds.DS_REG[ds_name](
+            shp, dataset_dir=dataset_dir if dataset_dir != '' else None)
         data_iter_func = dataset.iter_func()
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
         for i in range(calibrate_num):
@@ -301,6 +303,13 @@ if __name__ == "__main__":
         dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
         if dump:
             mrt.save(model_name_quant, datadir=model_dir)
+            oscales = mrt.get_output_scales()
+            inputs_ext = mrt.get_inputs_ext()
+            infos = ['oscales: ', oscales,
+                     'input_ext: ', inputs_ext,
+                     'input shapes: ', input_shape]
+            ext_all_file = path.join(model_dir, model_name+".all.quantize.ext")
+            sim.save_ext(ext_all_file, *infos)
         logger.info("`%s` stage finished" % sec)
     elif start_point == 4:
         _checkpoint_exist(
@@ -442,7 +451,13 @@ if __name__ == "__main__":
         dump_data, _ = dataset.iter_func()()
         dump_data = sim.load_real_data(
             dump_data.astype("float64"), 'data', mrt.get_inputs_ext())
-        np.save(path.join(dump_dir, model_name_tfm, "data.npy"),
+        model_root = path.join(dump_dir, model_name_tfm)
+        np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
+        ext_file_tfm = path.join(model_root, model_name+".all.quantize.ext")
+        infos = ['oscales: ', oscales,
+                 'input_ext: ', inputs_ext,
+                 'input shapes: ', input_shape]
+        sim.save_ext(ext_file_tfm, *infos)
         logger.info("`%s` stage finished" % sec)
 
