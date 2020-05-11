@@ -30,6 +30,10 @@ namespace cvm{
 namespace runtime {
 // #define CVM_PRINT_OP_RESULT
 //
+
+
+  
+  
 template<typename DType>
 inline DType* CVMArg2Data(cvm::runtime::CVMArgValue const& av) {
   DLTensor *tensor = av.operator DLTensor *();
@@ -58,6 +62,35 @@ inline int64_t CVMArgSize(cvm::runtime::CVMArgValue const& av) {
   int64_t size = 1;
   for(int i = 0; i < tensor->ndim; ++i) size *= tensor->shape[i];
   return size;
+}
+
+inline int32_t CVMShapeBegin(cvm::runtime::CVMArgValue const& av){
+  return 0;
+}
+
+inline int32_t CVMShapeEnd(cvm::runtime::CVMArgValue const& av){
+  return CVMArgSize(av);
+}
+
+//  Convert an index (id_1, id_2,,, id_n) into a number using shape (s_1, s_2,,, s_n) as its base.
+inline int64_t Index2Number(const std::vector<int64_t>& shape,
+                            const std::vector<int64_t>& index){
+      auto number = index[0];
+      for (auto i = 1; i < shape.size(); i++){
+        number = number * shape[i] + index[i];
+      }
+      return number;
+}
+
+//  Add index (id_1, id_2,,, id_n) with 1 using shape (s_1, s_2,,, s_n) as its shape
+inline void IndexBaseShapeAddOne(const std::vector<int64_t>& shape,
+                                 std::vector<int64_t>& index){
+      auto cnt = shape.size() - 1;
+      index[cnt]++;
+      while (cnt > 0 && index[cnt] == shape[cnt]){
+        index[cnt--] = 0;
+        index[cnt]++;
+      }
 }
 
 const std::string DIR = "/tmp/zkh/ssd/";
