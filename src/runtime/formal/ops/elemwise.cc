@@ -15,7 +15,7 @@ static void elemwise(const cvm::runtime::CVMArgValue& A,
     auto a = CVMArg2Data<int32_t>(A); 
     auto b = CVMArg2Data<int32_t>(B); 
     auto c = CVMArg2Data<int32_t>(Y); 
-    for(int32_t i = cvm::runtime::CVMShapeBegin(A); i < cvm::runtime::CVMShapeEnd(A); i++){
+    for(int32_t i = CVMShapeBegin(A); i < CVMShapeEnd(A); i++){
       c[i] = f(a[i], b[i]);
     }
 }
@@ -40,21 +40,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_sub")
   elemwise(args[0], args[1], args[2], f);
 });
 
-void ClipAbstract(int32_t *x, int32_t *y, int64_t a_max, int64_t a_min, uint32_t n){
-   for (uint32_t i = 0; i < n; i++) {
-      // y = a_max, x >= a_max
-      if (x[i] >= a_max){
-        y[i] = a_max;
-        // y = a_min, x <= a_min
-      } else if (x[i] <= a_min) {
-        y[i] = a_min;
-      } else {
-        // y = x, a_min < x < a_max
-        y[i] = x[i];
-      }
-    }
-}
-
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
 .set_body([](CVMArgs args, CVMRetValue* rv){
    auto param = CVMArg2Attr<cvm::top::ClipParam>(args[2]);
@@ -62,7 +47,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
    int64_t a_min = param.a_min;
    auto x_data = CVMArg2Data<int32_t>(args[0]); 
    auto y_data = CVMArg2Data<int32_t>(args[1]); 
-   ClipAbstract(x_data, y_data, a_max, a_min, CVMArgSize(args[0])); 
+   auto size = CVMArgSize(args[0]); 
+   for (uint32_t i = 0; i < size; i++) {
+      // y = a_max, x >= a_max
+      if (x_data[i] >= a_max){
+        y_data[i] = a_max;
+        // y = a_min, x <= a_min
+      } else if (x_data[i] <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        // y = x, a_min < x < a_max
+        y_data[i] = x_data[i];
+      }
+   }
 });
 
 
@@ -80,7 +77,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
   int64_t a_min = -alpha;
   int64_t a_max = -a_min;
   // Y = clip(X, -alpha, alpha)
-  ClipAbstract(x_data, y_data, a_max, a_min, CVMArgSize(args[0])); 
+  auto size = CVMArgSize(args[0]); 
+  for (uint32_t i = 0; i < size; i++) {
+      // y = a_max, x >= a_max
+      if (x_data[i] >= a_max){
+        y_data[i] = a_max;
+        // y = a_min, x <= a_min
+      } else if (x_data[i] <= a_min) {
+        y_data[i] = a_min;
+      } else {
+        // y = x, a_min < x < a_max
+        y_data[i] = x_data[i];
+      }
+  }
 }
 );
 
@@ -151,7 +160,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.flatten")
     auto x_shape = CVMArgShape(X);
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
-    FlattenX(x_data, y_data, CVMShapeEnd(X));
+    if(x_data == y_data) return;
+    FlattenX(x_data, y_data, CVMArgSize(X));
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
@@ -162,7 +172,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.reshape")
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
     if(x_data == y_data) return;
-    FlattenX(x_data, y_data, CVMShapeEnd(X));
+    FlattenX(x_data, y_data, CVMArgSize(X));
 });
 
 }
