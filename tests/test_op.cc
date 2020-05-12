@@ -644,7 +644,7 @@ void test_op(string op_name) {
 int main() {
   // test_op("max_pool2d");
   // test_op("upsampling");
-  // test_op("dense");
+   test_op("dense");
   // test_op("conv2d");
   // test_op("sum");
   // test_op("max"); // pass

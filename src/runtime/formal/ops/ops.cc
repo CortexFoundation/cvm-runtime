@@ -17,51 +17,55 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.relu")
   print_to_file(y, "relu.txt");
 });
 
-/*
-* x : M*K
-* w : N*K
-* b : N
-* y : M*N
-/data/std_out/shufflenet*/
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
+
+  // inputs X, W, B 
+  // outpus Y 
+  auto X = args[0];
+  auto W = args[1];
   int ndim = args.num_args;
-  DLTensor *x = args[0];
-  DLTensor *w = args[1];
-  DLTensor *bias = nullptr;
-  DLTensor *y = nullptr;
-  int32_t* bias_data = nullptr;
+  auto Y = X;
   if(ndim == 5){
-    bias = args[2];
-    y = args[3];
-    bias_data = static_cast<int32_t*>(bias->data);
+    Y = args[3];
   } else{
-    y = args[2];
+    Y = args[2];
   }
 
-  auto x_data = static_cast<int32_t*>(x->data);
-  auto y_data = static_cast<int32_t*>(y->data);
-  auto w_data = static_cast<int32_t*>(w->data);
-  for (int64_t di = 0; di < y->shape[0]; ++di) {
-    int32_t y_offset = di * y->shape[1], x_offset = di * x->shape[1];
-    for (int64_t oi = 0; oi < y->shape[1]; ++oi) {
-      int32_t sum = 0, w_offset = oi * w->shape[1];
-      for (int64_t xi = 0; xi < x->shape[1]; ++xi) {
-        sum += x_data[x_offset + xi] * w_data[w_offset + xi];
-      }
-      y_data[y_offset + oi] = sum;
-    }
-  }
-  if (bias_data != nullptr) {
-    for (int64_t di = 0; di < y->shape[0]; ++di) {
-      int32_t y_offset = di * y->shape[1];
-      for (int64_t oi = 0; oi < y->shape[1]; ++oi) {
-        y_data[y_offset + oi] += bias_data[oi];
-      }
-    }
-  }
-  print_to_file(y, "dense.txt");
+  // X.shape = (M, K)
+  // W.shape = (N, K)
+  // B.shape = (N,)
+  // Y.shape = (M, N)
+  auto X_shape = CVMArgShape(X);
+  auto W_shape = CVMArgShape(W);
+  auto Y_shape = CVMArgShape(Y);
 
+  auto x_data = CVMArg2Data<int32_t>(X); 
+  auto w_data = CVMArg2Data<int32_t>(W); 
+  auto y_data = CVMArg2Data<int32_t>(Y); 
+  // Y = X * WT
+  for (int64_t m = 0; m < Y_shape[0]; ++m) {
+    // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
+    int32_t y_offset = m * Y_shape[1], x_offset = m * X_shape[1];
+    for (int64_t n = 0; n < Y_shape[1]; ++n) {
+      int32_t sum = 0, w_offset = n * W_shape[1];
+      for (int64_t k = 0; k < X_shape[1]; ++k) {
+        sum += x_data[x_offset + k] * w_data[w_offset + k];
+      }
+      y_data[y_offset + n] = sum;
+    }
+  }
+  // if B is not None, Y = X * WT + B
+  if(ndim == 5){
+    auto B = args[2];
+    auto B_data = CVMArg2Data<int32_t>(B); 
+    for (int64_t m = 0; m < Y_shape[0]; ++m) {
+      int32_t y_offset = m * Y_shape[1];
+      for (int64_t n = 0; n < Y_shape[1]; ++n) {
+        y_data[y_offset + n] += B_data[n];
+      }
+    }
+  }
 });
 
 void conv2d(
