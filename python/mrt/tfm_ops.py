@@ -1605,7 +1605,10 @@ class L2Normalization(Transformer):
             axis = [2,3]
         else:
             assert "not valid `mode` type: %s" % mode
-        sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'))
+        shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
+        reps = tuple([shp if i in axis else 1 for i, shp in enumerate(list(shape))])
+
+        sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'), keepdims=True)
 
         # broadcast_add eps
         eps_val = int(eval(attrs.get('eps', '1e-10')) * scale_product)
@@ -1615,12 +1618,9 @@ class L2Normalization(Transformer):
         # get root
         op = mx.sym.sqrt(add_eps, N.n('l2norm_root'))
 
-        # exert `expand_dims` and `repeat` on `op` 
+        # exert `tile` on `op`
         # to get the same shape as 'X'
-        shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
-        for i in axis:
-            op = mx.sym.expand_dims(op, axis=i, name=N.n('l2norm_exp'))
-            op = mx.sym.repeat(op, repeats=shape[i], axis=i, name=N.n('l2norm_rp'))
+        op = mx.sym.tile(op, reps=reps)
 
         # since `op` and `X`
         op = mx.sym.broadcast_div(X, op, name=name)
