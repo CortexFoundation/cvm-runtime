@@ -25,12 +25,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   auto X = args[0];
   auto W = args[1];
   int ndim = args.num_args;
-  auto Y = X;
-  if(ndim == 5){
-    Y = args[3];
-  } else{
-    Y = args[2];
-  }
+  auto Y = (ndim == 5) ? args[3] : args[2];
 
   // X.shape = (M, K)
   // W.shape = (N, K)
@@ -40,29 +35,30 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   auto W_shape = CVMArgShape(W);
   auto Y_shape = CVMArgShape(Y);
 
-  auto x_data = CVMArg2Data<int32_t>(X); 
-  auto w_data = CVMArg2Data<int32_t>(W); 
-  auto y_data = CVMArg2Data<int32_t>(Y); 
+  auto X_data = CVMArg2Data<int32_t>(X); 
+  auto W_data = CVMArg2Data<int32_t>(W); 
+  auto Y_data = CVMArg2Data<int32_t>(Y); 
   // Y = X * WT
   for (int64_t m = 0; m < Y_shape[0]; ++m) {
     // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
-    int32_t y_offset = m * Y_shape[1], x_offset = m * X_shape[1];
+    int32_t Y_offset = m * Y_shape[1], X_offset = m * X_shape[1];
     for (int64_t n = 0; n < Y_shape[1]; ++n) {
-      int32_t sum = 0, w_offset = n * W_shape[1];
+      int32_t sum = 0, W_offset = n * W_shape[1];
       for (int64_t k = 0; k < X_shape[1]; ++k) {
-        sum += x_data[x_offset + k] * w_data[w_offset + k];
+        sum += X_data[X_offset + k] * W_data[W_offset + k];
       }
-      y_data[y_offset + n] = sum;
+      Y_data[Y_offset + n] = sum;
     }
   }
   // if B is not None, Y = X * WT + B
-  if(ndim == 5){
+  auto param = CVMArg2Attr<cvm::top::DenseParam>(args[args.size()-1]);
+  if (param.use_bias) {
     auto B = args[2];
     auto B_data = CVMArg2Data<int32_t>(B); 
     for (int64_t m = 0; m < Y_shape[0]; ++m) {
-      int32_t y_offset = m * Y_shape[1];
+      int32_t Y_offset = m * Y_shape[1];
       for (int64_t n = 0; n < Y_shape[1]; ++n) {
-        y_data[y_offset + n] += B_data[n];
+        Y_data[Y_offset + n] += B_data[n];
       }
     }
   }

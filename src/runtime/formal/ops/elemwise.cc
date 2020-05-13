@@ -42,7 +42,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.elemwise_sub")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.clip")
 .set_body([](CVMArgs args, CVMRetValue* rv){
-   auto param = CVMArg2Attr<cvm::top::ClipParam>(args[2]);
+   auto param = CVMArg2Attr<cvm::top::ClipParam>(args[args.size()-1]);
    int64_t a_max = param.a_max;
    int64_t a_min = param.a_min;
    auto x_data = CVMArg2Data<int32_t>(args[0]); 
@@ -68,7 +68,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_clip")
 {
   auto x_data = CVMArg2Data<int32_t>(args[0]); 
   auto y_data = CVMArg2Data<int32_t>(args[1]); 
-  auto param = CVMArg2Attr<cvm::top::CVMClipParam>(args[2]);
+  auto param = CVMArg2Attr<cvm::top::CVMClipParam>(args[args.size()-1]);
   int64_t precision = param.precision;
   // alpha = 2^(precision-1) - 1
   int64_t alpha =  (((int64_t)1 << (precision-1))-1);
@@ -125,7 +125,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_left_shift")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     auto x_data = CVMArg2Data<int32_t>(args[0]); 
     auto y_data = CVMArg2Data<int32_t>(args[1]); 
-    auto params = CVMArg2Attr<cvm::top::CVMRightShiftParam>(args[2]);
+    auto params = CVMArg2Attr<cvm::top::CVMLeftShiftParam>(args[args.size()-1]);
     int32_t precision = params.precision;
     // alpha = 2^(precision-1) - 1
     int32_t alpha =  (((int64_t)1 << (precision-1))-1);
