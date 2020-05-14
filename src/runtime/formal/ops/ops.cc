@@ -334,28 +334,35 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.repeat")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    void *_attr = args[2];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::RepeatParam>(attr->parsed);
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int32_t axis = param.axis;
-    int32_t repeat = param.repeats;
-    int32_t ndim = x->ndim;
-    if(axis < 0) axis = axis + ndim;
 
-    for(uint64_t i = 0; i < getSize(y); i++){
-      uint64_t o_i = i, in_i = 0, shapeSize = 1;
-      for(int j = ndim-1; j >= 0; j--){
-        uint64_t col = o_i % y->shape[j];
-        o_i /= y->shape[j];
-        if(j == axis) col = col / repeat;
-        in_i += col * shapeSize;
-        shapeSize *= x->shape[j];
+    // inputs: X
+    // attr: repeats, axis
+    // outputs: Y
+    // X.shape = (n_0, n_1,,n_axis,, n_{N-1})
+    // Y.shape = (n_0, n_1,,n_axis * repeats, n_{N-1})
+    auto X = args[0];
+    auto Y = args[1];
+    auto X_shape = CVMArgShape(X);
+    auto Y_shape = CVMArgShape(Y);
+    auto X_data = CVMArg2Data<int32_t>(X);
+    auto Y_data = CVMArg2Data<int32_t>(Y);
+    auto param = CVMArg2Attr<cvm::top::RepeatParam>(args[args.size()-1]);
+    int32_t axis = param.axis;
+    int32_t repeats = param.repeats;
+    int32_t ndim = X_shape.size();
+    if(axis < 0) axis = axis + ndim;
+    // y_k, x_k represent the coordinate index of Y.shape, X.shape, respectively
+    std::vector<int64_t> Y_k(Y_shape.size(), 0), X_k(X_shape.size(), 0);
+    for (auto i = CVMShapeBegin(Y); i < CVMShapeEnd(Y); i++){
+      int index0 = Index2Number(Y_shape, Y_k);
+      int index1 = Index2Number(X_shape, X_k);
+      Y_data[index0] = X_data[index1];
+      IndexBaseShapeAddOne(Y_shape, Y_k);
+      // Y[n_0, n_1,,n_axis,, n_{N-1}] = X[n_0, n_1,,n_axis/repeats,, n_{N-1}]
+      for (auto j = 0; j < ndim; j++){
+        X_k[j] = Y_k[j];
       }
-      y_data[i] = x_data[in_i];
+      X_k[axis] /= repeats;
     }
 });
 

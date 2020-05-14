@@ -396,13 +396,15 @@ int findAllSubDir(std::vector<string> &filelist, const char *basePath, int type)
     return 1;
 }
 void read_one_line(string filename, string& str){
+    std::cout << "Try to read: " << filename << std::endl;
     ifstream infile;
     infile.open(filename);
     if(!infile.is_open()){
       printf("file no exist : %s\n", filename.c_str());
-        str = "";
-        return;
+      str = "";
+      return;
     }
+    std::cout << "Read File: " << filename << std::endl;
     getline(infile, str);
     infile.close();
 }
@@ -650,7 +652,7 @@ int main() {
   // test_op("max"); // pass
   // test_op("slice_like");
   // test_op("tile"); //pass
-  // test_op("repeat"); //pass
+   test_op("repeat"); //pass
   // test_op("get_valid_counts");
 
   // test_op("strided_slice"); //pass
