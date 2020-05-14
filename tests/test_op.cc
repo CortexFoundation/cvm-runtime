@@ -396,7 +396,6 @@ int findAllSubDir(std::vector<string> &filelist, const char *basePath, int type)
     return 1;
 }
 void read_one_line(string filename, string& str){
-    std::cout << "Try to read: " << filename << std::endl;
     ifstream infile;
     infile.open(filename);
     if(!infile.is_open()){
@@ -404,7 +403,6 @@ void read_one_line(string filename, string& str){
       str = "";
       return;
     }
-    std::cout << "Read File: " << filename << std::endl;
     getline(infile, str);
     infile.close();
 }

@@ -46,7 +46,7 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
     // Y.shape = (k_0, k_1,,, k_{K-1}), k_i = max(SA_i, SB_i)  
     // For \forall i \in [0, K)], d_{i} \in [0, k_{i})
     for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
-      for (u_int32_t i = 0; i < K; i++){
+      for (uint32_t i = 0; i < K; i++){
         // a_i = min(d_{i}, SA_i-1)
         a_k[i] = (SA[i] - 1 < d_k[i]) ? SA[i] - 1 : d_k[i];
 

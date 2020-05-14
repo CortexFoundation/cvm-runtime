@@ -24,8 +24,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   // outpus Y 
   auto X = args[0];
   auto W = args[1];
-  int ndim = args.num_args;
-  auto Y = (ndim == 5) ? args[3] : args[2];
+  auto param = CVMArg2Attr<cvm::top::DenseParam>(args[args.size()-1]);
+  auto Y = (param.use_bias) ? args[3] : args[2];
 
   // X.shape = (M, K)
   // W.shape = (N, K)
@@ -51,7 +51,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
     }
   }
   // if B is not None, Y = X * WT + B
-  auto param = CVMArg2Attr<cvm::top::DenseParam>(args[args.size()-1]);
   if (param.use_bias) {
     auto B = args[2];
     auto B_data = CVMArg2Data<int32_t>(B); 
@@ -349,19 +348,15 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.repeat")
     auto param = CVMArg2Attr<cvm::top::RepeatParam>(args[args.size()-1]);
     int32_t axis = param.axis;
     int32_t repeats = param.repeats;
-    int32_t ndim = X_shape.size();
-    if(axis < 0) axis = axis + ndim;
+    if(axis < 0) axis = axis + X_shape.size();
     // y_k, x_k represent the coordinate index of Y.shape, X.shape, respectively
     std::vector<int64_t> Y_k(Y_shape.size(), 0), X_k(X_shape.size(), 0);
     for (auto i = CVMShapeBegin(Y); i < CVMShapeEnd(Y); i++){
-      int index0 = Index2Number(Y_shape, Y_k);
       int index1 = Index2Number(X_shape, X_k);
-      Y_data[index0] = X_data[index1];
+      Y_data[i] = X_data[index1];
       IndexBaseShapeAddOne(Y_shape, Y_k);
       // Y[n_0, n_1,,n_axis,, n_{N-1}] = X[n_0, n_1,,n_axis/repeats,, n_{N-1}]
-      for (auto j = 0; j < ndim; j++){
-        X_k[j] = Y_k[j];
-      }
+      X_k = Y_k;
       X_k[axis] /= repeats;
     }
 });
