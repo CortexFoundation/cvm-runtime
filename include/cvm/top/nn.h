@@ -13,6 +13,9 @@
 #include <string>
 #include "tensor.h"
 
+#define FORMAT_CORNER 1
+#define FORMAT_CENTER 2
+
 namespace cvm {
 namespace top {
 

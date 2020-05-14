@@ -296,6 +296,8 @@ class CVMArgs {
   const CVMValue* values;
   const int* type_codes;
   int num_args;
+
+  DLTensor* ext_space = nullptr;
   /*!
    * \brief constructor
    * \param values The argument values
@@ -304,10 +306,12 @@ class CVMArgs {
    */
   CVMArgs(const CVMValue* values,
           const int* type_codes,
-          int num_args)
+          int num_args,
+          DLTensor* es = nullptr)
       : values(values),
         type_codes(type_codes),
-        num_args(num_args) { }
+        num_args(num_args),
+        ext_space(es) { }
   /*! \return size of the arguments */
   inline int size() const;
   /*!
@@ -1285,15 +1289,7 @@ inline ExtTypeVTable* ExtTypeVTable::Register_() {
 // Implement Module::GetFunction
 // Put implementation in this file so we have seen the PackedFunc
 inline PackedFunc Module::GetFunction(const std::string& name, bool query_imports) {
-  PackedFunc pf = node_->GetFunction(name, node_);
-  if (pf != nullptr) return pf;
-  if (query_imports) {
-    for (const Module& m : node_->imports_) {
-      pf = m.node_->GetFunction(name, m.node_);
-      if (pf != nullptr) return pf;
-    }
-  }
-  return pf;
+  return node_->GetFunction(name);
 }
 }  // namespace runtime
 }  // namespace cvm

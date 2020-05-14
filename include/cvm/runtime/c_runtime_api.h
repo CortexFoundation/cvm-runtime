@@ -145,23 +145,6 @@ typedef void* CVMRetValueHandle;
 typedef void* CVMStreamHandle;
 
 /*!
- * \brief Used for implementing C API function.
- *  Set last error message before return.
- * \param msg The error message to be set.
- */
-CVM_DLL void CVMAPISetLastError(const char* msg);
-
-/*!
- * \brief return str message of the last error
- *  all function in this file will return 0 when success
- *  and -1 when an error occured,
- *  CVMGetLastError can be called to retrieve the error
- *
- *  this function is threadsafe and can be called by different thread
- *  \return error info
- */
-CVM_DLL const char *CVMGetLastError(void);
-/*!
  * \brief Load module from file.
  * \param file_name The file name to load the module from.
  * \param format The format of the module.
@@ -429,88 +412,7 @@ CVM_DLL int CVMArrayCopyFromTo(CVMArrayHandle from,
                                CVMArrayHandle to,
                                CVMStreamHandle stream);
 
-/*!
- * \brief Produce an array from the DLManagedTensor that shares data memory
- * with the DLManagedTensor.
- * \param from The source DLManagedTensor.
- * \param out The output array handle.
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMArrayFromDLPack(DLManagedTensor* from,
-                               CVMArrayHandle* out);
-
-/*!
- * \brief Produce a DLMangedTensor from the array that shares data memory with
- * the array.
- * \param from The source array.
- * \param out The DLManagedTensor handle.
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMArrayToDLPack(CVMArrayHandle from,
-                             DLManagedTensor** out);
-
-/*!
- * \brief Delete (free) a DLManagedTensor's data.
- * \param dltensor Pointer to the DLManagedTensor.
- */
-CVM_DLL void CVMDLManagedTensorCallDeleter(DLManagedTensor* dltensor);
-
-/*!
- * \brief Create a new runtime stream.
- *
- * \param device_type The device type of context
- * \param device_id The device id of context
- * \param out The new stream handle
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMStreamCreate(int device_type, int device_id, CVMStreamHandle* out);
-
-/*!
- * \brief Free a created stream handle.
- *
- * \param device_type The device type of context
- * \param device_id The device id of context
- * \param stream The stream to be freed
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMStreamFree(int device_type, int device_id, CVMStreamHandle stream);
-
-/*!
- * \brief Set the runtime stream of current thread to be stream.
- *  The subsequent calls to the same device_type
- *  will use the setted stream handle.
- *  The specific type of stream is runtime device dependent.
- *
- * \param device_type The device type of context
- * \param device_id The device id of context.
- * \param handle The stream handle.
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMSetStream(int device_type, int device_id, CVMStreamHandle handle);
-
-/*!
- * \brief Wait until all computations on stream completes.
- *
- * \param device_type The device type of context
- * \param device_id The device id of context.
- * \param stream The stream to be synchronized.
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMSynchronize(int device_type, int device_id, CVMStreamHandle stream);
-
-/*!
- * \brief Synchronize two streams of execution.
- *
- * \param device_type The device type of context
- * \param device_id The device id of context
- * \param src The source stream to synchronize.
- * \param dst The destination stream to synchronize.
- * \return 0 when success, -1 when failure happens
- */
-CVM_DLL int CVMStreamStreamSynchronize(int device_type,
-                                       int device_id,
-                                       CVMStreamHandle src,
-                                       CVMStreamHandle dst);
+CVM_DLL int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* re);
 
 #ifdef __cplusplus
 }  // CVM_EXTERN_C
