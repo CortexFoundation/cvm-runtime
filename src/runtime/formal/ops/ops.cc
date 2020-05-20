@@ -363,53 +363,43 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.repeat")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.negative")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-
-    for(uint64_t i = 0; i < getSize(x); i++){
+    // inputs: x_data
+    // outputs: y_data
+    auto x_data = CVMArg2Data<int32_t>(args[0]); 
+    auto y_data = CVMArg2Data<int32_t>(args[1]); 
+    auto size = CVMArgSize(args[0]); 
+    // y_data = -x_data
+    for(int i = 0; i < size; i++){
         y_data[i] = -x_data[i];
     }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.tile")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-
-    int32_t yndim = y->ndim;
-    int32_t xndim = x->ndim;
-
-    uint64_t tmp_y_size = 1;
-    for(int i = 0; i < xndim; i++){
-        tmp_y_size *= y->shape[i + yndim - xndim];
+    // inputs: X, reps
+    // X.shape = (n_0, n_1,,, n_{N-1})
+    // reps = (m_0, m_1,,, m_{M-1})
+    // outputs: Y
+    // Y.shape = max(X.shape, reps)
+    // Y.shape.size = K
+    auto X = args[0];
+    auto Y = args[1];
+    auto X_data = CVMArg2Data<int32_t>(X); 
+    auto Y_data = CVMArg2Data<int32_t>(Y); 
+    auto X_shape = CVMArgShape(X);
+    auto Y_shape = CVMArgShape(Y);
+    // X_k, Y_k represent the coordinate index of X.shape, Y.shape, respectively
+    std::vector<int64_t> Y_k(Y_shape.size(), 0), X_k(X_shape.size(), 0);
+    for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
+      // Y[k0, k1,,,k_{K-N}, k_{K-N+1},,,k_{K-1}] =
+      // X[k_{K-N+0} mod n_0, k_{K-N+1} mod n_1,,, k_{K-N+N-1} mod n_{N-1}]
+      for (uint32_t i = 0; i < X_shape.size(); i++){
+        X_k[i] = Y_k[Y_shape.size() - X_shape.size() + i] % X_shape[i];
+      }
+      int index0 = Index2Number(X_shape, X_k);
+      Y_data[j] = X_data[index0];
+      IndexBaseShapeAddOne(Y_shape, Y_k);
     }
-
-    for(uint64_t i = 0; i < tmp_y_size; i++){
-       uint64_t o_i = i, in_i = 0, shapeSize = 1;
-       for(int j = xndim-1; j >= 0; j--){
-            int yj = j + yndim - xndim;
-            int col = o_i % y->shape[yj];
-            o_i /= y->shape[yj];
-            col = col % x->shape[j];
-            in_i += col * shapeSize; 
-            shapeSize *= x->shape[j];
-       }
-       y_data[i] = x_data[in_i];
-    }
-
-    uint64_t othery = 1;
-    for(int i = 0; i < yndim-xndim; i++){
-        othery *= y->shape[i];
-    }
-    for(size_t i = 1; i < othery; i++){
-        memcpy(y_data + i*tmp_y_size, y_data, tmp_y_size * sizeof(int32_t));
-    }
-    print_to_file(y, "tile.txt");
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.expand_dims")

@@ -649,7 +649,7 @@ int main() {
   // test_op("sum");
   // test_op("max"); // pass
   // test_op("slice_like");
-  // test_op("tile"); //pass
+   test_op("tile"); //pass
    test_op("repeat"); //pass
   // test_op("get_valid_counts");
 
