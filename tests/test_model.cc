@@ -262,14 +262,6 @@ int test_models(int device_type = 0) {
 //    "/data/std_out/trec",
 //    // "/data/new_cvm/yolo3_darknet53_voc/data",
 //    "/data/lz_model_storage/dcnet_mnist_v1/data",
-    "/media/nvme/data/dcnet_mnist_v1/data",//success
-    "/media/nvme/data/trec",
-    "/media/nvme/data/resnet50_mxg/",     //success
-    "/media/nvme/data/resnet50_v2/",     //success
-    "/media/nvme/data/qd10_resnet20_v2/",     //success
-    "/media/nvme/data/mobilenet1.0/",     //success
-    "/media/nvme/data/ssd_512_mobilenet1.0_coco_tfm",
-    "/media/nvme/data/ssd_512_mobilenet1.0_voc_tfm",
 //    "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
 //    "/data/lz_model_storage/resnet50_v1_imagenet/data",
 //    "/data/lz_model_storage/animal10/data",
@@ -307,6 +299,21 @@ int test_models(int device_type = 0) {
 //    "/data/std_out/shufflenet",
 //    "/data/std_out/ssd",
 //    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
+//
+    "/media/nvme/data/dcnet_mnist_v1/data",
+    "/media/nvme/data/animal_10",
+    "/media/nvme/data/trec",
+    "/media/nvme/data/resnet50_mxg/",     
+    "/media/nvme/data/resnet50_v2/",     
+    "/media/nvme/data/qd10_resnet20_v2/",     
+    "/media/nvme/data/mobilenet1.0/",     
+    "/media/nvme/data/squeezenet_gcv1.0/data",
+    "/media/nvme/data/squeezenet_gcv1.1/data",
+    "/media/nvme/data/shufflenet/",
+    "/media/nvme/data/ssd_512_mobilenet1.0_coco_tfm", 
+    "/media/nvme/data/ssd_512_mobilenet1.0_voc_tfm",
+//    "/media/nvme/data/vgg16_gcv/data",//vitis not support max than 256MB memory
+//    "/media/nvme/data/yolo_tfm/",//
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);

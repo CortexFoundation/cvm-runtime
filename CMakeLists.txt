@@ -101,8 +101,8 @@ if(ENABLE_OPENCL)
 #  list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDART_LIBRARY})
 #  list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDA_LIBRARY})
 
-  set(CMAKE_C_FLAGS "-lOpenCL ${CMAKE_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "-lOpenCL ${CMAKE_CXX_FLAGS}")
+  set(CMAKE_C_FLAGS "-I/opt/xilinx/xrt/include/ -L/opt/xilinx/xrt/lib/ -lxilinxopencl ${CMAKE_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "-I/opt/xilinx/xrt/include -L/opt/xilinx/xrt/lib/ -lxilinxopencl ${CMAKE_CXX_FLAGS}")
 
   file(GLOB RUNTIME_OPENCL_SRCS src/runtime/opencl/devapi/*.cc)
   list(APPEND RUNTIME_SRCS ${RUNTIME_OPENCL_SRCS})
