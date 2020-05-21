@@ -54,6 +54,10 @@ readA:
 #pragma HLS PIPELINE 
             bufA[ii][kk] = A[(i+ii)*K + k + kk];
           }
+          for(int kk = chunk_size_k; kk < BLOCK_SIZE; kk++){
+#pragma HLS PIPELINE 
+            bufA[ii][kk] = 0;
+          }
         }
 
 readB:
@@ -63,19 +67,27 @@ readB:
 #pragma HLS PIPELINE 
               bufB[kk][jj] = B[(k + kk)*N + j + jj];
             }
+            for(int jj = chunk_size_n; jj < BLOCK_SIZE; jj++){
+              bufB[kk][jj] = 0;
+            }
+        }
+        for(int kk = chunk_size_k; kk < BLOCK_SIZE; kk++){
+          for(int jj = 0; jj < BLOCK_SIZE; jj++){
+            bufB[kk][jj] = 0;
+          }
         }
 
 madd:
         for(int ii = 0; ii < chunk_size_m; ii++){
-          for(int kk = 0; kk < chunk_size_k; kk+=1){
+          for(int kk = 0; kk < BLOCK_SIZE; kk+=2){
 #pragma HLS PIPELINE 
             int a = bufA[ii][kk];
-            //int a1 = bufA[ii][kk+1];
-            for(int jj = 0; jj < chunk_size_n; jj++){
+            int a1 = bufA[ii][kk+1];
+            for(int jj = 0; jj < BLOCK_SIZE; jj++){
 #pragma HLS UNROLL 
               int c = a * bufB[kk][jj];  
-              //int c1 = a1 * bufB[kk+1][jj];  
-              bufC[ii][jj] += c ;//+ c1;
+              int c1 = a1 * bufB[kk+1][jj];  
+              bufC[ii][jj] += c + c1;
             }
           }
         }
