@@ -23,25 +23,35 @@ using namespace std;
     return -1; \
   }
 
-int main(int argc, char**argv){
-  if(argc < 2)
-    return 0;
-  
-  Mat image = imread(argv[1], 1);
-  //imshow("test", image);
-  cout << "channels=" << image.channels() << ", rows=" << image.rows << ", cols=" << image.cols << endl; 
+void mnist_transform(vector<char>& input, Mat& img){
+  for(int i = 0; i < img.rows; i++){
+    for(int j = 0; j < img.cols; j++){
+      float tmp = img.at<uchar>(i,j);
+      tmp = (255 - tmp) * 127 / 255;
+      if(tmp < -127) tmp = -127;
+      if(tmp > 127) tmp = 127;
+      input[i*img.cols + j] = tmp; 
+    }
+  }
+}
 
-  Mat imageGray;
-  cvtColor(image, imageGray, CV_RGB2GRAY);
-  cout << "channels=" << imageGray.channels() << ", rows=" << imageGray.rows << ", cols=" << imageGray.cols << endl; 
-//  imwrite("gray.png", imageGray);
- // waitKey(0);
-  Mat resizeImg;
-  //input 1 28 28
-  resize(imageGray, resizeImg, Size(28, 28));
-  cout << "channels=" << resizeImg.channels() << ", rows=" << resizeImg.rows << ", cols=" << resizeImg.cols << endl; 
- 
-  string model_root = "/media/nvme/data/dcnet_mnist_v1/data";
+int argmax(vector<char>& output){
+  int max_index = 0;
+  int max = 1 << 31;
+  for (auto i = 0; i < output.size(); i++) {
+    int32_t value = output[i];
+    //std::cout << value << " ";
+    if(value > max) {
+      max = value;
+      max_index = i;
+    }
+  }
+  //std::cout << std::endl;
+  return max_index;
+}
+
+int infer(Mat& resizeImg){
+  string model_root = "/media/nvme/data/cvm_mnist/";
   int device_type = 3;
   string json_path = model_root + "/symbol";
   string params_path = model_root + "/params";
@@ -74,28 +84,37 @@ int main(int argc, char**argv){
   input.resize(input_size, 0); // 1 * 1 * 28 * 28);
   output.resize(output_size, 0); //1 * 10);
 
-  for(int i = 0; i < resizeImg.rows; i++){
-    for(int j = 0; j < resizeImg.cols; j++){
-      input[i*resizeImg.cols + j] = resizeImg.at<uchar>(i,j) / 2; 
-    }
-  }
+  mnist_transform(input, resizeImg);
 
   status = CVMAPIInference(net, input.data(), input.size(), output.data());
   CHECK_STATUS(status, "inference failed");
   status = CVMAPIFreeModel(net);
   CHECK_STATUS(status, "free model failed");
 
-  int max_index = 0;
-  int max = 1 << 31;
-  for (auto i = 0; i < output.size(); i++) {
-    int32_t value = output[i];
-    std::cout << value << " ";
-    if(value > max) {
-      max = value;
-      max_index = i;
-    }
-  }
   cout << endl;
-  cout << "infer result: " << max_index + 1 << endl;
+  cout << "infer result: " << argmax(output) << endl;
+  return 0;
+}
+int main(int argc, char**argv){
+  if(argc < 2)
+    return 0;
+  
+  Mat image = imread(argv[1], 1);
+  //imshow("test", image);
+  cout << "channels=" << image.channels() << ", rows=" << image.rows << ", cols=" << image.cols << endl; 
+
+  Mat imageGray;
+  cvtColor(image, imageGray, CV_RGB2GRAY);
+  cout << "channels=" << imageGray.channels() << ", rows=" << imageGray.rows << ", cols=" << imageGray.cols << endl; 
+//  imwrite("gray.png", imageGray);
+ // waitKey(0);
+  Mat resizeImg;
+  //input 1 28 28
+  resize(imageGray, resizeImg, Size(28, 28));
+  cout << "channels=" << resizeImg.channels() << ", rows=" << resizeImg.rows << ", cols=" << resizeImg.cols << endl; 
+  imwrite("resizeImg.png", resizeImg);
+
+  infer(resizeImg);
+
   return 0;
 }
