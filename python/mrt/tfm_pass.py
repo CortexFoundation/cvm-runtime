@@ -3,12 +3,12 @@ import math
 import numpy as np
 import time
 
-from tfm_utils import get_bit, scale, requant
-from sym_utils import is_var, is_params, is_inputs
-from tfm_base import *
-import dataset as ds
-import utils
-import sim_quant_helper as sim
+from .tfm_utils import get_bit, scale, requant
+from .sym_utils import is_var, is_params, is_inputs
+from .tfm_base import *
+from . import dataset as ds
+from . import utils
+from . import sim_quant_helper as sim
 
 # === symbol pass == 
 
@@ -87,6 +87,10 @@ def quantize(symbol, params, th_dict, precs, scales, op_input_precs,
             th_dict[clip_name] = th_dict[name]
             precs[clip_name] = { OUT_KEY: tight_prec }
             scales[clip_name] = scales[name]
+            if name in precs and name in precs[name]:
+                oprec = precs[name][name]
+                del precs[name][name]
+                precs[clip_name][clip_name] = oprec
 
         return op
 

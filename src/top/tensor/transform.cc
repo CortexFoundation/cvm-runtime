@@ -116,7 +116,54 @@ CVM_REGISTER_OP(tile)
 .set_num_outputs(1)
 .set_support_level(1);
 
+// // pad
+// CVMUTIL_REGISTER_PARAMETER(PadParam);
 
+// inline bool PadShape(const cvm::NodeAttrs& attrs,
+                           // std::vector<TShape>* in_attrs,
+                           // std::vector<TShape>* out_attrs) {
+  // VERIFY_EQ(in_attrs->size(), 1U);
+  // VERIFY_EQ(out_attrs->size(), 1U);
+  // const TShape& shp = (*in_attrs)[0];
+  // uint32_t sdim = shp.ndim();
+
+  // const PadParam& param = cvm::get<PadParam>(attrs.parsed);
+  // const auto& pad_width = param.pad_width;
+  // const int pad_value = param.pad_value;
+
+  // uint32_t pdim = pad_width.ndim();
+  // VERIFY_EQ(pdim, 2*sdim);
+  // for (size_t i = 0; i < pdim; ++i) {
+    // VerifyAttrRange(pad_width[i], "pad.pad_width");
+  // }
+  // VerifyAttrRange(pad_value, "pad.pad_value");
+
+  // std::vector<int64_t> oshape(sdim);
+  // for (size_t i = 0; i < sdim; ++i) {
+    // oshape[i] = pad_width[i*2] + shp[i] + pad_width[i*2+1];
+  // }
+  // CVM_ASSIGN_OUTPUT_SHAPE(
+      // attrs, *out_attrs, 0, TShape(oshape.begin(), oshape.end()));
+  // return true;
+// }
+
+// CVM_REGISTER_OP(pad)
+// .describe(R"code(Pads an input array with a constant or edge values pf the array.
+
+// - **data**: The input data to the operator.
+
+// )code" CVM_ADD_FILELINE)
+// .add_argument("data", "Tensor", "Source input")
+// .add_arguments(PadParam::__FIELDS__())
+// .set_attr_parser(ParamParser<PadParam>)
+// .set_attr<FGetAttrDict>("FGetAttrDict", ParamGetAttrDict<PadParam>)
+// .set_attr<cvm::FInferShape>("FInferShape", PadShape)
+// .set_attr<cvm::FInferType>("FInferType", ElemwiseType<1, 1>)
+// .set_attr<FCorrectLayout>("FCorrectLayout", ElemwiseFixedLayoutUnknownOut<1, 1>)
+// .set_attr<FInferPrecision>("FInferPrecision", SamePrecision)
+// .set_num_inputs(1)
+// .set_num_outputs(1)
+// .set_support_level(1);
 
 // flatten
 inline bool FlattenInferShape(const NodeAttrs& attrs,
@@ -751,7 +798,7 @@ inline bool StridedSliceInferShape(const NodeAttrs& attrs,
   return true;
 }
 
-CVM_REGISTER_OP(slice)
+CVM_REGISTER_OP(strided_slice)
 .describe(R"code(Strided slice of an array.
 
 Examples::
@@ -775,7 +822,7 @@ Examples::
                                                 [[ 5.,  6.],
                                                  [ 7.,  8.]]]
 )code" CVM_ADD_FILELINE)
-.add_alias("strided_slice")
+// .add_alias("slice")
 .add_argument("data", "Tensor", "Array to be sliced")
 .add_arguments(StridedSliceParam::__FIELDS__())
 .set_attr_parser(StridedSliceParamParser)

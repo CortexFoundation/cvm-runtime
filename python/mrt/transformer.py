@@ -16,19 +16,19 @@ from mxnet import gluon, ndarray as nd
 import cvm
 
 # import as registry pattern
-import tfm_ops  # pylint: disable=unused-import
-import cvm_op   # pylint: disable=unused-import
+from . import tfm_ops  # pylint: disable=unused-import
+from . import cvm_op   # pylint: disable=unused-import
 
-import tfm_pass as tpass
-from tfm_pass import OUT_KEY, convert_params_dtype
-from tfm_pass import sym_calibrate, quantize, to_cvm
-from tfm_pass import prepare_for_compile, fuse_constant
-from tfm_pass import calculate_ops, collect_op_names
+from . import tfm_pass as tpass
+from .tfm_pass import OUT_KEY, convert_params_dtype
+from .tfm_pass import sym_calibrate, quantize, to_cvm
+from .tfm_pass import prepare_for_compile, fuse_constant
+from .tfm_pass import calculate_ops, collect_op_names
 
-import sym_utils as sutils
-from sym_utils import topo_sort, sym_iter, get_mxnet_op
-import utils
-import sim_quant_helper as sim
+from . import sym_utils as sutils
+from .sym_utils import topo_sort, sym_iter, get_mxnet_op
+from . import utils
+from . import sim_quant_helper as sim
 
 # TODO: collect hyper-parameters
 
@@ -102,7 +102,7 @@ class Model:
         return MRT(self)
 
     def to_cvm(self, model_name, datadir="/data/stdout",
-                       input_shape=None, target="cuda"):
+                       input_shape=None, target="gpu"):
         return compile_to_cvm(self, model_name, datadir,
                               input_shape, target)
 
@@ -191,7 +191,7 @@ class MRT:
                      'elemwise_add', 'elemwise_sub', 'slice_like']:
             op_precs[name] = 16
         op_precs['broadcast_mul'] = 16
-        op_precs['L2Normalization'] = 16
+        op_precs['L2Normalization'] = 8
         op_precs['Concat'] = 16
         op_precs['Embedding'] = 16
         op_precs['slice_like'] = 30
@@ -336,7 +336,7 @@ def reduce_graph(model, input_shapes):
     return Model(_sym, _prm)
 
 def compile_to_cvm(model, model_name, datadir="/data/std_out",
-                   input_shape=None, target="cuda"):
+                   input_shape=None, target="gpu"):
     """ Compile Mxnet model into CVM Accept-JSON&BIN-Format
     """
     logger = logging.getLogger("mrt.compile")
@@ -355,13 +355,11 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
     logger.info("Transform Mxnet symbol into CVM")
     model = reduce_graph(model, input_shapes)
     symbol, params = model.symbol, model.params
-
     cvm_sym, params = to_cvm(symbol, params)
     logger.info("Transform Mxnet symbol into CVM finished")
+
     dtype, cvm_params = "int32", {}
-    exit()
-    import tvm
-    tvm_ctx = tvm.context(target, 0)
+    cvm_ctx = cvm.context(target, 0)
     for sym in topo_sort(cvm_sym):
         if sutils.is_params(sym, params):
             key, value = sym.attr('name'), params[sym.attr('name')]
@@ -370,32 +368,30 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
                 "key: {}\nvalue: {}".format(key, value)
             assert (flat.astype(dtype).astype("float64") == flat).all(), \
                 "key: {}\nvalue: {}".format(key, value)
-            cvm_params[key] = tvm.nd.array(flat.astype(dtype), tvm_ctx)
+            cvm_params[key] = cvm.nd.array(flat.astype(dtype), ctx=cvm_ctx)
         elif sutils.is_inputs(sym, params):
             assert sym.attr('name') == 'data'
 
     # compile to JSON&Bytes format
     logger.info("Compile into CVM graph")
-    with cvm.compiler.build_config(opt_level=0):
-        deploy_graph, _, cvm_params = cvm.compiler.build(
-            cvm_sym, target=target, shape=input_shapes,
-            params=cvm_params, dtype=dtype)
+    deploy_graph, cvm_params = cvm.graph.build(
+        cvm_sym, cvm_params, shape=input_shapes)
 
-    # tvm parameters reduce
+    # cvm parameters reduce
     logger.info("Parameters precision reduce")
     for sym in topo_sort(cvm_sym):
         if sutils.is_params(sym, cvm_params):
             name, attr = sym.attr('name'), sym.list_attr()
             precision = sutils.get_attr(attr, "precision")
             dtype = "int32" if precision > 8 else "int8"
-            cvm_params[name] = tvm.nd.array(
-                params[name].asnumpy().astype(dtype), tvm_ctx)
+            cvm_params[name] = cvm.nd.array(
+                params[name].asnumpy().astype(dtype), ctx=cvm_ctx)
 
     # dump
     logger.info("CVM Json&Params dump")
     with open(path.join(datadir, "symbol"), "w") as fout:
         fout.write(deploy_graph.json())
-    param_bytes = cvm.compiler.save_param_dict(cvm_params)
+    param_bytes = cvm.nd.save_param_dict(cvm_params)
     with open(path.join(datadir, "params"), "wb") as fout:
         fout.write(param_bytes)
     return deploy_graph, cvm_params

@@ -19,6 +19,12 @@ def test_abs():
     sym, params = utils.topo_visit(sym, params, _print)
     return sym, params
 
+def test_clip():
+    x = cvm.sym.var('data', shape=(3), precision=16)
+    y = cvm.sym.cvm_right_shift(x, shift_bit=8, precision=8)
+    y = cvm.sym.cvm_clip(y, precision=8)
+    return y, {}
+
 def test_l2norm():
     x = cvm.sym.var('data', shape=(2,2,2), precision=8)
     params = {}
@@ -33,17 +39,18 @@ def test_l2norm():
     return sym, params
 
 if __name__ == "__main__":
-    sym, params = test_abs()
-    exit()
-    graph = cvm.graph.build(sym, params)
-    print (graph.json())
+    #  sym, params = test_abs()
+    sym, params = test_clip()
+    #  exit()
+    graph, _ = cvm.graph.build(sym, params)
+    # print (graph.json())
 
     json_str = graph.json()
     param_bytes = nd.save_param_dict(params)
 
     model = cvm.runtime.CVMAPILoadModel(
         json_str, param_bytes, cvm.gpu())
-    data = nd.array([-30, 0, 10], dtype="int8").as_runtime_input()
+    data = nd.array([-30000, 1000, 23530], dtype="int32").as_runtime_input()
     print (len(data))
     out = cvm.runtime.CVMAPIInference(
         model, data)

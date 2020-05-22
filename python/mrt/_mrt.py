@@ -665,8 +665,8 @@ class MRT():
             self.th_dict[name] = _get_range(bit)
 
 import os
-from tvm.contrib import graph_runtime
-import tvm
+# from tvm.contrib import graph_runtime
+# import tvm
 def std_dump(sym, params, inputs_ext, data, model_name,
         is_mxnet=True, batch=False,
         data_dtype="int8", max_num=20, dump_ops=[]):

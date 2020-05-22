@@ -5,9 +5,9 @@ import os
 import mxnet as mx
 from mxnet.gluon import nn, SymbolBlock
 from mxnet import ndarray as nd
-import nnvm as nnvm
-import tvm
-from tvm import relay
+# import nnvm as nnvm
+# import tvm
+# from tvm import relay
 from sym_utils import *
 from utils import *
 

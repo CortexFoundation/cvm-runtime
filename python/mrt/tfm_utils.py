@@ -4,9 +4,9 @@ import logging
 import mxnet as mx
 from mxnet import ndarray as nd
 
-from tfm_base import OUT_KEY, N, MAX_BIT
-import sim_quant_helper as sim
-import sym_utils as sutils
+from .tfm_base import OUT_KEY, N, MAX_BIT
+from . import sim_quant_helper as sim
+from . import sym_utils as sutils
 
 def get_bit(opt):
     if isinstance(opt, nd.NDArray):

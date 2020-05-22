@@ -18,7 +18,7 @@ if [[ "${LD_LIBRARY_PATH}" != *"${PROJECT_NAME}/build"* ]]; then
   read -d '' COM <<EOF
   ${COM}
 
-  LD_LIBRARY_PATH=${ROOT_DIR}/build:\${LD_LIBRARY_PATH}
+  export LD_LIBRARY_PATH=${ROOT_DIR}/build:\${LD_LIBRARY_PATH}
   echo "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}"
 EOF
 fi
@@ -26,7 +26,7 @@ fi
 if [[ ${COM} != "" ]]; then
   cat <<EOF
 
-According to bash limitation, we cannot add python & link library 
+Due to bash limitation, we cannot add python & link library 
   environment via scripts, and then we supply the below commands to 
   help to setup the project, copy and execute it in terminal please:
 

@@ -296,6 +296,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.abs")
     }
 });
 
+// CVM_REGISTER_GLOBAL("cvm.runtime.formal.sqrt")
+// .set_body([](CVMArgs args, CVMRetValue *ret){
+    // DLTensor *x = args[0];
+    // DLTensor *y = args[1];
+    // int32_t *y_data = static_cast<int32_t*>(y->data);
+    // int32_t* x_data = static_cast<int32_t*>(x->data);
+    // for(uint64_t i = 0; i < getSize(x); i++){
+      // y_data[i] = x_data[i] < 0 ? 0 : static_cast<int32_t>(std::sqrt(x_data[i]));
+    // }
+// });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 .set_body([](CVMArgs args, CVMRetValue *ret){
@@ -401,6 +411,40 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.tile")
       IndexBaseShapeAddOne(Y_shape, Y_k);
     }
 });
+
+// CVM_REGISTER_GLOBAL("cvm.runtime.formal.pad")
+// .set_body([](CVMArgs args, CVMRetValue *ret){
+    // DLTensor *x = args[0];
+    // DLTensor *y = args[1];
+    // void *_attr = args[2];
+    // auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+    // auto &param = cvm::get<cvm::top::PadParam>(attr->parsed);
+
+    // TShape pad_width = param.pad_width;
+    // int pad_value = param.pad_value;
+    // int32_t *x_data = static_cast<int32_t*>(x->data);
+    // int32_t *y_data = static_cast<int32_t*>(y->data);
+
+    // int32_t yndim = y->ndim;
+    // for (uint64_t i = 0; i < getSize(y); i++) {
+      // uint64_t o_i = i, in_i = 0, shapeSize = 1;
+      // bool flag = true;
+      // for (int j = xndim-1; j >= 0; j--) {
+        // int col = o_i % y->shape[j];
+        // int lower = pad_width[2*j], upper = x->shape[j]+pad_width[2*j];
+        // if (col < lower || col >= upper) {
+          // flag = false;
+          // break;
+        // }
+        // o_i /= y->shape[j];
+        // in_i += (col-lower) * shapeSize;
+        // shapeSize *= x->shape[j];
+      // }
+      // y_data[i] = flag ? x_data[in_i] : pad_value;
+    // }
+
+    // print_to_file(y, "tile.txt");
+// });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.expand_dims")
 .set_body([](CVMArgs args, CVMRetValue *ret)
