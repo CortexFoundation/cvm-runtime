@@ -71,17 +71,12 @@ void compare_result(const char *filename, vector<char>& data){
     int n = 0;
     fscanf(fp, "%d", &n);
     assert(n == data.size());
-int byrflag = 0;
+
     for(int i = 0; i < data.size(); i++){
       int value;
       fscanf(fp, "%d ", &value);
-      if ((int32_t)data[i] != value){
-        std::cout << i << " " << (int32_t)data[i] << " " << value << std::endl;
-      byrflag = 1;
-      }
-      //assert((int32_t)data[i] == value);
+      assert((int32_t)data[i] == value);
     }
-      assert(byrflag == 0);
     fclose(fp);
     printf("compare result: success\n\n");
 }
