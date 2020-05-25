@@ -76,7 +76,7 @@ inline int32_t CVMShapeEnd(cvm::runtime::CVMArgValue const& av){
 inline int64_t Index2Number(const std::vector<int64_t>& shape,
                             const std::vector<int64_t>& index){
       auto number = index[0];
-      for (auto i = 1; i < shape.size(); i++){
+      for (u_int32_t i = 1; i < shape.size(); i++){
         number = number * shape[i] + index[i];
       }
       return number;
