@@ -25,7 +25,7 @@ batch_size = 4
 train_loader = mx.gluon.data.DataLoader(train_data, shuffle=True, batch_size=batch_size)
 val_loader = mx.gluon.data.DataLoader(val_data, shuffle=False, batch_size=batch_size)
 
-version = 'lenet'
+version = ''
 
 # Set the gpu device id
 ctx = mx.gpu(0)

@@ -27,6 +27,8 @@ Execute the following command:
 python3 tests/python/train_mnist.py
 ```
 
+Training model is stored in `~/mrt_model`.
+
 ### Mnist Quantization
 
 Execute the following command:
