@@ -9,6 +9,7 @@ TESTS := tests
 all: lib python test_cpu test_gpu test_formal
 	echo ${TEST_CPUS}
 
+# Mac OS should install libomp with brew
 dep:
 	python3 install/deps.py
 
