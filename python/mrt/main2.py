@@ -7,6 +7,7 @@ import numpy as np
 import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
+from mrt import conf
 from mrt.transformer import Model, reduce_graph, MRT
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
@@ -145,7 +146,7 @@ if __name__ == "__main__":
                          dtype=int_t, dval=logging.NOTSET)
     utils.log_init(level=verbosity)
     logger = logging.getLogger("log.main")
-    default_dir = path.expanduser("~/data")
+    default_dir = conf.MRT_MODEL_ROOT
     model_dir = _get_val(cfg, sec, 'Model_dir', dval=default_dir)
     assert path.exists(model_dir), \
         "Please create the folder `data` first"
@@ -210,7 +211,7 @@ if __name__ == "__main__":
     sec = 'CALIBRATION'
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
-    ds_name = _get_val(cfg, sec, 'dataset')
+    ds_name = _get_val(cfg, sec, 'Dataset')
     dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=None)
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
@@ -442,7 +443,7 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
-        model_name_tfm = model_name + "_tfm"
+        model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
                       input_shape=set_batch(input_shape, batch))
 
@@ -453,10 +454,11 @@ if __name__ == "__main__":
         model_root = path.join(dump_dir, model_name_tfm)
         np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
-        ext_file_tfm = path.join(model_root, model_name+".all.quantize.ext")
-        infos = ['oscales: ', oscales,
-                 'input_ext: ', inputs_ext,
-                 'input shapes: ', input_shape]
-        sim.save_ext(ext_file_tfm, *infos)
+        infos = {
+            "inputs_ext": inputs_ext,
+            "oscales": oscales,
+            "input_shapes": input_shape,
+        }
+        sim.save_ext(path.join(model_root, "ext"), infos)
         logger.info("`%s` stage finished" % sec)
 

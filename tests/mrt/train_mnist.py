@@ -2,45 +2,34 @@ from __future__ import print_function  # only relevant for Python 2
 import mxnet as mx
 from mxnet import nd, gluon, autograd
 from mxnet.gluon import nn
-import nnvm
-import tvm
-from tvm.contrib import graph_runtime
 
-# from quant_utils import *
-import utils
-import mrt as _mrt
-import sym_annotate as anno
-import sym_utils as sutils
-import sym_pass as spass
-import sym_calib as calib
-import sim_quant_helper as sim
-import gluon_zoo as zoo
+from mrt import conf, utils
 
 import numpy as np
 
 def load_fname(version, suffix=None, with_ext=False):
     suffix = "."+suffix if suffix is not None else ""
-    if with_ext:
-        return "./data/mnist%s%s.json"%(version, suffix), \
-            "./data/mnist%s%s.params"%(version, suffix), \
-            "./data/mnist%s%s.ext"%(version, suffix)
-    else:
-        return "./data/mnist%s%s.json"%(version, suffix), \
-            "./data/mnist%s%s.params"%(version, suffix)
+    prefix = "{}/mnist_{}{}".format(conf.MRT_MODEL_ROOT, version, suffix)
+    return utils.extend_fname(prefix, with_ext)
 
 def data_xform(data):
     """Move channel axis to the beginning, cast to float32, and normalize to [0, 1]."""
     return nd.moveaxis(data, 2, 0).astype('float32') / 255
 
-train_data = mx.gluon.data.vision.MNIST(train=True).transform_first(data_xform)
-val_data = mx.gluon.data.vision.MNIST(train=False).transform_first(data_xform)
+train_data = mx.gluon.data.vision.MNIST(
+        train=True).transform_first(data_xform)
+val_data = mx.gluon.data.vision.MNIST(
+        train=False).transform_first(data_xform)
 
-batch_size = 1
+batch_size = 4
 train_loader = mx.gluon.data.DataLoader(train_data, shuffle=True, batch_size=batch_size)
 val_loader = mx.gluon.data.DataLoader(val_data, shuffle=False, batch_size=batch_size)
 
 version = 'lenet'
-ctx = mx.gpu(2)
+
+# Set the gpu device id
+ctx = mx.gpu(0)
+
 def train_mnist():
     # Select a fixed random seed for reproducibility
     mx.random.seed(42)
@@ -82,6 +71,7 @@ def train_mnist():
                 nn.Dense(10, activation=None)  # loss function includes softmax already, see below
             )
 
+    # Random initialize all the mnist model parameters
     net.initialize(mx.init.Xavier(), ctx=ctx)
     net.summary(nd.zeros((1, 1, 28, 28), ctx=ctx))
 
@@ -92,7 +82,7 @@ def train_mnist():
     )
     metric = mx.metric.Accuracy()
     loss_function = gluon.loss.SoftmaxCrossEntropyLoss()
-    num_epochs = 10
+    num_epochs = 5
 
     for epoch in range(num_epochs):
         for inputs, labels in train_loader:
@@ -121,70 +111,12 @@ def train_mnist():
 
     sym = net(mx.sym.var('data'))
     sym_file, param_file = load_fname(version)
-    open(sym_file, "w").write(sym.tojson())
+    print ("Dump model into ", sym_file, " & ", param_file)
+
+    # dump the mxnet model
+    with open(sym_file, "w") as fout:
+        fout.write(sym.tojson())
     net.collect_params().save(param_file)
-
-def test_sym_pass(iter_num=10):
-    inputs_ext = { 'data': {
-            'shape': (batch_size, 1, 28, 28),
-    } }
-    inputs = [mx.sym.var(n) for n in inputs_ext]
-
-    data_iter = iter(val_loader)
-    def data_iter_func():
-        return next(data_iter)
-    data, _ = data_iter_func()
-
-    net1 = utils.load_model(*load_fname(version), inputs, ctx=ctx)
-    def graph_func(data):
-        return net1.forward(data.as_in_context(ctx))
-
-    sym_file, param_file = load_fname(version)
-    sym, params = mx.sym.load(sym_file), nd.load(param_file)
-    sym, params = spass.sym_quant_prepare(sym, params, inputs_ext)
-    if True:
-        mrt = _mrt.MRT(sym, params, inputs_ext)
-        mrt.set_data('data', data)
-        mrt.calibrate(ctx=ctx)
-        mrt.set_output_prec(8)
-        qsym, qparams, inputs_ext = mrt.quantize()
-    else:
-        inputs_ext['data']['data'] = data
-        th_dict = calib.sym_calibrate(sym, params, inputs_ext, ctx=ctx)
-        qsym, qparams, precs, _ = calib.sym_simulate(sym, params, inputs_ext, th_dict)
-        qsym, qparams = calib.sym_realize(qsym, qparams, inputs_ext, precs, "cvm")
-    dump_sym, dump_params, dump_ext = load_fname(version, "sym.quantize", True)
-    sim.save_ext(dump_ext, inputs_ext)
-    nd.save(dump_params, qparams)
-    open(dump_sym, "w").write(qsym.tojson())
-
-    dump_sym, dump_params, dump_ext = load_fname(version, "sym.quantize", True)
-    (inputs_ext,) = sim.load_ext(dump_ext)
-    inputs = [mx.sym.var(n) for n in inputs_ext]
-    net2 = utils.load_model(dump_sym, dump_params, inputs, ctx=ctx)
-    def cvm_quantize(data):
-        data = sim.load_real_data(data, 'data', inputs_ext)
-        return net2.forward(data.as_in_context(ctx))
-
-    utils.multi_eval_accuracy(graph_func, data_iter_func,
-            cvm_quantize,
-            iter_num=iter_num)
-
-def test_nnvm_pass(iter_num=10):
-    logger = logging.getLogger("log.test.nnvm")
-    logger.info("=== Log Test NNVM ===")
-
-    dump_sym, dump_params, dump_ext = load_fname(version, "sym.quantize", True)
-    sym, params = mx.sym.load(dump_sym), nd.load(dump_params)
-    (inputs_ext,) = sim.load_ext(dump_ext)
-    data_iter = iter(val_loader)
-    data, _ = next(data_iter)
-    _mrt.std_dump(sym, params, inputs_ext, data, "cvm_mnist")
 
 print ("Test mnist", version)
 train_mnist()
-exit()
-
-utils.log_init()
-test_sym_pass(1000)
-# test_nnvm_pass(10)

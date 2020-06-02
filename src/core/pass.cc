@@ -54,10 +54,10 @@ Graph ApplyPasses(Graph g,
   }
 
   for (auto r : fpass) {
-    std::cout << "Apply pass [" << idicator[r]
-      << "] with attrs: ";
-    for (auto p : g.attrs) std::cout << p.first << " ";
-    std::cout << "\n";
+    // std::cout << "Apply pass [" << idicator[r]
+    //   << "] with attrs: ";
+    // for (auto p : g.attrs) std::cout << p.first << " ";
+    // std::cout << "\n";
 
     for (auto& dep : r->graph_attr_dependency) {
       if (g.attrs.count(dep) == 0) {

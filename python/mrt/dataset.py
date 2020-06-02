@@ -278,10 +278,13 @@ class QuickDrawDataset(VisionDataset):
 
 class MnistDataset(VisionDataset):
     name = "mnist"
-    download_deps = ["t10k-images-idx3-ubyte.gz",
-                     "t10k-labels-idx1-ubyte.gz",
-                     "train-images-idx3-ubyte.gz",
-                     "train-labels-idx1-ubyte.gz"]
+    # there is no need to download the data from cortexlabs,
+    #   since mxnet has supplied the neccesary download logic.
+    download_deps = []
+    # download_deps = ["t10k-images-idx3-ubyte.gz",
+    #                  "t10k-labels-idx1-ubyte.gz",
+    #                  "train-images-idx3-ubyte.gz",
+    #                  "train-labels-idx1-ubyte.gz"]
 
     def _load_data(self):
         val_data = mx.gluon.data.vision.MNIST(
