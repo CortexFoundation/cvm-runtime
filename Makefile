@@ -10,9 +10,7 @@ all: lib python test_cpu test_gpu test_formal
 	echo ${TEST_CPUS}
 
 dep:
-	@cp cmake/config.cmake . --update
-	@mkdir -p ${BUILD}
-	@mkdir -p ${BUILD}/${TESTS}
+	python3 install/deps.py
 
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
@@ -41,9 +39,6 @@ test_opencl: ${TEST_OPENCL}
 
 %_opencl: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
-
-python: lib
-	bash install/env.sh
 
 clean:
 	rm -rf ./build/*

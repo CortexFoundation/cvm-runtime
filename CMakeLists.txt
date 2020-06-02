@@ -18,6 +18,7 @@ include_directories("include")
 # Generic compilation options
 set(CMAKE_C_FLAGS "-fsigned-char -Wall -fPIC ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fsigned-char -Wall -fPIC -std=c++11 ${CMAKE_CXX_FLAGS}")
+
 if (DEBUG)
   set(CMAKE_C_FLAGS "-Og -g ${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "-Og -g ${CMAKE_CXX_FLAGS}")
