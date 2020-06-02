@@ -287,12 +287,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_precision")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.abs")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int32_t* x_data = static_cast<int32_t*>(x->data);
-    for(uint64_t i = 0; i < getSize(x); i++){
-      y_data[i] = std::abs(x_data[i]);
+    auto X_data = CVMArg2Data<int32_t>(args[0]); 
+    auto Y_data = CVMArg2Data<int32_t>(args[1]); 
+    for (auto i = CVMShapeBegin(args[1]); i < CVMShapeEnd(args[1]); i++){
+      Y_data[i] = std::abs(X_data[i]);
     }
 });
 
@@ -564,26 +562,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.slice_like")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[2];
-    void* _attr = args[3];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::SliceLikeParam>(attr->parsed);
-    Tuple<int> axis = param.axis;
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int ndim = x->ndim;
-
-    for(uint64_t i = 0; i < getSize(y); i++){
-      uint64_t o_i = i, in_i = 0, shapeSize = 1;
-      for(int j = ndim-1; j >= 0; j--){
-        int col = o_i % y->shape[j];
-        o_i /= y->shape[j];
-        in_i += col * shapeSize;
-        shapeSize *= x->shape[j];
-      }
-      y_data[i] = x_data[in_i];
+    auto X_shape = CVMArgShape(args[0]);
+    auto Y_shape = CVMArgShape(args[2]);
+    auto X_data = CVMArg2Data<int32_t>(args[0]); 
+    auto Y_data = CVMArg2Data<int32_t>(args[2]); 
+    // d_k represent the coordinate index
+    int K = Y_shape.size();
+    std::vector<int64_t> d_k(K, 0);
+    auto size = CVMArgSize(args[2]); 
+    // Y[d_0, d_1,,,] = X[d_0, d_1,,,]
+    for(uint64_t i = 0; i < size; i++){
+      int index0 = Index2Number(X_shape, d_k);
+      Y_data[i] = X_data[index0];
+      IndexBaseShapeAddOne(Y_shape, d_k);
     }
 });
 
