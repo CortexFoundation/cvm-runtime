@@ -12,8 +12,8 @@ def find_lib_path():
 
     dll_path = [os.path.realpath(x) for x in dll_path]
 
-    lib_name = 'libcvm_runtime.so'
-    lib_dll_path = [os.path.join(p, lib_name) for p in dll_path]
+    lib_names = ["libcvm_runtime.so", "libcvm_runtime.dylib"]
+    lib_dll_path = [os.path.join(p, ln) for ln in lib_names for p in dll_path]
 
     lib_found = [p for p in lib_dll_path if os.path.exists(p) and os.path.isfile(p)]
 
