@@ -214,7 +214,7 @@ if __name__ == "__main__":
     ds_name = _get_val(cfg, sec, 'Dataset')
     dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=None)
     if start_point < 3:
-        mrt = model.get_mrt() if keys == '' else base.get_mrt()
+        mrt = model.get_mrt() if keys is None else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)

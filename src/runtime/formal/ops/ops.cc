@@ -17,51 +17,50 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.relu")
   print_to_file(y, "relu.txt");
 });
 
-/*
-* x : M*K
-* w : N*K
-* b : N
-* y : M*N
-/data/std_out/shufflenet*/
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
 .set_body([](CVMArgs args, CVMRetValue* rv) {
-  int ndim = args.num_args;
-  DLTensor *x = args[0];
-  DLTensor *w = args[1];
-  DLTensor *bias = nullptr;
-  DLTensor *y = nullptr;
-  int32_t* bias_data = nullptr;
-  if(ndim == 5){
-    bias = args[2];
-    y = args[3];
-    bias_data = static_cast<int32_t*>(bias->data);
-  } else{
-    y = args[2];
-  }
 
-  auto x_data = static_cast<int32_t*>(x->data);
-  auto y_data = static_cast<int32_t*>(y->data);
-  auto w_data = static_cast<int32_t*>(w->data);
-  for (int64_t di = 0; di < y->shape[0]; ++di) {
-    int32_t y_offset = di * y->shape[1], x_offset = di * x->shape[1];
-    for (int64_t oi = 0; oi < y->shape[1]; ++oi) {
-      int32_t sum = 0, w_offset = oi * w->shape[1];
-      for (int64_t xi = 0; xi < x->shape[1]; ++xi) {
-        sum += x_data[x_offset + xi] * w_data[w_offset + xi];
+  // inputs X, W, B 
+  // outpus Y 
+  auto X = args[0];
+  auto W = args[1];
+  auto param = CVMArg2Attr<cvm::top::DenseParam>(args[args.size()-1]);
+  auto Y = (param.use_bias) ? args[3] : args[2];
+
+  // X.shape = (M, K)
+  // W.shape = (N, K)
+  // B.shape = (N,)
+  // Y.shape = (M, N)
+  auto X_shape = CVMArgShape(X);
+  auto W_shape = CVMArgShape(W);
+  auto Y_shape = CVMArgShape(Y);
+
+  auto X_data = CVMArg2Data<int32_t>(X); 
+  auto W_data = CVMArg2Data<int32_t>(W); 
+  auto Y_data = CVMArg2Data<int32_t>(Y); 
+  // Y = X * WT
+  for (int64_t m = 0; m < Y_shape[0]; ++m) {
+    // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
+    int32_t Y_offset = m * Y_shape[1], X_offset = m * X_shape[1];
+    for (int64_t n = 0; n < Y_shape[1]; ++n) {
+      int32_t sum = 0, W_offset = n * W_shape[1];
+      for (int64_t k = 0; k < X_shape[1]; ++k) {
+        sum += X_data[X_offset + k] * W_data[W_offset + k];
       }
-      y_data[y_offset + oi] = sum;
+      Y_data[Y_offset + n] = sum;
     }
   }
-  if (bias_data != nullptr) {
-    for (int64_t di = 0; di < y->shape[0]; ++di) {
-      int32_t y_offset = di * y->shape[1];
-      for (int64_t oi = 0; oi < y->shape[1]; ++oi) {
-        y_data[y_offset + oi] += bias_data[oi];
+  // if B is not None, Y = X * WT + B
+  if (param.use_bias) {
+    auto B = args[2];
+    auto B_data = CVMArg2Data<int32_t>(B); 
+    for (int64_t m = 0; m < Y_shape[0]; ++m) {
+      int32_t Y_offset = m * Y_shape[1];
+      for (int64_t n = 0; n < Y_shape[1]; ++n) {
+        Y_data[Y_offset + n] += B_data[n];
       }
     }
   }
-  print_to_file(y, "dense.txt");
-
 });
 
 void conv2d(
@@ -288,12 +287,10 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_precision")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.abs")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int32_t* x_data = static_cast<int32_t*>(x->data);
-    for(uint64_t i = 0; i < getSize(x); i++){
-      y_data[i] = std::abs(x_data[i]);
+    auto X_data = CVMArg2Data<int32_t>(args[0]); 
+    auto Y_data = CVMArg2Data<int32_t>(args[1]); 
+    for (auto i = CVMShapeBegin(args[1]); i < CVMShapeEnd(args[1]); i++){
+      Y_data[i] = std::abs(X_data[i]);
     }
 });
 
@@ -344,80 +341,73 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.repeat")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    void *_attr = args[2];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::RepeatParam>(attr->parsed);
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int32_t axis = param.axis;
-    int32_t repeat = param.repeats;
-    int32_t ndim = x->ndim;
-    if(axis < 0) axis = axis + ndim;
 
-    for(uint64_t i = 0; i < getSize(y); i++){
-      uint64_t o_i = i, in_i = 0, shapeSize = 1;
-      for(int j = ndim-1; j >= 0; j--){
-        uint64_t col = o_i % y->shape[j];
-        o_i /= y->shape[j];
-        if(j == axis) col = col / repeat;
-        in_i += col * shapeSize;
-        shapeSize *= x->shape[j];
-      }
-      y_data[i] = x_data[in_i];
+    // inputs: X
+    // attr: repeats, axis
+    // outputs: Y
+    // X.shape = (n_0, n_1,,n_axis,, n_{N-1})
+    // Y.shape = (n_0, n_1,,n_axis * repeats, n_{N-1})
+    auto X = args[0];
+    auto Y = args[1];
+    auto X_shape = CVMArgShape(X);
+    auto Y_shape = CVMArgShape(Y);
+    auto X_data = CVMArg2Data<int32_t>(X);
+    auto Y_data = CVMArg2Data<int32_t>(Y);
+    auto param = CVMArg2Attr<cvm::top::RepeatParam>(args[args.size()-1]);
+    int32_t axis = param.axis;
+    int32_t repeats = param.repeats;
+    if(axis < 0) axis = axis + X_shape.size();
+    // y_k, x_k represent the coordinate index of Y.shape, X.shape, respectively
+    std::vector<int64_t> Y_k(Y_shape.size(), 0), X_k(X_shape.size(), 0);
+    for (auto i = CVMShapeBegin(Y); i < CVMShapeEnd(Y); i++){
+      int index1 = Index2Number(X_shape, X_k);
+      Y_data[i] = X_data[index1];
+      IndexBaseShapeAddOne(Y_shape, Y_k);
+      // Y[n_0, n_1,,n_axis,, n_{N-1}] = X[n_0, n_1,,n_axis/repeats,, n_{N-1}]
+      X_k = Y_k;
+      X_k[axis] /= repeats;
     }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.negative")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-
-    for(uint64_t i = 0; i < getSize(x); i++){
+    // inputs: x_data
+    // outputs: y_data
+    auto x_data = CVMArg2Data<int32_t>(args[0]); 
+    auto y_data = CVMArg2Data<int32_t>(args[1]); 
+    auto size = CVMArgSize(args[0]); 
+    // y_data = -x_data
+    for(int i = 0; i < size; i++){
         y_data[i] = -x_data[i];
     }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.tile")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-
-    int32_t yndim = y->ndim;
-    int32_t xndim = x->ndim;
-
-    uint64_t tmp_y_size = 1;
-    for(int i = 0; i < xndim; i++){
-        tmp_y_size *= y->shape[i + yndim - xndim];
+    // inputs: X, reps
+    // X.shape = (n_0, n_1,,, n_{N-1})
+    // reps = (m_0, m_1,,, m_{M-1})
+    // outputs: Y
+    // Y.shape = max(X.shape, reps)
+    // Y.shape.size = K
+    auto X = args[0];
+    auto Y = args[1];
+    auto X_data = CVMArg2Data<int32_t>(X); 
+    auto Y_data = CVMArg2Data<int32_t>(Y); 
+    auto X_shape = CVMArgShape(X);
+    auto Y_shape = CVMArgShape(Y);
+    // X_k, Y_k represent the coordinate index of X.shape, Y.shape, respectively
+    std::vector<int64_t> Y_k(Y_shape.size(), 0), X_k(X_shape.size(), 0);
+    for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
+      // Y[k0, k1,,,k_{K-N}, k_{K-N+1},,,k_{K-1}] =
+      // X[k_{K-N+0} mod n_0, k_{K-N+1} mod n_1,,, k_{K-N+N-1} mod n_{N-1}]
+      for (uint32_t i = 0; i < X_shape.size(); i++){
+        X_k[i] = Y_k[Y_shape.size() - X_shape.size() + i] % X_shape[i];
+      }
+      int index0 = Index2Number(X_shape, X_k);
+      Y_data[j] = X_data[index0];
+      IndexBaseShapeAddOne(Y_shape, Y_k);
     }
-
-    for(uint64_t i = 0; i < tmp_y_size; i++){
-       uint64_t o_i = i, in_i = 0, shapeSize = 1;
-       for(int j = xndim-1; j >= 0; j--){
-            int yj = j + yndim - xndim;
-            int col = o_i % y->shape[yj];
-            o_i /= y->shape[yj];
-            col = col % x->shape[j];
-            in_i += col * shapeSize; 
-            shapeSize *= x->shape[j];
-       }
-       y_data[i] = x_data[in_i];
-    }
-
-    uint64_t othery = 1;
-    for(int i = 0; i < yndim-xndim; i++){
-        othery *= y->shape[i];
-    }
-    for(size_t i = 1; i < othery; i++){
-        memcpy(y_data + i*tmp_y_size, y_data, tmp_y_size * sizeof(int32_t));
-    }
-    print_to_file(y, "tile.txt");
 });
 
 // CVM_REGISTER_GLOBAL("cvm.runtime.formal.pad")
@@ -572,26 +562,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.slice_like")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[2];
-    void* _attr = args[3];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::SliceLikeParam>(attr->parsed);
-    Tuple<int> axis = param.axis;
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int ndim = x->ndim;
-
-    for(uint64_t i = 0; i < getSize(y); i++){
-      uint64_t o_i = i, in_i = 0, shapeSize = 1;
-      for(int j = ndim-1; j >= 0; j--){
-        int col = o_i % y->shape[j];
-        o_i /= y->shape[j];
-        in_i += col * shapeSize;
-        shapeSize *= x->shape[j];
-      }
-      y_data[i] = x_data[in_i];
+    auto X_shape = CVMArgShape(args[0]);
+    auto Y_shape = CVMArgShape(args[2]);
+    auto X_data = CVMArg2Data<int32_t>(args[0]); 
+    auto Y_data = CVMArg2Data<int32_t>(args[2]); 
+    // d_k represent the coordinate index
+    int K = Y_shape.size();
+    std::vector<int64_t> d_k(K, 0);
+    auto size = CVMArgSize(args[2]); 
+    // Y[d_0, d_1,,,] = X[d_0, d_1,,,]
+    for(uint64_t i = 0; i < size; i++){
+      int index0 = Index2Number(X_shape, d_k);
+      Y_data[i] = X_data[index0];
+      IndexBaseShapeAddOne(Y_shape, d_k);
     }
 });
 

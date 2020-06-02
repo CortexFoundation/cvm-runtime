@@ -400,8 +400,8 @@ void read_one_line(string filename, string& str){
     infile.open(filename);
     if(!infile.is_open()){
       printf("file no exist : %s\n", filename.c_str());
-        str = "";
-        return;
+      str = "";
+      return;
     }
     getline(infile, str);
     infile.close();
@@ -644,13 +644,13 @@ void test_op(string op_name) {
 int main() {
   // test_op("max_pool2d");
   // test_op("upsampling");
-  // test_op("dense");
+   test_op("dense");
   // test_op("conv2d");
   // test_op("sum");
   // test_op("max"); // pass
-  // test_op("slice_like");
-  // test_op("tile"); //pass
-  // test_op("repeat"); //pass
+   test_op("slice_like");
+   test_op("tile"); //pass
+   test_op("repeat"); //pass
   // test_op("get_valid_counts");
 
   // test_op("strided_slice"); //pass
