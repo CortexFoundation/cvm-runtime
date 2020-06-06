@@ -41,5 +41,7 @@ test_opencl: ${TEST_OPENCL}
 %_opencl: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=3 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm_runtime -fopenmp -L/usr/local/cuda/lib64/ -lOpenCL -fsigned-char -pthread -Wl,-rpath=${BUILD}
 
+%_riscv: ${TESTS}/%.cc lib
+	riscv64-unknown-linux-gnu-g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -pthread -lcvm -fsigned-char -Wl,-rpath=${BUILD}
 clean:
 	rm -rf ./build/*
