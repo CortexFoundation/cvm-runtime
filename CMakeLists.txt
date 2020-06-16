@@ -12,13 +12,16 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/config.cmake)
   include(${CMAKE_CURRENT_SOURCE_DIR}/config.cmake)
 endif()
 
-if(ENABLE_RISCV)
+if(USE_RISCV)
+    message(STATUS "using riscv")
     set(CMAKE_SYSTEM_NAME Generic)
     set(CMAKE_SYSTEM_PROCESSOR riscv)
     set(CMAKE_CROSSCOMPILING 1)
     set(CMAKE_CXX_COMPILER "riscv64-unknown-linux-gnu-g++")
     set(CMAKE_C_COMPILER "riscv64-unknown-linux-gnu-gcc")
     set(CMAKE_ASM_COMPILER "riscv64-unknown-linux-gnu-gcc")
+    set(CMAKE_LINKER "riscv64-unknown-linux-gnu-ld")
+    set(CMAKE_AR "riscv64-unknown-linux-gnu-ar")
     set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
     set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
     set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -62,16 +65,6 @@ file(GLOB RUNTIME_SRCS src/core/*.cc
 
 file(GLOB CVM_SRCS src/compiler/*.cc
                    src/pass/*.cc)
-
-if(ENABLE_RISCV)
-    message(STATUS "ENABLE RISCV")
-
-    file(GLOB RUNTIME_RISCV_SRCS src/runtime/formal/devapi/*.cc)
-    list(APPEND RUNTIME_SRCS ${RUNTIME_RISCV_SRCS})
-
-    file(GLOB CVM_OPS_RISCV_SRCS src/runtime/formal/ops/*.cc)
-    list(APPEND RUNTIME_SRCS ${CVM_OPS_RISCV_SRCS})
-endif()
 
 if(ENABLE_CPU)
     message(STATUS "ENABLE CPU")
@@ -146,11 +139,11 @@ file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/tensor/*.cc)
 list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 
-add_library(${EXECUTE_NAME} STATIC ${RUNTIME_SRCS})
+add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
 target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 
 list(APPEND CVM_SRCS ${RUNTIME_SRCS})
-add_library(${LIBRARY_NAME} STATIC ${CVM_SRCS})
+add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
 target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 
 
