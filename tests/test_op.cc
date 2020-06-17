@@ -7,6 +7,7 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include <cvm/op_attr_types.h>
+#include <cvm/runtime/device_api.h>
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
@@ -28,6 +29,14 @@ using cvm::runtime::Registry;
 using namespace cvm;
 using namespace cvm::runtime;
 
+static 
+std::unordered_map<int, DLDeviceType> const APIDevTypeMap = {
+  {0, kDLCPU},
+  {1, kDLGPU},
+  {2, kDLFORMAL},
+  {3, kDLOpenCL},
+};
+
 int dtype_code{kDLInt};
 int dtype_bits{32};
 int dtype_lanes{1};
@@ -40,11 +49,11 @@ struct CVMOpParam {
   std::string attrs;
 };
 
-#ifdef USE_GPU 
-int ctx = kDLGPU;
-#else
-int ctx = kDLCPU;
-#endif
+#ifndef DEVICE
+#define DEVICE 0
+#endif 
+
+int ctx = APIDevTypeMap.at(DEVICE);
 
 int device_id = 0;
 /*
@@ -82,7 +91,8 @@ struct OpArgs {
 std::function<void()> get_func(
     const CVMOpParam& param, NodeAttrs* attr,
     const std::vector<DLTensor>& args,
-    size_t num_inputs)
+    size_t num_inputs,
+    DLTensor* extra_space = nullptr)
 {
 
   struct OpArgs {
@@ -119,17 +129,18 @@ std::function<void()> get_func(
 
   auto op = param.func_name;
   int device_type = static_cast<int>(ctx);
-  std::string module_name = "cvm.runtime.cvm";
-  if (device_type == kDLGPU) module_name += "_cuda";
+  std::string module_name = "cvm.runtime.";
+  module_name += DeviceName(device_type);
   module_name += ".";
   auto func = cvm::runtime::Registry::Get(module_name + op);
   VERIFY(func != nullptr) << "function undefined " << module_name + op;
-  return [arg_ptr, op, func](){
+  return [arg_ptr, op, func, extra_space](){
     CVMRetValue rv;
     CVMArgs targs(
       arg_ptr->arg_values.data(),
       arg_ptr->arg_tcodes.data(),
-      static_cast<int>(arg_ptr->arg_values.size())
+      static_cast<int>(arg_ptr->arg_values.size()),
+      extra_space
     );
     func->CallPacked(targs, &rv);
   };
@@ -337,7 +348,6 @@ int findAllSubDir(std::vector<string> &filelist, const char *basePath, int type)
 {
     DIR *dir;
     struct dirent *ptr;
-    char base[1000];
 
     if ((dir=opendir(basePath)) == NULL)
     {
@@ -390,8 +400,8 @@ void read_one_line(string filename, string& str){
     infile.open(filename);
     if(!infile.is_open()){
       printf("file no exist : %s\n", filename.c_str());
-        str = "";
-        return;
+      str = "";
+      return;
     }
     getline(infile, str);
     infile.close();
@@ -480,6 +490,21 @@ void test_op(string op_name) {
     return ;
   }
 
+  static auto& finfer_prec =
+      Op::GetAttr<cvm::FInferPrecision>("FInferPrecision");
+  std::vector<int> iprec, oprec;
+  std::vector<TShape> shapes;
+  auto fip = finfer_prec.get(op, nullptr);
+  if (fip == nullptr) {
+    std::cout << "operator " << op_name
+      << "has not registered FInferPrecision";
+    return ;
+  }
+
+  static auto& fextra_space =
+      Op::GetAttr<cvm::FOpExtraSpace >("FOpExtraSpace");
+  auto fextra = fextra_space.get(op, nullptr);
+
   for(int ci = 0; ci < case_list.size(); ci++){
 		string case_path = case_dir + case_list[ci] + "/";
     string attr_path = case_path + "attr.txt";
@@ -548,6 +573,19 @@ void test_op(string op_name) {
       }
     }
 
+    std::vector<TShape> shapes;
+    std::vector<int> iprecs;
+    shapes.insert(shapes.end(), ishape.begin(), ishape.end());
+    shapes.insert(shapes.end(), oshape.begin(), oshape.end());
+    int64_t es[1]{ 0 };
+    if (fextra != nullptr) {
+      es[0] = fextra(attr, &ishape, &iprecs,
+          DLContext{DLDeviceType(ctx), 0});
+    }
+    DLTensor* extra_space;
+    CVMArrayAlloc(es, 1, 
+        dtype_code, dtype_bits, dtype_lanes, ctx, device_id, &extra_space);
+
     for(int i = 0; i < num_outputs; i++){
 			string out_path = case_path + "out_" + std::to_string(i) + ".txt";
 			cout << out_path << endl;
@@ -567,7 +605,7 @@ void test_op(string op_name) {
       args[num_inputs + i] = *dl;
     }
 
-    auto op = get_func(params, &attr, args, params.num_inputs);
+    auto op = get_func(params, &attr, args, params.num_inputs, extra_space);
     op();
 
     vector<int32_t> cpu_output_tensor(tdata[params.num_inputs].size());
@@ -597,32 +635,39 @@ void test_op(string op_name) {
     }
     assert(ret == 0);
     printf("\n");
-   // for(int i = 0; i < args.size(); i++){
-   //     CVMArrayFree(&args[i]);
-   // }
+    CVMArrayFree(extra_space);
+    // for(int i = 0; i < args.size(); i++){
+      // CVMArrayFree(&args[i]);
+    // }
   }
 }
 int main() {
-  test_op("max_pool2d");
-  test_op("upsampling");
-  test_op("dense");
-  test_op("conv2d");
-  test_op("sum");
-  test_op("max"); // pass
-  test_op("slice_like");
-  test_op("tile"); //pass
-  test_op("repeat"); //pass
-  test_op("get_valid_counts");
+  // test_op("max_pool2d");
+  // test_op("upsampling");
+   test_op("dense");
+  // test_op("conv2d");
+  // test_op("sum");
+  // test_op("max"); // pass
+   test_op("slice_like");
+   test_op("tile"); //pass
+   test_op("repeat"); //pass
+  // test_op("get_valid_counts");
 
-  test_op("strided_slice"); //pass
-  test_op("concatenate");//pass
-  test_op("transpose");// pass
-  test_op("take");
-  test_op("elemwise_add");
-  test_op("non_max_suppression");
+  // test_op("strided_slice"); //pass
+  // test_op("concatenate");//pass
+  // test_op("transpose");// pass
+  // test_op("take");
+  // test_op("clip");
+   //test_op("cvm_clip");
+  // test_op("cvm_right_shift");
+   test_op("elemwise_add");
+  // test_op("elemwise_sub");
+  // test_op("non_max_suppression");
   test_op("broadcast_sub");
-  test_op("broadcast_add");
-  test_op("broadcast_mul");
-  test_op("broadcast_max");
+   test_op("broadcast_add");
+   test_op("broadcast_mul");
+   test_op("broadcast_max");
+   test_op("broadcast_div");
+   test_op("broadcast_greater");
   return 0;
 }

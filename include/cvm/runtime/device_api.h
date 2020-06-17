@@ -98,75 +98,6 @@ class CVM_DLL DeviceAPI {
                               CVMContext ctx_to,
                               CVMType type_hint,
                               CVMStreamHandle stream) = 0;
-    /*!
-   * \brief Create a new stream of execution.
-   *
-   * \param ctx The context of allocation.
-   */
-  virtual CVMStreamHandle CreateStream(CVMContext ctx);
-
-  /*!
-   * \brief Free a stream of execution
-   *
-   * \param ctx The context of the stream
-   * \param stream The pointer to be freed.
-   */
-  virtual void FreeStream(CVMContext ctx, CVMStreamHandle stream);
-
-  /*!
-   * \brief Synchronize the stream
-   * \param ctx The context to perform operation.
-   * \param stream The stream to be sync.
-   */
-  virtual void StreamSync(CVMContext ctx, CVMStreamHandle stream) = 0;
-  /*!
-   * \brief Set the stream
-   * \param ctx The context to set stream.
-   * \param stream The stream to be set.
-   */
-  virtual void SetStream(CVMContext ctx, CVMStreamHandle stream) {}
-  /*!
-   * \brief Synchronize 2 streams of execution.
-   *
-   * An event is created in event_src stream that the second then
-   * stream waits on.  Neither event_src or event_dst need to be of
-   * the same device ID as the context, but they must be of the same
-   * device type.
-   *
-   * \param ctx The context of the streams.
-   * \param event_src The source stream to synchronize.
-   * \param event_dst The destination stream to synchronize.
-   */
-  virtual void SyncStreamFromTo(CVMContext ctx,
-                                        CVMStreamHandle event_src,
-                                        CVMStreamHandle event_dst);
-  /*!
-   * \brief Allocate temporal workspace for backend execution.
-   *
-   *  \note We have the following assumption about backend temporal
-   *   workspace allocation, and backend will optimize for such assumption:
-   *
-   *  - Only a few allocation will happen, and space will be released after use.
-   *  - The release order is usually in reverse order of allocate (stack style).
-   *  - Repeative pattern of same allocations over different runs.
-   *  - Workspace should not overlap between different threads(i.e. be threadlocal)
-   *
-   * \param ctx The context of allocation.
-   * \param nbytes The size to be allocated.
-   * \param type_hint The type of elements. Only needed by certain backends such
-   * as OpenGL, as nbytes is sufficient for most backends.
-   */
-  virtual void* AllocWorkspace(CVMContext ctx,
-                                       size_t nbytes,
-                                       CVMType type_hint = {});
-  /*!
-   * \brief Free temporal workspace in backend execution.
-   *
-   * \param ctx The context of allocation.
-   * \param ptr The pointer to be freed.
-   */
-  virtual void FreeWorkspace(CVMContext ctx, void* ptr);
-
   /*!
    * \brief Get device API base don context.
    * \param ctx The context
@@ -188,8 +119,8 @@ inline const char* DeviceName(int type) {
   switch (type) {
     case kDLCPU: return "cpu";
     case kDLGPU: return "gpu";
-    case kDLMetal: return "metal";
-    case kDLExtDev: return "ext_dev";
+    case kDLOpenCL: return "opencl";
+    case kDLFORMAL: return "formal";
     default: LOG(FATAL) << "unknown type =" << type; return "Unknown";
   }
 }

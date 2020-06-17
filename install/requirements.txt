@@ -1,0 +1,4 @@
+numpy
+mxnet
+gluoncv
+decorator

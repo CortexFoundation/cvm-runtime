@@ -15,6 +15,7 @@
 #include "node.h"
 #include "tuple.h"
 #include "layout.h"
+#include "dlpack.h"
 
 namespace cvm {
 
@@ -81,6 +82,11 @@ using FInferPrecision =
     std::vector<int>* in_attrs,
     std::vector<int>* out_attrs)>;
 
+using FOpExtraSpace = 
+  std::function<int64_t (const NodeAttrs& attrs,
+      std::vector<TShape>* shapes,
+      std::vector<int>* iprecs,
+      const DLContext& ctx)>;
 
 /*!
  * \brief Get attribute dictionary from node.

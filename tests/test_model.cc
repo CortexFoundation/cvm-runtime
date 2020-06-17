@@ -11,13 +11,13 @@ using namespace std;
 using cvm::runtime::PackedFunc;
 using cvm::runtime::Registry;
 
-#ifndef USE_GPU
-#define USE_GPU  0
+#ifndef DEVICE
+#define DEVICE  0
 #endif
 
 #define CHECK_STATUS(x, msg) \
   if (x != SUCCEED) { \
-    cerr << "STATUS ERROR: " << x << " " << msg << "\n"; \
+    cout << "STATUS ERROR: " << x << " " << msg << "\n"; \
     return -1; \
   }
 
@@ -63,6 +63,7 @@ void write_result(const char *filename, vector<char>& data){
 void compare_result(const char *filename, vector<char>& data){
     FILE* fp = fopen(filename, "r");
     if(fp == NULL){
+      printf("save result..\n");
         write_result(filename, data);
         // printf("open file %s failed\n", filename);
         return;
@@ -74,7 +75,7 @@ void compare_result(const char *filename, vector<char>& data){
     for(int i = 0; i < data.size(); i++){
       int value;
       fscanf(fp, "%d ", &value);
-      assert((int)data[i] == value);
+      assert((int32_t)data[i] == value);
     }
     fclose(fp);
     printf("compare result: success\n\n");
@@ -88,27 +89,12 @@ struct OpArgs {
 };
 
 int run_LIF(string model_root, int device_type = 0) {
-#if(USE_GPU==0)
-  cvm::runtime::transpose_int8_avx256_transpose_cnt = 0;
-  cvm::runtime::transpose_int8_avx256_gemm_cnt = 0;
-  cvm::runtime::im2col_cnt = 0;
-  cvm::runtime::cvm_op_cvm_shift_cnt = 0;
-  cvm::runtime::cvm_op_clip_cnt = 0;
-  cvm::runtime::cvm_op_dense_cnt = 0;
-  cvm::runtime::cvm_op_maxpool_cnt = 0;
-  cvm::runtime::cvm_op_broadcast_cnt = 0;
-  cvm::runtime::cvm_op_concat_cnt = 0;
-  cvm::runtime::cvm_op_upsampling_cnt = 0;
-  cvm::runtime::cvm_op_inline_matmul_cnt = 0;
-  cvm::runtime::cvm_op_chnwise_conv_cnt = 0;
-  cvm::runtime::cvm_op_depthwise_conv_cnt = 0;
-  cvm::runtime::cvm_op_chnwise_conv1x1_cnt = 0;
-#endif
 
+  //printf("the elewise cnt = %.4f\n", cvm::runtime::cvm_op_elemwise_cnt);
   string json_path = model_root + "/symbol";
   string params_path = model_root + "/params";
-  cerr << "load " << json_path << "\n";
-  cerr << "load " << params_path << "\n";
+  cout << "load " << json_path << "\n";
+  cout << "load " << params_path << "\n";
   std::string params, json;
   {
     std::ifstream input_stream(json_path, std::ios::binary);
@@ -125,13 +111,13 @@ int run_LIF(string model_root, int device_type = 0) {
                                 params.c_str(), params.size(),
                                 &net,
                                 device_type, 0);
-  cerr << "model loaded\n";
+  cout<< "model loaded\n";
   CHECK_STATUS(status, "model loaded failed");
 
   unsigned long long gas = 0;
   status = CVMAPIGetGasFromModel(net, &gas);
   CHECK_STATUS(status, "gas invalid");
-  cerr << "ops " << gas / 1024 / 1024 << "\n";
+  cout << "ops " << gas / 1024 / 1024 << "\n";
   // API only accepts byte array
   vector<char> input, output;
   unsigned long long input_size, output_size;
@@ -144,30 +130,30 @@ int run_LIF(string model_root, int device_type = 0) {
     vector<int32_t> input_int32_t;
     std::vector<unsigned long> tshape;
     npy::LoadArrayFromNumpy("/data/std_out/trec/data.npy", tshape, input_int32_t);
-    std::cerr << "Loading a int32 data and cast to byte array: "
+    std::cout << "Loading a int32 data and cast to byte array: "
               << input.size() << " " << input_int32_t.size() << "\n";
     memcpy(input.data(), input_int32_t.data(), input.size());
   }
   else if (model_root.find("yolo") != string::npos)
   {
     std::vector<unsigned long> tshape;
-    npy::LoadArrayFromNumpy("/tmp/yolo/out/data.npy", tshape, input);
+    npy::LoadArrayFromNumpy(model_root + "/data.npy", tshape, input);
     std::cerr << tshape.size() << "\n";
     for (auto x : tshape) {
-      std::cerr << x << " ";
+      std::cout << x << " ";
     }
-    std::cerr << "\n";
+    std::cout << "\n";
   }
   else if (model_root.find("std_out") != string::npos)
   {
     string data_file = model_root + "/data.npy";
     std::vector<unsigned long> tshape;
     npy::LoadArrayFromNumpy(data_file, tshape, input);
-    std::cerr << tshape.size() << "\n";
+    std::cout << tshape.size() << "\n";
     for (auto x : tshape) {
-      std::cerr << x << " ";
+      std::cout << x << " ";
     }
-    std::cerr << "\n";
+    std::cout << "\n";
   }
   else if (model_root.find("3145ad19228c1cd2d051314e72f26c1ce77b7f02") != string::npos)
   {
@@ -176,7 +162,7 @@ int run_LIF(string model_root, int device_type = 0) {
     std::vector<int32_t> data;
     //npy::LoadArrayFromNumpy(data_file, tshape, input);
     read_data(data_file.c_str(), tshape, data);
-    std::cerr << tshape.size() << "\n";
+    std::cout << tshape.size() << "\n";
     for (int i = 0; i < data.size(); i++) {
       input[i]= (int8_t)data[i];
       if(i < 10){
@@ -186,78 +172,12 @@ int run_LIF(string model_root, int device_type = 0) {
     printf("\n");
   }
 
-  double start = omp_get_wtime();
-  int n_run = 1;
-  for (int i = 0; i < n_run; i++) {
-    if (i % 10 == 0)
-      cerr << "i = " << i << "\n";
-    status = CVMAPIInference(net, input.data(), input.size(), output.data());
-    CHECK_STATUS(status, "inference failed");
-  }
+  status = CVMAPIInference(net, input.data(), input.size(), output.data());
+  CHECK_STATUS(status, "inference failed");
   status = CVMAPIFreeModel(net);
   CHECK_STATUS(status, "free model failed");
-#if(USE_GPU == 0)
-  double ellapsed_time = (omp_get_wtime() - start) / n_run;
-  cout << "total time : " << ellapsed_time / n_run << "\n";
-  cout << "total gemm.trans time: " << cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run << "\n";
-  cout << "total  gemm.gemm time: " << cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run << "\n";
-  cout << "total     im2col time: " << cvm::runtime::im2col_cnt / n_run<< "\n";
-  double sum_time = 0;
-  sum_time +=  cvm::runtime::transpose_int8_avx256_transpose_cnt / n_run;
-  sum_time +=  cvm::runtime::transpose_int8_avx256_gemm_cnt / n_run;
-  sum_time +=  cvm::runtime::im2col_cnt / n_run;
-  cout << "total       gemm time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = cvm::runtime::cvm_op_dense_cnt / n_run;
-  cout << "total naivedense time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = (cvm::runtime::cvm_op_maxpool_cnt) / n_run;
-  cout << "total    maxpool time: " <<  sum_time << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-  sum_time = (cvm::runtime::cvm_op_broadcast_cnt) / n_run;
-  cout << "total  broadcast time: " <<  sum_time << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
 
-
-  sum_time =  cvm::runtime::cvm_op_clip_cnt / n_run;
-  cout << "total       clip time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-
-  sum_time =  cvm::runtime::cvm_op_cvm_shift_cnt / n_run;
-  cout << "total rightshift time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_concat_cnt / n_run;
-  cout << "total    concat time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_upsampling_cnt / n_run;
-  cout << "total upsampling time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_inline_matmul_cnt / n_run;
-  cout << "total matmul     time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_elemwise_cnt / n_run;
-  cout << "total elemwise   time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_chnwise_conv_cnt / n_run;
-  cout << "total chn conv2d time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_depthwise_conv_cnt / n_run;
-  cout << "total depth conv2d time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-
-  sum_time =  cvm::runtime::cvm_op_chnwise_conv1x1_cnt / n_run;
-  cout << "total chnconv2d1x1 time: " << (sum_time) << "/" << ellapsed_time
-    << " " <<  sum_time / ellapsed_time <<"\n";
-#endif
-
-  if (json_path.find("yolo") != string::npos) {
+  if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
     uint64_t n_bytes = 4;
     uint64_t ns =  output.size() / n_bytes;
     std::cout << "yolo output size = " << ns << " n_bytes = " << n_bytes << "\n";
@@ -289,9 +209,6 @@ int run_LIF(string model_root, int device_type = 0) {
       std::cout << "\n";
     }
 
-    string out_file = model_root + "/result_0.txt";
-   // write_result(out_file.c_str(), output);
-   compare_result(out_file.c_str(), output);
    // string data_file = model_root + "/result_0.npy";
    // vector<unsigned long> tshape;
    // vector<int32_t> tout;
@@ -308,12 +225,15 @@ int run_LIF(string model_root, int device_type = 0) {
    //     assert((int32_t)output[i] == tout[i]);
    // }
   }
+  string out_file = model_root + "/result_0.txt";
+  // write_result(out_file.c_str(), output);
+  compare_result(out_file.c_str(), output);
   return 0;
 }
 void test_thread() {
   vector<std::thread> threads;
   for (int t = 0; t < 1; ++t) {
-    cerr << "threads t = " << t << "\n";
+    cout << "threads t = " << t << "\n";
     threads.push_back(thread([&]() {
           string model_root = "/home/tian/model_storage/resnet50_v1/data/";
           // model_root = "/home/kaihuo/cortex_fullnode_storage/cifar_resnet20_v2/data";
@@ -330,13 +250,17 @@ void test_thread() {
 }
 
 int test_models(int device_type = 0) {
+  std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
+    "/data/std_out/yolo_tfm",
     "/data/std_out/null",
     "/data/std_out/resnet50_mxg",
+    "/data/std_out/ssd_512_mobilenet1.0_voc_tfm",
+    "/data/std_out/resnet18_v1_tfm",
     "/data/std_out/resnet50_v2",
     "/data/std_out/qd10_resnet20_v2",
     "/data/std_out/trec",
-    "/data/new_cvm/yolo3_darknet53_voc/data",
+    // "/data/new_cvm/yolo3_darknet53_voc/data",
     "/data/lz_model_storage/dcnet_mnist_v1/data",
     "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
     "/data/lz_model_storage/resnet50_v1_imagenet/data",
@@ -348,7 +272,7 @@ int test_models(int device_type = 0) {
     "/data/lz_model_storage/squeezenet_gcv1.1/data",
     "/data/lz_model_storage/squeezenet_gcv1.0/data",
     // invalid has strange attribute in operator elemwise_add.
-    //"/data/lz_model_storage/octconv_resnet26_0.250/data",
+    // "/data/lz_model_storage/octconv_resnet26_0.250/data",
     "/data/std_out/resnet50_mxg/",
     "/data/std_out/resnet50_v2",
     "/data/std_out/qd10_resnet20_v2",
@@ -369,9 +293,12 @@ int test_models(int device_type = 0) {
     "/data/std_out/random_4_8/",
     "/data/std_out/random_4_9/",
     "/data/std_out/log2",
-    "./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
+    //"./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
     "/data/std_out/lr_attr",
-    "/data/std_out/non_in",
+    // "/data/std_out/non_in",
+    "/data/std_out/shufflenet",
+    "/data/std_out/ssd",
+    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
   };
   for (auto model_root : model_roots) {
     auto ret = run_LIF(model_root, device_type);
@@ -380,7 +307,7 @@ int test_models(int device_type = 0) {
   return 0;
 }
 int main() {
- if (test_models(USE_GPU) != 0)
+ if (test_models(DEVICE) != 0)
    return -1;
   return 0;
 }

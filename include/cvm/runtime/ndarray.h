@@ -11,6 +11,7 @@
 #include <utility>
 #include "c_runtime_api.h"
 #include "serializer.h"
+#include "../errors.h"
 
 namespace cvm {
 namespace runtime {
@@ -435,6 +436,7 @@ inline bool NDArray::Load(utils::Stream* strm) {
       << "Invalid DLTensor file format";
   CHECK(header == kCVMNDArrayMagic)
       << "Invalid DLTensor file format";
+
   DLContext ctx;
   int ndim;
   DLDataType dtype;
@@ -446,6 +448,12 @@ inline bool NDArray::Load(utils::Stream* strm) {
       << "Invalid DLTensor file format";
   CHECK_EQ(ctx.device_type, kDLCPU)
       << "Invalid DLTensor context: can only save as CPU tensor";
+  VERIFY((dtype.code == kDLInt) && 
+      (dtype.bits == 8 || dtype.bits == 32) &&
+      (dtype.lanes == 1))
+    << "cvm runtime only supported INT8 or INT32 NDArray vs. ("
+    << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
+
   std::vector<int64_t> shape(ndim);
   if (ndim != 0) {
     CHECK(strm->ReadArray(&shape[0], ndim))
@@ -468,14 +476,6 @@ inline bool NDArray::Load(utils::Stream* strm) {
     utils::ByteSwap(ret->data, elem_bytes, num_elems);
   }
 
-  VERIFY((dtype.code == kDLInt) && 
-      (dtype.bits == 8 || dtype.bits == 32) &&
-      (dtype.lanes == 1))
-    << "cvm runtime only supported INT8 or INT32 NDArray vs. ("
-    << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
-  VERIFY(ctx.device_type == kDLCPU)
-    << "cvm runtime load NDArray only supported cpu device vs. "
-    << ctx.device_type;
   if(dtype.bits == 8){
       DLDataType dtype32 = dtype;
       dtype32.bits = 32;
