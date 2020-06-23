@@ -1,9 +1,6 @@
-from __future__ import print_function  # only relevant for Python 2
 import mxnet as mx
 from mxnet import nd, gluon, autograd
 from mxnet.gluon import nn
-
-from mrt import conf, utils
 
 import numpy as np
 import argparse
@@ -13,15 +10,18 @@ parser.add_argument('--cpu', default=False, action='store_true',
                     help='whether enable cpu (default use gpu)')
 parser.add_argument('--gpu-id', type=int, default=0,
                     help='gpu device id')
-parser.add_argument('--net', type=str, default='',
-                    help='choose available networks, optional: lenet, mlp')
+parser.add_argument('--net', type=str, default='dapp',
+                    help='choose available networks, optional: dapp, lenet, mlp')
 
 args = parser.parse_args()
 
+
+from mrt import conf, utils
+
+
 def load_fname(version, suffix=None, with_ext=False):
     suffix = "."+suffix if suffix is not None else ""
-    version = "_"+version if version is not None else ""
-    prefix = "{}/mnist{}{}".format(conf.MRT_MODEL_ROOT, version, suffix)
+    prefix = "{}/mnist_{}{}".format(conf.MRT_MODEL_ROOT, version, suffix)
     return utils.extend_fname(prefix, with_ext)
 
 def data_xform(data):
@@ -48,7 +48,7 @@ def train_mnist():
     # Select a fixed random seed for reproducibility
     mx.random.seed(42)
 
-    if version == '':
+    if version == 'dapp':
         net = nn.HybridSequential(prefix='DApp_')
         with net.name_scope():
             net.add(
