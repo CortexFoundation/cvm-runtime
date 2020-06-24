@@ -58,8 +58,8 @@ def _get_ctx(config, section, dctx=mx.cpu()):
                    message='`Device_ids` should be an integer in Calibration')
     else:
         device_ids = _get_val(config, section, 'Device_ids', dval='')
-        _check(device_ids == '', section, 'Device_ids',
-               message='`Device_ids` should be null given `cpu` device type')
+        # _check(device_ids == '', section, 'Device_ids',
+               # message='`Device_ids` should be null given `cpu` device type')
     return contex
 
 str_t = '_str_'
