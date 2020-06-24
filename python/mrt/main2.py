@@ -443,9 +443,11 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
+        device_type = _get_val(cfg, sec, 'Device_type')
         model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
-                      input_shape=set_batch(input_shape, batch))
+                      input_shape=set_batch(input_shape, batch),
+                      target=device_type)
 
         dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
         dump_data, _ = dataset.iter_func()()
