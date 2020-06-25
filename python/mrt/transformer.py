@@ -362,7 +362,7 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
     logger.info("Transform Mxnet symbol into CVM finished")
 
     dtype, cvm_params = "int32", {}
-    cvm_ctx = cvm.context(target, 0)
+    cvm_ctx = cvm.context(target, dev_id=device_ids)
     for sym in topo_sort(cvm_sym):
         if sutils.is_params(sym, params):
             key, value = sym.attr('name'), params[sym.attr('name')]
