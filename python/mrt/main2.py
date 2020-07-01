@@ -58,8 +58,8 @@ def _get_ctx(config, section, dctx=mx.cpu()):
                    message='`Device_ids` should be an integer in Calibration')
     else:
         device_ids = _get_val(config, section, 'Device_ids', dval='')
-        _check(device_ids == '', section, 'Device_ids',
-               message='`Device_ids` should be null given `cpu` device type')
+        # _check(device_ids == '', section, 'Device_ids',
+               # message='`Device_ids` should be null given `cpu` device type')
     return contex
 
 str_t = '_str_'
@@ -443,9 +443,14 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
+        device_type = _get_val(cfg, sec, 'Device_type')
+        device_ids = _get_val(
+            cfg, sec, 'Device_ids',
+            dtype=ARRAY(int_t), dval=None)
         model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
-                      input_shape=set_batch(input_shape, batch))
+                      input_shape=set_batch(input_shape, batch),
+                      target=device_type, device_ids=device_ids)
 
         dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
         dump_data, _ = dataset.iter_func()()

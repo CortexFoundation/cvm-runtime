@@ -102,9 +102,11 @@ class Model:
         return MRT(self)
 
     def to_cvm(self, model_name, datadir="/data/stdout",
-                       input_shape=None, target="gpu"):
+                       input_shape=None, target="gpu",
+                       device_ids=None):
         return compile_to_cvm(self, model_name, datadir,
-                              input_shape, target)
+                              input_shape, target,
+                              device_ids=device_ids)
 
 def init(model, input_shape=None):
     logger = logging.getLogger("mrt.prepare")
@@ -336,7 +338,8 @@ def reduce_graph(model, input_shapes):
     return Model(_sym, _prm)
 
 def compile_to_cvm(model, model_name, datadir="/data/std_out",
-                   input_shape=None, target="gpu"):
+                   input_shape=None, target="gpu",
+                   device_ids=None):
     """ Compile Mxnet model into CVM Accept-JSON&BIN-Format
     """
     logger = logging.getLogger("mrt.compile")
@@ -359,7 +362,7 @@ def compile_to_cvm(model, model_name, datadir="/data/std_out",
     logger.info("Transform Mxnet symbol into CVM finished")
 
     dtype, cvm_params = "int32", {}
-    cvm_ctx = cvm.context(target, 0)
+    cvm_ctx = cvm.context(target, dev_id=device_ids)
     for sym in topo_sort(cvm_sym):
         if sutils.is_params(sym, params):
             key, value = sym.attr('name'), params[sym.attr('name')]
