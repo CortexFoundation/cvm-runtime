@@ -443,10 +443,10 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
-        device_type = _get_val(cfg, sec, 'Device_type')
+        device_type = _get_val(cfg, sec, 'Device_type', dval='cpu')
         device_ids = _get_val(
             cfg, sec, 'Device_ids',
-            dtype=ARRAY(int_t), dval=None)
+            dtype=ARRAY(int_t), dval=0)
         model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
                       input_shape=set_batch(input_shape, batch),
