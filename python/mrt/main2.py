@@ -167,7 +167,8 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, sym_path=sym_path, prm_path=prm_path)
+        save_model(model_name, data_dir=model_prefix)
+        # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
         model = Model.load(sym_path, prm_path)
