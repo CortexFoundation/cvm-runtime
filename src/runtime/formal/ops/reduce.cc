@@ -4,6 +4,9 @@ namespace cvm {
 namespace runtime {
 
 inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x){
+    // axis will be checked, it must be in range [-N, N)
+    // TODO: optimize. the nested for loop can be optimized to only 1 for loop.
+    // CODE STYLE: indent using 2 or 4 spaces???
   for(size_t i = 0; i < axis.ndim(); i++){
     if(axis[i] < 0) axis[i] += x->ndim;
   }
@@ -14,18 +17,28 @@ inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x)
     }
   }else{
     raxis.resize(x->ndim - axis.ndim());
-    for(int i = 0, k = 0; i < x->ndim; i++){
-      bool flag = false;
-      for(size_t j = 0; j < axis.ndim(); j++){
-        if(axis[j] == i) {
-          flag = true;
-          break;
-        }
-      }
-      if(!flag){
+    std::vector<bool> flags(x->ndim, false);
+    for (int i = 0; i < axis.ndim(); i++) {
+      flags[axis[i]] = true;
+    }
+    for (int i = 0, k = 0; i < flags.size(); i++) {
+      if (!flags[i]) {
         raxis[k++] = i;
       }
     }
+
+  //  for(int i = 0, k = 0; i < x->ndim; i++){
+  //    bool flag = false;
+  //    for(size_t j = 0; j < axis.ndim(); j++){
+  //      if(axis[j] == i) {
+  //        flag = true;
+  //        break;
+  //      }
+  //    }
+  //    if(!flag){
+  //      raxis[k++] = i;
+  //    }
+  //  }
   }
   return raxis;
 }
