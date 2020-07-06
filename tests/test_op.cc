@@ -515,7 +515,7 @@ void test_op(string op_name) {
     std::cout << attr_str << endl;
     vector<string> file_list;
     findAllSubDir(file_list, case_path.c_str(), TYPE_FILE);
-    int num_inputs = 0, num_outputs = 0;  // num_outputs is the expected number of output
+    unsigned int num_inputs = 0, num_outputs = 0;  // num_outputs is the expected number of output
     for(auto file_name : file_list){
         if(file_name.find("in_") != string::npos){
             num_inputs += 1;
