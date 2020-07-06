@@ -286,11 +286,11 @@ void test_take() {
     npy::LoadArrayFromNumpy("/tmp/take/out.y.npy", tshape[2], tdata[2]);
     vector<std::vector<int64_t>> shapes_(args.size());
     std::vector<int> dims_(args.size());
-    for (auto idx = 0; idx < args.size(); idx++) {
+    for (unsigned int idx = 0; idx < args.size(); idx++) {
       shapes_[idx].resize(tshape[idx].size());
       dims_[idx] = (tshape[idx].size());
       std::cout << tshape[idx].size() << "\n";
-      for (auto j = 0; j < shapes_[idx].size(); j++) {
+      for (unsigned int j = 0; j < shapes_[idx].size(); j++) {
         shapes_[idx][j] = tshape[idx][j];
         std::cout << tshape[idx][j] << " ";
       }
@@ -408,7 +408,7 @@ void read_one_line(string filename, string& str){
 }
 template<typename T>
 void print(vector<T> &data){
-  for(int i = 0; i < data.size() && i < 100; i++){
+  for(unsigned int i = 0; i < data.size() && i < 100; i++){
     printf("%d ", (int)data[i]);
   }
   printf("\n");
@@ -436,7 +436,7 @@ void read_data(const char *filename, vector<unsigned long> &shape, vector<int32_
     //fscanf(fp, "\n");
 //    printf("data: ");
     data.resize(size);
-    for(int i = 0; i < size; i++){
+    for(unsigned int i = 0; i < size; i++){
         int32_t value = 0;
         fscanf(fp, "%d ", &value);
         data[i] = value;
@@ -505,7 +505,7 @@ void test_op(string op_name) {
       Op::GetAttr<cvm::FOpExtraSpace >("FOpExtraSpace");
   auto fextra = fextra_space.get(op, nullptr);
 
-  for(int ci = 0; ci < case_list.size(); ci++){ // for each test cases
+  for(unsigned int ci = 0; ci < case_list.size(); ci++){ // for each test cases
 		string case_path = case_dir + case_list[ci] + "/";
     cout << "doing test case at " << case_path << endl;
     string attr_path = case_path + "attr.txt";
@@ -515,7 +515,7 @@ void test_op(string op_name) {
     std::cout << attr_str << endl;
     vector<string> file_list;
     findAllSubDir(file_list, case_path.c_str(), TYPE_FILE);
-    int num_inputs = 0, num_outputs = 0;
+    int num_inputs = 0, num_outputs = 0;  // num_outputs is the expected number of output
     for(auto file_name : file_list){
         if(file_name.find("in_") != string::npos){
             num_inputs += 1;
@@ -590,7 +590,14 @@ void test_op(string op_name) {
     CVMArrayAlloc(es, 1, 
         dtype_code, dtype_bits, dtype_lanes, ctx, device_id, &extra_space);
 
-    for(int i = 0; i < num_outputs; i++){
+    // compare num of expected and actual output and shape of each.
+    if (params.num_outputs != num_outputs) {
+      std::cout << "error with FInfershape or op.get_num_outputs()\n"
+                << "should be " << num_outputs << " outputs but we calculated "
+                << params.num_outputs << std::endl;
+      assert(false);
+    }
+    for(unsigned int i = 0; i < num_outputs; i++){
 			string out_path = case_path + "out_" + std::to_string(i) + ".txt";
 			//cout << out_path << endl;
 			//npy::LoadArrayFromNumpy(out_path, tshape[num_inputs+i], tdata[num_inputs+i]);
@@ -613,7 +620,7 @@ void test_op(string op_name) {
     auto op = get_func(params, &attr, args, params.num_inputs, extra_space);
     op();
 
-    // compare each expected output and exact output
+    // compare each expected output and actual output
     for (int out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
       vector<int32_t> cpu_output_tensor(tdata[params.num_inputs+out_no].size());
       {
@@ -654,14 +661,13 @@ void test_op(string op_name) {
 int main() {
   // test_op("max_pool2d");
   // test_op("upsampling");
-   //test_op("dense");
-  // test_op("conv2d");
-  test_op("sum");
-  std::cout << "test sum done" << endl;
+  // test_op("dense");
+   test_op("conv2d");
+  //test_op("sum");
   // test_op("max"); // pass
-   //test_op("slice_like");
-   //test_op("tile"); //pass
-   //test_op("repeat"); //pass
+  // test_op("slice_like");
+  // test_op("tile"); //pass
+  // test_op("repeat"); //pass
   // test_op("get_valid_counts");
 
   // test_op("strided_slice"); //pass
@@ -669,9 +675,9 @@ int main() {
   // test_op("transpose");// pass
   // test_op("take");
   // test_op("clip");
-   //test_op("cvm_clip");
+  // test_op("cvm_clip");
   // test_op("cvm_right_shift");
-   //test_op("elemwise_add");
+  // test_op("elemwise_add");
   // test_op("elemwise_sub");
   // test_op("non_max_suppression");
   //test_op("broadcast_sub");
