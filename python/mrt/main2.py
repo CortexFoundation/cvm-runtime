@@ -167,7 +167,7 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, data_dir=model_prefix)
+        save_model(model_name, data_dir=model_dir)
         # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
@@ -213,14 +213,14 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'Dataset')
-    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=None)
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp, dataset_dir=dataset_dir)
+        dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
         data_iter_func = dataset.iter_func()
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
         for i in range(calibrate_num):
