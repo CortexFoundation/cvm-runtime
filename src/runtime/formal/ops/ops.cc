@@ -273,15 +273,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_precision")
     int32_t *y_data = static_cast<int32_t*>(y->data);
     int32_t *x_data = static_cast<int32_t*>(x->data);
     for(size_t j = 0; j < getSize(x); j++){
-      int64_t x_val = x_data[j];
-      y_data[j] = 64;
-      for(int i = 1; i < 64; i++){
-        int64_t tmp = (int64_t)1 << i;
-        if(std::abs(x_val) < tmp){
-          y_data[j] = i;
-          break;
-        }
+      // The case of x[j] == 0 is considered.
+      // By right-shifting 1 bit at 1 time, how many bits x[j] takes is
+      // how many times the right-shifting is performed until x[j] is 0
+      int y = 1;
+      int32_t absx = x_data[j] < 0 ? -x_data[j] : x_data[j];
+      while (absx >> 1) {
+        absx >>= 1;
+        y++;
       }
+      y_data[j] = y;
     }
 });
 
