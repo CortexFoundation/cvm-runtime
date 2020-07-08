@@ -58,8 +58,8 @@ def _get_ctx(config, section, dctx=mx.cpu()):
                    message='`Device_ids` should be an integer in Calibration')
     else:
         device_ids = _get_val(config, section, 'Device_ids', dval='')
-        _check(device_ids == '', section, 'Device_ids',
-               message='`Device_ids` should be null given `cpu` device type')
+        # _check(device_ids == '', section, 'Device_ids',
+               # message='`Device_ids` should be null given `cpu` device type')
     return contex
 
 str_t = '_str_'
@@ -167,7 +167,8 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, sym_path=sym_path, prm_path=prm_path)
+        save_model(model_name, data_dir=model_dir)
+        # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
         model = Model.load(sym_path, prm_path)
@@ -212,14 +213,14 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'Dataset')
-    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=None)
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp, dataset_dir=dataset_dir)
+        dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
         data_iter_func = dataset.iter_func()
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
         for i in range(calibrate_num):
@@ -443,9 +444,14 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
+        device_type = _get_val(cfg, sec, 'Device_type', dval='cpu')
+        device_ids = _get_val(
+            cfg, sec, 'Device_ids',
+            dtype=ARRAY(int_t), dval=0)
         model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
-                      input_shape=set_batch(input_shape, batch))
+                      input_shape=set_batch(input_shape, batch),
+                      target=device_type, device_ids=device_ids)
 
         dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
         dump_data, _ = dataset.iter_func()()
