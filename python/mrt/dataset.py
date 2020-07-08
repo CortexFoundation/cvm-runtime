@@ -375,6 +375,9 @@ class MnistDataset(VisionDataset):
     #                  "train-labels-idx1-ubyte.gz"]
 
     def _load_data(self):
+        """
+            The MxNet gluon package will auto-download the mnist dataset.
+        """
         val_data = mx.gluon.data.vision.MNIST(
             root=self.root_dir, train=False).transform_first(data_xform)
 
