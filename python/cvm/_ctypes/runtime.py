@@ -10,6 +10,22 @@ from .lib import _LIB
 NetworkHandle = ctypes.c_void_p
 
 def CVMAPILoadModel(json_str, param_bytes, ctx=None):
+    """ Ctypes wrapper method: CVMAPILoadModel
+
+        Load model from memory binary. The parameters loaded from
+        disk could be generated via `cvm.utils.load_model` method.
+
+        Parameters
+        ==========
+        json_str: bytes
+            The UTF-8 encoded bytes of string type reading
+            from the model json file.
+        param_bytes: bytes
+            The binary reading from the model params file.
+        ctx: cvm.CVMContext
+            The context of model loaded into.
+
+    """
     if ctx is None:
         ctx = cpu(0)
     ctx = runtime_context(ctx)

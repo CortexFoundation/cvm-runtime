@@ -9,15 +9,23 @@ def context(dev_type, dev_id=0):
     return CVMContext(dev_type, dev_id)
 
 def cpu(dev_id=0):
+    """ CVM CPU Context
+    """
     return CVMContext(kDLCPU, dev_id)
 
 def gpu(dev_id=0):
+    """ CVM GPU(CUDA) Context
+    """
     return CVMContext(kDLGPU, dev_id)
 
 def formal(dev_id=0):
+    """ CVM Formalization Context
+    """
     return CVMContext(kDLFORMAL, dev_id)
 
 def opencl(dev_id=0):
+    """ CVM OPENCL Context(Not Well Supported)
+    """
     return CVMContext(kDLOPENCL, dev_id)
 
 RuntimeDevAPIMap = {
@@ -28,6 +36,15 @@ RuntimeDevAPIMap = {
 }
 
 def runtime_context(ctx):
+    """ Transform CVM Symbol&Graph Context into Runtime Format
+
+        Do not invoke this function manually!!!
+
+        CVM runtime API with c backend have an unusual device map:
+        0 indicates CPU, 1 means GPU and etc. But user don't need
+        to notice this, cause runtime package have process this
+        anti-mind map.
+    """
     return CVMContext(
         RuntimeDevAPIMap[ctx.device_type],
         ctx.device_id)

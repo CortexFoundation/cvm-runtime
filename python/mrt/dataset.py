@@ -156,7 +156,6 @@ class Dataset:
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `_load_data` function defined in Dataset")
-        pass
 
     def __iter__(self):
         """ Returns (data, label) iterator """
