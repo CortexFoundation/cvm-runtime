@@ -156,7 +156,6 @@ class Dataset:
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `_load_data` function defined in Dataset")
-        pass
 
     def __iter__(self):
         """ Returns (data, label) iterator """
@@ -375,6 +374,9 @@ class MnistDataset(VisionDataset):
     #                  "train-labels-idx1-ubyte.gz"]
 
     def _load_data(self):
+        """
+            The MxNet gluon package will auto-download the mnist dataset.
+        """
         val_data = mx.gluon.data.vision.MNIST(
             root=self.root_dir, train=False).transform_first(data_xform)
 

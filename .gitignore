@@ -51,3 +51,6 @@ config.cmake
 CMakeSettings.json
 out/*
 
+# docs
+docs/html
+docs/doctrees

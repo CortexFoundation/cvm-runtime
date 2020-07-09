@@ -6,6 +6,15 @@ kDLFORMAL = 3
 kDLOPENCL = 4
 
 class CVMContext(ctypes.Structure):
+    """ Python wrapper for C backend context.
+
+        Parameters
+        ==========
+        device_type: int
+            Device type of model loaded into.
+        device_id: int
+            The device id corresponding to device type.
+    """
     _fields_ = [("device_type", ctypes.c_int),
                 ("device_id", ctypes.c_int)]
     MASK2STR = {
