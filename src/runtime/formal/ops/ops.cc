@@ -322,6 +322,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
     int32_t axis_batch = 1;
     for (size_t i = axis+1; i < y_shape.size(); ++i) axis_batch *= y_shape[i];
 
+    // all axes after the axis we want to concatenate on can be copied as 
+    // a batch at once thanks to cpp's row-major order standard.
     int64_t y_start_idx = 0;
     int64_t y_axis_batch = y_shape.at(axis) * axis_batch;
     for (int m = 0; m < M; ++m) {

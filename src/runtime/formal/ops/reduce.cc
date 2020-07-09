@@ -25,18 +25,6 @@ inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x)
         raxis[k++] = i;
       }
     }
-  //  for(int i = 0, k = 0; i < x->ndim; i++){
-  //    bool flag = false;
-  //    for(size_t j = 0; j < axis.ndim(); j++){
-  //      if(axis[j] == i) {
-  //        flag = true;
-  //        break;
-  //      }
-  //    }
-  //    if(!flag){
-  //      raxis[k++] = i;
-  //    }
-  //  }
   }
   return raxis;
 }
@@ -60,7 +48,8 @@ static void Reduce(DLTensor *x,
     }
     y_data[0] = tmp;
   } else {
-    std::vector<bool> flag(x->ndim, false); // flags[dims] == true, dims are to be reduced
+    // if flags[dims] == true, dims are to be reduced
+    std::vector<bool> flag(x->ndim, false);
     for(uint32_t i = 0; i < realAxis.size(); i++){
       int32_t val = realAxis[i];
       flag[val] = true;
@@ -71,7 +60,8 @@ static void Reduce(DLTensor *x,
     for(uint32_t i = 0; i < realAxis.size(); i++){
       axis_size *= x->shape[realAxis[i]];
     }
-    std::vector<uint64_t> every_xdim_size(x->ndim, 1);  // used to calculate array polynomial
+    // every_xdin_size is used to calculate array polynomial
+    std::vector<uint64_t> every_xdim_size(x->ndim, 1);
     for(int i = x->ndim-2; i >= 0; i--){
       every_xdim_size[i] = x->shape[i+1] * every_xdim_size[i+1];
     }
