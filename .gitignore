@@ -45,3 +45,7 @@ tests/test_op*
 tests/ipy
 
 config.cmake
+
+# docs
+docs/html
+docs/doctrees

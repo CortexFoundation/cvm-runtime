@@ -1,22 +1,23 @@
-.. _cvm_index:
 
 *************************
 CVM Runtime Documentation
 *************************
-
-.. _introduction:
 
 Introduction
 ============
 
 The CVM Runtime library is used in @CortexLabs full-node project: `CortexTheseus <https://github.com/CortexFoundation/CortexTheseus/>`_, working for pure deterministic AI model inference.
 
-.. _c_api:
+Operators
+=========
+
+.. toctree::
+  OPs Table <ops.md>
 
 C Backend
 =========
 
-.. _python_api:
+(TODO)
 
 Python API
 ==========
@@ -27,9 +28,7 @@ We supply more model interface than c backend based. Mainly contains two parts:
   :maxdepth: 2
   :numbered:
 
-  CVM Inference API <python/inference>
+  CVM Inference API <api/inference>
 
-  CVM Symbol & Graph <python/graph>
-
-
+  CVM Symbol & Graph <api/graph>
 

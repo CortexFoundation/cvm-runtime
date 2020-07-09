@@ -1,8 +1,8 @@
-## MRT Installation
+# MRT Installation
 
-#### 1. Install Python
+## 1. Install Python
 
-#### 2. MRT Preparation
+## 2. MRT Preparation
 
 2.1. Clone the project
 
@@ -143,8 +143,6 @@ Please run the following command under `path/to/cvm-runtime/` to execute the MRT
 ```bash
 python python/mrt/main2.py python/mrt/model_zoo/<your_model_name>.ini
 ```
-
-
 
 ## Reference
 

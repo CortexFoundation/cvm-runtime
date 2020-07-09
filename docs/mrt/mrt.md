@@ -1,4 +1,4 @@
-# Model Representation Tool Documentation
+# Quantization Reference
 
 [TOC]
 

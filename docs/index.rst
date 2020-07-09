@@ -8,9 +8,10 @@ Welcome to cvm-runtime's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: CVM CONTENTS
 
    cvm/index
+   mrt/index
 
 
 
@@ -19,4 +20,3 @@ Indices and tables
 
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`

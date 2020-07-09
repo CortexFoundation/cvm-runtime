@@ -16,6 +16,9 @@ dep:
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
 
+html:
+	@make -C docs html
+
 TEST_SRCS := $(wildcard ${TESTS}/*.cc)
 TEST_EXES := $(patsubst ${TESTS}/%.cc,%,${TEST_SRCS})
 
