@@ -33,8 +33,11 @@ release = '1.0.0'
 extensions = [
     "recommonmark",
     "sphinx_markdown_tables",
+
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
+    "sphinx.ext.mathjax",
+
     "sphinx_rtd_theme",
 ]
 
@@ -42,7 +45,7 @@ source_parser = {
     ".md": "recommonmark.parser.CommonMarkParser",
 }
 source_suffix = {
-    ".rst": "restruturedtext",
+    ".rst": "restructuredtext",
     ".md": "markdown",
 }
 

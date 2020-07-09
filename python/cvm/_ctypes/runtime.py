@@ -22,7 +22,7 @@ def CVMAPILoadModel(json_str, param_bytes, ctx=None):
             from the model json file.
         param_bytes: bytes
             The binary reading from the model params file.
-        ctx: cvm.CVMContext
+        ctx: :class:`cvm.CVMContext`
             The context of model loaded into.
 
     """

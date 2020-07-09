@@ -1,6 +1,15 @@
 from ._ctypes.context import *
 
 def context(dev_type, dev_id=0):
+    """ Context creator.
+
+        Does some safe-type checking.
+
+        Returns
+        =======
+        context: :class:`cvm.CVMContext`
+            Context type.
+    """
     if isinstance(dev_type, str):
         dev_type = dev_type.split()[0]
         if dev_type not in CVMContext.STR2MASK:
@@ -9,22 +18,42 @@ def context(dev_type, dev_id=0):
     return CVMContext(dev_type, dev_id)
 
 def cpu(dev_id=0):
-    """ CVM CPU Context
+    """ Context wrapper function.
+
+        Returns
+        =======
+        context: :class:`cvm.CVMContext`
+            CPU context
     """
     return CVMContext(kDLCPU, dev_id)
 
 def gpu(dev_id=0):
-    """ CVM GPU(CUDA) Context
+    """ Context wrapper function.
+
+        Returns
+        =======
+        context: :class:`cvm.CVMContext`
+            GPU context
     """
     return CVMContext(kDLGPU, dev_id)
 
 def formal(dev_id=0):
-    """ CVM Formalization Context
+    """ Context wrapper function.
+
+        Returns
+        =======
+        context: :class:`cvm.CVMContext`
+            Formalization context
     """
     return CVMContext(kDLFORMAL, dev_id)
 
 def opencl(dev_id=0):
-    """ CVM OPENCL Context(Not Well Supported)
+    """ Context wrapper function.
+
+        Returns
+        =======
+        context: :class:`cvm.CVMContext`
+            Opencl context, not well supported.
     """
     return CVMContext(kDLOPENCL, dev_id)
 

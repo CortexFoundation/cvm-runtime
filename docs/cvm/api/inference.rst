@@ -30,6 +30,7 @@ cvm.ndarray
 .. autofunction:: cvm.ndarray.save_param_dict
 
 
+.. autoclass:: cvm.CVMContext
 
 .. autofunction:: cvm.cpu
 .. autofunction:: cvm.gpu
