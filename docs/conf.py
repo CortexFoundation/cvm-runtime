@@ -17,6 +17,13 @@
 
 # -- Project information -----------------------------------------------------
 
+import os
+import sys
+
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+python_path = os.path.join(curr_dir, "../python")
+sys.path.insert(0, python_path)
+
 project = 'cvm-runtime'
 copyright = '2020, CortexLabs Foundation'
 author = 'CortexLabs Foundation'
