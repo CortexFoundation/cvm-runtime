@@ -16,7 +16,10 @@ dep:
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
 
-html:
+python: lib
+	@cd python && python3 setup.py install
+
+html: python
 	@make -C docs html
 
 TEST_SRCS := $(wildcard ${TESTS}/*.cc)
@@ -27,7 +30,7 @@ TEST_GPUS := $(patsubst %,%_gpu,${TEST_EXES})
 TEST_FORMALS := $(patsubst %,%_formal,${TEST_EXES})
 TEST_OPENCL := $(patsubst %,%_opencl,${TEST_EXES})
 
-tests: test_cpu test_gpu test_formal
+tests: lib test_cpu test_gpu test_formal
 
 test_cpu: ${TEST_CPUS}
 test_gpu: ${TEST_GPUS}
