@@ -21,15 +21,9 @@ import os
 import sys
 import subprocess
 
-read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
-if read_the_docs_build:
-    curr_dir = os.path.abspath(os.path.dirname(__file__))
-    root_dir = os.path.join(curr_dir, "..")
-    subprocess.call("cd %s; make -j python" % root_dir, shell=True)
-
-#  curr_dir = os.path.abspath(os.path.dirname(__file__))
-#  python_path = os.path.join(curr_dir, "../python")
-#  sys.path.insert(0, python_path)
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+python_path = os.path.join(curr_dir, "../python")
+sys.path.insert(0, python_path)
 
 project = 'cvm-runtime'
 copyright = '2020, CortexLabs Foundation'

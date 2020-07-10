@@ -224,6 +224,9 @@ def _init_symbol_module(symbol_class, root_namespace):
     plist = ctypes.POINTER(ctypes.c_char_p)()
     size = ctypes.c_uint()
 
+    if _LIB is None: # hook for read the docs
+        return
+
     check_call(_LIB.CVMListAllOpNames(ctypes.byref(size),
                                      ctypes.byref(plist)))
     op_names = []
@@ -233,7 +236,6 @@ def _init_symbol_module(symbol_class, root_namespace):
     python_mod_path = "{}.symbol".format(root_namespace)
     print ("Register cvm library into python module: {}".format(
             python_mod_path))
-    print ("Load the operators: {}\n".format(op_names))
     module_obj = sys.modules["%s.symbol" % root_namespace]
     #module_obj_contrib = sys.modules["%s.contrib" % root_namespace]
     #module_internal = sys.modules["%s._symbol_internal" % root_namespace]
