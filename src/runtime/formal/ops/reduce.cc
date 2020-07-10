@@ -4,6 +4,8 @@ namespace cvm {
 namespace runtime {
 
 inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x){
+  // axis has been checked, it must be in range [-N, N)
+  // CODE STYLE: indent using 2 or 4 spaces???
   for(size_t i = 0; i < axis.ndim(); i++){
     if(axis[i] < 0) axis[i] += x->ndim;
   }
@@ -14,15 +16,12 @@ inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x)
     }
   }else{
     raxis.resize(x->ndim - axis.ndim());
-    for(int i = 0, k = 0; i < x->ndim; i++){
-      bool flag = false;
-      for(size_t j = 0; j < axis.ndim(); j++){
-        if(axis[j] == i) {
-          flag = true;
-          break;
-        }
-      }
-      if(!flag){
+    std::vector<bool> flags(x->ndim, false);
+    for (int i = 0; i < axis.ndim(); i++) {
+      flags[axis[i]] = true;
+    }
+    for (int i = 0, k = 0; i < flags.size(); i++) {
+      if (!flags[i]) {
         raxis[k++] = i;
       }
     }
@@ -40,15 +39,16 @@ static void Reduce(DLTensor *x,
 
   std::vector<int64_t> realAxis = GetRealAxis(axis, exclude, x);
 
-  if(exclude && realAxis.size() == 0){
+  if(exclude && realAxis.size() == 0){  // do nothing
     memcpy(y_data, x_data, getSize(x) * sizeof(int32_t));
-  } else if (realAxis.size() == 0) {
+  } else if (realAxis.size() == 0) {  // do reduce to the whole data
     int32_t tmp = 0;
     for(uint64_t i = 0; i < getSize(x); i++){
       f(tmp, x_data[i]);
     }
     y_data[0] = tmp;
   } else {
+    // if flags[dims] == true, dims are to be reduced
     std::vector<bool> flag(x->ndim, false);
     for(uint32_t i = 0; i < realAxis.size(); i++){
       int32_t val = realAxis[i];
@@ -60,11 +60,12 @@ static void Reduce(DLTensor *x,
     for(uint32_t i = 0; i < realAxis.size(); i++){
       axis_size *= x->shape[realAxis[i]];
     }
+    // every_xdin_size is used to calculate array polynomial
     std::vector<uint64_t> every_xdim_size(x->ndim, 1);
     for(int i = x->ndim-2; i >= 0; i--){
       every_xdim_size[i] = x->shape[i+1] * every_xdim_size[i+1];
     }
-    // foreach yshp, remove the dimension equals 1
+    // foreach yshape, remove the dimension equals 1
     // special case: input shape is (1,), considered.
     int32_t yndim = y->ndim;
     std::vector<int64_t> yshape(y->ndim, 1);
@@ -83,13 +84,17 @@ static void Reduce(DLTensor *x,
      *      get x possible indexes and add value to result.
      **/
     for(uint64_t i = 0; i < getSize(y); i++){
+      // in_i will is the base index of X. for Y[a][b] = sum(or max) X[a][*][*][d]
+      // in_i = d * 1 + a * n4*n3*n2
+      // o_i is a middle variable used for calculating in_i
       uint64_t in_i = 0, o_i = i;
       for(int j = yndim-1, xj = x->ndim-1; j>=0; j--){
         uint64_t col = o_i % yshape[j];
         o_i /= yshape[j];
-        while(xj >= 0 && flag[xj--]);
+        while(xj >= 0 && flag[xj--]); // xj+1 is the dim that remains
         in_i += col * every_xdim_size[xj+1];
       }
+
       int32_t tmp = x_data[in_i];
       for(uint64_t xi = 1; xi < axis_size; xi++){
         uint64_t o_i = xi, tmp_in_i = 0;

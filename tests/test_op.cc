@@ -286,11 +286,11 @@ void test_take() {
     npy::LoadArrayFromNumpy("/tmp/take/out.y.npy", tshape[2], tdata[2]);
     vector<std::vector<int64_t>> shapes_(args.size());
     std::vector<int> dims_(args.size());
-    for (auto idx = 0; idx < args.size(); idx++) {
+    for (unsigned int idx = 0; idx < args.size(); idx++) {
       shapes_[idx].resize(tshape[idx].size());
       dims_[idx] = (tshape[idx].size());
       std::cout << tshape[idx].size() << "\n";
-      for (auto j = 0; j < shapes_[idx].size(); j++) {
+      for (unsigned int j = 0; j < shapes_[idx].size(); j++) {
         shapes_[idx][j] = tshape[idx][j];
         std::cout << tshape[idx][j] << " ";
       }
@@ -408,7 +408,7 @@ void read_one_line(string filename, string& str){
 }
 template<typename T>
 void print(vector<T> &data){
-  for(int i = 0; i < data.size() && i < 100; i++){
+  for(unsigned int i = 0; i < data.size() && i < 100; i++){
     printf("%d ", (int)data[i]);
   }
   printf("\n");
@@ -436,7 +436,7 @@ void read_data(const char *filename, vector<unsigned long> &shape, vector<int32_
     //fscanf(fp, "\n");
 //    printf("data: ");
     data.resize(size);
-    for(int i = 0; i < size; i++){
+    for(unsigned int i = 0; i < size; i++){
         int32_t value = 0;
         fscanf(fp, "%d ", &value);
         data[i] = value;
@@ -450,7 +450,7 @@ void load_input(int num_inputs, string case_path, vector<vector<uint64_t>>& tsha
     DLTensor* cpu_tensor;
     for(int i = 0; i < num_inputs; i++){
       string in_path = case_path + "in_" +  std::to_string(i) + ".txt";
-      cout << in_path << endl;
+      //cout << in_path << endl;
       //npy::LoadArrayFromNumpy(in_path, tshape[in_i], tdata[in_i]);
       read_data(in_path.c_str(), tshape[i], tdata[i]);
       TShape shp(tshape[i].size());
@@ -505,8 +505,9 @@ void test_op(string op_name) {
       Op::GetAttr<cvm::FOpExtraSpace >("FOpExtraSpace");
   auto fextra = fextra_space.get(op, nullptr);
 
-  for(int ci = 0; ci < case_list.size(); ci++){
+  for(unsigned int ci = 0; ci < case_list.size(); ci++){ // for each test cases
 		string case_path = case_dir + case_list[ci] + "/";
+    cout << "doing test case at " << case_path << endl;
     string attr_path = case_path + "attr.txt";
     string attr_str = "";
     read_one_line(attr_path, attr_str);
@@ -514,7 +515,7 @@ void test_op(string op_name) {
     std::cout << attr_str << endl;
     vector<string> file_list;
     findAllSubDir(file_list, case_path.c_str(), TYPE_FILE);
-    int num_inputs = 0, num_outputs = 0;
+    unsigned int num_inputs = 0, num_outputs = 0;  // num_outputs is the expected number of output
     for(auto file_name : file_list){
         if(file_name.find("in_") != string::npos){
             num_inputs += 1;
@@ -526,21 +527,24 @@ void test_op(string op_name) {
    // printf("num_inputs = %d, num_outputs = %d\n", num_inputs, num_outputs);
     //if(num_inputs == 0 || num_outputs == 0) continue;
 
+    NodeAttrs attr;
+    LoadOp(op_name, attr);
+    LoadOpAttr(attr_str, attr);
+
     CVMOpParam params;
     params.func_name = op_name;
     params.num_inputs = num_inputs;
-    params.num_outputs= num_outputs;
+    //params.num_outputs= num_outputs;
+    params.num_outputs =
+        attr.op->get_num_outputs ? attr.op->get_num_outputs(attr) : attr.op->num_outputs;
     params.flatten_data = false;
     std::vector<DLTensor> args(params.num_inputs + params.num_outputs);
     std::vector<std::vector<unsigned long>> tshape(args.size());
     std::vector<std::vector<int32_t>> tdata(args.size());
-    std::vector<TShape> ishape(num_inputs), oshape(num_outputs);
-    load_input(num_inputs, case_path, tshape, tdata, ishape, args);
+    std::vector<TShape> ishape(params.num_inputs), oshape(params.num_outputs);
+    load_input(params.num_inputs, case_path, tshape, tdata, ishape, args);
 
-    NodeAttrs attr;
-    LoadOp(params.func_name, attr);
-    LoadOpAttr(attr_str, attr);
-
+    // infer shapes
     bool infer_shape_ret;
     string err_path = case_path + "err.txt", err_str = "";
     read_one_line(err_path, err_str);
@@ -558,7 +562,7 @@ void test_op(string op_name) {
       infer_shape_ret = false;
     }
     if(infer_shape_ret == false){
-      std::cout << err_str << std::endl;
+      std::cout << "error after FInferShape: " << err_str << std::endl;
       if(err_str == ""){
         string out_path = case_path + "out_0.txt";
         std::cout << out_path << std::endl;
@@ -586,9 +590,16 @@ void test_op(string op_name) {
     CVMArrayAlloc(es, 1, 
         dtype_code, dtype_bits, dtype_lanes, ctx, device_id, &extra_space);
 
-    for(int i = 0; i < num_outputs; i++){
+    // compare num of expected and actual output and shape of each.
+    if (params.num_outputs != num_outputs) {
+      std::cout << "error with FInfershape or op.get_num_outputs()\n"
+                << "should be " << num_outputs << " outputs but we calculated "
+                << params.num_outputs << std::endl;
+      assert(false);
+    }
+    for(unsigned int i = 0; i < num_outputs; i++){
 			string out_path = case_path + "out_" + std::to_string(i) + ".txt";
-			cout << out_path << endl;
+			//cout << out_path << endl;
 			//npy::LoadArrayFromNumpy(out_path, tshape[num_inputs+i], tdata[num_inputs+i]);
       read_data(out_path.c_str(), tshape[num_inputs+i], tdata[num_inputs+i]);
  //     print(tshape[num_inputs+i]);
@@ -605,52 +616,58 @@ void test_op(string op_name) {
       args[num_inputs + i] = *dl;
     }
 
+    // do the calculation here. get the operator's implemention and call it.
     auto op = get_func(params, &attr, args, params.num_inputs, extra_space);
     op();
 
-    vector<int32_t> cpu_output_tensor(tdata[params.num_inputs].size());
-    {
-      DLTensor* cpu_tensor;
-      int i = params.num_inputs; // first output
-      CVMArrayAlloc((int64_t*)tshape[i].data(), tshape[i].size(), dtype_code, dtype_bits, dtype_lanes, kDLCPU, 0, &cpu_tensor);
-      CVMArrayCopyFromTo(&args[i], cpu_tensor, nullptr);
-      memcpy(cpu_output_tensor.data(), cpu_tensor->data, sizeof(int32_t) * tdata[i].size());
-      printf("call CVMArrayFree by manual.....\n");
-      CVMArrayFree(cpu_tensor);
-  //    CVMArrayFree(&args[i]);
-    }
-    int ret =  memcmp(cpu_output_tensor.data(),
-        tdata[params.num_inputs].data(),
-        sizeof(int32_t) * tdata[params.num_inputs].size());
-    printf("match %d | %d\n", ret == 0, ret);
-    if(ret != 0){
-      for(int i = 0; i < num_inputs; i++){
-        printf("input%d:\n", i);
-        print(tdata[i]);
+    // compare each expected output and actual output
+    for (int out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
+      vector<int32_t> cpu_output_tensor(tdata[params.num_inputs+out_no].size());
+      {
+        DLTensor* cpu_tensor;
+        int i = params.num_inputs;  // first output
+        CVMArrayAlloc((int64_t*)tshape[i+out_no].data(), tshape[i+out_no].size(), dtype_code,
+                      dtype_bits, dtype_lanes, kDLCPU, 0, &cpu_tensor);
+        CVMArrayCopyFromTo(&args[i+out_no], cpu_tensor, nullptr);
+        memcpy(cpu_output_tensor.data(), cpu_tensor->data,
+               sizeof(int32_t) * tdata[i+out_no].size());
+        printf("call CVMArrayFree by manual.....\n");
+        CVMArrayFree(cpu_tensor);
+        //    CVMArrayFree(&args[i]);
       }
-      printf("correct out:");
-      print(tdata[num_inputs]);
-      printf("     my out:");
-      print(cpu_output_tensor);
+      int ret =
+          memcmp(cpu_output_tensor.data(), tdata[params.num_inputs+out_no].data(),
+                 sizeof(int32_t) * tdata[params.num_inputs+out_no].size());
+      printf("match %d | %d\n", ret == 0, ret);
+      if (ret != 0) {
+        for (int i = 0; i < num_inputs; i++) {
+          printf("input%d:\n", i);
+          print(tdata[i]);
+        }
+        printf("correct out:");
+        print(tdata[num_inputs+out_no]);
+        printf("     my out:");
+        print(cpu_output_tensor);
+      }
+      assert(ret == 0);
+      printf("\n");
+      CVMArrayFree(extra_space); 
     }
-    assert(ret == 0);
-    printf("\n");
-    CVMArrayFree(extra_space);
     // for(int i = 0; i < args.size(); i++){
       // CVMArrayFree(&args[i]);
     // }
   }
 }
 int main() {
-  // test_op("max_pool2d");
-  // test_op("upsampling");
-   test_op("dense");
-  // test_op("conv2d");
-  // test_op("sum");
-  // test_op("max"); // pass
-   test_op("slice_like");
-   test_op("tile"); //pass
-   test_op("repeat"); //pass
+   //test_op("max_pool2d");
+   //test_op("upsampling");
+   //test_op("dense");
+   //test_op("conv2d");
+  test_op("sum");
+   test_op("max"); // pass
+  // test_op("slice_like");
+  // test_op("tile"); //pass
+  // test_op("repeat"); //pass
   // test_op("get_valid_counts");
 
   // test_op("strided_slice"); //pass
@@ -658,16 +675,16 @@ int main() {
   // test_op("transpose");// pass
   // test_op("take");
   // test_op("clip");
-   //test_op("cvm_clip");
+  // test_op("cvm_clip");
   // test_op("cvm_right_shift");
-   test_op("elemwise_add");
+  // test_op("elemwise_add");
   // test_op("elemwise_sub");
   // test_op("non_max_suppression");
-  test_op("broadcast_sub");
-   test_op("broadcast_add");
-   test_op("broadcast_mul");
-   test_op("broadcast_max");
-   test_op("broadcast_div");
-   test_op("broadcast_greater");
+  //test_op("broadcast_sub");
+  // test_op("broadcast_add");
+  // test_op("broadcast_mul");
+  // test_op("broadcast_max");
+  // test_op("broadcast_div");
+  // test_op("broadcast_greater");
   return 0;
 }

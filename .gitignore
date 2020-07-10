@@ -46,6 +46,11 @@ tests/ipy
 
 config.cmake
 
+# vs
+.vs/*
+CMakeSettings.json
+out/*
+
 # docs
 docs/html
 docs/doctrees
