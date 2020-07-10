@@ -129,26 +129,29 @@ target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 
 # set (TEST_FORMAL_CXX_FLAGS "--DDEVICE=2 ${CMAKE_CXX_FLAGS}")
 
-add_executable(test_op_formal tests/test_op.cc)
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(test_op_formal PRIVATE OpenMP::OpenMP_CXX)
-endif()
-target_link_libraries(test_op_formal
-    PRIVATE
-    ${LIBRARY_NAME}
-    Threads::Threads
-)
-target_compile_definitions(test_op_formal PRIVATE DEVICE=2)
 
-add_executable(test_model_cpu tests/test_model.cc)
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(test_model_cpu PRIVATE OpenMP::OpenMP_CXX)
+if(UNIT_TEST)
+    add_executable(test_op_formal tests/test_op.cc)
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(test_op_formal PRIVATE OpenMP::OpenMP_CXX)
+    endif()
+    target_link_libraries(test_op_formal
+        PRIVATE
+        ${LIBRARY_NAME}
+        Threads::Threads
+    )
+    target_compile_definitions(test_op_formal PRIVATE DEVICE=2)
+
+    add_executable(test_model_cpu tests/test_model.cc)
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(test_model_cpu PRIVATE OpenMP::OpenMP_CXX)
+    endif()
+    target_link_libraries(test_model_cpu
+        PRIVATE
+        ${LIBRARY_NAME}
+        Threads::Threads
+    )
+    target_compile_definitions(test_model_cpu PRIVATE DEVICE=0)
 endif()
-target_link_libraries(test_model_cpu
-    PRIVATE
-    ${LIBRARY_NAME}
-    Threads::Threads
-)
-target_compile_definitions(test_model_cpu PRIVATE DEVICE=0)
