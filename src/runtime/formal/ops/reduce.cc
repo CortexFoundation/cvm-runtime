@@ -57,25 +57,18 @@ static void Reduce(DLTensor *x,
     std::sort(realAxis.begin(), realAxis.end());
 
     uint64_t axis_size = 1;
-    for(uint32_t i = 0; i < realAxis.size(); i++){
-      axis_size *= x->shape[realAxis[i]];
-    }
-    // every_xdim_size is used to calculate array polynomial
-    std::vector<uint64_t> every_xdim_size(x->ndim, 1);
-    for(int i = x->ndim-2; i >= 0; i--){
-      every_xdim_size[i] = x->shape[i+1] * every_xdim_size[i+1];
-    }
-    // foreach yshape, remove the dimension equals 1
-    // special case: input shape is (1,), considered.
-    int32_t yndim = y->ndim;
-    std::vector<int64_t> yshape(y->ndim, 1);
-    for(int i = 0, j = 0; i < y->ndim; i++){
-      if(y->shape[i] == 1) {
-        yndim -= 1;
-      }else{
-        yshape[j++] = y->shape[i];
+    TShape reducedAxShape(realAxis.size()), reducedYShape(x->ndim - realAxis.size());
+    TShape xShape(x->ndim);
+    for(uint i = 0, ax = 0, yi = 0; i < x->ndim; i++){
+      if (flag[i]) {
+        axis_size *= x->shape[i];
+        reducedAxShape[ax++] = x->shape[i];
+      } else {
+        reducedYShape[yi++] = x->shape[i];
       }
+      xShape[i] = x->shape[i];
     }
+
     /* For example:
      * xshp : (n1, n2, n3, n4) -> yshp(n1, n4)
      * find x indexes reduce to yi with two steps:
@@ -84,26 +77,23 @@ static void Reduce(DLTensor *x,
      *      get x possible indexes and add value to result.
      **/
     for(uint64_t i = 0; i < getSize(y); i++){
-      // in_i will be the base index of X. for Y[a][b] = sum(or max) X[a][*][*][d]
-      // in_i = d * 1 + a * n4*n3*n2
-      // o_i is a middle variable used for calculating in_i
-      uint64_t in_i = 0, o_i = i;
-      for(int j = yndim-1, xj = x->ndim-1; j>=0; j--){
-        uint64_t col = o_i % yshape[j];
-        o_i /= yshape[j];
-        while(xj >= 0 && flag[xj--]); // xj+1 is the dim that remains
-        in_i += col * every_xdim_size[xj+1];
+      // for each y to be filled, find related xs and calculate.
+      // the index for each dim of an x:
+      // for a dim to be reduced, index of this dim differs from each x.
+      // otherwise, it is fixed with y during the traverse.
+      TShape yIndex = VectorIndex(reducedYShape, i);
+      TShape xIndex(x->ndim);
+      for (uint j = 0, yi = 0; j < x->ndim; j++) {
+        xIndex[j] = flag[j] ? 0 : yIndex[yi++];
       }
-
-      int32_t tmp = x_data[in_i];
-      for(uint64_t xi = 1; xi < axis_size; xi++){
-        uint64_t o_i = xi, tmp_in_i = 0;
-        for(int j = realAxis.size() - 1; j>=0; j--){
-          uint64_t col = o_i % x->shape[realAxis[j]];
-          o_i /= x->shape[realAxis[j]];
-          tmp_in_i += col * every_xdim_size[realAxis[j]];
+      // the first x is tmp.
+      int32_t tmp = x_data[ScalarIndex(xShape, xIndex)];
+      for (uint64_t xi = 1; xi < axis_size; xi++) {
+        TShape reducedIndex = VectorIndex(reducedAxShape, xi);
+        for (uint j = 0, yi = 0, ri = 0; j < xIndex.ndim(); j++) {
+          xIndex[j] = flag[j] ? reducedIndex[ri++] : yIndex[yi++];
         }
-        f(tmp, x_data[in_i+tmp_in_i]);
+        f(tmp, x_data[ScalarIndex(xShape, xIndex)]);
       }
       y_data[i] = tmp;
     }

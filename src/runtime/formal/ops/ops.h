@@ -93,6 +93,34 @@ inline void IndexBaseShapeAddOne(const std::vector<int64_t>& shape,
       }
 }
 
+// Given a scalar index `index` of a tensor of shape `shape`, calculate it's
+// corresponding vector index with type TShape and store it in `result`.
+// For example, for a tensor of shape {2, 3, 4}, index 7 is same as {0, 1, 3}
+inline TShape VectorIndex(const TShape& shape, int32_t index) {
+  TShape result(shape.ndim());
+  int i = shape.ndim() - 1;
+  for (; index && i >= 0; i--) {
+    result[i] = index % shape[i];
+    index /= shape[i];
+  }
+  for (; i >= 0; i--) {
+    result[i] = 0;
+  }
+  return result;
+}
+
+// The inverse function of vectorIndex. Given a vector index and calculate it's
+// correspounding scalar index.
+// For example, for a tersor of shape {2, 3, 4}, vector index {0, 1, 3} is 7.
+inline int32_t ScalarIndex(const TShape& shape, const TShape& index) {
+  int ret = 0, base = 1;
+  for (int i = shape.ndim() - 1; i >= 0; i--) {
+    ret += base * index[i];
+    base *= shape[i];
+  }
+  return ret;
+}
+
 const std::string DIR = "/tmp/zkh/ssd/";
 inline void print_to_file(DLTensor *y, std::string filename, bool all=false){
 #if defined(CVM_PRINT_OP_RESULT)
