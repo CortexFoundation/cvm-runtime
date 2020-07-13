@@ -473,8 +473,38 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.squeeze")
     memcpy(oshape_data, ishape_data, getSize(ishape)* sizeof(int32_t));
 });
 
+
+// Given a scalar index `index` of a tensor of shape `shape`, calculate it's
+// corresponding vector index with type TShape and store it in `result`.
+// For example, for a tensor of shape {2, 3, 4}, index 7 is same as {0, 1, 3}
+inline TShape vectorIndex(const TShape &shape, int32_t index) {
+  TShape result(shape.ndim());
+  int i = shape.ndim() - 1;
+  for (; index && i >= 0; i--) {
+    result[i] = index % shape[i];
+    index /= shape[i];
+  }
+  for (; i >= 0; i--) {
+    result[i] = 0;
+  }
+  return result;
+}
+
+// The inverse function of vectorIndex. Given a vector index and calculate it's
+// correspounding scalar index.
+// For example, for a tersor of shape {2, 3, 4}, vector index {0, 1, 3} is 7.
+inline int32_t scalarIndex(const TShape &shape, const TShape &index) {
+  int ret = 0, base = 1;
+  for (int i = shape.ndim() - 1; i >= 0; i--) {
+    ret += base * index[i];
+    base *= shape[i];
+  }
+  return ret;
+}                                                                               
+
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
 .set_body([](CVMArgs args, CVMRetValue *ret){
+      std::cout << "testing my own transpose\n";
     DLTensor *x = args[0];
     DLTensor *y = args[1];
     void *_attr = args[2];
@@ -482,6 +512,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
     auto &param = cvm::get<cvm::top::TransposeParam>(attr->parsed);
 
     int32_t ndim = y->ndim;
+    // assert y->ndim == x->ndim
     //TShape axes = param.axes;
     std::vector<int32_t> axes(ndim);
     for(int32_t i = 0; i < ndim; i++){
@@ -495,18 +526,18 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
     int32_t *x_data = static_cast<int32_t*>(x->data);
     int32_t *y_data = static_cast<int32_t*>(y->data);
 
-    for(uint64_t i = 0; i < getSize(y); i++) {
-      uint64_t o_i = i, in_i = 0;
-      for(int j = ndim - 1; j >= 0; j--){
-        uint64_t col = o_i % y->shape[j];
-        o_i /= y->shape[j];
-        int xi = 1;
-        for(int tx = ndim-1; tx > axes[j]; tx--){
-          xi *= x->shape[tx];
-        }
-        in_i += col * xi;
+    TShape xShape(ndim), yShape(ndim);
+    for (uint i = 0; i < x->ndim; i++) {
+      xShape[i] = x->shape[i];
+      yShape[i] = y->shape[i];
+    }
+    for (uint32_t i = 0; i < getSize(x); i++) {
+      auto xIndex = vectorIndex(xShape, i);
+      TShape yIndex(y->ndim);
+      for (int j = yIndex.ndim() - 1; j >= 0; j--) {
+        yIndex[j] = xIndex[axes[j]];
       }
-      y_data[i] = x_data[in_i];
+      y_data[scalarIndex(yShape, yIndex)] = x_data[i];
     }
     print_to_file(y, "transpose.txt");
 });
