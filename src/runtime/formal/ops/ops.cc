@@ -558,6 +558,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
     int ndim = y->ndim;
     int32_t num_axis = x->ndim;
     int64_t *dshp = x->shape;
+
     std::vector<int64_t> begin_vec;
     std::copy(begin.begin(), begin.end(), std::back_inserter(begin_vec));
     for (dim_t i = begin_vec.size(); i < num_axis; ++i) {
@@ -578,18 +579,19 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
       begin_vec[i]= std::min(std::max(begin, begin_range), end_range);
     }
 
+    // assert x->ndim == y->ndim
+    TShape xShape(ndim), yShape(ndim);
+    for (uint i = 0; i < ndim; i++) {
+      xShape[i] = x->shape[i];
+      yShape[i] = y->shape[i];
+    }
     for(uint64_t i = 0; i < getSize(y); i++){
-        uint64_t o_i = i, in_i = 0, shapeSize = 1;
-        for(int j = ndim-1; j >= 0; j--){
-            uint64_t col = o_i % y->shape[j];
-            o_i /= y->shape[j];
-            int64_t tbegin = begin_vec[j];
-            int64_t tstep = stride_vec[j];
-            col = tbegin + col * tstep;
-            in_i += col * shapeSize;
-            shapeSize *= x->shape[j];
-        }
-        y_data[i] = x_data[in_i];
+      TShape yVecIndex = vectorIndex(yShape, i);
+      TShape xVecIndex(ndim);
+      for (int j = 0; j < xVecIndex.ndim(); j++) {
+        xVecIndex[j] = begin_vec[j] + stride_vec[j] * yVecIndex[j];
+      }
+      y_data[i] = x_data[scalarIndex(xShape, xVecIndex)];
     }
     print_to_file(y, "stride_slice.txt");
 });
