@@ -3,10 +3,10 @@ import ctypes
 
 from ..libinfo import find_lib_path
 
-# hook for read the docs compilation
-read_the_docs_build = os.environ.get('READTHEDOCS', None) == 'True'
+# hook for doc generator
+doc_generator = os.environ.get('DOC_GEN', None) == 'True'
 
-if read_the_docs_build:
+if doc_generator:
     _LIB_PATH = None
     _LIB_NAME = None
     _LIB = None

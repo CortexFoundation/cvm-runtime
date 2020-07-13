@@ -21,13 +21,15 @@ This section gives an example of compiling CVM.
 make -j8 lib
 ```
 > Note that executing `make -j8 lib` for the first time might encounter an error like
-> ```
-Error copying file (if different) from "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend.tmp" to "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend".
-CMake Error at /alongdirname/cuda_compile_1_generated_broadcast.cu.o.cmake:246 (message):
-	Error generating
-	/alongdirname/./cuda_compile_1_generated_broadcast.cu.o
-build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadcast.cu.o' failed
-> ```
+
+  ``` bash
+  Error copying file (if different) from "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend.tmp" to "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend".
+  CMake Error at /alongdirname/cuda_compile_1_generated_broadcast.cu.o.cmake:246 (message):
+    Error generating
+    /alongdirname/./cuda_compile_1_generated_broadcast.cu.o
+  build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadcast.cu.o' failed
+  ```
+
 > Executing it again will fix the problem.
 
 

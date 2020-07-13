@@ -19,7 +19,7 @@ lib: dep
 python: lib
 	@cd python && python3 setup.py install
 
-html: python
+html:
 	@make -C docs html
 
 TEST_SRCS := $(wildcard ${TESTS}/*.cc)

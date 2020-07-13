@@ -2,6 +2,22 @@
 
 The doc contains two parts mainly: C backend module build and the python package installation.
 
+## Pre-requisites
+
+### Ubuntu(CentOS, RedHat)
+
+Dependent compilation tools: g++, make, cmake, python3
+
+### MacOS
+
+we have already tested the project setup on MacOS, and the system need some extra dependency library installation besides ubuntu requests. 
+
+Using the `brew` command to install `libomp` in Mac. And if neccessary, install the `brew` tools in Mac terminal first, please.
+
+``` bash
+brew install libomp
+```
+
 ## Build Targets
 
 All the targets locate at the directory `build` by default. You can build the project with command:
@@ -17,7 +33,7 @@ However the command above will compile all modules in the project, you can speci
 CVM project is pure C&C++ backend AI inference framework. It's easy for developer to compile the target shared library via below commands:
 
 ``` bash
-  make -j lib
+make -j lib
 ```
 
 The command will generate two dynamic libraries: `libcvm.so` and `libcvm_runtime.so`, where `libcvm_runtime.so` is lighter than `libcvm.so`. Generally library `cvm_runtime` contains only the inference relative module whereas the `cvm` library compiles the extra symbol, graph, compile pass module etc.
@@ -27,7 +43,7 @@ The command will generate two dynamic libraries: `libcvm.so` and `libcvm_runtime
 This project have some unit test in subdirectory `tests`, you could compile the test binary with the command:
 
 ``` bash
-  make tests
+make tests
 ```
 
 It will generate many test binary in the `build/tests/` directory.
@@ -38,19 +54,19 @@ It will generate many test binary in the `build/tests/` directory.
 CVM support `sphinx` documentation, and before compile the documentation in directory `docs`, you need to install some python required packages. We have collect the neccessary packages in the `docs/requirements.txt`, so you can simply run the command to install the pre-requisites:
 
 ``` bash
-  pip install -r docs/requirements.txt
+pip install -r docs/requirements.txt
 ```
 
 And then generate the html format with this command:
 
 ``` bash
-  make html
+make html
 ```
 
 All the target html resource files locate at directory `docs/html` as static assets, you can serve it with command:
 
 ``` bash
-  python -m http.server --directory docs/html [port]
+python -m http.server --directory docs/html [port]
 ```
 
 And then read the doc.
@@ -98,5 +114,7 @@ Here is an successfull output:
 ``` bash
 Register cvm library into python module: cvm.symbol
 ```
+
+
 
 
