@@ -686,5 +686,6 @@ int main() {
   // test_op("broadcast_max");
   // test_op("broadcast_div");
   // test_op("broadcast_greater");
+  cout << "all tests finished" << endl;
   return 0;
 }

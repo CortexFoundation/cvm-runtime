@@ -60,7 +60,7 @@ static void Reduce(DLTensor *x,
     for(uint32_t i = 0; i < realAxis.size(); i++){
       axis_size *= x->shape[realAxis[i]];
     }
-    // every_xdin_size is used to calculate array polynomial
+    // every_xdim_size is used to calculate array polynomial
     std::vector<uint64_t> every_xdim_size(x->ndim, 1);
     for(int i = x->ndim-2; i >= 0; i--){
       every_xdim_size[i] = x->shape[i+1] * every_xdim_size[i+1];
@@ -84,7 +84,7 @@ static void Reduce(DLTensor *x,
      *      get x possible indexes and add value to result.
      **/
     for(uint64_t i = 0; i < getSize(y); i++){
-      // in_i will is the base index of X. for Y[a][b] = sum(or max) X[a][*][*][d]
+      // in_i will be the base index of X. for Y[a][b] = sum(or max) X[a][*][*][d]
       // in_i = d * 1 + a * n4*n3*n2
       // o_i is a middle variable used for calculating in_i
       uint64_t in_i = 0, o_i = i;

@@ -1022,6 +1022,8 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
   const SliceLikeParam& param = cvm::get<SliceLikeParam>(attrs.parsed);
   const TShape& src_shape = in_attrs->at(0);
   const TShape& target_shape = in_attrs->at(1);
+  VERIFY(src_shape.ndim() == target_shape.ndim() || param.axis.ndim() != 0)
+    << "input X and shape_like must be of the same shape if no axis is given\n";
   Tuple<dim_t> end_idx;
   end_idx = Tuple<dim_t>(src_shape);
   if (param.axis.ndim() == 0) {
@@ -1035,11 +1037,11 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
     }
   } else {
     for (auto i : param.axis) {
-      VerifyAttrRange(i, "slice_like.axis",
-          -src_shape.ndim(), target_shape.ndim()-1);
       if (i < 0) {
         i = src_shape.ndim() + i;
       }
+      VerifyAttrRange(i, "slice_like.axis",
+        0, std::min(target_shape.ndim(), src_shape.ndim()) - 1);
       end_idx[i] = target_shape[i];
       VERIFY_LE(end_idx[i], src_shape[i])
         << "End index of axis " << i << " exceeds input shape: "
