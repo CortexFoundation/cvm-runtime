@@ -221,12 +221,12 @@ def _make_atomic_symbol_function(handle, name):
 def _init_symbol_module(symbol_class, root_namespace):
     """List and add all the atomic symbol functions to current module."""
     _set_symbol_class(symbol_class)
-    plist = ctypes.POINTER(ctypes.c_char_p)()
-    size = ctypes.c_uint()
 
     if _LIB is None: # hook for read the docs
         return
 
+    plist = ctypes.POINTER(ctypes.c_char_p)()
+    size = ctypes.c_uint()
     check_call(_LIB.CVMListAllOpNames(ctypes.byref(size),
                                      ctypes.byref(plist)))
     op_names = []
