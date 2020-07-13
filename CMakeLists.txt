@@ -113,8 +113,6 @@ if(ENABLE_OPENCL)
 
 endif()
 
-list(APPEND RUNTIME_SRCS ${CVM_SRCS})
-
 file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/nn/*.cc
                        src/top/tensor/*.cc)
@@ -126,5 +124,3 @@ target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 list(APPEND CVM_SRCS ${RUNTIME_SRCS})
 add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
 target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})
-
-

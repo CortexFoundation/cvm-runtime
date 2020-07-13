@@ -1,4 +1,8 @@
+# OPs Table
+
 IOPs(Interger operators) = Op Weight * Output Shape Size
+
+The OPs of deterministic operator is as below:
 
 |Op Name|Op Weight|
 |---|---|

@@ -17,7 +17,11 @@ import math
 import pickle
 import logging
 
-dataset_dir = path.expanduser("~/.mxnet/datasets")
+from . import conf
+
+__all__ = ["DS_REG", "Dataset"]
+
+# dataset_dir = path.expanduser("~/.mxnet/datasets")
 src = "http://0.0.0.0:8827"
 
 def extract_file(tar_path, target_path):
@@ -28,7 +32,7 @@ def extract_file(tar_path, target_path):
     tar.extractall(target_path)
     tar.close()
 
-def download_files(category, files, base_url=src, root=dataset_dir):
+def download_files(category, files, base_url=src, root=conf.MRT_DATASET_ROOT):
     logger = logging.getLogger("dataset")
     root_dir = path.join(root, category)
     os.makedirs(root_dir, exist_ok=True)
@@ -54,44 +58,120 @@ def download_files(category, files, base_url=src, root=dataset_dir):
             fout.write(r.content)
     return root_dir
 
+DS_REG = {
+    # "voc": VOCDataset,
+    # "imagenet": ImageNetDataset,
+    # "cifar10": Cifar10Dataset,
+    # "quickdraw": QuickDrawDataset,
+    # "mnist": MnistDataset,
+    # "trec": TrecDataset,
+    # "coco": COCODataset,
+}
+
+def register_dataset(name):
+    def _wrapper(dataset):
+        dataset.name = name
+        if name in DS_REG:
+            raise NameError("Dataset " + name + " has been registered")
+        DS_REG[name] = dataset;
+        return dataset 
+    return _wrapper
+
 class Dataset:
+    """ Base dataset class, with pre-defined interface.
+
+        The dataset directory is located at the `root` directory containing
+            the dataset `name` directory. And the custom dataset should pass
+            the parameter location of root, or implement the derived class
+            of your data iterator, metrics and validate function.
+
+        Notice:
+        =======
+            our default imagenet dataset is organized as an `record`
+            binary format, which can amplify the throughput for image read.
+            Custom dataset of third party should be preprocessed by the `im2rec`
+            procedure to transform the image into the record format.
+            The transformation script is located at `docs/mrt/im2rec.py`. And more
+            details refer to the script helper documentation please(print usage
+            with command `-h`).
+
+
+        Parameters:
+        ===========
+            input_shape: the input shape requested from user, and some dataset would
+                check the validity format.
+            root: the location where dataset is stored, defined with variable `MRT_DATASET_ROOT`
+                in conf.py or custom directory.
+
+
+        Derived Class Implementation:
+        =============================
+            1. register dataset name into DS_REG that can be accessed
+                at the `dataset` package API. releated function is
+                `register_dataset`.
+
+            2. override the abstract method defined in base dataset class,
+                _load_data[Required]:
+                    load data from disk that stored into the data variable.
+                iter_func[Optional]:
+                    return the tuple (data, label) for each invocation.
+                metrics[Required]:
+                    returns the metrics object for the dataset.
+                validate[Required];
+                    calculates the accuracy for model inference of string.
+
+    """
     name = None
 
-    def __init__(self, input_shape, base_url=src, root=dataset_dir, dataset_dir=None):
+    def __init__(self, input_shape, root=conf.MRT_DATASET_ROOT):
         self.ishape = input_shape
 
-        self.root_dir = download_files(
-            self.name, self.download_deps, base_url, root) \
-            if dataset_dir is None else dataset_dir
-        for fname in self.download_deps:
-            if fname.endswith(".tar") or fname.endswith(".tar.gz"):
-                extract_file(path.join(self.root_dir, fname), self.root_dir)
+        if self.name is None:
+            raise RuntimeError("Dataset name not set")
+
+        # Dataset not to download the file, it's user's responsibility
+        self.root_dir = path.join(root, self.name)
+        # self.root_dir = download_files(
+        #     self.name, self.download_deps, base_url, root) \
+        #     if dataset_dir is None else dataset_dir
+        # for fname in self.download_deps:
+        #     if fname.endswith(".tar") or fname.endswith(".tar.gz"):
+        #         extract_file(
+        #               path.join(self.root_dir, fname), self.root_dir)
 
         self.data = None
         self._load_data()
 
     def metrics(self):
-        pass
+        raise NotImplementedError(
+                "Derived " + self.name + " dataset not override the" +
+                " base `metric` function defined in Dataset")
 
     def validate(self, metrics, predicts, labels):
-        pass
+        raise NotImplementedError(
+                "Derived " + self.name + " dataset not override the" +
+                " base `validate` function defined in Dataset")
 
     def _load_data(self):
-        pass
+        raise NotImplementedError(
+                "Derived " + self.name + " dataset not override the" +
+                " base `_load_data` function defined in Dataset")
 
     def __iter__(self):
         """ Returns (data, label) iterator """
         return iter(self.data)
 
     def iter_func(self):
-        data_iter = iter(self)
+        """ Returns (data, label) iterator function """
+        data_iter = iter(self.data)
         def _wrapper():
             return next(data_iter)
         return _wrapper
 
+
+@register_dataset("coco")
 class COCODataset(Dataset):
-    name = "coco"
-    download_deps = ['val2017.zip']
+    # download_deps = ['val2017.zip']
 
     def _load_data(self):
         assert len(self.ishape) == 4
@@ -137,9 +217,10 @@ class COCODataset(Dataset):
         return "{:6.2%}".format(acc)
 
 
+@register_dataset("voc")
 class VOCDataset(Dataset):
-    name = "voc"
-    download_deps = ["VOCtest_06-Nov-2007.tar"]
+    # name = "voc"
+    # download_deps = ["VOCtest_06-Nov-2007.tar"]
 
     def _load_data(self):
         assert len(self.ishape) == 4
@@ -183,6 +264,7 @@ class VOCDataset(Dataset):
         acc = {k:v for k,v in zip(map_name, mean_ap)}['mAP']
         return "{:6.2%}".format(acc)
 
+
 class VisionDataset(Dataset):
     def metrics(self):
         return [mx.metric.Accuracy(),
@@ -195,8 +277,10 @@ class VisionDataset(Dataset):
         _, top5 = metrics[1].get()
         return "top1={:6.2%} top5={:6.2%}".format(top1, top5)
 
+
+@register_dataset("imagenet")
 class ImageNetDataset(VisionDataset):
-    name = "imagenet"
+    # name = "imagenet"
     download_deps = ["rec/val.rec", "rec/val.idx"]
 
     def _load_data(self):
@@ -230,16 +314,17 @@ class ImageNetDataset(VisionDataset):
             std_b               = std_rgb[2],
         )
 
-    def __iter__(self):
-        return self
+    def iter_func(self):
+        def _wrapper():
+            data = self.data.next()
+            return data.data[0], data.label[0]
+        return _wrapper
 
-    def __next__(self):
-        data = self.data.next()
-        return data.data[0], data.label[0]
 
+@register_dataset("cifar10")
 class Cifar10Dataset(VisionDataset):
-    name = "cifar10"
-    download_deps = ["cifar-10-binary.tar.gz"]
+    # name = "cifar10"
+    #  download_deps = ["cifar-10-binary.tar.gz"]
 
     def _load_data(self):
         N, C, H, W = self.ishape
@@ -254,6 +339,7 @@ class Cifar10Dataset(VisionDataset):
             batch_size=N, shuffle=False, num_workers=4)
 
 
+@register_dataset("quickdraw")
 class QuickDrawDataset(VisionDataset):
     name = "quickdraw"
 
@@ -276,17 +362,21 @@ class QuickDrawDataset(VisionDataset):
                 shuffle=self.is_train,
                 num_workers=4)
 
+
+@register_dataset("mnist")
 class MnistDataset(VisionDataset):
-    name = "mnist"
+    # name = "mnist"
     # there is no need to download the data from cortexlabs,
     #   since mxnet has supplied the neccesary download logic.
-    download_deps = []
     # download_deps = ["t10k-images-idx3-ubyte.gz",
     #                  "t10k-labels-idx1-ubyte.gz",
     #                  "train-images-idx3-ubyte.gz",
     #                  "train-labels-idx1-ubyte.gz"]
 
     def _load_data(self):
+        """
+            The MxNet gluon package will auto-download the mnist dataset.
+        """
         val_data = mx.gluon.data.vision.MNIST(
             root=self.root_dir, train=False).transform_first(data_xform)
 
@@ -296,8 +386,9 @@ class MnistDataset(VisionDataset):
             val_data, shuffle=False, batch_size=N)
 
 
+@register_dataset("trec")
 class TrecDataset(Dataset):
-    name = "trec"
+    # name = "trec"
     download_deps = ["TREC.train.pk", "TREC.test.pk"]
 
     def __init__(self, input_shape, is_train=False, **kwargs):
@@ -316,16 +407,17 @@ class TrecDataset(Dataset):
         I, N = self.ishape
         assert I == 38
 
-    def __iter__(self):
-        data, label = [], []
-        for x, y in self.data:
-            if len(data) < self.ishape[1]:
-                data.append(x)
-                label.append(y)
-            else:
-                yield nd.transpose(nd.array(data)), nd.array(label)
-
-                data, label = [], []
+    def iter_func(self):
+        def _wrapper():
+            data, label = [], []
+            for x, y in self.data:
+                if len(data) < self.ishape[1]:
+                    data.append(x)
+                    label.append(y)
+                else:
+                    return nd.transpose(nd.array(data)), nd.array(label)
+            return nd.transpose(nd.array(data)), nd.array(label)
+        return _wrapper
 
     def metrics(self):
         return {"acc": 0, "total": 0}
@@ -340,159 +432,3 @@ class TrecDataset(Dataset):
 
         acc = 1. * metrics["acc"] / metrics["total"]
         return "{:6.2%}".format(acc)
-
-DS_REG = {
-    "voc": VOCDataset,
-    "imagenet": ImageNetDataset,
-    "cifar10": Cifar10Dataset,
-    "quickdraw": QuickDrawDataset,
-    "mnist": MnistDataset,
-    "trec": TrecDataset,
-    "coco": COCODataset,
-}
-
-# max value: 2.64
-def load_voc(batch_size, input_size=416, **kwargs):
-    fname = "VOCtest_06-Nov-2007.tar"
-    root_dir = download_files("voc", [fname], **kwargs)
-
-    extract_file(path.join(root_dir, fname), root_dir)
-    width, height = input_size, input_size
-    val_dataset = gdata.VOCDetection(root=path.join(root_dir, 'VOCdevkit'),
-            splits=[('2007', 'test')])
-    val_batchify_fn = Tuple(Stack(), Pad(pad_val=-1))
-    val_loader = gluon.data.DataLoader(
-        val_dataset.transform(YOLO3DefaultValTransform(width, height)),
-        batch_size,
-        False,
-        batchify_fn=val_batchify_fn,
-        last_batch='keep',
-        num_workers=30)
-    return val_loader
-
-def load_voc_metric():
-    return VOC07MApMetric(iou_thresh=0.5, class_names=gdata.VOCDetection.CLASSES)
-
-def load_imagenet_rec(batch_size, input_size=224, device_id=4, **kwargs):
-    files = ["rec/val.rec", "rec/val.idx"]
-    root_dir = download_files("imagenet", files, **kwargs)
-    crop_ratio = 0.875
-    resize = int(math.ceil(input_size / crop_ratio))
-    mean_rgb = [123.68, 116.779, 103.939]
-    std_rgb = [58.393, 57.12, 57.375]
-    rec_val = path.join(root_dir, files[0])
-    rec_val_idx = path.join(root_dir, files[1])
-
-    val_data = mx.io.ImageRecordIter(
-	path_imgrec         = rec_val,
-	path_imgidx         = rec_val_idx,
-	preprocess_threads  = 24,
-	shuffle             = False,
-	batch_size          = batch_size,
-
-	resize              = resize,
-	data_shape          = (3, input_size, input_size),
-	mean_r              = mean_rgb[0],
-	mean_g              = mean_rgb[1],
-	mean_b              = mean_rgb[2],
-	std_r               = std_rgb[0],
-	std_g               = std_rgb[1],
-	std_b               = std_rgb[2],
-
-        device_id           = device_id,
-    )
-    return val_data
-
-def load_cifar10(batch_size, input_size=224, num_workers=4, **kwargs):
-    flist = ["cifar-10-binary.tar.gz"]
-    root_dir = download_files("cifar10", flist, **kwargs)
-    extract_file(path.join(root_dir, flist[0]), root_dir)
-    transform_test = gluon.data.vision.transforms.Compose([
-        gluon.data.vision.transforms.ToTensor(),
-        gluon.data.vision.transforms.Normalize([0.4914, 0.4822, 0.4465],
-                                               [0.2023, 0.1994, 0.2010])])
-    val_data = gluon.data.DataLoader(
-            gluon.data.vision.CIFAR10(root=root_dir,
-                train=False).transform_first(transform_test),
-            batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    return val_data
-
-def load_quickdraw10(batch_size, num_workers=4, is_train=False, **kwargs):
-    files = ["quickdraw_X.npy", "quickdraw_y.npy"] if is_train else \
-            ["quickdraw_X_test.npy", "quickdraw_y_test.npy"]
-    root_dir = download_files("quickdraw", files, **kwargs)
-    X = nd.array(np.load(path.join(root_dir, files[0])))
-    y = nd.array(np.load(path.join(root_dir, files[1])))
-    val_data = gluon.data.DataLoader(
-            mx.gluon.data.dataset.ArrayDataset(X, y),
-            batch_size=batch_size,
-            last_batch='discard',
-            shuffle=is_train,
-            num_workers=num_workers)
-    return val_data
-
-def load_trec(batch_size, is_train=False, **kwargs):
-    files = ["TREC.train.pk", "TREC.test.pk"]
-    root_dir = download_files("trec", files, **kwargs)
-    fname = path.join(root_dir, files[0] if is_train else files[1])
-    with open(fname, "rb") as fin:
-        dataset = pickle.load(fin)
-        data, label = [], []
-        for x, y in dataset:
-            if len(data) < batch_size:
-                data.append(x)
-                label.append(y)
-            else:
-                yield nd.transpose(nd.array(data)), nd.transpose(nd.array(label))
-                data, label = [], []
-
-def load_mnist(batch_size, **kwargs):
-    flist = ["t10k-images-idx3-ubyte.gz",
-            "t10k-labels-idx1-ubyte.gz",
-            "train-images-idx3-ubyte.gz",
-            "train-labels-idx1-ubyte.gz"]
-    root_dir = download_files("mnist", flist, **kwargs)
-    val_data = mx.gluon.data.vision.MNIST(root=root_dir, train=False).transform_first(data_xform)
-    val_loader = mx.gluon.data.DataLoader(val_data, shuffle=False, batch_size=batch_size)
-    return val_loader
-
-def data_xform(data):
-    """Move channel axis to the beginning, cast to float32, and normalize to [0, 1]."""
-    return nd.moveaxis(data, 2, 0).astype('float32') / 255
-
-def data_iter(dataset, batch_size, **kwargs):
-    if dataset == "imagenet":
-        data_iter = load_imagenet_rec(batch_size, **kwargs)
-        def data_iter_func():
-            data = data_iter.next()
-            return data.data[0], data.label[0]
-    elif dataset == "voc":
-        val_data = load_voc(batch_size, **kwargs)
-        data_iter = iter(val_data)
-        def data_iter_func():
-            return next(data_iter)
-    elif dataset == "trec":
-        data_iter = load_trec(batch_size, **kwargs)
-        def data_iter_func():
-            return next(data_iter)
-    elif dataset == "mnist":
-        val_loader = load_mnist(batch_size, **kwargs)
-        data_iter = iter(val_loader)
-        def data_iter_func():
-            return next(data_iter)
-    elif dataset == "quickdraw":
-        val_data = load_quickdraw10(batch_size, **kwargs)
-        data_iter = iter(val_data)
-        def data_iter_func():
-            return next(data_iter)
-    elif dataset == "cifar10":
-        val_data = load_cifar10(batch_size, **kwargs)
-        data_iter = iter(val_data)
-        def data_iter_func():
-            return next(data_iter)
-    else:
-        assert False, "dataset:%s is not supported" % (dataset)
-    return data_iter_func
-
-
-

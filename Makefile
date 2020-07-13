@@ -1,4 +1,4 @@
-.PHONY: clean all dep test_cpu test_gpu test_formal python
+.PHONY: clean all dep tests test_cpu test_gpu test_formal python
 # .PHONY: test_model_cpu test_model_gpu test_model_formal
 # .PHONY: test_op_cpu test_op_gpu test_op_formal
 
@@ -6,7 +6,7 @@ BUILD := build
 INCLUDE := include
 TESTS := tests
 
-all: lib python test_cpu test_gpu test_formal
+all: lib python tests
 	echo ${TEST_CPUS}
 
 # Mac OS should install libomp with brew
@@ -16,6 +16,12 @@ dep:
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
 
+python: lib
+	@cd python && python3 setup.py install
+
+html: python
+	@make -C docs html
+
 TEST_SRCS := $(wildcard ${TESTS}/*.cc)
 TEST_EXES := $(patsubst ${TESTS}/%.cc,%,${TEST_SRCS})
 
@@ -23,6 +29,8 @@ TEST_CPUS := $(patsubst %,%_cpu,${TEST_EXES})
 TEST_GPUS := $(patsubst %,%_gpu,${TEST_EXES})
 TEST_FORMALS := $(patsubst %,%_formal,${TEST_EXES})
 TEST_OPENCL := $(patsubst %,%_opencl,${TEST_EXES})
+
+tests: lib test_cpu test_gpu test_formal
 
 test_cpu: ${TEST_CPUS}
 test_gpu: ${TEST_GPUS}

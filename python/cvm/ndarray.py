@@ -170,6 +170,17 @@ def _make_array(handle):
     return NDArray(handle, False)
 
 def empty(shape, dtype="int32", ctx=cpu()):
+    """ C wrapper method of NDArray generator.
+
+        Notice: the allocated memory is supposed as empty, which means
+        the memory is not formated and the real data created is random
+        and unuseful.
+
+        Returns
+        =======
+        nd_arr: :class:`cvm.ndarray.NDArray`
+            An empty NDArray.
+    """
     shape = c_array(ctypes.c_int64, shape)
     ndim = ctypes.c_int(len(shape))
     handle = CVMArrayHandle()
@@ -192,12 +203,12 @@ def array(arr, ctx=cpu()):
     arr : numpy.ndarray
         The array to be copied from
 
-    ctx : CVMContext, optional
-        The device context to create the array
+    ctx : :py:class:`cvm.CVMContext`
+        The device context to create the array, CPU context by default.
 
     Returns
     -------
-    ret : NDArray
+    ret : :py:class:`cvm.ndarray.NDArray`
         The created array
     """
     if not isinstance(arr, (np.ndarray, NDArray)):
@@ -205,6 +216,13 @@ def array(arr, ctx=cpu()):
     return empty(arr.shape, arr.dtype, ctx).copyfrom(arr)
 
 def save_param_dict(dict_data):
+    """ Transform the python :class:`cvm.ndarray.NDArray` handle into bytes.
+
+        Returns
+        =======
+        seq: bytes
+            The bytes binary of parameters dict.
+    """
     data = []
     for k, v in dict_data.items():
         pk = ctypes.c_char_p(bytes(k, encoding='utf-8'))

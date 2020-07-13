@@ -1,7 +1,11 @@
+import os
+
 from mxnet.gluon.model_zoo import vision
 import mxnet as mx
 
 import gluoncv as cv
+
+from . import conf, utils
 
 def load_inception_v3(ctx):
     return vision.inception_v3(pretrained=True, ctx=ctx, prefix="")
@@ -53,16 +57,23 @@ def get_model(name, **kwargs):
     return cv.model_zoo.get_model(name, pretrained=True,
             ctx=mx.gpu(), **kwargs)
 
-def save_model(name, sym_path=None, prm_path=None, **kwargs):
+def save_model(name, data_dir=None, **kwargs):
     net = get_model(name, **kwargs)
     sym = net(mx.sym.var('data'))
     if isinstance(sym, tuple):
         sym = mx.sym.Group([*sym])
-    sym_path = sym_path if sym_path else "./data/%s.json"%name
-    prm_path = prm_path if prm_path else "./data/%s.params"%name
+
+    data_dir = conf.MRT_MODEL_ROOT if data_dir is None else data_dir
+    prefix = os.path.join(data_dir, name)
+    sym_path, prm_path = utils.extend_fname(prefix)
+
+    # os.path.join(conf.MRT_MODEL_ROOT, name)
+    # sym_path = sym_path if sym_path else "./data/%s.json"%name
+    # prm_path = prm_path if prm_path else "./data/%s.params"%name
     with open(sym_path, "w") as fout:
         fout.write(sym.tojson())
     net.collect_params().save(prm_path)
+    return sym_path, prm_path
 
 """ Model List
 resnet18_v1, resnet34_v1, resnet50_v1, resnet101_v1, resnet152_v1, resnet18_v2, resnet34_v2, resnet50_v2, resnet101_v2, resnet152_v2,
