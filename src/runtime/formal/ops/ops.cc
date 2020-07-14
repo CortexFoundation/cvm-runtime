@@ -475,7 +475,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.squeeze")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-      std::cout << "testing my own transpose\n";
     DLTensor *x = args[0];
     DLTensor *y = args[1];
     void *_attr = args[2];
@@ -497,11 +496,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
     int32_t *x_data = static_cast<int32_t*>(x->data);
     int32_t *y_data = static_cast<int32_t*>(y->data);
 
-    TShape xShape(ndim), yShape(ndim);
-    for (uint i = 0; i < x->ndim; i++) {
-      xShape[i] = x->shape[i];
-      yShape[i] = y->shape[i];
-    }
+    TShape xShape(x->shape, x->shape + x->ndim),
+        yShape(y->shape, y->shape + y->ndim);
     for (uint32_t i = 0; i < getSize(x); i++) {
       auto xIndex = VectorIndex(xShape, i);
       TShape yIndex(y->ndim);
@@ -550,12 +546,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
       begin_vec[i]= std::min(std::max(begin, begin_range), end_range);
     }
 
-    // assert x->ndim == y->ndim
-    TShape xShape(ndim), yShape(ndim);
-    for (uint i = 0; i < ndim; i++) {
-      xShape[i] = x->shape[i];
-      yShape[i] = y->shape[i];
-    }
+    TShape xShape(x->shape, x->shape + x->ndim),
+        yShape(y->shape, y->shape + y->ndim);
     for(uint64_t i = 0; i < getSize(y); i++){
       TShape yVecIndex = VectorIndex(yShape, i);
       TShape xVecIndex(ndim);
@@ -601,40 +593,33 @@ static void take(DLTensor *x,
                  DLTensor *indices, 
                  DLTensor *y, 
                  const int32_t axis){
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *indices_data = static_cast<int32_t*>(indices->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
+  int32_t *x_data = static_cast<int32_t*>(x->data);
+  int32_t *indices_data = static_cast<int32_t*>(indices->data);
+  int32_t *y_data = static_cast<int32_t*>(y->data);
 
-    int32_t yndim = y->ndim;
-    int32_t xndim = x->ndim;
-    int32_t indices_ndim = indices->ndim;
-    std::vector<size_t> x_shape_size(xndim, 1), indices_shape_size(indices_ndim, 1);
-    for (int i = xndim-2; i >= 0; --i) {
-      x_shape_size[i] = x_shape_size[i+1] * x->shape[i+1];
-    }
-    for (int i = indices_ndim-2; i >= 0; --i) {
-      indices_shape_size[i] = indices_shape_size[i+1] * indices->shape[i+1];
-    }
-    for (size_t i = 0; i < getSize(y); ++i) {
-      size_t oi = i, xi = 0, idxi = 0;
-      for(int j = yndim - 1; j>=0; --j){
-        size_t col = oi % y->shape[j];
-        oi /= y->shape[j];
-        if (axis <= j && j < axis+indices_ndim) {
-          idxi += col * indices_shape_size[j - axis];
-        } else {
-          int xidx = j < axis ? j : j - indices_ndim + 1;
-          xi += col * x_shape_size[xidx];
-        }
+  int32_t xndim = x->ndim;
+  int32_t indices_ndim = indices->ndim;
+  TShape xShape(x->shape, x->shape + x->ndim),
+      yShape(y->shape, y->shape + y->ndim),
+      idxShape(indices->shape, indices->shape + indices->ndim);
 
-        if (axis == j) {
-          int64_t idxx = std::min(std::max(indices_data[idxi], 0), 
-              (int32_t)x->shape[j]-1);
-          xi += idxx * x_shape_size[j];
-        }
-      }
-      y_data[i] = x_data[xi];
+  for (size_t i = 0; i < getSize(y); ++i) {
+    TShape yIndex = VectorIndex(yShape, i);
+    TShape indIndex(indices_ndim);
+    TShape xIndex(xndim);
+    for (uint j = 0; j < axis; j++) {
+      xIndex[j] = yIndex[j];
     }
+    for (uint j = 0; j < indices_ndim; j++) {
+      indIndex[j] = yIndex[j + axis];
+    }
+    int32_t axisIndex = indices_data[ScalarIndex(idxShape, indIndex)];
+    xIndex[axis] = std::min(std::max(axisIndex, 0), (int32_t)x->shape[axis]-1);
+    for (uint j = axis + 1; j < xndim; j++) {
+      xIndex[j] = yIndex[j + indices_ndim - 1];
+    }
+    y_data[i] = x_data[ScalarIndex(xShape, xIndex)];
+  }
 }
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.take")
