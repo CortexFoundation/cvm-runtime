@@ -23,4 +23,5 @@ Python API
 .. toctree::
   :maxdepth: 2
 
+  User Interface API <api/main2>
   
