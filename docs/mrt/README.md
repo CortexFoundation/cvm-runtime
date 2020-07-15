@@ -2,6 +2,12 @@
 
 ## 1. Install Python
 
+The mxnet and gluoncv are required. For installation, please respectively refer to:
+
+1. [mxnet installation](https://mxnet.apache.org/get_started)
+
+2. [gluoncv installation](https://gluon-cv.mxnet.io/install.html)
+
 ## 2. MRT Preparation
 
 2.1. Clone the project
