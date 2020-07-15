@@ -24,4 +24,5 @@ Python API
   :maxdepth: 2
 
   User Interface API <api/main2>
+  Transformer API <api/transformer>
   
