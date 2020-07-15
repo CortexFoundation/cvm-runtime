@@ -23,6 +23,6 @@ Python API
 .. toctree::
   :maxdepth: 2
 
-  User Interface API <api/main2>
-  Transformer API <api/transformer>
-  
+  MRT main2 API <api/main2>
+  MRT Transformer API <api/transformer>
+  MRT base API <api/tfm_base>
