@@ -3,7 +3,7 @@
 This tutorial gives an example of compiling CVM and converting a pre-trained floating point model for mnist dataset to a fixed-point model which is executable on CVM.
 
 ### CVM-Runtime Project Compilation
-See `2.2. Build the Shared Library` in `MRT Installation`
+See Section `2.2. Build the Shared Library` in [MRT Installation](README.md)
 
 ### Mnist Training
 This section gives an example of training a model for mnist dataset and storing the trained model as `~/mrt_model/mnist_dapp.json` and `~/mrt_model/mnist_dapp.params`. CVM is not necessary during this procedure.
