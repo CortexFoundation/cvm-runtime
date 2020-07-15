@@ -1,4 +1,4 @@
-""" MRT Ops API
+""" MRT Operators API
 
     Op-level realization of Model Representation Tool.
     Implementation of validation, 
@@ -253,6 +253,12 @@ class Convolution(Transformer):
         return op
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Input node with layout `NCW` is equivalently
+            rewriten into layout `NCHW`
+            The parameters if attached dimension is set by default
+        """
         #TODO: matrix decomposition
         # op = self._fuse_bias(op, kwargs["infer_shapes"])
         params = kwargs['params']
@@ -298,6 +304,18 @@ class Convolution(Transformer):
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            The input and weight are quantized 
+            into the same precision level. 
+            Bias is quantized with respect to the 
+            product of input and weight.
+
+            the infer precision equals to 
+            the sum of quantized input precision, 
+            quantized weight precision and 
+            the product precision.
+        """
         return _quantize_xwb(op, **kwargs)
 
     def calculate_ops(self, op, **kwargs):
@@ -548,11 +566,25 @@ class UpSampling(Transformer):
 @register_transformer("FullyConnected")
 class FullyConnected(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Using matrix decomposition to avoid overflow.
+
+            Y = B + X*W^T = B + X1*W1^T + X2*W2^T + ...
+                
+            Wi.shape = (num_hidden, step), W = [W1, W2, ...]
+                
+            Xi.shape = (batch_size, step), X = [X1, X2, ...]
+        """
         infer_shapes, params = kwargs['infer_shapes'], kwargs['params']
         op = self._matrix_decomposition(op, params, infer_shapes)
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            Same as `Convolution.quantize`
+        """
         return _quantize_xwb(op, **kwargs)
 
     def compile(self, op, **kwargs):
@@ -588,10 +620,6 @@ class FullyConnected(Transformer):
         no_bias = get_attr(attr, 'no_bias', False)
         attr['no_bias'] = True
 
-        # matrix decomposition
-        # Y = B + X*W^T = B + X1*W1^T + X2*W2^T + ...
-        # Wi.shape = (num_hidden, step), W = [W1, W2, ...]
-        # Xi.shape = (batch_size, step), X = [X1, X2, ...]
         nodes, step, start = [], MATRIX_MAXIMUM_SIZE, 0
         wgt = params[W.attr('name')]
         while start < C:

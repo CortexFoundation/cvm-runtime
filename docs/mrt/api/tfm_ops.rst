@@ -9,5 +9,8 @@ ___________
 .. automodule:: mrt.tfm_ops
 
 
-.. autoclass:: mrt.tfm_ops.Transpose
-    :members:
+.. autoclass:: mrt.tfm_ops.Convolution
+  :members: rewrite, quantize
+
+.. autoclass:: mrt.tfm_ops.FullyConnected
+  :members: rewrite, quantize
