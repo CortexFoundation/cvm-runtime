@@ -1,7 +1,8 @@
 """MRT Main2 API.
 
-This is a user API that is used to parse model configurations.
+    This is a user API that is used to parse model configurations.
 """
+
 import sys
 from os import path
 import configparser

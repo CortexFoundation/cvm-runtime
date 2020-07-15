@@ -1,3 +1,12 @@
+""" MRT Ops API
+
+    Op-level realization of Model Representation Tool.
+    Implementation of validation, 
+    equivalent transformation, 
+    quantization, transpose fusion, 
+    ops calculation, preparation and compilation.
+"""
+
 import logging
 import math
 import numpy as np
