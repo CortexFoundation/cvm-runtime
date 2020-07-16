@@ -66,6 +66,23 @@ class Transpose(Transformer):
         return op
 
     def fuse_transpose(self, op, **kwargs):
+        """ Customized fuse_transpose pass Introduction.
+
+            For continuous transpose sequence like:
+
+            Z = Transpose(Y, axes2)
+
+            Y = Transpose(X, axes1)
+
+            Since Z(j) = Y(axes2[j]) = X(axes1(axes2[j])) = X(axes3[j]), 
+
+            axes3[j] = axes1(axes2[j])
+
+            The adjacent two tranpose operation can be equivalently 
+            transformed into:
+
+            Z = Transpose(X, axes3)
+        """
         name, attr = op.attr('name'), op.list_attr()
         axes = get_attr(attr, 'axes')
         X = sym_iter(op.get_children())[0]
@@ -103,6 +120,10 @@ class Relu(Transformer):
 @register_transformer("LeakyReLU")
 class LeakyReLU(Transformer):
     def validate(self, op, **kwargs):
+        """ Customized validate pass Introduction.
+
+            The activation function only support `leaky`.
+        """
         name, attr = op.attr('name'), op.list_attr()
         act = get_attr(attr, 'act_type', 'leaky')
         assert act == 'leaky', "Unsupported LeakyReLU %s for act_type: %s" \
@@ -113,6 +134,12 @@ class LeakyReLU(Transformer):
         return reverse_transpose(op)
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            LeakyReLU can be equivalently transformed to be supported by cvm.
+
+            LeakyReLU(X) = relu(X)-slope*relu(-X)
+        """
         childs, attr = sym_iter(op.get_children()), op.list_attr()
 
         slope = get_attr(attr, 'slope', 0.25)
@@ -135,6 +162,12 @@ class LeakyReLU(Transformer):
 @register_transformer("_mul_scalar")
 class MulScalar(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            LeakyReLU can be equivalently transformed to be supported by cvm.
+
+            LeakyReLU(X) = relu(X)-slope*relu(-X)
+        """
         params, graph = kwargs['params'], kwargs['graph']
         name = op.attr('name')
         scalar = get_attr(op.list_attr(), 'scalar')
