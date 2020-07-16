@@ -91,10 +91,10 @@ class Transformer(object):
     def fuse_transpose(self, op, **kwargs):
         """ Equivalent graph tranposition.
 
-            In case that at least one of the two
-            adjacent ops is `Transpose`,
-            the other op may either be swappable
-            or fusable with `Transpose`.
+            In case that at least one of the two adjacent ops is *Transpose*,
+            the other op may either be swappable or fusable with Transpose.
+
+            Do nothing by default.
         """
         return op
 
