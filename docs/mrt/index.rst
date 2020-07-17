@@ -27,3 +27,4 @@ Python API
   MRT Transformer API <api/transformer>
   MRT base API <api/tfm_base>
   MRT operators API <api/tfm_ops>
+  MRT utils API <api/tfm_utils>

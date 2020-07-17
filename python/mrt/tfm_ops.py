@@ -1788,7 +1788,7 @@ def _quantize_scale(op, **kwargs):
     """ quantization function with the inputs form of:
 
         .. math::
-            Y = func(node1, node2, node3, ...)
+            Y = f(node1, node2, node3, ...)
 
         where node1, node2, node3, ... ought to be quantized to the same scale.
 
@@ -1880,6 +1880,63 @@ def _restore(op, **kwargs):
     return out
 
 def _quantize_table(op, **kwargs):
+    """ quantization function with the inputs form of:
+
+        .. math::
+            Y = f(X) = g(exp(X))
+
+        **Step 1. requant input**
+
+        .. math::
+            Xq, xprec, xs = requant\_operator(X, iprec, oscale)
+
+        where 'Xq' is quantized symbol, 
+        'xprec' and 'xs' stand for quantized precision and scale, 
+        for reference of 'requant_operator', 
+        see :func:`mrt.tfm_utils.requant_operator <.requant_operator>`.
+
+        .. math::
+            offset = BroadcastAdd(Xq, alpha)
+
+        where alpha is the threshold of 'Xq'
+
+        **Step 2. create lookup table**
+
+        .. math::
+            r = range(-alpha, alpha+1) / xs
+
+        where 'r' stands for the table range of the unscaled input.
+
+        .. math::
+            out = f(r)
+
+        .. math::
+            oscale = scale(||out||_2, xprec)
+
+
+        for reference of 'scale', 
+        see :func:`mrt.tfm_utils.scale <.scale>`.
+
+        .. math::
+            in\_dim = 2*alpha+1
+
+        .. math::
+            out\_q = round(out * oscale)
+
+        Util now, the float-simulating-int process has been accomplished.
+
+        .. math::
+            W = reshape(round(out_q * oscale), in\_dim)
+
+        Util now, the lookup table has been created.
+
+        Step 3. get output
+
+        The cvm customized operator 'cvm_lut' has been adopted.
+
+        .. math::
+            op = cvm\_lut(X, W, in\_dim)
+    """
     params, graph = kwargs['params'], kwargs['graph']
     th_dict, precs, scales = kwargs['th_dict'], kwargs['precs'], kwargs['scales']
     name, op_name = op.attr('name'), op.attr('op_name')
