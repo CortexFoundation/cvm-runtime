@@ -751,6 +751,100 @@ class Softmax(Transformer):
         return super().calculate_ops(op, **kwargs)
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            **Step 1. Requant Input**
+
+            .. math::
+                Xq, xprec, xs = requant\_operator(X, iprec, oscale)
+
+            **Step 2. Calculate Norm Value**
+
+            First, calculate the bias with respect to unscaled input (denoted as 'alpha') as:
+
+            .. math::
+                alpha = int(lambd * xs)
+
+            where 'lambd' stands for a hyperparameter configured by user.
+
+            Then, calculate offset value with respect to each axis, and clip:
+
+            .. math::
+                max_axis = max(Xq, axis)
+
+            .. math::
+                offset = broadcast_mul(max_axis - var)
+
+            .. math::
+                offset\_c = clip(norm, xprec)
+
+            Next, calculate norm and clip:
+
+            .. math::
+                norm = relu(Xq - offset)
+
+            .. math::
+                norm = clip(norm, xprec)
+
+            **Step 3. Create Lookup Table**
+
+            .. math::
+                dim = alpha + 1
+
+            .. math::
+                data = range(0, dim)
+
+            .. math::
+                table = exp(data / xs)
+
+            .. math::
+                table\_prec = get_bit(exp(||table||_2))
+
+            for reference of 'get_bit', 
+            see :func:`mrt.tfm_utils.get_bit <.get_bit>`.
+
+            .. math::
+                table\_c = clip(table, min=0, max=get_range(table\_prec))
+
+            for reference of 'get_range', 
+            see :func:`mrt.tfm_utils.get_range <.get_range>`.
+
+            .. math::
+                weight = reshape(round(table\_c), (dim, 1))
+
+            **Step 4. Get Lookup value**
+
+            The cvm customized operator 'cvm_lut' has been adopted.
+
+            .. math::
+                lut = cvm\_lut(norm, weight, dim)
+
+            **Step 5. Get Output**
+
+            .. math::
+                sum_lut = sum(lut, axis)
+
+            .. math::
+                oprec = min(15, 31-tprec)
+
+            .. math::
+                oscale = get_range(oprec)
+
+            .. math::
+                prob = lut * oscale
+
+            .. math::
+                half_lut = realize(sum_lut, 1, 31)
+
+            for reference of 'realize', 
+            see :func:`mrt.tfm_utils.realize <.realize>`.
+
+            .. math::
+                prob\_b = prob + half_lut
+
+            .. math::
+                prob = prob\_b / sum_lut
+        """
         params, graph = kwargs['params'], kwargs['graph']
         scales, precs = kwargs['scales'], kwargs['precs']
         name, op_name = op.attr('name'), op.attr('op_name')
@@ -1885,7 +1979,7 @@ def _quantize_table(op, **kwargs):
         .. math::
             Y = f(X) = g(exp(X))
 
-        **Step 1. requant input**
+        **Step 1. Requant Input**
 
         .. math::
             Xq, xprec, xs = requant\_operator(X, iprec, oscale)
@@ -1900,7 +1994,7 @@ def _quantize_table(op, **kwargs):
 
         where alpha is the threshold of 'Xq'
 
-        **Step 2. create lookup table**
+        **Step 2. Create Lookup Table**
 
         .. math::
             r = range(-alpha, alpha+1) / xs
@@ -1930,7 +2024,7 @@ def _quantize_table(op, **kwargs):
 
         Util now, the lookup table has been created.
 
-        Step 3. get output
+        **Step 3. Get Output**
 
         The cvm customized operator 'cvm_lut' has been adopted.
 

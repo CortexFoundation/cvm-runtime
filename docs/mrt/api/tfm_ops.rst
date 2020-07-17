@@ -53,10 +53,6 @@ ___________
   :members: quantize
 
 
-.. autoclass:: mrt.tfm_ops.Softmax
-  :members: quantize
-
-
 .. autoclass:: mrt.tfm_ops.BroadcastAdd
   :members: quantize
 
@@ -75,6 +71,10 @@ ___________
 
 .. autoclass:: mrt.tfm_ops.ElemwiseSub
   :members: fuse_transpose, quantize
+
+
+.. autoclass:: mrt.tfm_ops.Softmax
+  :members: quantize
 
 .. autofunction:: mrt.tfm_ops._quantize_scale
 

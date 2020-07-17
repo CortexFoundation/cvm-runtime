@@ -13,6 +13,9 @@ from . import sim_quant_helper as sim
 from . import sym_utils as sutils
 
 def get_bit(opt):
+    """
+        TODO(ryt)
+    """
     if isinstance(opt, nd.NDArray):
         opt = opt.abs().max().asscalar()
     return math.ceil(math.log2(math.fabs(opt)+1)) + 1
@@ -29,6 +32,9 @@ def get_bit_cnt(cnt):
     return prec
 
 def get_range(prec):
+    """
+        TODO(ryt)
+    """
     return (2 ** (prec - 1)) - 1
 
 def scale(threshold, precision):
@@ -42,6 +48,9 @@ def scale(threshold, precision):
     return alpha / threshold
 
 def realize(X, sb, prec, name=None):
+    """
+        TODO(ryt)
+    """
     name = name if name else N.n('realize')
     if sb == 0:
         sym = mx.sym.Custom(X, precision=prec,
