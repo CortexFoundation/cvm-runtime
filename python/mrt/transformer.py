@@ -166,9 +166,27 @@ class MRT:
         self.shift_bits = 5
 
     def set_data(self, data):
+        """ Set the data before calibration.
+        """
         self._data = data
 
     def calibrate(self, ctx=mx.cpu(), lambd=None, old_ths=None):
+        """ Calibrate the current model after setting mrt data.
+
+            Parameters
+            __________
+            ctx : mxnet.context
+                Context on which intermediate result would be stored,
+            lambd : double
+                Hyperparameter
+            old_ths : dict
+                Reference threshold dict could also be specified.
+
+            Returns
+            _______
+            th_dict : dict
+                Threshold dict of node-level output.
+        """
         self.th_dict = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
             self._data, ctx=ctx, lambd=lambd, old_ths=old_ths)
