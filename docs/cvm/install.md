@@ -20,11 +20,37 @@ brew install libomp
 
 ## Build Targets
 
+This section gives an example of compiling CVM.
+
+1. Config the configuration for compilation
+
+   1. Check file `config.cmake` exists in your project root, or execute the following command:
+
+      ```bash
+      cp cmake/config.cmake .
+      ```
+
+   2. set the `ENABLE_CUDA` variable `ON` in `config.cmake` line 6.
+
+2. build CVM
+
 All the targets locate at the directory `build` by default. You can build the project with command:
 
 ``` bash
 make -j all
 ```
+
+> Note that executing `make -j8 lib` for the first time might encounter an error like
+
+```
+Error copying file (if different) from "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend.tmp" to "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend".
+CMake Error at /alongdirname/cuda_compile_1_generated_broadcast.cu.o.cmake:246 (message):
+	Error generating
+	/alongdirname/./cuda_compile_1_generated_broadcast.cu.o
+build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadcast.cu.o' failed
+```
+
+> Executing it again will fix the problem.
 
 However the command above will compile all modules in the project, you can specify build target as below sections for a less complication time.
 

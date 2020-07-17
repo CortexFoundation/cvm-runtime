@@ -20,33 +20,7 @@ git clone git@github.com:CortexFoundation/cvm-runtime.git
 
 2.2. Build the Shared Library
 
-This section gives an example of compiling CVM.
-
-1. Config the configuration for compilation
-
-   1. Check file `config.cmake` exists in your project root, or execute the following command:
-
-      ```bash
-      cp cmake/config.cmake .
-      ```
-
-   2. set the `ENABLE_CUDA` variable `ON` in `config.cmake` line 6.
-
-2. Compile with following command
-
-```bash
-make -j8 lib
-```
-> Note that executing `make -j8 lib` for the first time might encounter an error like
-> ```
-Error copying file (if different) from "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend.tmp" to "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend".
-CMake Error at /alongdirname/cuda_compile_1_generated_broadcast.cu.o.cmake:246 (message):
-	Error generating
-	/alongdirname/./cuda_compile_1_generated_broadcast.cu.o
-build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadcast.cu.o' failed
-> ```
-> Executing it again will fix the problem.
-
+  See [CVM Installation](../cvm/install.md) for reference.
 
 
 
@@ -70,7 +44,7 @@ build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadca
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-<200b>  An alternative command is available.
+An alternative command is available.
 
 ```
 pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/web/simple
