@@ -135,17 +135,19 @@ def init(model, input_shape=None):
 
     return Model(_sym, _prm)
 
+
 class MRT:
     """ An MRT quantization class contained many helper functions.
 
-    Quantization Procedures:
-    ========================
-        1. prepare: initial of model graph, such as fuse_constant,
-            rewrite, validate, ...etc;
+        **Quantization Procedures**
+
+        1. prepare: initial of model graph, such as fuse_constant, rewrite, validate, ...etc;
+
         2. calibration: caculate the internal thresholds of layers;
+
         3. quantization: quantize the floating parameters into INT(p)
-            precision with scales, using the floading data simulate
-            the realized environment of interger dataflow;
+        precision with scales, using the floading data simulate
+        the realized environment of interger dataflow;
     """
     def __init__(self, model, input_prec=8):
         self.old_names = model.output_names()
@@ -193,12 +195,18 @@ class MRT:
         return self.th_dict
 
     def set_restore(self, name):
+        """ Manually set the threshold of the node output, given node name.
+        """
         self.restore_names.add(name)
 
     def set_threshold(self, name, threshold):
+        """ Manually set the threshold dict.
+        """
         self.th_dict[name] = threshold
 
     def set_th_dict(self, th_dict):
+        """ Manually set the threshold dict.
+        """
         self.th_dict = th_dict
 
     def _op_default_input_precs(self):
@@ -217,20 +225,36 @@ class MRT:
         op_precs['slice_like'] = 30
 
     def set_input_prec(self, prec):
+        """ Set the input precision before quantization.
+        """
         self.precs['data'][OUT_KEY] = prec
 
     def set_output_prec(self, prec):
+        """
+            Set the output precision before quantization.
+        """
         for sym in self.current_model:
             name = sym.attr('name')
             self.precs[name][name] = prec
 
     def set_softmax_lambd(self, val):
+        """ Set the hyperparameter softmax_lambd before quantization.
+        """
         self.softmax_lambd = val
 
     def set_shift_bits(self, val):
+        """ Set the hyperparameter shift_bits before quantization.
+        """
         self.shift_bits = val
 
     def quantize(self):
+        """ Quantize the current model after calibration.
+
+            Returns
+            _______
+            qmodel : Model
+                The quantized model.
+        """
         _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.th_dict, self.precs, self.scales, self.op_input_precs,
@@ -239,19 +263,27 @@ class MRT:
         return self.current_model
 
     def get_output_scales(self):
+        """ Get the output scale of the model after quantization.
+        """
         return [self.scales[s.attr("name")] for s in self.current_model]
 
     def get_maps(self):
+        """ Get the current name to old name map of the outputs after calibration or quantization.
+        """
         return dict(zip([c.attr('name') for c in self.current_model],
                         self.old_names))
 
     def get_inputs_ext(self):
+        """ Get the input_ext of the input after quantization.
+        """
         inputs_ext = {'data': {
             'scale': self.scales['data'],
             'target_bit': self.precs['data'][OUT_KEY]}}
         return inputs_ext
 
     def save(self, model_name, datadir="./data"):
+        """ Save the current mrt instance into disk.
+        """
         # pylint: disable=unbalanced-tuple-unpacking
         sym_file, params_file, ext_file = \
             utils.extend_fname(path.join(datadir, model_name), True)
@@ -261,6 +293,17 @@ class MRT:
 
     @staticmethod
     def load(model_name, datadir="./data"):
+        """ Load and create a mrt instance.
+
+            The given path should contain corresponding '.json' 
+            and '.params' file storing model information 
+            and '.ext' file storing mrt information.
+
+            Returns
+            _______
+            mrt : MRT
+                The mrt instance.
+        """
         # pylint: disable=unbalanced-tuple-unpacking
         sym_file, params_file, ext_file = \
             utils.extend_fname(path.join(datadir, model_name), True)
@@ -321,25 +364,62 @@ def merge_model(base_model, top_model, base_name_maps=None, callback=None):
 
 
 class ModelSpliter:
+    """ A wrapper class for model split tool.
+    """
     def __init__(self, model, keys):
         self.model = model
         self.keys = keys
 
     def split(self):
+        """ Get the split models with respect to the specified keys.
+
+            Returns
+            _______
+                ret : Model tuple
+                    The split models.
+        """
         return split_model(self.model, self.keys)
 
 
 class ModelMerger:
+    """ A wrapper class for model merge tool.
+    """
     def __init__(self, base_model, top_model, base_name_maps=None):
         self.base, self.top = base_model, top_model
         base_name_maps = {} if base_name_maps is None else base_name_maps
         self.base_name_maps = base_name_maps
 
     def merge(self, callback=None):
+        """ Get the merged model.
+
+            Parameters
+            __________
+            callback : func
+                Callback function could also be specified for updating the top node attributes.
+
+            Returns
+            _______
+                ret : Model
+                    The merged model.
+        """
         return merge_model(
             self.base, self.top, self.base_name_maps, callback)
 
     def get_output_scales(self, base_oscales, maps):
+        """ Get the model output scales after merge.
+
+            Parameters
+            __________
+            base_oscales : list
+                Base model output scales.
+            maps : dict
+                Base name maps should be specified.
+
+            Returns
+            _______
+                ret : list
+                    The output scales of the merged model.
+        """
         name_idx = {self.base_name_maps.get(
             s.attr("name"), s.attr("name")): i \
             for i, s in enumerate(self.base)}

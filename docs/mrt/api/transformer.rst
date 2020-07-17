@@ -15,3 +15,11 @@ _______________
 
 .. autoclass:: mrt.transformer.MRT
     :members:
+
+
+.. autoclass:: mrt.transformer.ModelMerger
+    :members:
+
+
+.. autoclass:: mrt.transformer.ModelSpliter
+    :members:
