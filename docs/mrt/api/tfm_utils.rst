@@ -10,9 +10,13 @@ _____________
 
 .. autofunction:: mrt.tfm_utils.requant_operator
 
+.. autofunction:: mrt.tfm_utils.requant
+
 .. autofunction:: mrt.tfm_utils.scale
 
 .. autofunction:: mrt.tfm_utils.get_bit
+
+.. autofunction:: mrt.tfm_utils.get_bit_cnt
 
 .. autofunction:: mrt.tfm_utils.get_range
 

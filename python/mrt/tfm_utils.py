@@ -21,6 +21,9 @@ def get_bit(opt):
     return math.ceil(math.log2(math.fabs(opt)+1)) + 1
 
 def get_bit_cnt(cnt):
+    """
+        TODO(ryt)
+    """
     # get_bit_cnt (mrt) should be consistent with
     # GetReduceSumBit (cvm-runtime)
     assert isinstance(cnt, int) and cnt > 0, \
@@ -149,6 +152,9 @@ def requant_parameter(wname, oprec, oscale=None, **kwargs):
     return W, oprec, oscale
 
 def requant(sym, oprec, oscale=None, **kwargs):
+    """
+        TODO(ryt)
+    """
     if sutils.is_params(sym, kwargs['params']):
         return requant_parameter(sym.attr('name'), oprec, oscale, **kwargs)
     return requant_operator(sym, oprec, oscale, **kwargs)
