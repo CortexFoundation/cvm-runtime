@@ -1079,6 +1079,22 @@ class Pooling(Transformer):
 @register_transformer("broadcast_mul")
 class BroadcastMul(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            .. math::
+                Xq, xprec, xs = requant(X, oprec)
+
+            .. math::
+                Bq, bprec, bs = requant(B, oprec)
+
+            where 'oprec' stands for the default quantization 
+            precision for 'BroadcastMul'.
+
+            .. math::
+                op = Xq * Bq
+
+            The infer precision equals to 'xprec' plus 'bprec'.
+        """
         precs, scales = kwargs['precs'], kwargs['scales']
         name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = sym_iter(op.get_children()), op.list_attr()
@@ -1105,6 +1121,10 @@ class BroadcastMul(Transformer):
         return op
 
     def prepare_for_compile(self, op, **kwargs):
+        """ Customized prepare_for_compile pass Introduction.
+
+            If either one of the input equals to zero, the op can be merged into zero.
+        """
         params = kwargs['params']
         graph = kwargs['graph']
 

@@ -74,11 +74,15 @@ ___________
 
 
 .. autoclass:: mrt.tfm_ops.Softmax
-  :members: quantize
+  :members: quantize, prepare_for_compile
 
 
 .. autoclass:: mrt.tfm_ops.Pooling
   :members: validate, rewrite
+
+
+.. autoclass:: mrt.tfm_ops.BroadcastMul
+  :members: quantize
 
 .. autofunction:: mrt.tfm_ops._quantize_scale
 
