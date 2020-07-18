@@ -1123,7 +1123,8 @@ class BroadcastMul(Transformer):
     def prepare_for_compile(self, op, **kwargs):
         """ Customized prepare_for_compile pass Introduction.
 
-            If either one of the input equals to zero, the op can be merged into zero.
+            If either one of the input equals to zero, 
+            the op can be merged into zero.
         """
         params = kwargs['params']
         graph = kwargs['graph']

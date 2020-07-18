@@ -74,7 +74,7 @@ ___________
 
 
 .. autoclass:: mrt.tfm_ops.Softmax
-  :members: quantize, prepare_for_compile
+  :members: quantize
 
 
 .. autoclass:: mrt.tfm_ops.Pooling
@@ -82,7 +82,7 @@ ___________
 
 
 .. autoclass:: mrt.tfm_ops.BroadcastMul
-  :members: quantize
+  :members: quantize, prepare_for_compile
 
 .. autofunction:: mrt.tfm_ops._quantize_scale
 
