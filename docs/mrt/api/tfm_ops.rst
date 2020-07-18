@@ -76,6 +76,10 @@ ___________
 .. autoclass:: mrt.tfm_ops.Softmax
   :members: quantize
 
+
+.. autoclass:: mrt.tfm_ops.Pooling
+  :members: validate, rewrite
+
 .. autofunction:: mrt.tfm_ops._quantize_scale
 
 .. autofunction:: mrt.tfm_ops._quantize_xwb

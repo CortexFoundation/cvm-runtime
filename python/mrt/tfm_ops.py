@@ -914,6 +914,19 @@ class Softmax(Transformer):
 @register_transformer("Pooling")
 class Pooling(Transformer):
     def validate(self, op, **kwargs):
+        """ Customized validate pass Introduction.
+
+            The 'layout' only support 'NCHW'.
+
+            The 'pool_type' only support 'max' and 'avg'.
+            And if 'pool_type' is 'avg' and 'pooling_convention' is 'full', 
+            then 'global_pool' must be True.
+            And if 'pool_type' is 'avg' and 'pooling_convention'  
+            is not 'full', then 'pooling_convention' must be 'valid' 
+            and 'global_pool' must be True.
+
+            The 'count_include_pad' must be True.
+        """
         name, op_name = op.attr('name'), op.attr('op_name')
         attr = op.list_attr()
         layout = get_attr(attr, 'layout', 'NCHW')
@@ -960,6 +973,49 @@ class Pooling(Transformer):
                                     **new_attrs)
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            **Case 1. 'pool_type' is 'avg' and 'global_pool' is True**
+
+            .. math::
+                scale\_sym = 1 / (xshp[2] * xshp[3])
+
+            where 'xshp' is the infer shape of the input 'X'.
+
+            .. math::
+                op\_s = sum(x, axis=(2, 3))
+
+            .. math::
+                op = op\_s * scale\_sym
+
+            **Case 2. 'pool_type' is 'avg' and 'global_pool' is False**
+
+            .. code-block:: python
+
+                conv_attr = {
+                    'no_bias': 'True',
+                    'dilate': '(1, 1)',
+                    'kernel': kernel,
+                    'stride': stride,
+                    'pad': pad,
+                    'layout': 'NCHW',
+                    'num_filter': xshp[1],
+                    'num_group': xshp[1],
+                }
+
+            where 'kernel' is the pooling kernel size, 
+            'stride' is the stride for pooling, 
+            'pad' is the pad for pooling.
+
+            The 'Activation' operator could be converted into 'Convolution'. 
+            First, set up the attributes:
+
+            .. math::
+                W = full(shape=wshp, val=1/product(kernel))
+
+            .. math::
+                op = Convolution(X, W, conv\_attr)
+        """
         params, graph = kwargs['params'], kwargs['graph']
         infer_shapes = kwargs['infer_shapes']
         attr = op.list_attr()
