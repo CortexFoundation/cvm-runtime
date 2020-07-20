@@ -3,35 +3,7 @@
 This tutorial gives an example of compiling CVM and converting a pre-trained floating point model for mnist dataset to a fixed-point model which is executable on CVM.
 
 ### CVM-Runtime Project Compilation
-This section gives an example of compiling CVM.
-
-1. Config the configuration for compilation
-
-   1. Check file `config.cmake` exists in your project root, or execute the following command:
-
-      ```bash
-      cp cmake/config.cmake .
-      ```
-
-   2. set the `ENABLE_CUDA` variable `ON` in `config.cmake` line 6.
-
-2. Compile with following command
-
-```bash
-make -j8 lib
-```
-> Note that executing `make -j8 lib` for the first time might encounter an error like
-
-  ``` bash
-  Error copying file (if different) from "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend.tmp" to "/alongdirname/cuda_compile_1_generated_broadcast.cu.o.depend".
-  CMake Error at /alongdirname/cuda_compile_1_generated_broadcast.cu.o.cmake:246 (message):
-    Error generating
-    /alongdirname/./cuda_compile_1_generated_broadcast.cu.o
-  build.make:83: recipe for target '/alongdirname/cuda_compile_1_generated_broadcast.cu.o' failed
-  ```
-
-> Executing it again will fix the problem.
-
+See Section `2.2. Build the Shared Library` in [MRT Installation](README.md)
 
 ### Mnist Training
 This section gives an example of training a model for mnist dataset and storing the trained model as `~/mrt_model/mnist_dapp.json` and `~/mrt_model/mnist_dapp.params`. CVM is not necessary during this procedure.

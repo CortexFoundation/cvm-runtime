@@ -1,3 +1,7 @@
+"""
+    TODO(ryt)
+"""
+
 import math
 import logging
 
@@ -28,6 +32,9 @@ def get_range(prec):
     return (2 ** (prec - 1)) - 1
 
 def scale(threshold, precision):
+    """
+        TODO(ryt)
+    """
     assert threshold >= 0
     if threshold == 0:
         return 1
@@ -48,6 +55,9 @@ def realize(X, sb, prec, name=None):
     return sym
 
 def requant_operator(X, oprec, oscale=None, **kwargs):
+    """
+        TODO(ryt)
+    """
     logger = logging.getLogger('log.mrt.realize')
     params, graph = kwargs['params'], kwargs['graph']
     shift_bits = kwargs['shift_bits']
