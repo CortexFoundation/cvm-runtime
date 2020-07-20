@@ -10,6 +10,8 @@ _____________
 
 .. autofunction:: mrt.tfm_utils.requant_operator
 
+.. autofunction:: mrt.tfm_utils.requant_parameter
+
 .. autofunction:: mrt.tfm_utils.requant
 
 .. autofunction:: mrt.tfm_utils.scale

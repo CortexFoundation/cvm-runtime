@@ -1,5 +1,7 @@
-"""
-    TODO(ryt)
+""" MRT Utils API
+
+    Collection of MRT quantization tool functions.
+    Simplification of MRT quantization process.
 """
 
 import math
@@ -13,16 +15,34 @@ from . import sim_quant_helper as sim
 from . import sym_utils as sutils
 
 def get_bit(opt):
-    """
-        TODO(ryt)
+    """ Get the precision of the data.
+
+        Parameters
+        __________
+        opt : nd.NDArray or scalar
+            The input data.
+
+        Returns
+        _______
+        ret : int
+            The precision of the input.
     """
     if isinstance(opt, nd.NDArray):
         opt = opt.abs().max().asscalar()
     return math.ceil(math.log2(math.fabs(opt)+1)) + 1
 
 def get_bit_cnt(cnt):
-    """
-        TODO(ryt)
+    """ Get the precision of the data aligned with cvm-runtime.
+
+        Parameters
+        __________
+        cnt : int
+            The input data.
+
+        Returns
+        _______
+        ret : int
+            The precision of the input.
     """
     # get_bit_cnt (mrt) should be consistent with
     # GetReduceSumBit (cvm-runtime)
@@ -35,14 +55,34 @@ def get_bit_cnt(cnt):
     return prec
 
 def get_range(prec):
-    """
-        TODO(ryt)
+    """ Get the range in terms of the precision.
+
+        Parameters
+        __________
+        prec : int
+            The input precision.
+
+        Returns
+        _______
+        ret : int
+            The precision of the input.
     """
     return (2 ** (prec - 1)) - 1
 
 def scale(threshold, precision):
-    """
-        TODO(ryt)
+    """ Get the scale in terms of the threshold and precision.
+
+        Parameters
+        __________
+        threshold : float
+            The input scale.
+        precision : int
+            The input precision.
+
+        Returns
+        _______
+        ret : float
+            The scale of the input.
     """
     assert threshold >= 0
     if threshold == 0:
@@ -51,8 +91,23 @@ def scale(threshold, precision):
     return alpha / threshold
 
 def realize(X, sb, prec, name=None):
-    """
-        TODO(ryt)
+    """ Realize the symbol with respect to the shift bits.
+
+        Parameters
+        __________
+        X : mxnet.symbol
+            The input symbol to be realized.
+        sb : int
+            The shift bits. If zero, the symbol will be clipped only.
+            If negative, the symbol will be left shifted.
+            If positive, the symbol will be right shifted.
+        prec : int
+            The input precision.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The realized symbol of the input.
     """
     name = name if name else N.n('realize')
     if sb == 0:
@@ -119,6 +174,9 @@ def requant_operator(X, oprec, oscale=None, **kwargs):
     return X, oprec, oscale
 
 def requant_parameter(wname, oprec, oscale=None, **kwargs):
+    """
+        TODO(ryt)
+    """
     params, th_dict = kwargs['params'], kwargs['th_dict']
     logger = logging.getLogger('log.mrt.realize')
     Wn = N.n(wname)
@@ -152,8 +210,21 @@ def requant_parameter(wname, oprec, oscale=None, **kwargs):
     return W, oprec, oscale
 
 def requant(sym, oprec, oscale=None, **kwargs):
-    """
-        TODO(ryt)
+    """ Generalized interface for MRT requantization.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol to be requantized.
+        oprec : int
+            The output precision.
+        oscale : float
+            The output scale.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The requantized symbol of the input.
     """
     if sutils.is_params(sym, kwargs['params']):
         return requant_parameter(sym.attr('name'), oprec, oscale, **kwargs)
