@@ -2,6 +2,12 @@
 
 ## 1. Install Python
 
+The mxnet and gluoncv are required. For installation, please respectively refer to:
+
+1. [mxnet installation](https://mxnet.apache.org/get_started)
+
+2. [gluoncv installation](https://gluon-cv.mxnet.io/install.html)
+
 ## 2. MRT Preparation
 
 2.1. Clone the project
@@ -14,9 +20,7 @@ git clone git@github.com:CortexFoundation/cvm-runtime.git
 
 2.2. Build the Shared Library
 
-```
-make -j8
-```
+  See [CVM Installation](../cvm/install.md) for reference.
 
 
 
@@ -40,7 +44,7 @@ make -j8
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-<200b>  An alternative command is available.
+An alternative command is available.
 
 ```
 pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/web/simple

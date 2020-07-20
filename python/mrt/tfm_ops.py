@@ -1,3 +1,14 @@
+""" MRT Operators API
+
+    Op-level realization of Model Representation Tool.
+    Implementation of validation, 
+    equivalent transformation, 
+    quantization, transpose fusion, 
+    ops calculation, preparation and compilation.
+
+    Only **crucial parts** of the custommized pass implementation are elaborated.
+"""
+
 import logging
 import math
 import numpy as np
@@ -57,6 +68,29 @@ class Transpose(Transformer):
         return op
 
     def fuse_transpose(self, op, **kwargs):
+        """ Customized fuse_transpose pass Introduction.
+
+            For continuous transpose sequence like:
+
+            .. math::
+                Z = Transpose(Y, axes2)
+
+            .. math::
+                Y = Transpose(X, axes1)
+
+            Exert equivalent transformation on the adjacent two ops:
+
+            .. math::
+                Z(j) = Y(axes2[j]) = X(axes1(axes2[j])) = X(axes3[j]),
+
+            .. math::
+                axes3[j] = axes1(axes2[j])
+
+            The adjacent two tranpose operation can be equivalently transformed into:
+
+            .. math::
+                Z = Transpose(X, axes3)
+        """
         name, attr = op.attr('name'), op.list_attr()
         axes = get_attr(attr, 'axes')
         X = sym_iter(op.get_children())[0]
@@ -94,6 +128,10 @@ class Relu(Transformer):
 @register_transformer("LeakyReLU")
 class LeakyReLU(Transformer):
     def validate(self, op, **kwargs):
+        """ Customized validate pass Introduction.
+
+            The activation function only support `leaky`.
+        """
         name, attr = op.attr('name'), op.list_attr()
         act = get_attr(attr, 'act_type', 'leaky')
         assert act == 'leaky', "Unsupported LeakyReLU %s for act_type: %s" \
@@ -104,6 +142,13 @@ class LeakyReLU(Transformer):
         return reverse_transpose(op)
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            LeakyReLU can be equivalently transformed to be supported by cvm.
+
+            .. math::
+                LeakyReLU(X) = relu(X) - slope*relu(-X)
+        """
         childs, attr = sym_iter(op.get_children()), op.list_attr()
 
         slope = get_attr(attr, 'slope', 0.25)
@@ -157,6 +202,10 @@ class DivScalar(Transformer):
 @register_transformer("Activation")
 class Activation(Transformer):
     def validate(self, op, **kwargs):
+        """ Customized validate pass Introduction.
+
+            The activation function only support `relu`.
+        """
         attr = op.list_attr()
         assert attr['act_type'] in [Relu.op_name], \
             "Only supported relu activation"
@@ -244,6 +293,12 @@ class Convolution(Transformer):
         return op
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Input node with layout `NCW` is equivalently
+            rewriten into layout `NCHW`
+            The parameters if attached dimension is set by default
+        """
         #TODO: matrix decomposition
         # op = self._fuse_bias(op, kwargs["infer_shapes"])
         params = kwargs['params']
@@ -289,6 +344,10 @@ class Convolution(Transformer):
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_xwb <._quantize_xwb>` for reference
+        """
         return _quantize_xwb(op, **kwargs)
 
     def calculate_ops(self, op, **kwargs):
@@ -332,6 +391,10 @@ class Pad(Transformer):
     # revise pad_value with respect to scale
     # if other constant value is taken into consideration
     def compile(self, op, **kwargs):
+        """ Customized compile pass Introduction.
+
+            Only support *constant* padding type.
+        """
         childs = kwargs['childs']
         attrs = kwargs['attr']
 
@@ -379,6 +442,10 @@ class ExpandDims(Transformer):
 @register_transformer('Embedding')
 class Embedding(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            The input array to the embedding operator should be scaled to 1.
+        """
         th_dict, scales = kwargs['th_dict'], kwargs['scales']
         name, op_name = op.attr('name'), op.attr('op_name')
         attr, childs = op.list_attr(), sym_iter(op.get_children())
@@ -472,6 +539,10 @@ class BoxNms(Transformer):
 @register_transformer("slice_like")
 class SliceLike(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _quantize_scale(op, **kwargs)
 
     def compile(self, op, **kwargs):
@@ -498,6 +569,10 @@ class SliceAxis(Transformer):
         return op
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            'SliceAxis' can be equivalently transformed into 'Slice' which is supported by cvm.
+        """
         name = op.attr('name')
         childs, attr = sym_iter(op.get_children()), op.list_attr()
         X = childs[0]
@@ -539,11 +614,28 @@ class UpSampling(Transformer):
 @register_transformer("FullyConnected")
 class FullyConnected(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Using matrix decomposition to avoid overflow.
+
+            .. math::
+                Y = B + X*W^T = B + X1*W1^T + X2*W2^T + ...
+
+            .. math::
+                Wi.shape = (numHidden, step), W = [W1, W2, ...]
+
+            .. math::
+                Xi.shape = (batchSize, step), X = [X1, X2, ...]
+        """
         infer_shapes, params = kwargs['infer_shapes'], kwargs['params']
         op = self._matrix_decomposition(op, params, infer_shapes)
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_xwb <._quantize_xwb>` for reference
+        """
         return _quantize_xwb(op, **kwargs)
 
     def compile(self, op, **kwargs):
@@ -579,10 +671,6 @@ class FullyConnected(Transformer):
         no_bias = get_attr(attr, 'no_bias', False)
         attr['no_bias'] = True
 
-        # matrix decomposition
-        # Y = B + X*W^T = B + X1*W1^T + X2*W2^T + ...
-        # Wi.shape = (num_hidden, step), W = [W1, W2, ...]
-        # Xi.shape = (batch_size, step), X = [X1, X2, ...]
         nodes, step, start = [], MATRIX_MAXIMUM_SIZE, 0
         wgt = params[W.attr('name')]
         while start < C:
@@ -626,6 +714,10 @@ class FullyConnected(Transformer):
 @register_transformer("sigmoid")
 class Sigmoid(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_table <._quantize_table>` for reference
+        """
         return _quantize_table(op, **kwargs)
 
 
@@ -637,6 +729,10 @@ class Sigmoid(Transformer):
 @register_transformer("exp")
 class Exp(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_table <._quantize_table>` for reference
+        """
         return _quantize_table(op, **kwargs)
 
 
@@ -887,6 +983,10 @@ class BroadcastMul(Transformer):
 @register_transformer("broadcast_add")
 class BroadcastAdd(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         params = kwargs['params']
         th_dict = kwargs['th_dict']
         precs = kwargs['precs']
@@ -925,6 +1025,10 @@ class BroadcastDiv(Transformer):
 @register_transformer("broadcast_sub")
 class BroadcastSub(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         params = kwargs['params']
         th_dict = kwargs['th_dict']
         precs = kwargs['precs']
@@ -970,6 +1074,10 @@ class BroadcastGreater(Transformer):
 @register_transformer("Concat")
 class Concat(Transformer):
     def fuse_transpose(self, op, **kwargs):
+        """ Customized fuse_tranpose pass Introduction.
+
+            TODO(ryt_tune)
+        """
         name, childs = op.attr('name'), sym_iter(op.get_children())
         if any([c.attr('op_name') != Transpose.op_name for c in childs]):
             return op
@@ -984,6 +1092,10 @@ class Concat(Transformer):
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _quantize_scale(op, **kwargs)
 
     def compile(self, op, **kwargs):
@@ -1393,9 +1505,17 @@ class Abs(Transformer):
 @register_transformer("elemwise_add")
 class ElemwiseAdd(Transformer):
     def fuse_transpose(self, op, **kwargs):
+        """ Customized fuse_transpose pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _ft_multi_input(op)
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _quantize_scale(op, **kwargs)
 
 
@@ -1407,9 +1527,17 @@ class ElemwiseAdd(Transformer):
 @register_transformer("elemwise_sub")
 class ElemwiseSub(Transformer):
     def fuse_transpose(self, op, **kwargs):
+        """ Customized fuse_transpose pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _ft_multi_input(op)
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
+        """
         return _quantize_scale(op, **kwargs)
 
 
@@ -1657,6 +1785,15 @@ def _ft_multi_input(op):
     return op
 
 def _quantize_scale(op, **kwargs):
+    """ quantization function with the inputs form of:
+
+        .. math::
+            Y = f(node1, node2, node3, ...)
+
+        where node1, node2, node3, ... ought to be quantized to the same scale.
+
+        The infer precision depends on the input with the maximum quantized tight precision.
+    """
     scales = kwargs['scales']
     th_dict, precs = kwargs['th_dict'], kwargs['precs']
     name, op_name = op.attr('name'), op.attr('op_name')
@@ -1682,6 +1819,17 @@ def _quantize_scale(op, **kwargs):
     return op
 
 def _quantize_xwb(op, **kwargs):
+    """ quantization function with the inputs form of:
+
+        .. math::
+            Y = X*W + B
+
+        The input and weight are quantized into the same precision level. 
+        Bias is quantized with respect to the product of input and weight.
+
+        the infer precision equals to the sum of quantized input precision, 
+        quantized weight precision and the product precision.
+    """
     th_dict, scales = kwargs['th_dict'], kwargs['scales']
     name, op_name = op.attr('name'), op.attr('op_name')
     childs, attr = sym_iter(op.get_children()), op.list_attr()
@@ -1732,6 +1880,63 @@ def _restore(op, **kwargs):
     return out
 
 def _quantize_table(op, **kwargs):
+    """ quantization function with the inputs form of:
+
+        .. math::
+            Y = f(X) = g(exp(X))
+
+        **Step 1. requant input**
+
+        .. math::
+            Xq, xprec, xs = requant\_operator(X, iprec, oscale)
+
+        where 'Xq' is quantized symbol, 
+        'xprec' and 'xs' stand for quantized precision and scale, 
+        for reference of 'requant_operator', 
+        see :func:`mrt.tfm_utils.requant_operator <.requant_operator>`.
+
+        .. math::
+            offset = BroadcastAdd(Xq, alpha)
+
+        where alpha is the threshold of 'Xq'
+
+        **Step 2. create lookup table**
+
+        .. math::
+            r = range(-alpha, alpha+1) / xs
+
+        where 'r' stands for the table range of the unscaled input.
+
+        .. math::
+            out = f(r)
+
+        .. math::
+            oscale = scale(||out||_2, xprec)
+
+
+        for reference of 'scale', 
+        see :func:`mrt.tfm_utils.scale <.scale>`.
+
+        .. math::
+            in\_dim = 2*alpha+1
+
+        .. math::
+            out\_q = round(out * oscale)
+
+        Util now, the float-simulating-int process has been accomplished.
+
+        .. math::
+            W = reshape(round(out_q * oscale), in\_dim)
+
+        Util now, the lookup table has been created.
+
+        Step 3. get output
+
+        The cvm customized operator 'cvm_lut' has been adopted.
+
+        .. math::
+            op = cvm\_lut(X, W, in\_dim)
+    """
     params, graph = kwargs['params'], kwargs['graph']
     th_dict, precs, scales = kwargs['th_dict'], kwargs['precs'], kwargs['scales']
     name, op_name = op.attr('name'), op.attr('op_name')
@@ -1776,20 +1981,22 @@ def reverse_transpose(op):
     return op
 
 def reverse_sequence(op):
-    """ Reverse the symbol sequenze may leads to
-            error of the different result, due to the graph
-            unequaivent transformer.
+    """
+        Reverse the symbol sequenze may leads to
+        error of the different result, due to the graph
+        unequaivent transformer.
 
-        Example:
-            A ->  B -> C
-              |-> D -> E
+        **Example**
 
-            after reverse sequence is
+        |    A ->  B -> C
+        |      \|-> D -> E
 
-            B -> A ->  C
-                   |-> D -> E
+        after reverse sequence is
 
-            which is invalid.
+        |    B -> A ->  C
+        |           \|-> D -> E
+
+        which is invalid.
 
         Notice:
             The fuse_transpose pass have the same hidden problems.

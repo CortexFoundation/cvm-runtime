@@ -23,4 +23,8 @@ Python API
 .. toctree::
   :maxdepth: 2
 
-  
+  MRT main2 API <api/main2>
+  MRT Transformer API <api/transformer>
+  MRT base API <api/tfm_base>
+  MRT operators API <api/tfm_ops>
+  MRT utils API <api/tfm_utils>

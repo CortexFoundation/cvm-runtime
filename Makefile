@@ -6,7 +6,7 @@ BUILD := build
 INCLUDE := include
 TESTS := tests
 
-all: lib python tests
+all: lib python tests html
 	echo ${TEST_CPUS}
 
 # Mac OS should install libomp with brew
@@ -19,7 +19,7 @@ lib: dep
 python: lib
 	@cd python && python3 setup.py install
 
-html: python
+html:
 	@make -C docs html
 
 TEST_SRCS := $(wildcard ${TESTS}/*.cc)

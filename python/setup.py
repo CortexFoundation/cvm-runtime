@@ -46,7 +46,7 @@ def config_cython():
             include_dirs=[os.path.join(root_dir, "include")],
             library_dirs=library_dirs,
             libraries=libraries,
-            language="c++"))
+            language="c"))
     return cythonize(ret, compiler_directives={"language_level": 3})
 
 setup_kwargs = {}
