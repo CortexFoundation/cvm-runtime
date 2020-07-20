@@ -13,10 +13,34 @@ from mxnet import ndarray as nd
 
 def load_sim_data(data, name, inputs_ext):
     """ Load data for MRT simulation.
+
+        Parameters
+        __________
+        data : nd.NDArray
+            The input raw data.
+        name : str
+            The name of the data symbol.
+
+        Returns
+        _______
+        ret : nd.NDArray
+            The data for simulation.
     """
     return data * inputs_ext[name]['scale']
 def load_real_data(data, name, inputs_ext):
-    """ Load unscaled data.
+    """ Load realized data.
+
+        Parameters
+        __________
+        data : nd.NDArray
+            The input raw data.
+        name : str
+            The name of the data symbol.
+
+        Returns
+        _______
+        ret : nd.NDArray
+            The realized data.
     """
     logger = logging.getLogger('log.data.load')
     data = load_sim_data(data, name, inputs_ext)
@@ -25,6 +49,13 @@ def load_real_data(data, name, inputs_ext):
 
 def save_ext(fname, *infos, logger=logging):
     """ Save ext files into disk.
+
+        Parameters
+        __________
+        fname : str
+            File path used to save.
+        infos : list
+            Dict items to be saved.
     """
     fout = open(fname, "w")
     for info in infos:
