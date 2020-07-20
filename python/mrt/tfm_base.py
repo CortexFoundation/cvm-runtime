@@ -1,3 +1,10 @@
+""" MRT Base API
+
+    Customized Symbolic Pass Interfaces.
+    Base passes with default operation settings.
+    Collection of transformer management functions.
+"""
+
 import numpy as np
 
 from .sym_utils import *

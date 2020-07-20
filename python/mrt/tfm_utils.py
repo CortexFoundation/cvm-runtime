@@ -122,8 +122,38 @@ def realize(X, sb, prec, name=None):
     return sym
 
 def requant_operator(X, oprec, oscale=None, **kwargs):
-    """
-        TODO(ryt)
+    """ MRT operator requantization interface.
+
+        If the tight precision of the input is greater than the output precision by 'sb', 
+        the input will be right shifted 'sb' bits.
+
+        If the infer precision of the input is greater than the output precision, or if oscale is specified,
+        the operator will be requantized.
+
+        .. code-block:: python
+
+            rescale = oscale / iscale
+            bits = MAX_BIT - iprec
+            frac, exp = cvm_float(rescale, bits)
+            sim_scale = frac * (2 ** exp)
+            oscale = iscale * frac * (2 ** exp)
+            X = realize(X, -exp, oprec)
+
+        See :func:`mrt.sim_quant_helper.cvm_float <.cvm_float>` for reference.
+
+        Parameters
+        __________
+        X : mxnet.symbol
+            The input data.
+        oprec : int
+            The output precision
+        oscale : float
+            The output scale.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The requantized operator of the input.
     """
     logger = logging.getLogger('log.mrt.realize')
     params, graph = kwargs['params'], kwargs['graph']
@@ -174,8 +204,30 @@ def requant_operator(X, oprec, oscale=None, **kwargs):
     return X, oprec, oscale
 
 def requant_parameter(wname, oprec, oscale=None, **kwargs):
-    """
-        TODO(ryt)
+    """ MRT paramter requantization interface.
+
+        The input parameter will be clipped with respect to the given 
+        output precision as well as the output scale. 
+
+        .. code-block:: python
+
+            w = int_realize(param*oscale, oprec)
+
+        See :func:`mrt.sim_quant_helper.int_realize <.int_realize>` for reference.
+
+        Parameters
+        __________
+        wname : str
+            The name of the input parameter.
+        oprec : int
+            The output precision
+        oscale : float
+            The output scale.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The requantized parameter of the input.
     """
     params, th_dict = kwargs['params'], kwargs['th_dict']
     logger = logging.getLogger('log.mrt.realize')
