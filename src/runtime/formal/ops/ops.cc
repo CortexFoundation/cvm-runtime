@@ -102,7 +102,7 @@ static void groupwise_conv2d(
    int32_t *y_data, int32_t out_channels, int32_t o_h, int32_t o_w,
    int32_t *b_data,
    int32_t padding[2], int32_t stride_h, int32_t stride_w, int32_t dilation_h, int32_t dilation_w,
-   int32_t groups){
+   int32_t groups=1){
   int32_t ochannels_per_group = out_channels / groups;
   int32_t ichannels_per_group = in_channels / groups;
   for(int32_t n = 0; n < n_batch; ++n){
@@ -189,7 +189,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
         padding, stride_h, stride_w, dilation[0], dilation[1],
         groups);
   } else {
-    conv2d(
+    groupwise_conv2d(
         x_data, n_batch, in_channels, x_h, x_w,
         w_data, filter_c, filter_h, filter_w,
         y_data, out_channels, o_h, o_w,
