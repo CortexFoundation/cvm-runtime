@@ -17,6 +17,17 @@
 
 # -- Project information -----------------------------------------------------
 
+import os
+import sys
+import subprocess
+
+# Set the doc generator environment variable
+os.environ['DOC_GEN'] = 'True'
+
+curr_dir = os.path.abspath(os.path.dirname(__file__))
+python_path = os.path.join(curr_dir, "../python")
+sys.path.insert(0, python_path)
+
 project = 'cvm-runtime'
 copyright = '2020, CortexLabs Foundation'
 author = 'CortexLabs Foundation'
@@ -57,6 +68,8 @@ templates_path = ['_templates']
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['Thumbs.db', '.DS_Store']
 
+master_doc = "index"
+
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -69,3 +82,4 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+html_logo = "_static/img/icon.png"

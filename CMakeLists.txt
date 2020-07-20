@@ -113,8 +113,6 @@ if(ENABLE_OPENCL)
 
 endif()
 
-list(APPEND RUNTIME_SRCS ${CVM_SRCS})
-
 file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/nn/*.cc
                        src/top/tensor/*.cc)

@@ -1,4 +1,5 @@
 *.o
+  
 *.dSYM
 *.csv
 *.out
@@ -37,7 +38,6 @@ Thumbs.db
 python/cvm/_cython/libcvm.c
 
 compile_commands.json
-.ycm_extra_conf.py
 
 # binary
 tests/test_model*
