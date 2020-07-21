@@ -3,3 +3,6 @@ sphinxcontrib-napoleon
 sphinx_rtd_theme
 recommonmark 
 sphinx-markdown-tables
+
+mxnet
+gluoncv
