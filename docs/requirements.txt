@@ -5,4 +5,4 @@ recommonmark
 sphinx-markdown-tables
 
 mxnet
-glouncv
+gluoncv
