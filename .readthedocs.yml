@@ -1,7 +1,6 @@
 # .readthedocs.yml
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
-
 # Required
 version: 2
 
@@ -22,5 +21,6 @@ formats:
 python:
   version: 3.7
   install:
+    - requirements: install/requirements.txt
     - requirements: docs/requirements.txt
   system_packages: true
