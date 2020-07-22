@@ -1,4 +1,12 @@
+""" MRT Base API
+
+    Customized Symbolic Pass Interfaces.
+    Base passes with default operation settings.
+    Collection of transformer management functions.
+"""
+
 import numpy as np
+from functools import wraps as _wraps
 
 from .sym_utils import *
 
@@ -207,6 +215,7 @@ class N(object):
     @staticmethod
     def register_nm(name):
         def wrapper(pass_f):
+            @_wraps(pass_f)
             def run(symbol, params, *args, **kwargs):
                 old_name = N._global_name
                 N._set_global(name)

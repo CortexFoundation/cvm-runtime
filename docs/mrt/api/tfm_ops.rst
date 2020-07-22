@@ -22,7 +22,11 @@ ___________
 
 
 .. autoclass:: mrt.tfm_ops.LeakyReLU
-  :members: validate, rewrite
+  :members: validate, rewrite, fuse_transpose
+
+
+.. autoclass:: mrt.tfm_ops.Relu
+  :members: fuse_transpose
 
 
 .. autoclass:: mrt.tfm_ops.Activation
@@ -53,10 +57,6 @@ ___________
   :members: quantize
 
 
-.. autoclass:: mrt.tfm_ops.Softmax
-  :members: quantize
-
-
 .. autoclass:: mrt.tfm_ops.BroadcastAdd
   :members: quantize
 
@@ -76,6 +76,73 @@ ___________
 .. autoclass:: mrt.tfm_ops.ElemwiseSub
   :members: fuse_transpose, quantize
 
+
+.. autoclass:: mrt.tfm_ops.Softmax
+  :members: quantize
+
+
+.. autoclass:: mrt.tfm_ops.Pooling
+  :members: validate, rewrite
+
+
+.. autoclass:: mrt.tfm_ops.BroadcastMul
+  :members: quantize, prepare_for_compile
+
+.. autoclass:: mrt.tfm_ops.Sum
+  :members: fuse_transpose, quantize
+
+
+.. autoclass:: mrt.tfm_ops.BatchNorm
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.Custom
+  :members: validate
+
+
+.. autoclass:: mrt.tfm_ops.Clip
+  :members: fuse_transpose, quantize
+
+
+.. autoclass:: mrt.tfm_ops.Dropout
+  :members: fuse_transpose
+
+
+.. autoclass:: mrt.tfm_ops.SwapAxis
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.ZerosLike
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.OnesLike
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.GreaterScalar
+  :members: validate
+
+
+.. autoclass:: mrt.tfm_ops.L2Normalization
+  :members: quantize
+
+
+.. autoclass:: mrt.tfm_ops.Null
+  :members: quantize
+
+
+.. autoclass:: mrt.tfm_ops.MulScalar
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.DivScalar
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.PlusScalar
+  :members: rewrite
+
 .. autofunction:: mrt.tfm_ops._quantize_scale
 
 .. autofunction:: mrt.tfm_ops._quantize_xwb
@@ -83,3 +150,5 @@ ___________
 .. autofunction:: mrt.tfm_ops._quantize_table
 
 .. autofunction:: mrt.tfm_ops.reverse_sequence
+
+.. autofunction:: mrt.tfm_ops.reverse_transpose
