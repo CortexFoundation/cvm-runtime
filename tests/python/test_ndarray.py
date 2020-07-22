@@ -13,6 +13,11 @@ data = {'a':nda, 'b':ndb}
 print(data.items())
 
 ret = nd.save_param_dict(data)
+loaded_data = nd.load_param_dict(ret)
+
+
+# print(len(data), len(loaded_data))
+print(loaded_data.items())
 
 
 import mxnet as mx

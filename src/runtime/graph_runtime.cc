@@ -321,7 +321,29 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
   uint32_t nid = input_nodes_[index];
   uint32_t eid = this->entry_id(nid, 0);
 
+  VERIFY(data_in->dtype.code == kDLInt)
+    << "cvm runtime only supported INT NDArray, but ("
+    << data_in->dtype.code << ")";
+
+  if (data_in->dtype.bits == 8) {
+    DLDataType dtype32 = data_in->dtype;
+    dtype32.bits = 32;
+    auto shape =
+        std::vector<int64_t>(data_in->shape, data_in->shape + data_in->ndim);
+    cvm::runtime::NDArray ret32 = NDArray::Empty(shape, dtype32, data_in->ctx);
+    int8_t *data8 = static_cast<int8_t*>(data_in->data);
+    int32_t *data32 = static_cast<int32_t*>(ret32->data);
+    int64_t num_elems = 1;
+    for (int i = 0; i < data_in->ndim; ++i) {
+      num_elems *= data_in->shape[i];
+    }
+    for (int i = 0; i < num_elems; i++) {
+      data32[i] = static_cast<int32_t>(data8[i]);
+    }
+    data_in = const_cast<DLTensor*>(ret32.operator->());
+  }
   auto dtype = data_in->dtype;
+
   VERIFY((dtype.code == kDLInt) &&
          (dtype.bits == 32) &&
          (dtype.lanes == 1))
@@ -848,7 +870,7 @@ int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
   for (size_t i = 0; i < num_params * 2; i += 2) {
     names.emplace_back(std::string((char*)params[i]));
     arrays.emplace_back((DLTensor*)params[i+1]);
-  } 
+  }
   CVMRuntimeEntry* e = CVMAPIRuntimeStore::Get();
   utils::MemoryStringStream strm(&e->ret_str);
   utils::Stream* fo = &strm;
@@ -893,5 +915,49 @@ int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
   //  }
   //
   //}
+  API_END();
+}
+
+int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, void*** retValues) {
+  std::cout << "doing my LoadParamsDict" << std::endl;
+  API_BEGIN();
+  uint64_t magic = 0, reserved = 0;
+  std::vector<std::string> names;
+  std::vector<DLTensor*> values;
+
+  std::string dataBuffer(data, datalen);
+  utils::MemoryStringStream strm(&dataBuffer);
+  utils::Stream* fi = &strm;
+
+  CHECK(fi->Read(&magic)) << "read magic number from memory failed\n";
+  CHECK_EQ(magic, cvm::runtime::kCVMNDArrayListMagic)
+      << "magic number check failed\n";
+  CHECK(fi->Read(&reserved)) << "read reserved bytes from memory failed\n";
+
+  CHECK(fi->Read(&names)) << "read key names of dict from memory failed\n";
+  for (auto it = names.begin(); it != names.end(); it++) {
+    std::cout << "name is " << *it << std::endl;
+  }
+  uint64_t sz = 0;
+  CHECK(fi->Read(&sz)) << "read # of DLTensor from memory failed\n";
+  CHECK_EQ(sz, names.size())
+      << "# of names should equal to # of DLTensors\n";
+  std::cout << "read size fininsed: " << sz << std::endl;
+  for (uint32_t i = 0; i < sz; i++) {
+    cvm::runtime::NDArray* tmp = new cvm::runtime::NDArray();
+    tmp->Load(fi);
+    std::cout << "reading " << i << "th tensors of " << sz
+              << " the tensor* points to " << tmp->operator->() << std::endl;
+    values.push_back(const_cast<DLTensor*>(tmp->operator->()));
+  }
+
+  *retNum = sz;
+  *retNames = new char*[sz];
+  *retValues = new void*[sz];
+  for (uint32_t i = 0; i < sz; i++) {
+    (*retNames)[i] = const_cast<char*>(names[i].c_str());
+    std::cout << "copying to retValues. the tensor* points to " << values[i] << std::endl;
+    (*retValues)[i] = static_cast<void*>(values[i]);
+  }
   API_END();
 }
