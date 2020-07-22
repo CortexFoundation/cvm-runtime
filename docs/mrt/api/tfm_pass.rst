@@ -1,4 +1,4 @@
-.. _mrt_tfm_ops_api:
+.. _mrt_tfm_pass_api:
 
 ************
 MRT pass API
@@ -8,9 +8,19 @@ mrt.tfm_pass
 ____________
 .. automodule:: mrt.tfm_pass
 
-.. autofunction:: mrt.tfm_pass.fuse_multiple_inputs
+.. autofunction:: mrt.tfm_pass.calculate_ops
 
-.. autofunction:: mrt.tfm_pass.model_inputs
+.. autofunction:: mrt.tfm_pass.fuse_transpose
+
+.. autofunction:: mrt.tfm_pass.rewrite
+
+.. autofunction:: mrt.tfm_pass.quantize
+
+.. autofunction:: mrt.tfm_pass.prepare_for_compile
+
+.. autofunction:: mrt.tfm_pass.to_cvm
+
+.. autofunction:: mrt.tfm_pass.fuse_multiple_inputs
 
 .. autofunction:: mrt.tfm_pass.name_duplicate_check
 

@@ -20,6 +20,10 @@ from . import sim_quant_helper as sim
 # === symbol pass == 
 
 def calculate_ops(symbol, params, normalize=True):
+    """ Customized graph-level topo pass definition.
+
+        Calulate the numbe of operations with respect to the given input shape.
+    """
     ops, infer_shapes = [0], infer_shape(symbol, params)
     def _impl(op, **kwargs):
         ops[0] += apply_pass("calculate_ops")(op, **kwargs)
@@ -38,12 +42,22 @@ def calculate_ops(symbol, params, normalize=True):
 
 @N.register_nm("fuse_transpose")
 def fuse_transpose(symbol, params):
+    """ Customized graph-level topo pass definition.
+
+        Equivalent graph transformation. 
+        Fuse or swap the current operator with the former Transpose.
+    """
     infer_shapes = infer_shape(symbol, params)
     return topo_visit_transformer(symbol, params,
             apply_pass("fuse_transpose", infer_shapes=infer_shapes))
 
 @N.register_nm("rewrite")
 def rewrite(symbol, params):
+    """ Customized graph-level topo pass definition.
+
+        Equivalent graph transformation. 
+        Rewrite the current symbol into equivalent ones that is feasible for quantization.
+    """
     infer_shapes = infer_shape(symbol, params)
     return topo_visit_transformer(symbol, params,
             apply_pass("rewrite", infer_shapes=infer_shapes))
@@ -51,6 +65,68 @@ def rewrite(symbol, params):
 @N.register_nm("quantize")
 def quantize(symbol, params, th_dict, precs, scales, op_input_precs,
              restore_names, shift_bits, softmax_lambd):
+    """ Customized graph-level topo pass definition.
+
+        MRT quantization process function.
+
+        The original graph can be denoted as follows:
+
+        **Case 1. Enable Restore**
+
+        .. code-block::
+
+            X1   X2  ...  Xn
+            xs1  xs2 ...  xsn
+            \    |       /
+             \   |      /
+              \  |     /
+              current_op
+
+        where 'xs1', 'xs2', etc are respectively stand for the scale of the inputs.
+
+        The original graph will be restored into:
+
+        .. code-block::
+
+            X1   X2  ... Xn
+            xs1  xs2 ... xsn
+            |    |       |
+            |    |       |
+            RX1  RX2 ... RXn
+            1    1       1
+            \    |       /
+             \   |      /
+              \  |     /
+              current_op
+                 1
+                 |
+                 |
+                ...
+
+        where 'RX1', 'RX2' ... stand for restored symbol with unit scale.
+
+        **Case 2. Other Cases**
+
+        The original graph will be quantized into:
+
+        .. code-block::
+
+                    X1   X2  ... Xn
+                    xs1  xs2 ... xsn
+                    |    |       |
+                    |    |       |
+                    QX1  QX2 ... QXn
+                    \    |       /
+                     \   |      /
+                      \  |     /
+            [equivalent quantization subgraph]
+                         |
+                         |
+                        ...
+
+        For either cases, if the 'current_op' belongs to one of the output symbols, 
+        it will quantized again with respect to the specified output precision.
+    """
     infer_shapes = infer_shape(symbol, params)
 
     def restore(op, **kwargs):
@@ -134,6 +210,11 @@ def quantize(symbol, params, th_dict, precs, scales, op_input_precs,
 
 @N.register_nm("prepare_for_compile")
 def prepare_for_compile(symbol, params):
+    """ Customized graph-level topo pass definition.
+
+        Equivalent graph transformation. 
+        Convert quantized symbols into feasible ones for compile.
+    """
     infer_shapes = infer_shape(symbol, params)
     return topo_visit_transformer(symbol, params,
             apply_pass("prepare_for_compile", infer_shapes=infer_shapes))
@@ -141,7 +222,10 @@ def prepare_for_compile(symbol, params):
 
 @N.register_nm("cvm")
 def to_cvm(symbol, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
+
+        Attribute cast to cvm symbol attributes.
+        Mxnet symbols cast to CVM symbols using cvm-runtime libs.
     """
     infer_shapes = infer_shape(symbol, params)
     graph = {}
@@ -167,7 +251,7 @@ def to_cvm(symbol, params):
 
 @N.register_nm("fmi")
 def fuse_multiple_inputs(sym, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         The original graph has multiple inputs.
 
@@ -243,7 +327,7 @@ def fuse_multiple_inputs(sym, params):
     return sym, params
 
 def model_inputs(symbol, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Count the number of model inputs.
     """
@@ -271,7 +355,7 @@ def params_unique(symbol, params):
     return symbol, new_params
 
 def input_name_replace(symbol, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Replace the single input name to 'data'.
     """
@@ -284,7 +368,7 @@ def input_name_replace(symbol, params):
 
 @N.register_nm("fc")
 def fuse_constant(symbol, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Fix the constant operator shape with respect to the infer shape.
     """
@@ -312,7 +396,7 @@ def fuse_constant(symbol, params):
 
 @N.register_nm("ais")
 def attach_input_shape(symbol, params, input_shapes):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Attach the infer shapes for the graph.
 
@@ -343,7 +427,7 @@ def reduce_graph(symbol, params):
     pass
 
 def infer_shape(symbol, params, input_shape=None):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Collect the infer shapes from graph.
 
@@ -400,7 +484,7 @@ def _collect_attribute(op, **kwargs):
     return op
 
 def collect_op_names(symbol, params):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Collect all kinds of operators that exist in the graph.
 
@@ -423,7 +507,7 @@ def collect_op_names(symbol, params):
 
 @N.register_nm("fmo")
 def fuse_multiple_outputs(symbol, params):
-    """ Customiezed symbol-level topo pass definition.
+    """ Customized symbol-level topo pass definition.
 
         Symbol-level multiple-outputs-fusion pass.
 
@@ -585,7 +669,7 @@ def _get_opt(out, lambd):
     return opt
 
 def sym_calibrate(symbol, params, data, **kwargs):
-    """ Customiezed graph-level topo pass definition.
+    """ Customized graph-level topo pass definition.
 
         Calibrate the MRT model after setting mrt data.
 
