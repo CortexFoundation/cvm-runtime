@@ -8,7 +8,23 @@ mrt.tfm_pass
 ____________
 .. automodule:: mrt.tfm_pass
 
+.. autofunction:: mrt.tfm_pass.fuse_multiple_inputs
+
+.. autofunction:: mrt.tfm_pass.model_inputs
+
+.. autofunction:: mrt.tfm_pass.name_duplicate_check
+
+.. autofunction:: mrt.tfm_pass.params_unique
+
+.. autofunction:: mrt.tfm_pass.input_name_replace
+
+.. autofunction:: mrt.tfm_pass.fuse_constant
+
 .. autofunction:: mrt.tfm_pass.attach_input_shape
+
+.. autofunction:: mrt.tfm_pass.infer_shape
+
+.. autofunction:: mrt.tfm_pass._collect_attribute
 
 .. autofunction:: mrt.tfm_pass.collect_op_names
 

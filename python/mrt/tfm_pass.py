@@ -1,8 +1,8 @@
 """ MRT Pass API
 
     Collection of MRT pass tions.
-    Symbolic topo traversal algorithms set.
-    Stage-level designation for MRT.
+    Graph-level symbol helper function for MRT.
+    Stage-level symbol pass designation for MRT.
 """
 
 from mxnet import ndarray as nd
@@ -141,6 +141,8 @@ def prepare_for_compile(symbol, params):
 
 @N.register_nm("cvm")
 def to_cvm(symbol, params):
+    """ Customiezed graph-level topo pass definition.
+    """
     infer_shapes = infer_shape(symbol, params)
     graph = {}
     for op in topo_sort(symbol):
@@ -165,6 +167,49 @@ def to_cvm(symbol, params):
 
 @N.register_nm("fmi")
 def fuse_multiple_inputs(sym, params):
+    """ Customiezed graph-level topo pass definition.
+
+        The original graph has multiple inputs.
+
+        .. code-block:: none
+
+           Inp1 Inp2  ...  Inpn
+            |   |           |
+            |   |           |
+           ... ...    ...  ...
+
+        Where 'Inp1', 'Inp2' and so on stands for the input symbol.
+
+        The original graph will be transformed into:
+
+        .. code-block:: none
+
+                           data_sum
+                         /     |      \ 
+                        /      |       \ 
+                       /       |        \ 
+                      /        |         \ 
+                     /         |          \ 
+                    /          |           \ 
+            slice_axis     slice_axis ...   slice_axis
+            axis: 0        axis: 0          axis: 0
+            begin:0        begin:end1       begin: end(n-1)
+            end:pd1        end:end1+pd2     end:end(n-1)+pdn
+               /               |               \ 
+               |               |                |
+            reshape        reshape          reshape
+            shape:shp1     shape:shp2       shape:shpn
+               |               |                |
+               |               |                |
+              Inp1            Inp2    ...      Inpn
+               |               |                |
+               |               |                |
+              ...             ...     ...      ...
+
+        where 'data_sum' is the tiled and concatenated form of all the inputs, 
+        and 'pd1', 'pd2', ..., 'pdn' is the infer shape product of 'inp's, 
+        and 'shp1', 'shp2', ..., 'shpn' is the infer shape if 'Inps'.
+    """
     infer_shapes = infer_shape(sym, params)
     dim_sum, dim_per, dims = 0, {}, {}
     def _sum_input(node, params, **kwargs):
@@ -198,6 +243,10 @@ def fuse_multiple_inputs(sym, params):
     return sym, params
 
 def model_inputs(symbol, params):
+    """ Customiezed graph-level topo pass definition.
+
+        Count the number of model inputs.
+    """
     input_count = 0
     def _count(op, params, graph):
         nonlocal input_count
@@ -206,6 +255,8 @@ def model_inputs(symbol, params):
     return input_count
 
 def name_duplicate_check(symbol, params):
+    """ Check whether duplicate names exist in the graph.
+    """
     names = set()
     for sym in topo_sort(symbol):
         name = sym.attr('name')
@@ -213,11 +264,17 @@ def name_duplicate_check(symbol, params):
         names.add(name)
 
 def params_unique(symbol, params):
+    """ Remove duplicate keys params dict.
+    """
     new_params = {s.attr('name'):params[s.attr('name')] \
             for s in topo_sort(symbol) if is_params(s, params)}
     return symbol, new_params
 
 def input_name_replace(symbol, params):
+    """ Customiezed graph-level topo pass definition.
+
+        Replace the single input name to 'data'.
+    """
     def _name_replace(op, params, graph):
         name, attr = op.attr('name'), op.list_attr()
         if is_inputs(op, params):
@@ -227,6 +284,10 @@ def input_name_replace(symbol, params):
 
 @N.register_nm("fc")
 def fuse_constant(symbol, params):
+    """ Customiezed graph-level topo pass definition.
+
+        Fix the constant operator shape with respect to the infer shape.
+    """
     nparams = convert_params_dtype(params, dest_dtype="float32")
 
     def _impl(op, params, graph):
@@ -251,9 +312,23 @@ def fuse_constant(symbol, params):
 
 @N.register_nm("ais")
 def attach_input_shape(symbol, params, input_shapes):
-    """ Customiezed topo Pass Definition
+    """ Customiezed graph-level topo pass definition.
 
+        Attach the infer shapes for the graph.
 
+        Parameters
+        __________
+        symbol : mxnet.symbol
+            The graph symbols.
+        params : dict
+            The graph parameters dict.
+        input_shapes : dict
+            The name-shape map.
+
+        Returns
+        _______
+        ret : tuple
+            The symbol-param tuple after input shapes attachment.
     """
     assert isinstance(input_shapes, dict)
     def _impl(op, params, graph):
@@ -268,6 +343,24 @@ def reduce_graph(symbol, params):
     pass
 
 def infer_shape(symbol, params, input_shape=None):
+    """ Customiezed graph-level topo pass definition.
+
+        Collect the infer shapes from graph.
+
+        Parameters
+        __________
+        symbol : mxnet.symbol
+            The graph symbols.
+        params : dict
+            The graph parameters dict.
+        input_shape : tuple
+            The input shape of the data.
+
+        Returns
+        _______
+        ret : dict
+            The name-shape map.
+    """
     infer_shapes = {}
     def _impl(op, params, graph):
         name, op_name = op.attr('name'), op.attr('op_name')
@@ -290,14 +383,38 @@ def infer_shape(symbol, params, input_shape=None):
     return infer_shapes
 
 def _collect_attribute(op, **kwargs):
+    """ Collect the attribute value from the specified operator.
+
+        Parameters
+        __________
+        op : mxnet.symbol
+            The input operator.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The output operator.
+    """
     attr_name, func = kwargs['attr_name'], kwargs['func']
     func(op.attr(attr_name))
     return op
 
 def collect_op_names(symbol, params):
-    """ Customiezed topo Pass Definition
+    """ Customiezed graph-level topo pass definition.
 
+        Collect all kinds of operators that exist in the graph.
 
+        Parameters
+        __________
+        symbol : mxnet.symbol
+            The graph symbols.
+        params : dict
+            The graph parameters dict.
+
+        Returns
+        _______
+        ret : set
+            The opname set.
     """
     op_names = set()
     _ = topo_visit_transformer(symbol, params, _collect_attribute,
@@ -306,23 +423,51 @@ def collect_op_names(symbol, params):
 
 @N.register_nm("fmo")
 def fuse_multiple_outputs(symbol, params):
-    """ Customiezed topo Pass Definition
+    """ Customiezed symbol-level topo pass definition.
 
+        Symbol-level multiple-outputs-fusion pass.
+
+        .. code-block:: none
+
+                           X
+                           |
+                           |
+                      SliceChannel
+                      /    |     \ 
+                     /     |      \ 
+                    /      |       \ 
+                   /       |        \ 
+                 A1        A2   ...  An
+
+        The original graph will be transformed into:
+
+        .. code-block:: none
+
+                               X
+                         /     |      \ 
+                        /      |       \ 
+                       /       |        \ 
+                      /        |         \ 
+                     /         |          \ 
+                    /          |           \ 
+            slice_axis     slice_axis ...   slice_axis
+            axis: ich      axis: ich        axis: ich
+            begin:0        begin:stride     begin: (n-1)*stride
+            end:stride     end:2*stride     end:n*stride
+               /               |               \ 
+              A1               A2      ...      An
+
+        where 'ich' is the attribute 'axis' along which to split, and
+
+        .. math:
+            dim = xshape(axis)
+
+        .. math::
+            stride = dim / num\_outputs
+
+        where 'xshape' is infer shape of 'X' and 'num_ouputs' is the number of splits.
 
     """
-        # Symbol-level multiple-outputs-fusion pass.
-
-        # .. code-block:: none
-
-                           # X
-                           # |
-                           # |
-                      # SliceChannel
-                      # /    |     \
-                     # /     |      \
-                    # /      |       \
-                   # /       |        \
-                  # A        B   ...   C
     infer_shapes = infer_shape(symbol, params)
     channel, graph = {}, {}
     for sym in topo_sort(symbol):
@@ -440,7 +585,9 @@ def _get_opt(out, lambd):
     return opt
 
 def sym_calibrate(symbol, params, data, **kwargs):
-    """ Calibrate the MRT model after setting mrt data.
+    """ Customiezed graph-level topo pass definition.
+
+        Calibrate the MRT model after setting mrt data.
 
         Parameters
         __________
