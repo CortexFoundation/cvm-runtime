@@ -1,3 +1,10 @@
+""" MRT Pass API
+
+    Collection of MRT pass tions.
+    Symbolic topo traversal algorithms set.
+    Stage-level designation for MRT.
+"""
+
 from mxnet import ndarray as nd
 import math
 import numpy as np
@@ -244,6 +251,10 @@ def fuse_constant(symbol, params):
 
 @N.register_nm("ais")
 def attach_input_shape(symbol, params, input_shapes):
+    """ Customiezed topo Pass Definition
+
+
+    """
     assert isinstance(input_shapes, dict)
     def _impl(op, params, graph):
         name, attr = op.attr('name'), op.list_attr()
@@ -284,6 +295,10 @@ def _collect_attribute(op, **kwargs):
     return op
 
 def collect_op_names(symbol, params):
+    """ Customiezed topo Pass Definition
+
+
+    """
     op_names = set()
     _ = topo_visit_transformer(symbol, params, _collect_attribute,
             attr_name='op_name', func=op_names.add)
@@ -291,6 +306,23 @@ def collect_op_names(symbol, params):
 
 @N.register_nm("fmo")
 def fuse_multiple_outputs(symbol, params):
+    """ Customiezed topo Pass Definition
+
+
+    """
+        # Symbol-level multiple-outputs-fusion pass.
+
+        # .. code-block:: none
+
+                           # X
+                           # |
+                           # |
+                      # SliceChannel
+                      # /    |     \
+                     # /     |      \
+                    # /      |       \
+                   # /       |        \
+                  # A        B   ...   C
     infer_shapes = infer_shape(symbol, params)
     channel, graph = {}, {}
     for sym in topo_sort(symbol):
@@ -342,6 +374,46 @@ def fuse_multiple_outputs(symbol, params):
     return ret, params
 
 def _get_opt(out, lambd):
+    """ Calibrate the MRT model after setting mrt data.
+
+        .. math::
+            mean\_v = mean(out)
+
+        .. math::
+            n = product(shape(out))
+
+        .. math::
+            sqrt\_n = sqrt(n)
+
+        .. math::
+            std = norm(out-mean) / sqrt\_n
+
+        .. math::
+            alpha = |mean| + lambd * std
+
+        .. math::
+            absmax = ||out||_2
+
+        **Case 1. alpha < 0.95 * absmax**
+
+        opt = alpha
+
+        **Case 2. Other Cases**
+
+        out = absmax
+
+        Parameters
+        __________
+        out : nd.NDArray
+            The graph level output.
+        lambd : float
+            Hyperparameter that set the alpha of data.
+
+        Returns
+        _______
+        opt : float
+            The opt value.
+    """
     absmax = out.abs().max().asscalar()
     if lambd is None:
         return absmax
@@ -368,6 +440,22 @@ def _get_opt(out, lambd):
     return opt
 
 def sym_calibrate(symbol, params, data, **kwargs):
+    """ Calibrate the MRT model after setting mrt data.
+
+        Parameters
+        __________
+        symbol : mxnet.symbol
+            The graph symbols.
+        params : dict
+            The graph parameters dict.
+        data : nd.NDArray
+            The input data.
+
+        Returns
+        _______
+        ret : dict
+            The threshold dict after calibration.
+    """
     logger = logging.getLogger('log.mrt')
     _, deps = topo_sort(symbol, logger=logger, with_deps=True)
     th_dict, out_cache = {}, {}
@@ -418,6 +506,20 @@ def sym_calibrate(symbol, params, data, **kwargs):
 
 def convert_params_dtype(params, src_dtypes=["float32", "float64"],
         dest_dtype="float64"):
+    """ Convert the source data type into to target data type.
+
+        Parameters
+        __________
+        params : nd.NDArray
+            The input data to be converted.
+        src_dtypes : str or list of str
+            The source data type(s)
+
+        Returns
+        _______
+        ret : int
+            The precision of the input.
+    """
     if not params:
         return {}
     if isinstance(src_dtypes, str):

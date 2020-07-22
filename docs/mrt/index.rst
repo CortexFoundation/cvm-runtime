@@ -29,3 +29,4 @@ Python API
   MRT operators API <api/tfm_ops>
   MRT utils API <api/tfm_utils>
   MRT helper API <api/sim_quant_helper>
+  MRT pass API <api/tfm_pass>
