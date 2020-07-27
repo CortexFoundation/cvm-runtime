@@ -918,6 +918,34 @@ int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
   API_END();
 }
 
+void printTensor(const DLTensor* tmp) {
+  std::cout << "the tensor content: ndim: " << tmp->ndim << ", shape: ";
+  int tmpsize = 1;
+  for (int j = 0; j < tmp->ndim; j++) {
+    std::cout << tmp->shape[j] << " ";
+    tmpsize *= tmp->shape[j];
+  }
+  std::cout << std::endl;
+  for (int j = 0; j < tmpsize; j++) {
+    int64_t out_data = 123456789;
+    switch (tmp->dtype.bits) {
+      case 8:
+        out_data = ((int8_t*)tmp->data)[j];
+        break;
+      case 32:
+        out_data = ((int32_t*)tmp->data)[j];
+        break;
+      case 64:
+        out_data = ((int64_t*)tmp->data)[j];
+        break;
+      default:
+        break;
+    }
+    std::cout << out_data << " ";
+  }
+  std::cout << std::endl;
+}
+
 int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, void*** retValues) {
   std::cout << "doing my LoadParamsDict" << std::endl;
   API_BEGIN();
@@ -944,11 +972,29 @@ int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, vo
       << "# of names should equal to # of DLTensors\n";
   std::cout << "read size fininsed: " << sz << std::endl;
   for (uint32_t i = 0; i < sz; i++) {
-    cvm::runtime::NDArray* tmp = new cvm::runtime::NDArray();
-    tmp->Load(fi);
+    cvm::runtime::NDArray tmp;
+    tmp.Load(fi);
     std::cout << "reading " << i << "th tensors of " << sz
-              << " the tensor* points to " << tmp->operator->() << std::endl;
-    values.push_back(const_cast<DLTensor*>(tmp->operator->()));
+              << " the tensor* points to " << tmp.operator->() << std::endl;
+    printTensor(tmp.operator->());
+    DLTensor* tmptensor = new DLTensor();
+    tmptensor->ctx = tmp->ctx;
+    tmptensor->ndim = tmp->ndim;
+    tmptensor->dtype = tmp->dtype;
+    tmptensor->shape = new int64_t[tmp->ndim];
+    memcpy(tmptensor->shape, tmp->shape, sizeof(tmp->shape[0]) * tmp->ndim);
+    if (tmp->strides) {
+      tmptensor->strides = new int64_t[tmp->ndim];
+      memcpy(tmptensor->strides, tmp->strides,
+             sizeof(tmp->strides[0]) * tmp->ndim);
+    } else {
+      tmptensor->strides = nullptr;
+    }
+    tmptensor->byte_offset = tmp->byte_offset;
+    uint32_t tmp_size = cvm::runtime::GetDataSize(*(tmp.operator->()));
+    tmptensor->data = new char[tmp_size];
+    memcpy(tmptensor->data, tmp->data, tmp_size);
+    values.push_back(tmptensor);
   }
 
   *retNum = sz;
@@ -957,6 +1003,7 @@ int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, vo
   for (uint32_t i = 0; i < sz; i++) {
     (*retNames)[i] = const_cast<char*>(names[i].c_str());
     std::cout << "copying to retValues. the tensor* points to " << values[i] << std::endl;
+    printTensor(values[i]);
     (*retValues)[i] = static_cast<void*>(values[i]);
   }
   API_END();

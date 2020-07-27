@@ -254,5 +254,5 @@ def load_param_dict(cvmbyte_array):
         print(str(names[i], encoding='utf-8'))
     for i in range(num.value):
         print('the tensor* points to %x, size is %d' % (values[i], sys.getsizeof(values[i])))
-        ret[str(names[i], encoding='utf-8')] = NDArray(ctypes.cast(values[i], CVMArrayHandle))
+        ret[str(names[i], encoding='utf-8')] = NDArray(ctypes.cast(values[i], CVMArrayHandle), False)
     return ret
