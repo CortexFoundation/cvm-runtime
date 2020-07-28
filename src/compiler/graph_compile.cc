@@ -73,7 +73,7 @@ cvm::Graph DecorateMemoryPlan(cvm::Graph g) {
 }
 
 // Get unique name
-std::string GetUniqeName(
+std::string GetUniqueName(
     std::unordered_map<std::string, int> &name_map, 
     std::string name) {
   auto it = name_map.find(name);
@@ -146,7 +146,7 @@ cvm::Graph GraphCompile(const cvm::Graph& g) {
     cvm::NodePtr np = cvm::Node::Create();
     np->attrs.op = cvm_op;
     auto& op_name = inode.source->attrs.op->name;
-    np->attrs.name = GetUniqeName(name_map, op_name);
+    np->attrs.name = GetUniqueName(name_map, op_name);
     runtime::CVMOpParam param;
     param.func_name = op_name;
     param.num_inputs = inode.inputs.size();

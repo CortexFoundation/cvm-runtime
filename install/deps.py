@@ -17,10 +17,10 @@ CONFIG_PATH = os.path.join(PROJECT_DIR, "cmake/config.cmake")
 LOCAL_CONFIG_PATH = os.path.join(PROJECT_DIR, "config.cmake")
 
 if not os.path.exists(LOCAL_CONFIG_PATH):
-    print ("Create local config path: ", LOCAL_CONFIG_PATH)
+    print ("CREATE local config path: ", LOCAL_CONFIG_PATH)
     shutil.copy(CONFIG_PATH, LOCAL_CONFIG_PATH)
 elif os.path.getmtime(LOCAL_CONFIG_PATH) < os.path.getmtime(CONFIG_PATH):
-    print ("Update local config path: ", LOCAL_CONFIG_PATH)
+    print ("UPDATE local config path: ", LOCAL_CONFIG_PATH)
     shutil.copy(CONFIG_PATH, LOCAL_CONFIG_PATH)
 
 # PYTHONPATH = os.getenv("PYTHONPATH", "")

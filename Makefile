@@ -16,6 +16,8 @@ dep:
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
 
+# Make sure install the python dependency package before
+# 	make python target.
 python: lib
 	@cd python && python3 setup.py install
 
