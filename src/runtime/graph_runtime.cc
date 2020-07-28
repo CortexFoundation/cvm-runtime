@@ -951,7 +951,7 @@ int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, vo
   API_BEGIN();
   uint64_t magic = 0, reserved = 0;
   std::vector<std::string> names;
-  std::vector<DLTensor*> values;
+  std::vector<cvm::runtime::NDArray> values;
 
   std::string dataBuffer(data, datalen);
   utils::MemoryStringStream strm(&dataBuffer);
@@ -972,39 +972,37 @@ int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, vo
       << "# of names should equal to # of DLTensors\n";
   std::cout << "read size fininsed: " << sz << std::endl;
   for (uint32_t i = 0; i < sz; i++) {
-    cvm::runtime::NDArray tmp;
-    tmp.Load(fi);
+    cvm::runtime::NDArray* tmp = new cvm::runtime::NDArray();
+    tmp->Load(fi);
     std::cout << "reading " << i << "th tensors of " << sz
-              << " the tensor* points to " << tmp.operator->() << std::endl;
-    printTensor(tmp.operator->());
-    DLTensor* tmptensor = new DLTensor();
-    tmptensor->ctx = tmp->ctx;
-    tmptensor->ndim = tmp->ndim;
-    tmptensor->dtype = tmp->dtype;
-    tmptensor->shape = new int64_t[tmp->ndim];
-    memcpy(tmptensor->shape, tmp->shape, sizeof(tmp->shape[0]) * tmp->ndim);
-    if (tmp->strides) {
-      tmptensor->strides = new int64_t[tmp->ndim];
-      memcpy(tmptensor->strides, tmp->strides,
-             sizeof(tmp->strides[0]) * tmp->ndim);
-    } else {
-      tmptensor->strides = nullptr;
-    }
-    tmptensor->byte_offset = tmp->byte_offset;
-    uint32_t tmp_size = cvm::runtime::GetDataSize(*(tmp.operator->()));
-    tmptensor->data = new char[tmp_size];
-    memcpy(tmptensor->data, tmp->data, tmp_size);
-    values.push_back(tmptensor);
+              << " the tensor* points to " << tmp->operator->()
+              << ". location of the NDArray is " << tmp << std::endl;
+    printTensor(tmp->operator->());
+
+    values.push_back(*tmp);
   }
 
+  union nd2voidp {
+    cvm::runtime::NDArray nd;
+    void* voidp;
+    nd2voidp() {}
+    ~nd2voidp() {}
+  };
   *retNum = sz;
   *retNames = new char*[sz];
   *retValues = new void*[sz];
   for (uint32_t i = 0; i < sz; i++) {
+    std::cout << "where??? before copying to retNames\n";
     (*retNames)[i] = const_cast<char*>(names[i].c_str());
-    std::cout << "copying to retValues. the tensor* points to " << values[i] << std::endl;
-    printTensor(values[i]);
-    (*retValues)[i] = static_cast<void*>(values[i]);
+    std::cout << "copying to retValues. the tensor* points to " << values[i].operator->() << std::endl;
+    printTensor(values[i].operator->());
+    std::cout << "where??? after printing\n";
+    nd2voidp n2p;
+    // TODO: whz. fix segment fault error here.
+    n2p.nd = values[i];
+    std::cout << "where??? before copying to retValues\n";
+    //std::cout << "the NDArray, as void*, points to " << n2p.voidp << std::endl;
+    (*retValues)[i] = n2p.voidp;
   }
   API_END();
 }
