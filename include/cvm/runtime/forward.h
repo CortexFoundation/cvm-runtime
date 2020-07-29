@@ -32,6 +32,14 @@ inline size_t CVMArgSize(CVMArgValue const& av) {
   return shape.Size();
 }
 
+/**
+ * \brief TShape Iterator Class: Indices
+ *
+ * The indices class hold two vector-like member: shape and
+ *  indices, whose ndim is same as each other. The indices
+ *  variable could iterate all over the range from 
+ *  [0, 0, 0 ...] into the maximum shape.
+ **/
 class Indices {
  public:
   Indices(TShape const& src)
@@ -55,17 +63,15 @@ class Indices {
   }
 
   inline bool End() const {
-    return Index() + 1 == max_size_;
+    return Index() == max_size_;
   }
 
   void operator++() {
-    CHECK(shape_.ndim()) << "Unknown shape of dim equals zero";
-    CHECK(!End()) << "Iterator has been the end";
+    CHECK(!End()) << "Indices has been the end of Shape";
 
     index_cache_ = Index() + 1;
-
     int cnt = shape_.ndim() - 1;
-    while (true) {
+    while (cnt >= 0) {
       indices_[cnt] ++;
 
       if (indices_[cnt] < shape_[cnt]) return ;
@@ -74,6 +80,7 @@ class Indices {
       cnt --;
     }
   }
+  void operator++(int) { return this->operator++(); }
 
   inline dim_t& operator[](size_t i) { 
     // The value may be changed outside the class, so set
@@ -83,6 +90,19 @@ class Indices {
   }
   inline const dim_t& operator[](size_t i) const { 
     return indices_[i]; 
+  }
+
+  std::string to_string() const {
+    std::ostringstream oss;
+    oss << "<Indices[";
+    for (auto it = indices_.begin(); it != indices_.end(); ++it) {
+      if (it != indices_.begin()) oss << ",";
+      oss << *it;
+    }
+    oss << "] over TShape";
+    oss << shape_;
+    oss << ">";
+    return oss.str();
   }
 
  private:
