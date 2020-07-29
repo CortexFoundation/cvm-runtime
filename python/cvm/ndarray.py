@@ -255,4 +255,6 @@ def load_param_dict(cvmbyte_array):
     for i in range(num.value):
         print('the tensor* points to %x, size is %d' % (values[i], sys.getsizeof(values[i])))
         ret[str(names[i], encoding='utf-8')] = NDArray(ctypes.cast(values[i], CVMArrayHandle), False)
+    _LIB.CVMDeleteLDPointer.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(ctypes.c_void_p)]
+    check_call(_LIB.CVMDeleteLDPointer(num, names, values))
     return ret

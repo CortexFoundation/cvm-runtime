@@ -859,7 +859,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
 }  // namespace runtime
 }  // namespace cvm
 
-int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
+int CVMSaveParamsDict(const void** params, int params_size, CVMByteArray* ret){
   API_BEGIN();
   CHECK_EQ(params_size % 2, 0u);
   size_t num_params = params_size / 2;
@@ -918,35 +918,10 @@ int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
   API_END();
 }
 
-void printTensor(const DLTensor* tmp) {
-  std::cout << "the tensor content: ndim: " << tmp->ndim << ", shape: ";
-  int tmpsize = 1;
-  for (int j = 0; j < tmp->ndim; j++) {
-    std::cout << tmp->shape[j] << " ";
-    tmpsize *= tmp->shape[j];
-  }
-  std::cout << std::endl;
-  for (int j = 0; j < tmpsize; j++) {
-    int64_t out_data = 123456789;
-    switch (tmp->dtype.bits) {
-      case 8:
-        out_data = ((int8_t*)tmp->data)[j];
-        break;
-      case 32:
-        out_data = ((int32_t*)tmp->data)[j];
-        break;
-      case 64:
-        out_data = ((int64_t*)tmp->data)[j];
-        break;
-      default:
-        break;
-    }
-    std::cout << out_data << " ";
-  }
-  std::cout << std::endl;
-}
 
-int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, void*** retValues) {
+// pointers are newed in this function and not deleted.
+// `CVMDeleteLDPointer` must be called manually by the caller.
+int CVMLoadParamsDict(const char* data, int datalen, int* retNum, char*** retNames, void*** retValues) {
   std::cout << "doing my LoadParamsDict" << std::endl;
   API_BEGIN();
   uint64_t magic = 0, reserved = 0;
@@ -976,33 +951,44 @@ int CVMLoadParamsDict(char* data, int datalen, int* retNum, char*** retNames, vo
     tmp->Load(fi);
     std::cout << "reading " << i << "th tensors of " << sz
               << " the tensor* points to " << tmp->operator->()
-              << ". location of the NDArray is " << tmp << std::endl;
-    printTensor(tmp->operator->());
+              << ". location of the NDArray is " << &tmp << std::endl;
+    cvm::runtime::printTensor(tmp->operator->());
 
     values.push_back(*tmp);
+    //delete tmp;
   }
 
   union nd2voidp {
     cvm::runtime::NDArray nd;
     void* voidp;
-    nd2voidp() {}
-    ~nd2voidp() {}
+    nd2voidp() { voidp = nullptr; }
+    ~nd2voidp() { nd.~NDArray(); }
   };
   *retNum = sz;
   *retNames = new char*[sz];
   *retValues = new void*[sz];
   for (uint32_t i = 0; i < sz; i++) {
-    std::cout << "where??? before copying to retNames\n";
-    (*retNames)[i] = const_cast<char*>(names[i].c_str());
+    (*retNames)[i] = new char[names[i].length() + 1];
+    std::copy(names[i].c_str(), names[i].c_str() + names[i].length() + 1, (*retNames)[i]);
+    (names[i].c_str());
     std::cout << "copying to retValues. the tensor* points to " << values[i].operator->() << std::endl;
-    printTensor(values[i].operator->());
-    std::cout << "where??? after printing\n";
+    cvm::runtime::printTensor(values[i].operator->());
     nd2voidp n2p;
     // TODO: whz. fix segment fault error here.
     n2p.nd = values[i];
-    std::cout << "where??? before copying to retValues\n";
     //std::cout << "the NDArray, as void*, points to " << n2p.voidp << std::endl;
     (*retValues)[i] = n2p.voidp;
   }
+  API_END();
+}
+
+int CVMDeleteLDPointer(int num, char** names, void** values) {
+  API_BEGIN();
+  for (int i = 0; i < num; i++) {
+    delete names[i];
+    ((cvm::runtime::NDArray::Container*)values[i])->DecRef();
+  }
+  delete[] names;
+  delete[] values;
   API_END();
 }

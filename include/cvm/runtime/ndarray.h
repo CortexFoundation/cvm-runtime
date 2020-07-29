@@ -378,6 +378,35 @@ inline void printDType(DLDataType dtype, std::string message) {
             << "\tlanes: " << (int)dtype.lanes << std::endl;
 }
 
+inline void printTensor(const DLTensor* tmp) {
+  std::cout << "the tensor content: ndim: " << tmp->ndim << ", shape: ";
+  int tmpsize = 1;
+  for (int j = 0; j < tmp->ndim; j++) {
+    std::cout << tmp->shape[j] << " ";
+    tmpsize *= tmp->shape[j];
+  }
+  std::cout << std::endl;
+  for (int j = 0; j < tmpsize; j++) {
+    int64_t out_data = 123456789;
+    switch (tmp->dtype.bits) {
+      case 8:
+        out_data = ((int8_t*)tmp->data)[j];
+        break;
+      case 32:
+        out_data = ((int32_t*)tmp->data)[j];
+        break;
+      case 64:
+        out_data = ((int64_t*)tmp->data)[j];
+        break;
+      default:
+        break;
+    }
+    std::cout << out_data << " ";
+  }
+  std::cout << std::endl;
+}
+
+
 /*! \brief Magic number for NDArray file */
 constexpr uint64_t kCVMNDArrayMagic = 0xDD5E40F096B4A13F;
 
