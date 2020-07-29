@@ -1612,7 +1612,7 @@ class InstanceNorm(Transformer):
             params[bias_name] = bias.reshape(reshp)
             B = mx.sym.var(bias_name, shape=reshp)
             op = mx.sym.broadcast_add(node, B, name=N.n("broadcast_add"))
-        pass
+        return op
 
     def calculate_ops(self, op, **kwargs):
         kwargs['base_ops'] = 4

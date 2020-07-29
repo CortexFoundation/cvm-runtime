@@ -386,6 +386,8 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'Dataset')
+    print(conf.MRT_DATASET_ROOT)
+    exit()
     dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
