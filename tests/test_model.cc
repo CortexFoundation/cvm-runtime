@@ -252,13 +252,13 @@ void test_thread() {
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
   auto model_roots = {
-    "/data/std_out/cvm_mnist"
+//    "/data/std_out/cvm_mnist"
 //    "/data/std_out/yolo_tfm",
 //    "/data/std_out/null",
 //    "/data/std_out/resnet50_mxg",
 //    "/data/std_out/ssd_512_mobilenet1.0_voc_tfm",
 //    "/data/std_out/resnet18_v1_tfm",
-//    "/data/std_out/resnet50_v2",
+    "/data/std_out/resnet50_v2",
 //    "/data/std_out/qd10_resnet20_v2",
 //    "/data/std_out/trec",
 //    // "/data/new_cvm/yolo3_darknet53_voc/data",

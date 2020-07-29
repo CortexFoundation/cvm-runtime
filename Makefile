@@ -43,6 +43,6 @@ test_opencl: ${TEST_OPENCL}
 
 #objs := $(wildcard ${BUILD}/obj/*.o)
 %_riscv: ${TESTS}/%.cc lib 
-	riscv64-unknown-linux-gnu-g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=2 -std=c++11 -I${INCLUDE} -L${BUILD} -pthread -lcvm -fsigned-char -Wl,-rpath=${BUILD}
+	riscv64-unknown-linux-gnu-g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=0 -std=c++11 -I${INCLUDE} -L${BUILD} -pthread -lcvm -fsigned-char -Wl,-rpath=${BUILD}
 clean:
 	rm -rf ./build/*

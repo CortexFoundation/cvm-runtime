@@ -24,7 +24,7 @@
 //#define CUDA_PROFILE
 
 #ifdef PROFILE
-#include <omp.h>
+#include <time.h>
 #ifdef CUDA_PROFILE
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -59,7 +59,7 @@ CVM_REGISTER_OP(cvm_op)
  */
 void CvmRuntime::Run() {
 #ifdef PROFILE
-  double start = omp_get_wtime();
+  clock_t start = clock();
 #endif
   // setup the array and requirements.
   for (size_t i = 0; i < op_execs_.size(); ++i) {
@@ -69,8 +69,8 @@ void CvmRuntime::Run() {
 #ifdef CUDA_PROFILE
   cudaDeviceSynchronize();
 #endif
-  double end = omp_get_wtime();
-  double total = end - start;
+  clock_t end = clock();
+  double total = (double)(end - start) / CLOCKS_PER_SEC;
   std::vector<std::pair<std::string, double>> vec_times(times.begin(), times.end());
   std::stable_sort(vec_times.begin(), vec_times.end(), 
       [](const std::pair<std::string, double>& a, const std::pair<std::string, double>& b) ->bool {
@@ -662,7 +662,7 @@ std::function<void()> CvmRuntime::CreateCVMOp(
   ](){
 #ifdef PROFILE
     if(times.find(op) == times.end()) times[op] = 0;
-    double start = omp_get_wtime();
+    clock_t start = clock();
 #endif
     CVMRetValue rv;
     CVMArgs targs(
@@ -677,8 +677,8 @@ std::function<void()> CvmRuntime::CreateCVMOp(
 #ifdef CUDA_PROFILE
     //cudaDeviceSynchronize();
 #endif
-    double end = omp_get_wtime();
-    times[op] += end-start;
+    clock_t end = clock();
+    times[op] += (double)(end-start) / CLOCKS_PER_SEC;
 #endif
   };
 
