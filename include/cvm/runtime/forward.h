@@ -3,7 +3,6 @@
 
 #include <cvm/tuple.h>
 #include <cvm/runtime/packed_func.h>
-#include <utils/logging.h>
 
 namespace cvm {
 namespace runtime {
@@ -36,7 +35,7 @@ inline size_t CVMArgSize(CVMArgValue const& av) {
  * \brief TShape Iterator Class: Indices
  *
  * The indices class hold two vector-like member: shape and
- *  indices, whose ndim is same as each other. The indices
+ *  indices, whose ndim is the same as each other. The indices
  *  variable could iterate all over the range from 
  *  [0, 0, 0 ...] into the maximum shape.
  **/
@@ -48,9 +47,14 @@ class Indices {
   Indices(TShape && src)
     : shape_(src), max_size_(src.Size()),
       indices_(src.ndim()), index_cache_(0) {}
-  Indices(TShape const& src, Indices const& indices) 
-    : shape_(src), max_size_(src.Size()),
-      indices_(indices.indices_), index_cache_(-1) {}
+
+  Indices(Indices && other) {
+    this->swap(other);
+  }
+  Indices& operator=(Indices && other) {
+    this->swap(other);
+    return *this;
+  }
 
   inline uint32_t ndim() const { return indices_.size(); }
   /**
@@ -61,55 +65,43 @@ class Indices {
     index_correct();
     return index_cache_; 
   }
-
-  inline bool End() const {
-    return Index() == max_size_;
+  bool End() const { return Index() == max_size_; }
+  void CopyIndicesFrom(Indices const& indices) {
+    index_cache_ = -1;
+    indices_ = indices.indices_;
   }
 
-  void operator++() {
-    CHECK(!End()) << "Indices has been the end of Shape";
 
-    index_cache_ = Index() + 1;
-    int cnt = shape_.ndim() - 1;
-    while (cnt >= 0) {
-      indices_[cnt] ++;
-
-      if (indices_[cnt] < shape_[cnt]) return ;
-
-      indices_[cnt] = 0;
-      cnt --;
-    }
-  }
+  void operator++();
   void operator++(int) { return this->operator++(); }
-
-  inline dim_t& operator[](size_t i) { 
-    // The value may be changed outside the class, so set
-    //  the cache to be invalid state.
+  dim_t& operator[](size_t i) { 
     index_cache_ = -1;
     return indices_[i]; 
   }
-  inline const dim_t& operator[](size_t i) const { 
-    return indices_[i]; 
-  }
+  dim_t const& operator[](size_t i) const { return indices_[i]; }
 
-  std::string to_string() const {
-    std::ostringstream oss;
-    oss << "<Indices[";
-    for (auto it = indices_.begin(); it != indices_.end(); ++it) {
-      if (it != indices_.begin()) oss << ",";
-      oss << *it;
-    }
-    oss << "] over TShape";
-    oss << shape_;
-    oss << ">";
-    return oss.str();
-  }
+  void swap(Indices &other);
+  std::string to_string() const;
 
  private:
+  void index_correct() const;
+
+ private:
+  /**
+   * \brief initial maximum shape
+   *
+   * The shape and corresponding max size should not change
+   *  after setup.
+   **/
   TShape shape_;
   size_t max_size_;
+  /**
+   * \brief real indices stands for
+   *
+   * Not support negative index.
+   **/
   std::vector<dim_t> indices_;
-  /*
+  /**
    * \brief flatten index cache
    *
    * Delcare the index_cache_ type as int to set -1 for invalid
@@ -121,21 +113,10 @@ class Indices {
    *  line 388.
    **/
   mutable int64_t index_cache_; 
-
-  void index_correct() const {
-    if (index_cache_ != -1) return ;
-
-    size_t real_index = 0;
-    size_t current_level = 1;
-    for (dim_t i = 0; i < shape_.ndim(); ++i) {
-      dim_t real_i = shape_.ndim() - 1 - i;
-      // Calculate the current indices' level number
-      real_index += indices_[real_i] * current_level;
-      // Update the level number of next indices stands for.
-      current_level *= shape_[real_i];
-    }
-    index_cache_ = real_index;
-  }
+  /**
+   * \brief shape flatten level cache
+   **/
+  mutable std::vector<size_t> shape_level_;
 };
 
 inline int32_t CVMShapeBegin(CVMArgValue const& av){
