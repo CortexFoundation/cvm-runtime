@@ -298,7 +298,7 @@ class Tuple {
 
  protected:
   // stack cache size
-  static const uint32_t kStackCache = 4;
+  static const uint32_t kStackCache = 6;
   /*! \brief number of dimension of the tuple */
   uint32_t ndim_{0};
   /*! \brief number of cells allocated in data_heap_ */
@@ -406,6 +406,7 @@ class TShape : public Tuple<dim_t> {
     }
     return num;
   }
+
   /*! \return the begin data pointer to content of the tuple */
   inline const dim_t *data() const {
     return begin();
@@ -414,124 +415,6 @@ class TShape : public Tuple<dim_t> {
   inline dim_t *data() {
     return begin();
   }
-#ifdef MSHADOW_XINLINE
-  template<int dim>
-  inline TShape(const mshadow::Shape<dim> &s) {// NOLINT(*)
-    this->assign(s.shape_, s.shape_ + dim);
-  }
-
-  template<int dim>
-  inline TShape(mshadow::Shape<dim> &&s) {// NOLINT(*)
-    this->assign(s.shape_, s.shape_ + dim);
-  }
-  /*!
-   * \brief assignment from shape
-   * \param shape source shape
-   * \tparam dim shape dimension
-   * \return reference of self
-   */
-  template<int dim>
-  inline TShape &operator=(const mshadow::Shape<dim> &shape) {
-    this->assign(shape.shape_, shape.shape_ + dim);
-    return *this;
-  }
-  /*!
-   * \brief get the shape of tensor specifying dim
-   * \return the shape requested
-   * \tparam dim dimension of the tensor
-   */
-  template<int dim>
-  inline mshadow::Shape<dim> get() const {
-    CHECK_EQ(dim, static_cast<int>(ndim()))
-        << "dimension do not match target dimension " << dim << " vs " << ndim();
-    const dim_t *d = this->data();
-    mshadow::Shape<dim> s;
-    for (int i = 0; i < dim; ++i) {
-      s[i] = d[i];
-    }
-    return s;
-  }
-  /*!
-   * flatten the higher dimension to second dimension, return a 2D shape
-   * \return the flat 2d shape
-   */
-  inline mshadow::Shape<2> FlatTo2D(void) const {
-    mshadow::Shape<2> s;
-    if (ndim() == 0) return mshadow::Shape2(0, 0);
-    const dim_t *d = this->data();
-    s.shape_[1] = d[ndim() - 1];
-    dim_t ymax = 1;
-    for (size_t i = 1; i < ndim(); ++i) {
-      ymax *= d[i - 1];
-    }
-    s.shape_[0] = ymax;
-    return s;
-  }
-  /*!
-   * flatten the shape into three parts: [0, axis_begin), [axis_begin, axis_end], (axis_end, ndim)
-   * \param axis_begin The beginning axis specified.
-   * \param axis_end The ending axis specified.
-   * \return the flat 3d shape
-   */
-  inline mshadow::Shape<3> FlatTo3D(size_t axis_begin, size_t axis_end) const {
-    CHECK(axis_end >= axis_begin);
-    mshadow::Shape<3> s;
-    if (ndim() == 0) return mshadow::Shape3(0, 0, 0);
-    const dim_t *d = this->data();
-    s.shape_[0] = 1;
-    s.shape_[1] = 1;
-    s.shape_[2] = 1;
-
-    for (size_t i = 0; i < axis_begin; ++i) {
-      s.shape_[0] *= d[i];
-    }
-    for (size_t i = axis_begin; i <= axis_end; ++i) {
-      s.shape_[1] *= d[i];
-    }
-    for (size_t i = axis_end + 1; i < ndim(); ++i) {
-      s.shape_[2] *= d[i];
-    }
-    return s;
-  }
-  /*!
-   * flatten the axis before and after the specified axis, so it becomes 3D tensor
-   * \param axis The axis specified.
-   * \return the flat 3d shape
-   */
-  inline mshadow::Shape<3> FlatTo3D(size_t axis) const {
-    return FlatTo3D(axis, axis);
-  }
-  inline bool operator==(const TShape &s) const {
-    if (ndim() != s.ndim()) return false;
-    return std::equal(begin(), end(), s.begin());
-  }
-  inline bool operator!=(const TShape &s) const {
-    return !(*this == s);
-  }
-  /*!
-   * \return whether two shape equals
-   * \param s the shape to compare against
-   * \tparam dim dimension of the shape
-   */
-  template<int dim>
-  inline bool operator==(const mshadow::Shape<dim> &s) const {
-    if (ndim_ != dim) return false;
-    const dim_t *d = dim <= kStackCache ? data_stack_ : data_heap_;
-    for (size_t i = 0; i < dim; ++i) {
-      if (d[i] != s.shape_[i]) return false;
-    }
-    return true;
-  }
-  /*!
-   * \return whether two shape not equals
-   * \param s the shape to compare against
-   * \tparam dim dimension of the shape
-   */
-  template<int dim>
-  inline bool operator!=(const mshadow::Shape<dim> &s) const {
-    return !(*this == s);
-  }
-#endif
 };
 
 /*! \brief helper function to cast type of container elements */

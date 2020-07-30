@@ -1,4 +1,8 @@
-#include "ops.h"
+// #include "ops.h"
+#include <cvm/runtime/forward.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/top/tensor.h>
+#include <cvm/top/nn.h>
 
 namespace cvm {
 namespace runtime {
