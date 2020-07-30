@@ -2284,7 +2284,6 @@ class BroadcastLike(Transformer):
         xndims = len(xshp)
         wshp = list(infer_shapes[cns[1]][get_entry_id(W)])
         wndims = len(wshp)
-        print(xshp, wshp)
 
         lhs_axes = get_attr(attrs, "lhs_axes", None)
         rhs_axes = get_attr(attrs, "rhs_axes", None)
