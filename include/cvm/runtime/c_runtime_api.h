@@ -412,7 +412,7 @@ CVM_DLL int CVMArrayCopyFromTo(CVMArrayHandle from,
                                CVMArrayHandle to,
                                CVMStreamHandle stream);
 
-CVM_DLL int CVMSaveParamsDict(const void** params, int params_size, CVMByteArray* re);
+CVM_DLL int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* re);
 
 CVM_DLL int CVMLoadParamsDict(const char* data, int datalen, int* retNum, char*** retNames, void*** retValues);
 

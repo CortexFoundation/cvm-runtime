@@ -325,30 +325,6 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
     << "cvm runtime only supported INT NDArray, but ("
     << data_in->dtype.code << ")";
 
-  if (data_in->dtype.bits == 8) {
-    DLDataType dtype32 = data_in->dtype;
-    dtype32.bits = 32;
-    auto shape =
-        std::vector<int64_t>(data_in->shape, data_in->shape + data_in->ndim);
-    cvm::runtime::NDArray ret32 = NDArray::Empty(shape, dtype32, data_in->ctx);
-    int8_t *data8 = static_cast<int8_t*>(data_in->data);
-    int32_t *data32 = static_cast<int32_t*>(ret32->data);
-    int64_t num_elems = 1;
-    for (int i = 0; i < data_in->ndim; ++i) {
-      num_elems *= data_in->shape[i];
-    }
-    for (int i = 0; i < num_elems; i++) {
-      data32[i] = static_cast<int32_t>(data8[i]);
-    }
-    data_in = const_cast<DLTensor*>(ret32.operator->());
-  }
-  auto dtype = data_in->dtype;
-
-  VERIFY((dtype.code == kDLInt) &&
-         (dtype.bits == 32) &&
-         (dtype.lanes == 1))
-    << "cvm runtime only supported INT32 NDArray, but ("
-    << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
   auto ctx = data_in->ctx;
   VERIFY_EQ(ctx.device_type, kDLCPU)
     << "cvm runtime only supported input with `cpu` device"
@@ -362,6 +338,7 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
   VERIFY_EQ(ndim, expected.size())
     << "Loaded data shape ndim " << ndim
     << " not matched " << expected.size();
+
   for (int i = 0; i < ndim; ++i) {
     VERIFY_EQ(dshp[i], expected[i])
       << "Loaded data shape at index " << i
@@ -370,10 +347,35 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
     size *= dshp[i];
   }
 
-  // Precision check
-  int32_t *data = static_cast<int32_t*>(data_in->data);
+  auto dtype = data_in->dtype;
+  VERIFY((dtype.code == kDLInt) &&
+         ((dtype.bits == 32) || (dtype.bits == 8)) &&
+         (dtype.lanes == 1))
+    << "cvm runtime only supported INT8 or INT32 NDArray, but ("
+    << dtype.code << ", " << dtype.bits << ", "
+    << dtype.lanes << ")";
+
+  // copy data to runtime
+  if (data_in->dtype.bits == 8) {
+    cvm::runtime::NDArray &ret32 = data_entry_[eid];
+    int8_t *data8 = static_cast<int8_t*>(data_in->data);
+    int32_t *data32 = static_cast<int32_t*>(ret32->data);
+    int64_t num_elems = 1;
+    for (int i = 0; i < data_in->ndim; ++i) {
+      num_elems *= data_in->shape[i];
+    }
+    for (int i = 0; i < num_elems; i++) {
+      data32[i] = static_cast<int32_t>(data8[i]);
+    }
+    // data_in = const_cast<DLTensor*>(ret32.operator->());
+  } else {
+    data_entry_[eid].CopyFrom(data_in);
+  }
+
+  // precision check
   auto& prec = this->attrs_.precision[eid];
   int32_t range = (1 << (prec - 1)) - 1;
+  int32_t *data = static_cast<int32_t*>(data_entry_[eid]->data);
   if (nodes_[nid].is_data()) {
     for (uint64_t i = 0; i < size; ++i) {
       if (data[i] > range) data[i] = range;
@@ -387,8 +389,6 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
         << " exceed of precision " << prec;
     }
   }
-
-  data_entry_[eid].CopyFrom(data_in);
 }
 /*!
  * \brief Get the number of outputs

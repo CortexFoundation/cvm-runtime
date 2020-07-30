@@ -686,6 +686,7 @@ int main() {
   test_op("broadcast_max");  // formal & cpu pass
   test_op("broadcast_div");  // formal & cpu pass
   test_op("broadcast_greater");  // formal & cpu pass
+
   cout << "all tests finished" << endl;
   return 0;
 }

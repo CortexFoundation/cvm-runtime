@@ -1,4 +1,12 @@
+""" MRT Base API
+
+    Customized Symbolic Pass Interfaces.
+    Base passes with default operation settings.
+    Collection of transformer management functions.
+"""
+
 import numpy as np
+from functools import wraps as _wraps
 
 from .sym_utils import *
 
@@ -19,8 +27,8 @@ class Transformer(object):
         Please refer to file `tfm_ops.py` for more examples about
             operator transformers.
 
-    Attributes:
-    ==========
+    Attributes
+    ----------
     op_name: Transformer is associated with operator which is defined
             in mxnet, and the variable indicates the type name of mxnet
             symbol.
@@ -71,8 +79,8 @@ class Transformer(object):
 
     def prepare_for_compile(self, op, **kwargs):
         """ Equivalent graph transition may be needed before `compile`
-                dynamic shape fixxation for `MulScalar`, `DivScalar`, `Zeroslike`
-                and 'OnesLike' that is only needed in quantization:
+            dynamic shape fixxation for `MulScalar`, `DivScalar`, `Zeroslike`
+            and 'OnesLike' that is only needed in quantization:
             Do nothing by default.
         """
         return op
@@ -89,6 +97,13 @@ class Transformer(object):
         return sym
 
     def fuse_transpose(self, op, **kwargs):
+        """ Equivalent graph tranposition.
+
+            In case that at least one of the two adjacent ops is *Transpose*,
+            the other op may either be swappable or fusable with Transpose.
+
+            Do nothing by default.
+        """
         return op
 
     def calculate_ops(self, op, **kwargs):
@@ -200,6 +215,7 @@ class N(object):
     @staticmethod
     def register_nm(name):
         def wrapper(pass_f):
+            @_wraps(pass_f)
             def run(symbol, params, *args, **kwargs):
                 old_name = N._global_name
                 N._set_global(name)
