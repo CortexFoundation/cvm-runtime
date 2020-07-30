@@ -617,6 +617,8 @@ class SliceChannel(Transformer):
     pass
 
 
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
 @register_pass("prepare_for_compile")
 @register_transformer('UpSampling')
 class UpSampling(Transformer):
@@ -1205,6 +1207,8 @@ class BroadcastAdd(Transformer):
 
 
 @register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("broadcast_div")
@@ -2210,12 +2214,137 @@ class L2Normalization(Transformer):
                      op_name, name, scales[name], cns)
         return op
 
+
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("sqrt")
 class Sqrt(Transformer):
     pass
 
+
+@register_pass("fuse_transpose")
+@register_transformer("InstanceNorm")
+class InstanceNorm(Transformer):
+    def rewrite(self, op, **kwargs):
+        infer_shapes = kwargs["infer_shapes"]
+        name = op.attr("name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
+        X, gamma, beta = childs
+
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
+        assert len(xshp) >= 3
+        gshp = infer_shapes[cns[1]][get_entry_id(gamma)]
+        bshp = infer_shapes[cns[2]][get_entry_id(beta)]
+        assert len(gshp) == len(bshp) == 1 and \
+            gshp[0] == bshp[0] == xshp[1]
+
+        axis = [i for i in range(len(xshp)) if i != 1]
+        for i in axis:
+            gamma = mx.sym.expand_dims(gamma, axis=i)
+            beta = mx.sym.expand_dims(beta, axis=i)
+
+        mul = nd_const(
+            1/np.product(xshp[2:]),
+            kwargs["graph"], kwargs["params"])
+        mean = mx.sym.broadcast_mul(
+            mx.sym.sum(X, axis=axis, keepdims=True), mul)
+        dev = mx.sym.broadcast_sub(X, mean)
+        dev_mul = mx.sym.broadcast_mul(dev, dev)
+        var = mx.sym.broadcast_mul(
+            mx.sym.sum(dev_mul, axis=axis, keepdims=True), mul)
+        eps = nd_const(
+            get_attr(attrs, "eps", 0.00100000005),
+            kwargs["graph"], kwargs["params"])
+        std = mx.sym.broadcast_add(mx.sym.sqrt(var), eps)
+        frac = mx.sym.broadcast_div(dev, std)
+        frac_mul = mx.sym.broadcast_mul(frac, gamma)
+        op = mx.sym.broadcast_add(frac_mul, beta, name=name)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_transformer("batch_dot")
+class BatchDot(Transformer):
+    pass
+
+
+@register_pass("fuse_transpose")
+@register_transformer("broadcast_like")
+class BroadcastLike(Transformer):
+    def rewrite(self, op, **kwargs):
+        infer_shapes = kwargs["infer_shapes"]
+        name = op.attr("name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr("name") for c in childs]
+        X, W = childs
+
+        xshp = list(infer_shapes[cns[0]][get_entry_id(X)])
+        xndims = len(xshp)
+        wshp = list(infer_shapes[cns[1]][get_entry_id(W)])
+        wndims = len(wshp)
+        print(xshp, wshp)
+
+        lhs_axes = get_attr(attrs, "lhs_axes", None)
+        rhs_axes = get_attr(attrs, "rhs_axes", None)
+        if lhs_axes is None or rhs_axes is None:
+            assert xndims == wndims
+            lhs_axes = [v for v in range(xndims) if xshp[v] == 1]
+            rhs_axes = lhs_axes[:]
+        else:
+            lhs_axes = list(lhs_axes)
+            rhs_axes = list(rhs_axes)
+        lndims = len(lhs_axes)
+        rndims = len(rhs_axes)
+        assert lndims == rndims and lndims > 0
+
+        lhs_axes = tuple([v+xndims if v<0 else v for v in lhs_axes])
+        assert all([0<=v<xndims for v in list(lhs_axes)])
+
+        rhs_axes = tuple([v+wndims if v<0 else v for v in rhs_axes])
+        assert all([0<=v<wndims for v in list(rhs_axes)])
+
+        assert all([xshp[lhs_axes[i]]==1 for i in range(lndims)])
+
+        cnts = {v: wshp[rhs_axes[i]] for i, v in enumerate(lhs_axes)}
+        reps = tuple([cnts[v] if v in lhs_axes else 1 for v in range(xndims)])
+        op = mx.sym.tile(X, reps=reps, name=name)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_transformer("reshape_like")
+class ReshapeLike(Transformer):
+    def rewrite(self, op, **kwargs):
+        infer_shapes = kwargs["infer_shapes"]
+        name = op.attr("name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr("name") for c in childs]
+        X, W = childs
+
+        xshp = list(infer_shapes[cns[0]][get_entry_id(X)])
+        xndims = len(xshp)
+        wshp = list(infer_shapes[cns[1]][get_entry_id(W)])
+        wndims = len(wshp)
+
+        lhs_begin = get_attr(attrs, "lhs_begin", 0)
+        lhs_end = get_attr(attrs, "lhs_end", xndims-1)
+        rhs_begin = get_attr(attrs, "rhs_begin", 0)
+        rhs_end = get_attr(attrs, "rhs_end", wndims-1)
+
+        lhs_begin = lhs_begin+xndims if lhs_begin < 0 else lhs_begin
+        lhs_end = lhs_end+xndims if lhs_end< 0 else lhs_end
+        assert 0 <= lhs_begin < lhs_end <= xndims
+
+        rhs_begin = rhs_begin+wndims if rhs_begin < 0 else rhs_begin
+        rhs_end = rhs_end+wndims if rhs_end< 0 else rhs_end
+        assert 0 <= rhs_begin < rhs_end <= wndims
+
+        rshp = tuple(xshp[:lhs_begin] + \
+            wshp[rhs_begin:rhs_end] + xshp[lhs_end:])
+        op = mx.sym.reshape(X, shape=rshp, name=name)
+        return op
 
 def _ft_multi_input(op):
     name, childs = op.attr('name'), sym_iter(op.get_children())
