@@ -659,33 +659,34 @@ void test_op(string op_name) {
   }
 }
 int main() {
-  // test_op("max_pool2d");
-  // test_op("upsampling");
-  // test_op("dense");
-  // test_op("conv2d");
-  // test_op("sum");
-  // test_op("max"); // pass
-  test_op("slice_like");
-  // test_op("tile"); //pass
-  // test_op("repeat"); //pass
-  // test_op("get_valid_counts");
+  test_op("max_pool2d"); // formal & cpu pass
+  test_op("upsampling"); // formal & cpu pass
+  test_op("dense");  // formal & cpu pass
+  test_op("conv2d"); // formal & cpu pass
+  test_op("sum");  // formal & cpu pass
+  test_op("max");  // formal & cpu pass
+  test_op("slice_like"); // formal & cpu pass
+  test_op("tile"); // formal & cpu pass
+  test_op("repeat"); // formal & cpu pass
+  test_op("get_valid_counts");  // formal & CPU pass
 
-  // test_op("strided_slice"); //pass
-  // test_op("concatenate");//pass
-  // test_op("transpose");// pass
-  // test_op("take");
-  // test_op("clip");
-  // test_op("cvm_clip");
-  // test_op("cvm_right_shift");
-  // test_op("elemwise_add");
-  // test_op("elemwise_sub");
-  // test_op("non_max_suppression");
-  // test_op("broadcast_sub");
-  // test_op("broadcast_add");
-  // test_op("broadcast_mul");
-  // test_op("broadcast_max");
-  // test_op("broadcast_div");
-  // test_op("broadcast_greater");
+  test_op("strided_slice"); // formal & cpu pass
+  test_op("concatenate");// formal & cpu pass
+  test_op("transpose");// formal & cpu pass
+  test_op("take"); // formal & cpu pass
+  //test_op("clip"); // no test case
+  //test_op("cvm_clip"); // no test case
+  //test_op("cvm_right_shift");  // no test case
+  test_op("elemwise_add"); // formal & cpu pass
+  //test_op("elemwise_sub"); // no test case
+  test_op("non_max_suppression");  // formal & cpu pass
+  test_op("broadcast_sub"); // formal & cpu pass
+  test_op("broadcast_add");  // formal & cpu pass
+  test_op("broadcast_mul");  // formal & cpu pass
+  test_op("broadcast_max");  // formal & cpu pass
+  test_op("broadcast_div");  // formal & cpu pass
+  test_op("broadcast_greater");  // formal & cpu pass
+  
   cout << "all tests finished" << endl;
   return 0;
 }

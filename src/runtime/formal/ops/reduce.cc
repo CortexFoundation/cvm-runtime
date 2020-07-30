@@ -71,6 +71,16 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
     std::sort(realAxis.begin(), realAxis.end());
 
     uint64_t axis_size = 1;
+//<<<<<<< HEAD
+//    TShape reducedAxShape(realAxis.size()), reducedYShape(x->ndim - realAxis.size());
+//    TShape xShape(x->ndim);
+//    for(uint i = 0, ax = 0, yi = 0; i < x->ndim; i++){
+//      if (flag[i]) {
+//        axis_size *= x->shape[i];
+//        reducedAxShape[ax++] = x->shape[i];
+//      } else {
+//        reducedYShape[yi++] = x->shape[i];
+//=======
     for(uint32_t i = 0; i < realAxis.size(); i++){
       axis_size *= X_shape[realAxis[i]];
     }
@@ -88,8 +98,11 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
         yndim -= 1;
       }else{
         yshape[j++] = Y_shape[i];
+//>>>>>>> wlt
       }
+//      xShape[i] = x->shape[i];
     }
+
     /* For example:
      * xshp : (n1, n2, n3, n4) -> yshp(n1, n4)
      * find x indexes reduce to yi with two steps:
@@ -97,6 +110,26 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
      *  2. foreach reduce axis dimension(n2, n3), 
      *      get x possible indexes and add value to result.
      **/
+//<<<<<<< HEAD
+//    for(uint64_t i = 0; i < getSize(y); i++){
+//      // for each y to be filled, find related xs and calculate.
+//      // the index for each dim of an x:
+//      // for a dim to be reduced, index of this dim differs from each x.
+//      // otherwise, it is fixed with y during the traverse.
+//      TShape yIndex = VectorIndex(reducedYShape, i);
+//      TShape xIndex(x->ndim);
+//      for (uint j = 0, yi = 0; j < x->ndim; j++) {
+//        xIndex[j] = flag[j] ? 0 : yIndex[yi++];
+//      }
+//      // the first x is tmp.
+//      int32_t tmp = x_data[ScalarIndex(xShape, xIndex)];
+//      for (uint64_t xi = 1; xi < axis_size; xi++) {
+//        TShape reducedIndex = VectorIndex(reducedAxShape, xi);
+//        for (uint j = 0, yi = 0, ri = 0; j < xIndex.ndim(); j++) {
+//          xIndex[j] = flag[j] ? reducedIndex[ri++] : yIndex[yi++];
+//        }
+//        f(tmp, x_data[ScalarIndex(xShape, xIndex)]);
+//=======
     for(uint64_t i = 0; i < Y_shape.Size(); i++){
       // in_i will be the base index of X. for Y[a][b] = sum(or max) X[a][*][*][d]
       // in_i = d * 1 + a * n4*n3*n2
@@ -118,6 +151,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
           tmp_in_i += col * every_xdim_size[realAxis[j]];
         }
         f(tmp, X_data[in_i+tmp_in_i]);
+//>>>>>>> wlt
       }
       Y_data[i] = tmp;
     }
