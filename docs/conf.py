@@ -49,6 +49,9 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
 
+    # c++ doxygen
+    "breathe",
+
     "sphinx_rtd_theme",
 ]
 
@@ -70,7 +73,6 @@ exclude_patterns = ['Thumbs.db', '.DS_Store']
 
 master_doc = "index"
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -83,3 +85,26 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 html_logo = "_static/img/icon.png"
+
+# doxygen -------------------------------------
+breathe_projects = {"cvm-runtime": "doxygen_output/xml"}
+breathe_default_project = "cvm-runtime"
+
+# hook for doxygen
+def run_doxygen():
+    """Run the doxygen make command in the designated folder."""
+    base_dir = os.path.join(
+        os.path.dirname(__file__),
+        "..")
+    try:
+        retcode = subprocess.call(
+            "cd %s; doxygen docs/Doxyfile" % base_dir, shell=True)
+        if retcode < 0:
+            sys.stderr.write(
+                "doxygen terminated by signal %s" % (-retcode))
+    except OSError as e:
+        sys.stderr.write("doxygen execution failed: %s" % e)
+
+def setup(app):
+    run_doxygen()
+
