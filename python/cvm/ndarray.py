@@ -4,6 +4,7 @@ from ._ctypes.ndarray import *
 from ._ctypes.lib import _LIB
 
 import numpy as np
+import sys
 
 class NDArray(NDArrayBase):
     @property
@@ -107,7 +108,7 @@ class NDArray(NDArrayBase):
         return self
 
     def __repr__(self):
-        res = "<cvm.NDArray shape={0} {1}>\n".format(self.shape, self.context)
+        res = "<cvm.NDArray shape={0} {1}>\t".format(self.shape, self.context)
         res += self.asnumpy().__repr__()
         return res
 
@@ -234,3 +235,26 @@ def save_param_dict(dict_data):
     check_call(_LIB.CVMSaveParamsDict(ctypes.byref(arr), len(data), ctypes.byref(ret)))
     return ret.tobytes()
 
+def load_param_dict(cvmbyte_array):
+    # print('types are')
+    # print(type(cvmbyte_array))
+    # print(type(ctypes.c_char_p(cvmbyte_array)))
+    ret = {}
+    num = ctypes.c_int()
+    names = ctypes.POINTER(ctypes.c_char_p)()
+    values = ctypes.POINTER(ctypes.c_void_p)()
+
+    _LIB.CVMLoadParamsDict.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(ctypes.c_int),\
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_char_p)), ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))]
+    check_call(_LIB.CVMLoadParamsDict(ctypes.c_char_p(cvmbyte_array), ctypes.c_int(len(cvmbyte_array)), ctypes.byref(num),\
+            ctypes.byref(names),\
+            ctypes.byref(values)))
+    print('python result: got num %d' % (num.value))
+    for i in range(num.value):
+        print(str(names[i], encoding='utf-8'))
+    for i in range(num.value):
+        print('the tensor* points to %x, size is %d' % (values[i], sys.getsizeof(values[i])))
+        ret[str(names[i], encoding='utf-8')] = NDArray(ctypes.cast(values[i], CVMArrayHandle), False)
+    _LIB.CVMDeleteLDPointer.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(ctypes.c_void_p)]
+    check_call(_LIB.CVMDeleteLDPointer(num, names, values))
+    return ret
