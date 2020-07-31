@@ -2219,7 +2219,18 @@ class L2Normalization(Transformer):
 @register_pass("compile")
 @register_transformer("sqrt")
 class Sqrt(Transformer):
-    pass
+    def quantize(self, op, **kwargs):
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        X = op.get_children()[0]
+        xs = scales[X.attr("name")]
+
+        oscale = scales[name] = math.sqrt(xs)
+        precs[name][OUT_KEY] = get_bit(th_dict[name]*oscale)
+
+        op = mx.sym.sqrt(X, name=name)
+        return op
 
 
 @register_pass("fuse_transpose")
