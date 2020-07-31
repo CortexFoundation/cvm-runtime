@@ -2227,7 +2227,7 @@ class Sqrt(Transformer):
 class InstanceNorm(Transformer):
     def rewrite(self, op, **kwargs):
         infer_shapes = kwargs["infer_shapes"]
-        name = op.attr("name")
+        name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
         cns = [c.attr('name') for c in childs]
         X, gamma, beta = childs
@@ -2241,24 +2241,40 @@ class InstanceNorm(Transformer):
 
         axis = [i for i in range(len(xshp)) if i != 1]
         for i in axis:
-            gamma = mx.sym.expand_dims(gamma, axis=i)
-            beta = mx.sym.expand_dims(beta, axis=i)
+            gamma = mx.sym.expand_dims(
+                gamma, axis=i, name=N.n("expand_dims"))
+            beta = mx.sym.expand_dims(
+                beta, axis=i, name=N.n("expand_dims"))
+
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        assert len(batch_axes) == 1 and batch_axes[0] == 0, \
+            "Only NCH... format is supported for op: (%s). " + \
+            "name: (%s), batch_axes: (%s)." % \
+            (op_name, name, batch_axes)
 
         mul = nd_const(
             1/np.product(xshp[2:]),
             kwargs["graph"], kwargs["params"])
         mean = mx.sym.broadcast_mul(
-            mx.sym.sum(X, axis=axis, keepdims=True), mul)
-        dev = mx.sym.broadcast_sub(X, mean)
-        dev_mul = mx.sym.broadcast_mul(dev, dev)
+            mx.sym.sum(X, axis=axis, keepdims=True, name=N.n("sum")),
+            mul, name=N.n("broadcast_mul"))
+        dev = mx.sym.broadcast_sub(X, mean, name=N.n("broadcast_sub"))
+        dev_mul = mx.sym.broadcast_mul(
+            dev, dev, name=N.n("broadcast_mul"))
         var = mx.sym.broadcast_mul(
-            mx.sym.sum(dev_mul, axis=axis, keepdims=True), mul)
+            mx.sym.sum(dev_mul, axis=axis, keepdims=True, name=N.n("sum")),
+            mul, name=N.n("broadcast_mul"))
         eps = nd_const(
             get_attr(attrs, "eps", 0.00100000005),
             kwargs["graph"], kwargs["params"])
-        std = mx.sym.broadcast_add(mx.sym.sqrt(var), eps)
-        frac = mx.sym.broadcast_div(dev, std)
-        frac_mul = mx.sym.broadcast_mul(frac, gamma)
+        std = mx.sym.broadcast_add(
+            mx.sym.sqrt(var, name=N.n("sqrt")),
+            eps, name=N.n("broadcast_add"))
+        frac = mx.sym.broadcast_div(
+            dev, std, name=N.n("broadcast_div"))
+        frac_mul = mx.sym.broadcast_mul(
+            frac, gamma, name=N.n("broadcast_mul"))
         op = mx.sym.broadcast_add(frac_mul, beta, name=name)
         return op
 
@@ -2273,30 +2289,38 @@ class BatchDot(Transformer):
 @register_pass("fuse_transpose")
 @register_transformer("broadcast_like")
 class BroadcastLike(Transformer):
+    def _broadcast_like(self, X, W, name, **kwargs):
+        graph, params = kwargs["graph"], kwargs["params"]
+        one = nd_const(1, graph, params)
+        zero = nd_const(0, graph, params)
+        nW = mx.sym.broadcast_add(
+            mx.sym.broadcast_mul(W, zero, name=N.n("broadcast_mul")),
+            one, name=N.n("broadcast_add"))
+        op = mx.sym.broadcast_mul(X, nW, name=name)
+        return op
+
     def rewrite(self, op, **kwargs):
         infer_shapes = kwargs["infer_shapes"]
-        name = op.attr("name")
+        name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
         cns = [c.attr("name") for c in childs]
         X, W = childs
 
-        xshp = list(infer_shapes[cns[0]][get_entry_id(X)])
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
         xndims = len(xshp)
-        wshp = list(infer_shapes[cns[1]][get_entry_id(W)])
+        wshp = infer_shapes[cns[1]][get_entry_id(W)]
         wndims = len(wshp)
-
         lhs_axes = get_attr(attrs, "lhs_axes", None)
         rhs_axes = get_attr(attrs, "rhs_axes", None)
+
         if lhs_axes is None or rhs_axes is None:
-            assert xndims == wndims
-            lhs_axes = [v for v in range(xndims) if xshp[v] == 1]
-            rhs_axes = lhs_axes[:]
-        else:
-            lhs_axes = list(lhs_axes)
-            rhs_axes = list(rhs_axes)
-        lndims = len(lhs_axes)
-        rndims = len(rhs_axes)
-        assert lndims == rndims and lndims > 0
+            assert xndims == wndims and lhs_axes is None \
+                and rhs_axes is None
+            return self._broadcast_like(X, W, name, **kwargs)
+
+        lhs_axes, lndims = list(lhs_axes), len(lhs_axes)
+        rhs_axes, rndims = list(rhs_axes), len(rhs_axes)
+        assert lndims == rndims > 0
 
         lhs_axes = tuple([v+xndims if v<0 else v for v in lhs_axes])
         assert all([0<=v<xndims for v in list(lhs_axes)])
@@ -2304,11 +2328,95 @@ class BroadcastLike(Transformer):
         rhs_axes = tuple([v+wndims if v<0 else v for v in rhs_axes])
         assert all([0<=v<wndims for v in list(rhs_axes)])
 
-        assert all([xshp[lhs_axes[i]]==1 for i in range(lndims)])
+        assert all([xshp[lhs_axes[i]] == 1 for i in range(lndims)])
 
-        cnts = {v: wshp[rhs_axes[i]] for i, v in enumerate(lhs_axes)}
-        reps = tuple([cnts[v] if v in lhs_axes else 1 for v in range(xndims)])
-        op = mx.sym.tile(X, reps=reps, name=name)
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        flg = all([batch_axis not in rhs_axes \
+            for batch_axis in batch_axes])
+        if flg:
+            cnts = {v: wshp[rhs_axes[i]] \
+                for i, v in enumerate(lhs_axes)}
+            reps = tuple([cnts[v] if v in lhs_axes else 1 \
+                for v in range(xndims)])
+            return mx.sym.tile(X, reps=reps, name=name)
+
+        axis_map = {}
+        for i, v in enumerate(lhs_axes):
+            axis_map[v] = rhs_axes[i]
+        for batch_axis in batch_axes:
+            assert sum([1 if v == batch_axis else 0 \
+                for k, v in axis_map.items()]) <= 1, \
+                "multiple broadcast on batch_axis: (%s), " + \
+                "which is not support by dynamic shape fusion. " + \
+                "name: (%s), op_name: (%s)" % (batch_axis, name, op_name)
+        assert wndims < 6, "slice can manipulate at most 5d, " + \
+            "name: (%s), op_name: (%s)" % (name, op_name)
+
+        # reduce shape to 1 for non-broadcast dimensions
+        begin = tuple([0]*wndims)
+        end = tuple([wshp[v] if v in axis_map.values() else 1 \
+            for v in range(wndims)])
+        W = mx.sym.slice(
+            W, begin=begin, end=end, name=N.n("slice"))
+
+        # decompose k1->v, k2->v into k1->v, k2->v2
+        # which make axis
+        while True:
+            vs, flag, paxis_map = set(), True, axis_map
+            for pk, pv in paxis_map.items():
+                if pv not in vs:
+                    vs.add(pv)
+                    continue
+                flag = False
+                axis_map = {k: (v+1 if v>pv or k==pk else v) \
+                    for k, v in axis_map.items()}
+                W = mx.sym.expand_dims(
+                    W, axis=pv, name=N.n("expand_dims"))
+                W = mx.sym.repeat(
+                    W, axis=pv, repeats=wshp[pv], name=N.n("repeat"))
+                wshp = wshp[:pv] + (wshp[pv],) + wshp[pv:]
+                break
+            if flag:
+                break
+        wndims = len(wshp)
+
+        # trim wndims if not equal to xndims
+        v = 0
+        while wndims > xndims:
+            while v in axis_map.values():
+                v += 1
+            W = mx.sym.squeeze(W, axis=v, name=N.n("squeeze"))
+            wndims -= 1
+            axis_map = {k: (nv-1 if nv > v else nv) \
+                for k, nv in axis_map.items()}
+        while wndims < xndims:
+            W = mx.sym.expand_dims(
+                W, axis=wndims, name=N.n("expand_dims"))
+            wndims += 1
+        axes = list(range(wndims))
+        while True:
+            dels = [k for k, v in axis_map.items() if k==v]
+            for k in dels:
+                del axis_map[k]
+            if not axis_map:
+                break
+            keys = list(axis_map.keys())
+            k, v = keys[0], axis_map[keys[0]]
+            axes[k], axes[v] = axes[v], axes[k]
+            for nk in keys:
+                nv = axis_map[nk]
+                if nv == k:
+                    axis_map[nk] = v
+                elif nv == v:
+                    axis_map[nk] = k
+        axes = tuple(axes)
+        if axes != tuple(range(wndims)):
+            assert wndims < 7, \
+                "slice can manipulate at most 6d"
+            W = mx.sym.transpose(W, axes=axes, name=N.n("transpose"))
+
+        op = self._broadcast_like(X, W, name, **kwargs)
         return op
 
 
@@ -2317,20 +2425,21 @@ class BroadcastLike(Transformer):
 class ReshapeLike(Transformer):
     def rewrite(self, op, **kwargs):
         infer_shapes = kwargs["infer_shapes"]
-        name = op.attr("name")
+        name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
         cns = [c.attr("name") for c in childs]
         X, W = childs
 
-        xshp = list(infer_shapes[cns[0]][get_entry_id(X)])
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
         xndims = len(xshp)
-        wshp = list(infer_shapes[cns[1]][get_entry_id(W)])
+        wshp = infer_shapes[cns[1]][get_entry_id(W)]
         wndims = len(wshp)
+        print(xshp, wshp)
 
         lhs_begin = get_attr(attrs, "lhs_begin", 0)
-        lhs_end = get_attr(attrs, "lhs_end", xndims-1)
+        lhs_end = get_attr(attrs, "lhs_end", xndims)
         rhs_begin = get_attr(attrs, "rhs_begin", 0)
-        rhs_end = get_attr(attrs, "rhs_end", wndims-1)
+        rhs_end = get_attr(attrs, "rhs_end", wndims)
 
         lhs_begin = lhs_begin+xndims if lhs_begin < 0 else lhs_begin
         lhs_end = lhs_end+xndims if lhs_end< 0 else lhs_end
@@ -2340,8 +2449,18 @@ class ReshapeLike(Transformer):
         rhs_end = rhs_end+wndims if rhs_end< 0 else rhs_end
         assert 0 <= rhs_begin < rhs_end <= wndims
 
-        rshp = tuple(xshp[:lhs_begin] + \
-            wshp[rhs_begin:rhs_end] + xshp[lhs_end:])
+        rshp = xshp[:lhs_begin] + \
+            wshp[rhs_begin:rhs_end] + xshp[lhs_end:]
+
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        assert len(batch_axes) == 1, \
+            "Dynamic batch shape fusion of (%s) only support" + \
+            "single dimension of batch. Providied: (%s)" % \
+            (op_name, batch_axes)
+        batch_axis = batch_axes[0]
+        rshp = rshp[:batch_axis] + (-1,) + rshp[batch_axis+1:]
+
         op = mx.sym.reshape(X, shape=rshp, name=name)
         return op
 

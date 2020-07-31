@@ -707,7 +707,6 @@ def sym_calibrate(symbol, params, data, **kwargs):
         else:
             cinfos = [(c.attr('name'), get_entry_id(c)) for c in childs]
             nd_inputs = [out_cache[n[0]][n[1]] for n in cinfos]
-            print(name, op_name)
             out = get_nd_op(op_name)(*nd_inputs, **attr)
             for n, _ in cinfos:
                 assert n in deps

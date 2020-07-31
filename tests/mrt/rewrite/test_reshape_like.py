@@ -10,7 +10,7 @@ def get_norm(data):
     norm = np.linalg.norm(data)
     return norm, data
 
-def verify_reshape_like(
+def verify_reshape_like_dynamic(
     xshp, wshp, lhs_begin, lhs_end, rhs_begin, rhs_end):
     x_np = np.random.uniform(size=xshp)
     w_np = np.random.uniform(size=wshp)
@@ -33,9 +33,17 @@ def verify_reshape_like(
     rhs_end = rhs_end+wndims if rhs_end< 0 else rhs_end
     assert 0 <= rhs_begin < rhs_end <= wndims
 
-    rshp = tuple(xshp[:lhs_begin] + \
-        wshp[rhs_begin:rhs_end] + xshp[lhs_end:])
-    z = nd.reshape(x, rshp)
+    rshp = xshp[:lhs_begin] + \
+        wshp[rhs_begin:rhs_end] + xshp[lhs_end:]
+
+    batch_axes = [0]
+    assert len(batch_axes) == 1, \
+        "Dynamic batch shape fusion only support" + \
+        "single dimension of batch. Providied: (%s)" % batch_axes
+    batch_axis = batch_axes[0]
+    rshp = rshp[:batch_axis] + (-1,) + rshp[batch_axis+1:]
+
+    z = nd.reshape(x, shape=rshp)
 
     # compare
     assert z.shape == y.shape
@@ -45,5 +53,5 @@ def verify_reshape_like(
     print(zn, yn, rn)
 
 if __name__ == '__main__':
-    verify_reshape_like((30,12), (4,2,2,3), -1, 2, 1, 4)
+    verify_reshape_like_dynamic((30,12), (4,2,2,3), -1, 2, 1, 4)
     # test()
