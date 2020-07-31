@@ -7,8 +7,17 @@ Welcome to cvm-runtime's documentation!
 =======================================
 
 .. toctree::
+  :maxdepth: 2
+  :caption: HowTo
+
+  cvm/install
+  guide/contrib/index
+  guide/dev_guide
+  guide/design
+
+.. toctree::
    :maxdepth: 2
-   :caption: CVM CONTENTS
+   :caption: CONTENTS
 
    cvm/index
    mrt/index
