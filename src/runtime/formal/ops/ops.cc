@@ -611,8 +611,9 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.slice_like")
     auto Y_data = CVMArg2Data<int32_t>(args[2]); 
     // d_k represent the coordinate index
     // Y[d_0, d_1,,,] = X[d_0, d_1,,,]
-    for (Indices Y_indices(Y_shape); !Y_indices.End(); ++Y_indices) {
-      Indices X_indices(X_shape, Y_indices);
+    Indices X_indices(X_shape), Y_indices(Y_shape);
+    for (; !Y_indices.End(); ++Y_indices) {
+      X_indices.CopyIndicesFrom(Y_indices);
       Y_data[Y_indices.Index()] = X_data[X_indices.Index()];
     }
 
