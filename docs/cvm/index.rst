@@ -11,7 +11,6 @@ The CVM Runtime library is used in @CortexLabs full-node project: `CortexTheseus
 .. toctree::
   :maxdepth: 2
 
-  Installation <install.md>
   OPs Table <ops.md>
 
 Python API
@@ -51,8 +50,7 @@ Model graph generally used to construct the network like `keras` does. This modu
 C++ API
 =======
 
-.. doxygenclass:: cvm::runtime::Indices
-  :members:
+.. toctree::
+  :maxdepth: 3
 
-.. doxygenclass:: cvm::TShape
-  :members:
+  All API <capi/index>
