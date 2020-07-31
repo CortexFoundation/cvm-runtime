@@ -2234,6 +2234,7 @@ class Sqrt(Transformer):
 
 
 @register_pass("fuse_transpose")
+# @register_pass("rewrite")
 @register_transformer("InstanceNorm")
 class InstanceNorm(Transformer):
     def rewrite(self, op, **kwargs):
@@ -2264,12 +2265,13 @@ class InstanceNorm(Transformer):
             "name: (%s), batch_axes: (%s)." % \
             (op_name, name, batch_axes)
 
+        sum_x = mx.sym.sum(
+            X, axis=axis, keepdims=True, name=N.n("sum"))
         mul = nd_const(
             1/np.product(xshp[2:]),
             kwargs["graph"], kwargs["params"])
         mean = mx.sym.broadcast_mul(
-            mx.sym.sum(X, axis=axis, keepdims=True, name=N.n("sum")),
-            mul, name=N.n("broadcast_mul"))
+            sum_x, mul, name=N.n("broadcast_mul"))
         dev = mx.sym.broadcast_sub(X, mean, name=N.n("broadcast_sub"))
         dev_mul = mx.sym.broadcast_mul(
             dev, dev, name=N.n("broadcast_mul"))
