@@ -49,7 +49,7 @@ memory, time-spending, etc. And then the logic error will still
 consume the invoker's CTXC token according to the Endophin cost 
 even if the inference fails, whereas the runtime error won't.
 
-**Briefly, a logic error is caused by model supplyer or invoker
+**Briefly, a logic error is caused by model supplier or invoker
 usually, so it's user's responsibility to take the failure.
 And the generic situation that a runtime error occurs is out of
 source code bug.**
