@@ -5,6 +5,9 @@ C Backend API
 This is a reference to :cpp:class:`utils::ValueVerifyFatal`.
 :c:func:`VERIFY`.
 
+.. doxygenclass:: cvm::Op
+  :members:
+
 .. doxygenclass:: cvm::runtime::Indices
   :members:
 

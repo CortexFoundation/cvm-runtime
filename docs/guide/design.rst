@@ -65,3 +65,21 @@ Example Inference Flow
 
 Operator Math Formalization
 ===========================
+
+Reduce Operator
+---------------
+
+.. toctree::
+  :maxdepth: 2
+
+  formalization
+
+.. math::
+
+  T = \left\{i \mid \text{axis} \in \text{axes} \wedge
+  i = \begin{cases}
+  \text{axis}, & \text{if axis } \geqslant 0 \\
+  \text{axis} + N, & \text{otherwise}
+  \end{cases} \right\}, \\
+  \text{where } card \; \text{T} = M \text{ and }
+  j \in [0, N), \forall j \in \text{T}
