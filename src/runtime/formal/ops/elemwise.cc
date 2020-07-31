@@ -16,10 +16,11 @@ static void elemwise(const cvm::runtime::CVMArgValue& A,
                       elemwise_func const &f){
     // inputs: A, B
     // outputs: Y
-    auto a = CVMArg2Data<int32_t>(A); 
-    auto b = CVMArg2Data<int32_t>(B); 
-    auto c = CVMArg2Data<int32_t>(Y); 
-    for(int32_t i = CVMShapeBegin(A); i < CVMShapeEnd(A); i++){
+    auto a = CVMArg2Data<int32_t>(A);
+    auto b = CVMArg2Data<int32_t>(B);
+    auto c = CVMArg2Data<int32_t>(Y);
+    int32_t end = CVMShapeEnd(A);
+    for(int32_t i = CVMShapeBegin(A); i < end; i++){
       c[i] = f(a[i], b[i]);
     }
 }

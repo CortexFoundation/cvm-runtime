@@ -9,12 +9,9 @@ namespace runtime {
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
-  auto X = args[0];
-  auto Y = args[1];
-
-  auto X_data = CVMArg2Data<int32_t>(X);
-  auto Y_data = CVMArg2Data<int32_t>(Y);
-  TShape const& shp = CVMArgShape(X);
+  auto X_data = CVMArg2Data<int32_t>(args[0]);
+  auto Y_data = CVMArg2Data<int32_t>(args[1]);
+  const TShape &shp = CVMArgShape(args[0]);
 
   for (size_t i = 0; i < shp.Size(); ++i) {
     Y_data[i] = std::max(X_data[i], 0);
@@ -42,26 +39,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   auto X_data = CVMArg2Data<int32_t>(X); 
   auto W_data = CVMArg2Data<int32_t>(W); 
   auto Y_data = CVMArg2Data<int32_t>(Y); 
-  // Y = X * WT
+  // Y = X * W^T
+  Indices xIdx(X_shape), wIdx(W_shape), yIdx(Y_shape);
   for (int64_t m = 0; m < Y_shape[0]; ++m) {
     // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
-    int32_t Y_offset = m * Y_shape[1], X_offset = m * X_shape[1];
+    xIdx[0] = m;
     for (int64_t n = 0; n < Y_shape[1]; ++n) {
-      int32_t sum = 0, W_offset = n * W_shape[1];
+      wIdx[0] = n;
+      int32_t sum = 0;  //, W_offset = n * W_shape[1];
       for (int64_t k = 0; k < X_shape[1]; ++k) {
-        sum += X_data[X_offset + k] * W_data[W_offset + k];
+        xIdx[1] = k, wIdx[1] = k;
+        sum += X_data[xIdx.Index()] * W_data[wIdx.Index()];
       }
-      Y_data[Y_offset + n] = sum;
+      Y_data[yIdx.Index()] = sum;
+      yIdx++;
     }
   }
   // if B is not None, Y = X * WT + B
   if (param.use_bias) {
     auto B = args[2];
-    auto B_data = CVMArg2Data<int32_t>(B); 
+    auto B_data = CVMArg2Data<int32_t>(B);
+    Indices yIdx(Y_shape);
     for (int64_t m = 0; m < Y_shape[0]; ++m) {
-      int32_t Y_offset = m * Y_shape[1];
+      yIdx[0] = m;
       for (int64_t n = 0; n < Y_shape[1]; ++n) {
-        Y_data[Y_offset + n] += B_data[n];
+        yIdx[1] = n;
+        Y_data[yIdx.Index()] += B_data[n];
       }
     }
   }
@@ -138,22 +141,23 @@ static void groupwise_conv2d(
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
-  DLTensor *x = args[0];
-  DLTensor *w = args[1];
-  DLTensor *b = nullptr; //args[2];
-  DLTensor *y = nullptr;
-  void *_attr;
+  //DLTensor *x = args[0];
+  //DLTensor *w = args[1];
+  //DLTensor *b = nullptr; //args[2];
+  //DLTensor *y = nullptr;
+  //void *_attr;
 
-  if(args.num_args == 5){
-    b = args[2];
-    y = args[3];
-    _attr = args[4];
-  } else {
-    y = args[2];
-    _attr = args[3];
-  }
-  auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-  auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
+  //if(args.num_args == 5){
+  //  b = args[2];
+  //  y = args[3];
+  //  //_attr = args[4];
+  //} else {
+  //  y = args[2];
+  //  //_attr = args[3];
+  //}
+  //auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+  //auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
+  auto& param = CVMArg2Attr<top::Conv2DParam>(args[args.num_args - 1]);
   int groups = param.groups;
   int dilation[2] = {(int)param.dilation[0], (int)param.dilation[1]};
   // int kernel_size[2] = {(int)param.kernel_size[0], (int)param.kernel_size[1]};
@@ -165,22 +169,26 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
   //int dilation_h = dilation[0];
   //int dilation_w = dilation[1];
 
-  int32_t* x_data = (int32_t*)x->data;
-  int32_t* w_data = (int32_t*)w->data;
-  int32_t* y_data = (int32_t*)y->data;
-  int32_t* b_data = b != nullptr ? (int32_t*)b->data : nullptr;
+  int32_t* x_data = CVMArg2Data<int32_t>(args[0]);
+  int32_t* w_data = CVMArg2Data<int32_t>(args[1]);
+  int32_t* y_data = CVMArg2Data<int32_t>(param.use_bias ? args[3] : args[2]);
+  int32_t* b_data = param.use_bias ? CVMArg2Data<int32_t>(args[2]) : nullptr;
+  // b != nullptr ? (int32_t*)b->data : nullptr;
 
-  int out_channels = static_cast<int>(w->shape[0]);
-  int filter_c = static_cast<int>(w->shape[1]);
-  int filter_h = static_cast<int>(w->shape[2]);
-  int filter_w = static_cast<int>(w->shape[3]);
+  TShape const& xShape = CVMArgShape(args[0]);
+  TShape const& wShape = CVMArgShape(args[1]);
+
+  int out_channels = static_cast<int>(wShape[0]);
+  int filter_c = static_cast<int>(wShape[1]);
+  int filter_h = static_cast<int>(wShape[2]);
+  int filter_w = static_cast<int>(wShape[3]);
   int t_filter_h = (filter_h - 1) * dilation[0] + 1;
   int t_filter_w = (filter_w - 1) * dilation[1] + 1;
 
-  int n_batch = static_cast<int>(x->shape[0]);
-  int in_channels = static_cast<int>(x->shape[1]);
-  int x_h = static_cast<int>(x->shape[2]);
-  int x_w = static_cast<int>(x->shape[3]);
+  int n_batch = static_cast<int>(xShape[0]);
+  int in_channels = static_cast<int>(xShape[1]);
+  int x_h = static_cast<int>(xShape[2]);
+  int x_w = static_cast<int>(xShape[3]);
   int o_h = (x_h + 2 * padding[0] - t_filter_h) / strides[0] + 1;
   int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
@@ -200,7 +208,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
         b_data,
         padding, stride_h, stride_w, dilation[0], dilation[1]);
   }
-  print_to_file(y, "conv2d.txt");
 });
 
 
