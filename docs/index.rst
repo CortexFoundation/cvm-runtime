@@ -10,11 +10,10 @@ Welcome to cvm-runtime's documentation!
   :maxdepth: 2
   :caption: HowTo
 
-  Installation <cvm/install.md>
-  Developer Guideline <guide/dev_guide>
-  Write Document and Tutorials <guide/write_document>
-  Code Guide and Tips <guide/code_style>
-  Design and Architecture <guide/design>
+  cvm/install
+  guide/contrib/index
+  guide/dev_guide
+  guide/design
 
 .. toctree::
    :maxdepth: 2
