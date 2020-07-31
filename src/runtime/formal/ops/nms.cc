@@ -120,7 +120,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.non_max_suppression")
       int32_t *y_batch = Y + b * N * K; // temporary variable
       // dynamic calculate U, and n \in [0, min{n_max, card{U})
       for (int32_t p = 0; n < n_max && p < p_max; ++p) { // p \in [0, p_max)
-        if (R[p][0] < 0) continue; // R[b, p, 0] >= 0
+        // R[b, p, 0] is the id of an object in batch b. An id must be>= 0
+        if (R[p][0] < 0) continue;
 
         bool ignored = false; // iou(p, q) <= iou_threshold, \forall q in U.
         for (int32_t i = 0; i < n; ++i) {

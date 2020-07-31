@@ -372,6 +372,41 @@ inline const DLTensor* NDArray::operator->() const {
   return &(data_->dl_tensor);
 }
 
+inline void printDType(DLDataType dtype, std::string message) {
+  std::cout << message << "code: " << (int)dtype.code
+            << "\tbits: " << (int)dtype.bits
+            << "\tlanes: " << (int)dtype.lanes << std::endl;
+}
+
+inline void printTensor(const DLTensor* tmp) {
+  std::cout << "the tensor content: ndim: " << tmp->ndim << ", shape: ";
+  int tmpsize = 1;
+  for (int j = 0; j < tmp->ndim; j++) {
+    std::cout << tmp->shape[j] << " ";
+    tmpsize *= tmp->shape[j];
+  }
+  std::cout << std::endl;
+  for (int j = 0; j < tmpsize; j++) {
+    int64_t out_data = 123456789;
+    switch (tmp->dtype.bits) {
+      case 8:
+        out_data = ((int8_t*)tmp->data)[j];
+        break;
+      case 32:
+        out_data = ((int32_t*)tmp->data)[j];
+        break;
+      case 64:
+        out_data = ((int64_t*)tmp->data)[j];
+        break;
+      default:
+        break;
+    }
+    std::cout << out_data << " ";
+  }
+  std::cout << std::endl;
+}
+
+
 /*! \brief Magic number for NDArray file */
 constexpr uint64_t kCVMNDArrayMagic = 0xDD5E40F096B4A13F;
 
@@ -446,13 +481,16 @@ inline bool NDArray::Load(utils::Stream* strm) {
       << "Invalid DLTensor file format";
   CHECK(strm->Read(&dtype))
       << "Invalid DLTensor file format";
-  CHECK_EQ(ctx.device_type, kDLCPU)
-      << "Invalid DLTensor context: can only save as CPU tensor";
-  VERIFY((dtype.code == kDLInt) && 
-      (dtype.bits == 8 || dtype.bits == 32) &&
-      (dtype.lanes == 1))
-    << "cvm runtime only supported INT8 or INT32 NDArray vs. ("
-    << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
+  // what the following code did is now done in CvmRuntime::SetInput
+  //CHECK_EQ(ctx.device_type, kDLCPU)
+  //    << "Invalid DLTensor context: can only save as CPU tensor";
+  //std::cout << (int)dtype.code << "\t" << (int)dtype.bits << "\t" << (int)dtype.lanes
+  //          << std::endl;
+  //VERIFY((dtype.code == kDLInt) &&
+  //    (dtype.bits == 8 || dtype.bits == 32) &&
+  //    (dtype.lanes == 1))
+  //  << "cvm runtime only supported INT8 or INT32 NDArray vs. ("
+  //  << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
 
   std::vector<int64_t> shape(ndim);
   if (ndim != 0) {
@@ -476,19 +514,21 @@ inline bool NDArray::Load(utils::Stream* strm) {
     utils::ByteSwap(ret->data, elem_bytes, num_elems);
   }
 
-  if(dtype.bits == 8){
-      DLDataType dtype32 = dtype;
-      dtype32.bits = 32;
-      NDArray ret32 = NDArray::Empty(shape, dtype32, ctx);
-      int8_t *data8 = static_cast<int8_t*>(ret->data);
-      int32_t *data32 = static_cast<int32_t*>(ret32->data);
-      for(int i = 0; i < num_elems; i++){
-        data32[i] = static_cast<int32_t>(data8[i]);
-      }
-      *this = ret32;
-  }else{
-      *this = ret;
-  }
+  // what the following code did is now done in CvmRuntime::SetInput
+  //if(dtype.bits == 8){
+  //    DLDataType dtype32 = dtype;
+  //    dtype32.bits = 32;
+  //    NDArray ret32 = NDArray::Empty(shape, dtype32, ctx);
+  //    int8_t *data8 = static_cast<int8_t*>(ret->data);
+  //    int32_t *data32 = static_cast<int32_t*>(ret32->data);
+  //    for(int i = 0; i < num_elems; i++){
+  //      data32[i] = static_cast<int32_t>(data8[i]);
+  //    }
+  //    *this = ret32;
+  //}else{
+  //    *this = ret;
+  //}
+  *this = ret;
   return true;
 }
 
