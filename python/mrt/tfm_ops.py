@@ -1213,7 +1213,30 @@ class BroadcastAdd(Transformer):
 @register_pass("compile")
 @register_transformer("broadcast_div")
 class BroadcastDiv(Transformer):
-    pass
+    def quantize(self, op, **kwargs):
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        X, Y = sym_iter(op.get_children())
+        xn, yn = X.attr("name"), Y.attr("name")
+
+        xs, ys = scales[xn], scales[yn]
+        th = th_dict[name]
+
+        if get_bit(th*xs/ys) > MAX_BIT:
+            ys = xs / scale(th, MAX_BIT)
+            yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
+            Y, _, ys = requant(
+                Y, yprec, oname=N.n("denominator"), **kwargs)
+
+            xs = scale(th, MAX_BIT) * ys
+            xprec = get_bit(th_dict[xn] * xs)
+            X, _, xs = requant(
+                X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
+
+        oscale = scales[name] = xs / ys
+        precs[name][OUT_KEY] = get_bit(th * oscale)
+        return get_mxnet_op(op_name)(X, Y, name=name)
 
 
 @register_pass("calculate_ops")
@@ -2234,7 +2257,6 @@ class Sqrt(Transformer):
 
 
 @register_pass("fuse_transpose")
-# @register_pass("rewrite")
 @register_transformer("InstanceNorm")
 class InstanceNorm(Transformer):
     def rewrite(self, op, **kwargs):
@@ -2447,7 +2469,6 @@ class ReshapeLike(Transformer):
         xndims = len(xshp)
         wshp = infer_shapes[cns[1]][get_entry_id(W)]
         wndims = len(wshp)
-        print(xshp, wshp)
 
         lhs_begin = get_attr(attrs, "lhs_begin", 0)
         lhs_end = get_attr(attrs, "lhs_end", xndims)
