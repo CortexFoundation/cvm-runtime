@@ -31,22 +31,23 @@ The corresponding exception classes declared refer to
 :cpp:class:`utils::LogMessageFatal` and
 :cpp:class:`utils::ValueVerifyFatal` for more details.
 
-And developer only need to assert conditions with pre-defined
-macros, such as :c:func:`VERIFY` and :c:func:`CHECK`. A example
-usage likes:
+Developer need to assert conditions with pre-defined macros,
+such as :c:func:`CHECK` and :c:func:`VERIFY`. :c:func:`CHECK`
+macro will throw runtime exception and :c:func:`VERIFY` will
+throw logic error. A example usage likes this:
   
 .. code-block:: C
 
-  VERIFY(condition) << "error information";
   CHECK(condition) << "error information";
+  VERIFY(condition) << "error information";
 
 Now it's important to understand the difference between the two
 exceptions. One should know the cvm-runtime project is intergral
 to the CVM in Cortex Foundation's full-node: CortexTheasus. A
 inference call in the cortex blockchain will cost the Endophin,
 A calculation unit for model inference takes up, including
-memory, time-spending, etc. And then the logic error will still
-consume the invoker's CTXC token according to the Endophin cost 
+memory, time-spending, etc. And then according to the Endophin
+cost, the logic error will consume the invoker's CTXC token 
 even if the inference fails, whereas the runtime error won't.
 
 **Briefly, a logic error is caused by model supplier or invoker
@@ -66,13 +67,15 @@ Example Inference Flow
 Operator Math Formalization
 ===========================
 
+This will give a full exhaustive explanation to CVM operators,
+which are defined with the macro function `CVM_REGISTER_OP`.
+The formalization version source code has a strong correlation
+with this mathematical description, while other versions like
+CPU, CUDA, will only promise the consistent inference result,
+with arbitrary process logic.
+
 Reduce Operator
 ---------------
-
-.. toctree::
-  :maxdepth: 2
-
-  formalization
 
 .. math::
 
