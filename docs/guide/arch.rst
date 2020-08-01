@@ -232,7 +232,119 @@ max
     \text{REDUCE_FUNC}(Z) = \max Z,
 
 
+Broadcast Operators
+~~~~~~~~~~~~~~~~~~~
 
+broadcast_add
+~~~~~~~~~~~~~
+
+broadcast_sub
+~~~~~~~~~~~~~
+
+broadcast_mul
+~~~~~~~~~~~~~
+
+broadcast_div
+~~~~~~~~~~~~~
+
+broadcast_max
+~~~~~~~~~~~~~
+
+NN Operators
+------------
+
+conv2d
+~~~~~~
+
+dense
+~~~~~
+
+relu
+~~~~
+
+max_pool2d
+~~~~~~~~~~
+
+upsampling
+~~~~~~~~~~
+
+Elemwise Operators
+------------------
+
+abs
+~~~
+
+cvm_precision
+~~~~~~~~~~~~~
+
+elemwise_add
+~~~~~~~~~~~~
+
+elemwise_sub
+~~~~~~~~~~~~
+
+negative
+~~~~~~~~
+
+clip
+~~~~
+
+cvm_cilp
+~~~~~~~~
+
+cvm_right_shift
+~~~~~~~~~~~~~~~
+
+cvm_left_shift
+~~~~~~~~~~~~~~
+
+Transform Operators
+-------------------
+
+repeat
+~~~~~~
+
+tile
+~~~~
+
+flatten
+~~~~~~~
+
+concatenate
+~~~~~~~~~~~
+
+transpose
+~~~~~~~~~
+
+slice
+~~~~~
+
+take
+~~~~
+
+cvm_lut
+~~~~~~~
+
+slice_like
+~~~~~~~~~~
+
+expand_dims
+~~~~~~~~~~~
+
+reshape
+~~~~~~~
+
+squeeze
+~~~~~~~
+
+Vision Operators
+----------------
+
+get_valid_count
+~~~~~~~~~~~~~~~
+
+non_max_suppression
+~~~~~~~~~~~~~~~~~~~
 
 
 
