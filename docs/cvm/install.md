@@ -93,6 +93,10 @@ CVM support `sphinx` documentation, and before compile the documentation in dire
 pip install -r docs/requirements.txt
 ```
 
+Besides, check your system have installed the doxygen for C++ API
+generator. Refer to offical website for more details:
+[Doxygen Install](https://www.doxygen.nl/manual/install.html).
+
 And then generate the html format with this command:
 
 ``` bash
