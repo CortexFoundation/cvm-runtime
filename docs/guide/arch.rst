@@ -70,6 +70,11 @@ Example Inference Flow
 Operator Math Formalization
 ===========================
 
+.. note::
+
+  Write this section document refer to the doc:
+  :ref:`Math Format <write_math_formalization>` please.
+
 This will give a full exhaustive explanation to CVM operators,
 which are defined with the macro function `CVM_REGISTER_OP`.
 The formalization version source code has a strong correlation
@@ -82,7 +87,9 @@ All the operators' formalization obeys the unify format:
 .. math::
 
   Y[y_\text{indices}] = X[x_\text{indices}], \\
+
   \forall \text{given range}, \\
+
   \text{where } \text{condition}_1 \text{ and } \text{condition}_2 \text{ and } 
   \cdots \text{condition}_n
 
@@ -199,8 +206,7 @@ sum
   .. math::
     \text{REDUCE_FUNC}(Z) = \sum Z,
 
-Example
-^^^^^^^
+*Example*
 
 .. code-block:: Python
 
