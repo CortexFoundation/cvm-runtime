@@ -619,9 +619,15 @@ class SliceChannel(Transformer):
 
 @register_pass("fuse_transpose")
 @register_pass("rewrite")
+@register_pass("quantize")
 @register_pass("prepare_for_compile")
 @register_transformer('UpSampling')
 class UpSampling(Transformer):
+    def validate(self, op, **kwargs):
+        attrs = op.list_attr()
+        sample_type = get_attr(attrs, "sample_type")
+        assert sample_type == "nearest"
+
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
         attrs = kwargs['attr']
