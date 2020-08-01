@@ -56,6 +56,7 @@ std::map<string, NDArray> load_param_dict(CVMByteArray data) {
               << "tensor is ";
     cvm::runtime::printTensor(&tensor->dl_tensor);
     ret[name] = NDArray(tensor);
+    tensor->DecRef();
   }
   CHECK(CVMDeleteLDPointer(retNum, retName, retVal) == 0)
       << "CVMDeleteLDPointer failed\n";

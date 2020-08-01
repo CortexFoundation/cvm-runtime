@@ -986,7 +986,7 @@ int CVMDeleteLDPointer(int num, char** names, void** values) {
   API_BEGIN();
   for (int i = 0; i < num; i++) {
     delete names[i];
-    ((cvm::runtime::NDArray::Container*)values[i])->DecRef();
+    //((cvm::runtime::NDArray::Container*)values[i])->DecRef();
   }
   delete[] names;
   delete[] values;
