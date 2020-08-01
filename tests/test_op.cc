@@ -659,33 +659,33 @@ void test_op(string op_name) {
   }
 }
 int main() {
-  test_op("max_pool2d"); // formal & cpu pass
-  test_op("upsampling"); // formal & cpu pass
-  test_op("dense");  // formal & cpu pass
-  test_op("conv2d"); // formal & cpu pass
-  test_op("sum");  // formal & cpu pass
-  test_op("max");  // formal & cpu pass
-  test_op("slice_like"); // formal & cpu pass
-  test_op("tile"); // formal & cpu pass
-  test_op("repeat"); // formal & cpu pass
-  test_op("get_valid_counts");  // formal & CPU pass
+  //test_op("max_pool2d"); // formal & cpu pass
+  //test_op("upsampling"); // formal & cpu pass
+  //test_op("dense");  // formal & cpu pass
+  //test_op("conv2d"); // formal & cpu pass
+  //test_op("sum");  // formal & cpu pass
+  //test_op("max");  // formal & cpu pass
+  //test_op("slice_like"); // formal & cpu pass
+  //test_op("tile"); // formal & cpu pass
+  //test_op("repeat"); // formal & cpu pass
+  //test_op("get_valid_counts");  // formal & CPU pass
 
-  test_op("strided_slice"); // formal & cpu pass
-  test_op("concatenate");// formal & cpu pass
-  test_op("transpose");// formal & cpu pass
-  test_op("take"); // formal & cpu pass
-  //test_op("clip"); // no test case
-  //test_op("cvm_clip"); // no test case
-  //test_op("cvm_right_shift");  // no test case
-  test_op("elemwise_add"); // formal & cpu pass
-  //test_op("elemwise_sub"); // no test case
-  test_op("non_max_suppression");  // formal & cpu pass
-  test_op("broadcast_sub"); // formal & cpu pass
-  test_op("broadcast_add");  // formal & cpu pass
-  test_op("broadcast_mul");  // formal & cpu pass
-  test_op("broadcast_max");  // formal & cpu pass
-  test_op("broadcast_div");  // formal & cpu pass
-  test_op("broadcast_greater");  // formal & cpu pass
+  //test_op("strided_slice"); // formal & cpu pass
+  //test_op("concatenate");// formal & cpu pass
+  //test_op("transpose");// formal & cpu pass
+  //test_op("take"); // formal & cpu pass
+  ////test_op("clip"); // no test case
+  ////test_op("cvm_clip"); // no test case
+  ////test_op("cvm_right_shift");  // no test case
+  //test_op("elemwise_add"); // formal & cpu pass
+  ////test_op("elemwise_sub"); // no test case
+  //test_op("non_max_suppression");  // formal & cpu pass
+  //test_op("broadcast_sub"); // formal & cpu pass
+  //test_op("broadcast_add");  // formal & cpu pass
+  //test_op("broadcast_mul");  // formal & cpu pass
+  //test_op("broadcast_max");  // formal & cpu pass
+  //test_op("broadcast_div");  // formal & cpu pass
+  //test_op("broadcast_greater");  // formal & cpu pass
   
   cout << "all tests finished" << endl;
   return 0;

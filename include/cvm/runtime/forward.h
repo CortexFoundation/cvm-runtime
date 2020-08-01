@@ -31,6 +31,11 @@ inline size_t CVMArgSize(CVMArgValue const& av) {
   return shape.Size();
 }
 
+inline int CVMArgNdim(CVMArgValue const& av) {
+  DLTensor* tensor = av.operator DLTensor*();
+  return tensor->ndim;
+}
+
 /**
  * \brief TShape Iterator Class: Indices
  *
@@ -47,7 +52,10 @@ class Indices {
   Indices(TShape && src)
     : shape_(src), max_size_(src.Size()),
       indices_(src.ndim()), index_cache_(0) {}
-
+  Indices(TShape const& src, std::vector<dim_t>&& idx)
+      : shape_(src), max_size_(src.Size()), indices_(idx), index_cache_(-1) {
+    index_correct();
+  }
   Indices(Indices && other) {
     this->swap(other);
   }
@@ -70,7 +78,10 @@ class Indices {
     index_cache_ = -1;
     indices_ = indices.indices_;
   }
-
+  void CopyIndicesFrom(std::vector<dim_t> vecIdx) {
+    index_cache_ = -1;
+    indices_ = vecIdx;
+  }
 
   void operator++();
   void operator++(int) { return this->operator++(); }

@@ -859,7 +859,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
 }  // namespace runtime
 }  // namespace cvm
 
-int CVMSaveParamsDict(const void** params, int params_size, CVMByteArray* ret){
+int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
   API_BEGIN();
   CHECK_EQ(params_size % 2, 0u);
   size_t num_params = params_size / 2;
