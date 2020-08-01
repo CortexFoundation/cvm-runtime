@@ -2315,10 +2315,94 @@ class InstanceNorm(Transformer):
 
 
 @register_pass("fuse_transpose")
-@register_pass("rewrite")
 @register_transformer("batch_dot")
 class BatchDot(Transformer):
-    pass
+    def rewrite(self, op, **kwargs):
+        infer_shapes = kwargs["infer_shapes"]
+
+        name = op.attr("name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        A, B = childs
+        an, bn = [c.attr("name") for c in childs]
+
+        transpose_a = get_attr(attrs, "transpose_a", 0)
+        transpose_b = get_attr(attrs, "transpose_b", 0)
+        ashp = infer_shapes[an][get_entry_id(A)]
+        bshp = infer_shapes[bn][get_entry_id(B)]
+
+        andims, bndims = len(ashp), len(bshp)
+        assert andims == 3 and bndims == 3, \
+            "batch_dot currently only support 3D*3D array." + \
+            "name: (%s), op_name: (%s)" % (name, op_name)
+
+        if transpose_a:
+            ashp = ashp[:-2] + (ashp[-1], ashp[-2])
+            axes = tuple(range(andims-2)) + (andims-1, andims-2)
+            A = mx.sym.transpose(
+                A, axes=axes, name=N.n("transpose_a"))
+
+        if transpose_b:
+            bshp = bshp[:-2] + (bshp[-1], bshp[-2])
+            bndims = len(bshp)
+            axes = tuple(range(bndims-2)) + (bndims-1, bndims-2)
+            B = mx.sym.transpose(
+                B, axes=axes, name=N.n("transpose_b"))
+
+        assert ashp[-1] == bshp[1]
+        C, MATRIX_MAXIMUM_SIZE = ashp[-1], 65536
+        if ashp[-1] <= MATRIX_MAXIMUM_SIZE:
+            return mx.sym.batch_dot(A, B, name=name)
+
+        C, nodes, step, start = \
+            ashp[-1], [], MATRIX_MAXIMUM_SIZE, 0
+
+        while start < C:
+            stop = min(start+step, C)
+
+            begin, end = (0,0,start), (ashp[0],ashp[1],stop)
+            Ak = mx.sym.slice(
+                A, begin=begin, end=end, name=N.n("slice_a"))
+
+            begin, end = (0,start,0), (bshp[0],stop,bshp[2])
+            Bk = mx.sym.slice(
+                B, begin=begin, end=end, name=N.n("slice_b"))
+
+            tmp = mx.sym.batch_dot(
+                Ak, Bk, name=N.n("batch_dot"))
+            nodes.append(tmp)
+            start += step
+
+        while len(nodes) > 1:
+            A, B = nodes.pop(0), nodes.pop(0)
+            nname = N.n("elemwise_add") if nodes else name
+            tmp = mx.sym.elemwise_add(A, B, name=nname)
+            nodes.append(tmp)
+
+        op = nodes[0]
+        return op
+
+    def quantize(self, op, **kwargs):
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+
+        name, op_name = op.attr("name"), op.attr("op_name")
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr("name") for c in childs]
+
+        oprec = kwargs["op_input_precs"][op_name]
+        A, aprec, ascale = requant(
+            childs[0], oprec, oname=name, **kwargs)
+        B, bprec, bscale = requant(
+            childs[1], oprec, oname=name, **kwargs)
+
+        op = get_mxnet_op(op_name)(A, B, **attr, name=name)
+        scales[name] = ascale * bscale
+        precs[name][OUT_KEY] = aprec + bprec
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                     op_name, name, scales[name], cns)
+        return op
 
 
 @register_pass("fuse_transpose")
