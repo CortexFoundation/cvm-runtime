@@ -13,7 +13,7 @@ Welcome to cvm-runtime's documentation!
   cvm/install
   guide/contrib/index
   guide/dev_guide
-  guide/design
+  guide/arch
 
 .. toctree::
    :maxdepth: 2

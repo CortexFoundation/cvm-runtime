@@ -20,6 +20,8 @@
 import os
 import sys
 import subprocess
+from recommonmark.parser import CommonMarkParser
+from recommonmark.transform import AutoStructify
 
 # Set the doc generator environment variable
 os.environ['DOC_GEN'] = 'True'
@@ -42,12 +44,12 @@ release = '1.0.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "recommonmark",
-    "sphinx_markdown_tables",
-
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
+
+    "recommonmark",
+    "sphinx_markdown_tables",
 
     # c++ doxygen
     "breathe",
@@ -56,12 +58,9 @@ extensions = [
 ]
 
 source_parser = {
-    ".md": "recommonmark.parser.CommonMarkParser",
+    ".md": CommonMarkParser,
 }
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
+source_suffix = [ ".rst", ".md" ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -105,6 +104,17 @@ def run_doxygen():
     except OSError as e:
         sys.stderr.write("doxygen execution failed: %s" % e)
 
+github_doc_root = 'https://github.com/CortexFoundation/cvm-runtime'
+
 def setup(app):
+    app.add_config_value('recommonmark_config', {
+           'url_resolver': lambda url: github_doc_root + url,
+           'enable_math': True,
+           'enable_inline_math': True,
+           'enable_eval_rst': True,
+           'enable_auto_toc_tree': True,
+           }, True)
+    app.add_transform(AutoStructify)
+
     run_doxygen()
 
