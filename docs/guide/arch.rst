@@ -75,7 +75,7 @@ Operator Math Formalization
   Write this section document refer to the doc:
   :ref:`Math Format <write_math_formalization>` please.
 
-This will give a full exhaustive explanation to CVM operators,
+This doc gives a full exhaustive explanation to CVM operators
 which are defined with the macro function `CVM_REGISTER_OP`.
 The formalization version source code has a strong correlation
 with this mathematical description, while other versions like
@@ -103,15 +103,15 @@ The quick operators reference is listed as below:
   :local:
 
 
-Reduce Operator
+Reduce Operators
 ---------------
 
-Reduce operators perform the reduction function to input data based on the parameters, and the process logic over all the type-based operators is consistent. We abstract the common reduce
-logic as formalization here and specific the reduce function
+A reduce operator performs the reduction function to input data based on the parameters, and the process logic over all kind of operators are the same.
+Reduction is performed on the given axes, other dimensions remains the same and the result are stored in those places.
+We abstract the common reduce logic as formalization here and specify the reduce function
 for each operators respectively.
 
-- Input: :math:`X`, whose shape is :math:`N` dimension, declared
-  as :math:`(n_0, n_1, \cdots, n_{N-1})`
+- Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
 - Output: :math:`Y`
 - Attribute:
 
@@ -138,7 +138,7 @@ for each operators respectively.
 .. math::
 
   R = \begin{cases}
-    U - T, & \text{if exclude is true} \\
+    U - T, & \text{if 5exclude is true} \\
     T, & \text{otherwise}
   \end{cases}
 
@@ -233,31 +233,126 @@ max
 
 
 Broadcast Operators
-~~~~~~~~~~~~~~~~~~~
+-------------------
+A broadcast operator performs the broadcast function to input data, and the process logic over all kinds of operators are the same. 
+
+- Input: There are 2 inputs.
+ + :math:`A`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M-1})`
+ + :math:`B`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
+- Output: :math:`Y`, a tensor with :math:`max(M, N)` dimensions, the higher dimension of the two inputs, and it's shape is identical to the input with higher dimension.
+
+The lower :math:`min(M, N)` dimensions of the two inputs must be the same and the remaining higher dimensions of the input of lower dimension is expanded to the higher dimension with 1.
+
+Then the elementwise opertaion is performed to the inputs with broadcast.
+
+We abstract the formalization here and introduce the details as below:
+
+.. math::
+
+  Y[d_0, d_1, \cdots, d_{K-1}] = \begin{cases}
+   & A[d_{N-M}, d_1, \cdots, d_{M-1}] OP B[d_0, d_1, \cdots, d_{N-1}], M \leq N\\
+   & A[d_0, d_1, \cdots, d_{M-1}] OP B[d_{M-N}, d_1, \cdots, d_{K-1}], M > N
+   \end{cases}
+.. math::
+
+  \forall i \in [0, K), \text{where } K = max(M, N), d_i \in [0, n_i) if N \geq M or d_i \in [0, m_i) \text{otherwise}
+
 
 broadcast_add
 ~~~~~~~~~~~~~
+set :math:`\text{BROADCAST_OP}` to :math:`\text{add}`.
+*Example*
+
+.. code-block:: Python
+
+  x = [[ 1.,  1.,  1.],
+       [ 1.,  1.,  1.]]
+
+  y = [[ 0.],
+       [ 1.]]
+
+  broadcast_add(x, y)
+  [[ 1.,  1.,  1.],
+   [2.,  2.,  2.]]
+
 
 broadcast_sub
 ~~~~~~~~~~~~~
+set :math:`\text{BROADCAST_OP}` to :math:`\text{sub}`.
+Note that there's no need to make sure that the dimension of the minuend :math:`A` is higher than subtractor :math:`B`
 
 broadcast_mul
 ~~~~~~~~~~~~~
+set :math:`\text{BROADCAST_OP}` to :math:`\text{mutiply}`.
 
 broadcast_div
 ~~~~~~~~~~~~~
+set :math:`\text{BROADCAST_OP}` to :math:`\text{divide}`.
 
 broadcast_max
 ~~~~~~~~~~~~~
+set :math:`\text{BROADCAST_OP}` to :math:`\text{max}`.
 
 NN Operators
 ------------
+We provide NN operators for users. Unlike reduce operators or broadcast operators, the logic of each operators are different but usage scenario may be the same. In this way, we discribe them together.
 
 conv2d
 ~~~~~~
+We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
+
+*Math Formalization*
+
+- Input: there are 2 or 3 inputs.
+  + `X`, input data to be calculated whose shape is :math:`(N, C, H, W)`
+  + `W`, convolution kernel weight whose shape is :math:`(OC, IC, KH, KW)`, :math:`C = IC \cdot \text{groups} \wedge OC \text{ mod } \text{groups} = 0`
+  + `B`, bias, of type `Optional<DLTensor>`. If `B` is not None, it's shape is :math:`(\text{OC},)`.
+- Output: :math:`Y`
+- Attributes:
+  + `padding`, a `TShape` of length 2, namely :math:`(PH, PW), PH,PW \in [min\_attr, max\_attr)`, indicating padding size.
+  + `stride`, a `TShape` of length 2, namely :math:`(SH, SW) \in [1, max\_attr)`, indicating strides.
+  + `dilation`, a `TShape` of length 2, namely :math:`(DH, DW) \in [1, max\_attr)`, parameter used in dilation convolution.
+  + `groups`, an `int` in :math:`\text{range} [1, C]`, indicating group number.
+
+.. math::
+
+  OC = \text{groups} * OPG, \text{where } OPG \in \mathbb N^+ \\
+  C = IC * \text{groups}
+
+.. math::
+
+  Y[n,oc,p,q]= \sum_{ic = 0}^{IC-1} \text{kernel}(n,(oc \div OPG) * IC + ic, p, q, oc,ic) + \begin{cases}
+  0, & \text{if B is None}\\
+  B[oc], & \text{otherwise}
+  \end{cases}, \\
+  \forall n \in [0, N) \wedge oc\in [0, OC) \wedge\\
+  p \in \left[0, \left\lfloor{H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1\over\text{SH}}\right\rfloor+1 \right) \wedge \\
+  q \in \left[0, \left\lfloor{W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}}\right\rfloor+1 \right)
+
+where :math:`\text{kernel}` function does the 2D image convolution calculation, and the formulation is
+
+.. math::
+
+  \text{kernel}(n, j, p, q, o, i) = \sum_{k_i=0}^{\text{KH}} \sum_{k_j = 0}^{\text{KW}} \text{pad}(p'+k_i*\text{DH},q'+k_j*\text{DW}) \cdot W[o, i, k_i, k_j], \\
+  \text{where } p' = p \cdot \text{SH} -\text{PH} \text{ and }
+  q' = q \cdot \text{SW}-\text{PW} \text{ and } \\
+  \text{pad}(p, q) = \begin{cases}
+  X[n, j, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
+  0, & \text{otherwise}a
+  \end{cases}
+
 
 dense
 ~~~~~
+Dense operator provides a full connected layer.
+* Math Formalization*
+
+- Input: there 2 or 3 inputs.
+  + `X`, a matrix of shape :math:`(M, K)`
+  + `W`, a matrix of shape :math:`(N, K)`
+  + `B`, bias, of type `Optional<DLTensor>`, If `B` is not `NONE`, it's shape is :math:`(N,)`.
+- Output: `Y`
+
 
 relu
 ~~~~
