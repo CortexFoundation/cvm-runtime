@@ -2249,6 +2249,10 @@ class L2Normalization(Transformer):
 @register_transformer("sqrt")
 class Sqrt(Transformer):
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            The quantized scale equals to the square root of input scale.
+        """
         precs, scales = kwargs["precs"], kwargs["scales"]
         th_dict = kwargs["th_dict"]
         name, op_name = op.attr("name"), op.attr("op_name")
@@ -2266,6 +2270,54 @@ class Sqrt(Transformer):
 @register_transformer("InstanceNorm")
 class InstanceNorm(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            Dynamic shape fusion verison of InstanceNorm operator equivalent transform  function. 
+
+            .. code-block::python
+
+                axis = [i for i in range(len(xshp)) if i != 1]
+
+            where xshp is the infer shape of the input operator, which is of layout 'NCH...'.
+
+            The mean of X is equivalently calculated as:
+
+            .. math::
+                sum\_x = sum(X, axis=axis, keepdims=True)
+
+            .. math::
+                mul = 1/product(xshp[2:])
+
+            .. math::
+                mena = sum\_x * mul.
+
+            The variance can be calculated as follows:
+
+            .. math::
+                dev = X - mean
+
+            .. math::
+                dev\_mul = dev * dev
+
+            .. math::
+                var = sum(dev_mul, axis=axis, keepdims=True) * mul
+
+            The standard deviation can be calculated as follows:
+
+            .. math::
+                std = sqrt(var) + eps
+
+            where eps is the attribute to prevent zero division.
+
+            The equivalent operator is finally calculated:
+
+            .. math::
+                frac = dev / std
+
+            .. math::
+                op = frac * gamma + beta
+
+        """
         infer_shapes = kwargs["infer_shapes"]
         name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
@@ -2324,6 +2376,21 @@ class InstanceNorm(Transformer):
 @register_transformer("batch_dot")
 class BatchDot(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Using matrix decomposition to avoid overflow.
+
+            .. math::
+                Y = A dot B = A1 dot B1 + A2 dot B2 + ...
+
+            where:
+
+            .. math::
+                Ai.shape = (batch, M, step)
+
+            .. math::
+                Bi.shape = (batch, step, N)
+        """
         infer_shapes = kwargs["infer_shapes"]
 
         name = op.attr("name")
@@ -2388,6 +2455,10 @@ class BatchDot(Transformer):
         return op
 
     def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            The inputs are quantized into the same precision level.
+        """
         precs, scales = kwargs["precs"], kwargs["scales"]
         th_dict = kwargs["th_dict"]
 
@@ -2425,6 +2496,47 @@ class BroadcastLike(Transformer):
         return op
 
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            The original operator:
+
+            .. math::
+                op = broadcast_like(X, W, lhs\_axes, rhs\_axes)
+
+            can be transformed in threee conditions.
+
+            *Case 1. Null Attributes*
+
+            .. math::
+                mul = broadcast_mul(W, 0)
+
+            .. math::
+                add = broadcast_add(mul, 1)
+
+            .. math::
+                op = broadcast_mul(X, add)
+
+            *Case 2. Batch Axis not in Attributes*
+
+            Calculate attributes for tile as follows:
+
+            .. code-block::python
+
+                cnts = {v: wshp[rhs_axes[i]] for i, v in enumerate(lhs_axes)}
+                reps = tuple([cnts[v] if v in lhs_axes else 1 for v in range(xndims)])
+
+            where wshp is the shape of input weight.
+
+            .. math::
+                op = tile(X, reps=reps)
+
+            *Case 3. Other Cases*
+
+            In this case, we only support injection of  batchaxis from lhs_axes to rhs_axes.
+
+            After transformation of weight (see source code for ref), result was calculated as in case 1.
+
+        """
         infer_shapes = kwargs["infer_shapes"]
         name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
@@ -2549,6 +2661,12 @@ class BroadcastLike(Transformer):
 @register_transformer("reshape_like")
 class ReshapeLike(Transformer):
     def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Equivalently transformed into reshape. 
+            Since dynamic shape fusion is supported, only single 
+            batch axis is supported rather than multiple ones.
+        """
         infer_shapes = kwargs["infer_shapes"]
         name, op_name = op.attr("name"), op.attr("op_name")
         attrs, childs = op.list_attr(), sym_iter(op.get_children())
