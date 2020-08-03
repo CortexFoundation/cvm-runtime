@@ -2274,7 +2274,7 @@ class InstanceNorm(Transformer):
 
             Dynamic shape fusion verison of InstanceNorm operator equivalent transform  function. 
 
-            .. code-block::python
+            .. code-block:: python
 
                 axis = [i for i in range(len(xshp)) if i != 1]
 
@@ -2501,26 +2501,26 @@ class BroadcastLike(Transformer):
             The original operator:
 
             .. math::
-                op = broadcast_like(X, W, lhs\_axes, rhs\_axes)
+                op = broadcast\_like(X, W, lhs\_axes, rhs\_axes)
 
             can be transformed in threee conditions.
 
             *Case 1. Null Attributes*
 
             .. math::
-                mul = broadcast_mul(W, 0)
+                mul = broadcast\_mul(W, 0)
 
             .. math::
-                add = broadcast_add(mul, 1)
+                add = broadcast\_add(mul, 1)
 
             .. math::
-                op = broadcast_mul(X, add)
+                op = broadcast\_mul(X, add)
 
             *Case 2. Batch Axis not in Attributes*
 
             Calculate attributes for tile as follows:
 
-            .. code-block::python
+            .. code-block:: python
 
                 cnts = {v: wshp[rhs_axes[i]] for i, v in enumerate(lhs_axes)}
                 reps = tuple([cnts[v] if v in lhs_axes else 1 for v in range(xndims)])
