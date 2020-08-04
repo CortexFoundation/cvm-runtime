@@ -41,29 +41,105 @@ def CVMAPILoadModel(json_str, param_bytes, ctx=None):
     return net
 
 def CVMAPIFreeModel(net):
+    """ Ctypes wrapper method: CVMAPIFreeModel
+
+        Free model from memory binary.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+
+    """
     check_call(_LIB.CVMAPIFreeModel(net))
 
 def CVMAPIGetInputLength(net):
+    """ Ctypes wrapper method: CVMAPIGetInputLengthModel
+
+        Get the input length of the model, which can be calculated as follows:
+
+        .. math::
+            input\_length = input\_bytes * in\_size
+
+        Where in_size depends on model input shapes. 
+        For models with precision over 8, input_bytes equals to 4, otherwise 1.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+
+    """
     size = ctypes.c_ulonglong()
     check_call(_LIB.CVMAPIGetInputLength(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetInputTypeSize(net):
+    """ Ctypes wrapper method: CVMAPIGetInputTypeSize
+
+        Get the size of input shape, namely input_bytes.
+
+        For models with precision over 8, input_bytes equals to 4, otherwise 1.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+
+    """
     size = ctypes.c_ulonglong()
     check_call(_LIB.CVMAPIGetInputTypeSize(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetOutputLength(net):
+    """ Ctypes wrapper method: CVMAPIGetOutputLength
+
+        Get the length of the output.
+
+        Postprocess method (argmax, detection) can be specified by model definition. 
+        If the postprocess method is not specified, the output will be flatten by default.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+
+    """
     size = ctypes.c_ulonglong()
     check_call(_LIB.CVMAPIGetOutputLength(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIGetOutputTypeSize(net):
+    """ Ctypes wrapper method: CVMAPIGetOutputTypeSize
+
+        Get the output_bytes. 
+        For models with 'postprocess_method' equals to 'argmax', the output_bytes is 1; 
+        for models with 'postprocess_method' equals to 'detection', the output_bytes is 4.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+
+    """
     size = ctypes.c_ulonglong()
     check_call(_LIB.CVMAPIGetOutputTypeSize(net, ctypes.byref(size)))
     return size.value
 
 def CVMAPIInference(net, input_data):
+    """ Ctypes wrapper method: CVMAPIInference
+
+        CVM interface for model inference. 
+        Model output tensor initialization, forward network computing,output tensor disk serialization are successively performed.
+
+        Parameters
+        ==========
+        net : ctypes.c_void_p
+            The CVM model handle created by the interface :func:`cvm.runtime.CVMAPILoadModel <.CVMAPILoadModel>`.
+        input_data : bytes
+            The input image bytes.
+
+    """
     osize = CVMAPIGetOutputLength(net)
 
     output_data = bytes(osize)
