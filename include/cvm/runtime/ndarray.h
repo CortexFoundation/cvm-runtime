@@ -142,6 +142,15 @@ class NDArray {
    */
   CVM_DLL DLManagedTensor* ToDLPack() const;
   /*!
+   * \brief Move the container back to front-end via C API.
+   *  This marks the current container as null.
+   *  This managed resource is moved to fron-end and
+   *  the front end should take charge in managing them.
+   *
+   * \param ret_value The return container pointer.
+   **/
+  CVM_DLL DLTensor* MoveAsDLTensor();
+  /*!
    * \brief Create an empty NDArray.
    * \param shape The shape of the new array.
    * \param dtype The data type of the new array.

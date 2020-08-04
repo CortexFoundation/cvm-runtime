@@ -235,26 +235,23 @@ def save_param_dict(dict_data):
     check_call(_LIB.CVMSaveParamsDict(ctypes.byref(arr), len(data), ctypes.byref(ret)))
     return ret.tobytes()
 
-def load_param_dict(cvmbyte_array):
-    # print('types are')
-    # print(type(cvmbyte_array))
-    # print(type(ctypes.c_char_p(cvmbyte_array)))
+def load_param_dict(bytes_arr):
     ret = {}
     num = ctypes.c_int()
-    names = ctypes.POINTER(ctypes.c_char_p)()
+    names = ctypes.POINTER(ctypes.c_void_p)()
     values = ctypes.POINTER(ctypes.c_void_p)()
 
-    _LIB.CVMLoadParamsDict.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(ctypes.c_int),\
-        ctypes.POINTER(ctypes.POINTER(ctypes.c_char_p)), ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))]
-    check_call(_LIB.CVMLoadParamsDict(ctypes.c_char_p(cvmbyte_array), ctypes.c_int(len(cvmbyte_array)), ctypes.byref(num),\
-            ctypes.byref(names),\
+    check_call(_LIB.CVMLoadParamsDict(
+            ctypes.c_char_p(bytes_arr),
+            ctypes.c_int(len(bytes_arr)),
+            ctypes.byref(num),
+            ctypes.byref(names),
             ctypes.byref(values)))
-    print('python result: got num %d' % (num.value))
     for i in range(num.value):
-        print(str(names[i], encoding='utf-8'))
-    for i in range(num.value):
-        print('the tensor* points to %x, size is %d' % (values[i], sys.getsizeof(values[i])))
-        ret[str(names[i], encoding='utf-8')] = NDArray(ctypes.cast(values[i], CVMArrayHandle), False)
-    _LIB.CVMDeleteLDPointer.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(ctypes.c_void_p)]
-    check_call(_LIB.CVMDeleteLDPointer(num, names, values))
+        name = str(ctypes.cast(names[i],
+                ctypes.c_char_p).value, encoding="utf-8")
+        value = NDArray(ctypes.cast(values[i],
+                CVMArrayHandle), False)
+        print (name, value)
+        ret[name] = value
     return ret

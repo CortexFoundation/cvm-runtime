@@ -9,6 +9,7 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
 #include <cvm/runtime/device_api.h>
+#include <cvm/runtime/param_dict.h>
 #include <cvm/errors.h>
 #include <cvm/op_attr_types.h>
 
@@ -356,26 +357,28 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
     << dtype.lanes << ")";
 
   // copy data to runtime
+  NDArray nd_in(reinterpret_cast<NDArray::Container*>(data_in));
+
   if (data_in->dtype.bits == 8) {
-    cvm::runtime::NDArray &ret32 = data_entry_[eid];
+    NDArray nd32 = NDArray::Empty(
+        std::vector<int64_t>(dshp, dshp+ndim),
+        DLDataType{.code=kDLInt, .bits=32, .lanes=1},
+        ctx);
     int8_t *data8 = static_cast<int8_t*>(data_in->data);
-    int32_t *data32 = static_cast<int32_t*>(ret32->data);
+    int32_t *data32 = static_cast<int32_t*>(nd32->data);
     int64_t num_elems = 1;
-    for (int i = 0; i < data_in->ndim; ++i) {
+    for (int i = 0; i < data_in->ndim; ++i)
       num_elems *= data_in->shape[i];
-    }
-    for (int i = 0; i < num_elems; i++) {
+    for (int i = 0; i < num_elems; i++)
       data32[i] = static_cast<int32_t>(data8[i]);
-    }
-    // data_in = const_cast<DLTensor*>(ret32.operator->());
-  } else {
-    data_entry_[eid].CopyFrom(data_in);
+
+    nd_in.swap(nd32);
   }
 
   // precision check
   auto& prec = this->attrs_.precision[eid];
   int32_t range = (1 << (prec - 1)) - 1;
-  int32_t *data = static_cast<int32_t*>(data_entry_[eid]->data);
+  int32_t *data = static_cast<int32_t*>(nd_in->data);
   if (nodes_[nid].is_data()) {
     for (uint64_t i = 0; i < size; ++i) {
       if (data[i] > range) data[i] = range;
@@ -389,6 +392,8 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
         << " exceed of precision " << prec;
     }
   }
+
+  data_entry_[eid].CopyFrom(nd_in);
 }
 /*!
  * \brief Get the number of outputs
@@ -474,32 +479,17 @@ void CvmRuntime::LoadParams(const std::string& param_blob) {
 }
 
 void CvmRuntime::LoadParams(utils::Stream* strm) {
-  uint64_t header, reserved;
-  VERIFY(strm->Read(&header))
-      << "Invalid parameters file format";
-  VERIFY(header == kCVMNDArrayListMagic)
-      << "Invalid parameters file format";
-  VERIFY(strm->Read(&reserved))
-      << "Invalid parameters file format";
-
   std::vector<std::string> names;
-  VERIFY(strm->Read(&names))
-      << "Invalid parameters file format";
-  uint64_t sz;
-  strm->Read(&sz);
-  size_t size = static_cast<size_t>(sz);
-  VERIFY(size == names.size())
-      << "Invalid parameters file format";
+  std::vector<cvm::runtime::NDArray> values;
+  load_param_dict(strm, names, values);
 
   std::vector<bool> set_flag(input_nodes_.size(), false);
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < names.size(); ++i) {
     int in_idx = GetInputIndex(names[i]);
     set_flag[in_idx] = true;
-
-    // The data_entry is allocated on device, NDArray.load always load the array into CPU.
-    NDArray temp;
-    temp.Load(strm);
-    this->SetInput(in_idx, const_cast<DLTensor*>(temp.operator->()));
+    
+    SetInput(in_idx,
+        const_cast<DLTensor*>(values[i].operator->()));
   }
 
   for (size_t i = 0; i < set_flag.size(); ++i) {
@@ -858,137 +848,3 @@ CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
   });
 }  // namespace runtime
 }  // namespace cvm
-
-int CVMSaveParamsDict(const void** params, int params_size, CVMByteArray* ret){
-  API_BEGIN();
-  CHECK_EQ(params_size % 2, 0u);
-  size_t num_params = params_size / 2;
-  std::vector<std::string> names;
-  names.reserve(num_params);
-  std::vector<DLTensor*> arrays;
-  arrays.reserve(num_params);
-  for (size_t i = 0; i < num_params * 2; i += 2) {
-    names.emplace_back(std::string((char*)params[i]));
-    arrays.emplace_back((DLTensor*)params[i+1]);
-  }
-  CVMRuntimeEntry* e = CVMAPIRuntimeStore::Get();
-  utils::MemoryStringStream strm(&e->ret_str);
-  utils::Stream* fo = &strm;
-  uint64_t header = cvm::runtime::kCVMNDArrayListMagic, reserved = 0;
-  fo->Write(header);
-  fo->Write(reserved);
-  fo->Write(names);
-  {
-    uint64_t sz = static_cast<uint64_t>(arrays.size());
-    fo->Write(sz);
-    for (size_t i = 0; i < sz; ++i) {
-      cvm::runtime::SaveDLTensor(fo, arrays[i]);
-    }
-  }
-
-  ret->data = e->ret_str.c_str();
-  ret->size = e->ret_str.size();
-
-  //test
-  //{
-  //  printf("test save load param \n");
-  //  utils::MemoryStringStream fo(const_cast<std::string*>(&e->ret_str));
-  //  utils::Stream* strm = &fo;
-  //  uint64_t header, reserved;
-  //  VERIFY(strm->Read(&header))
-  //    << "Invalid parameters file format";
-  //  VERIFY(header == cvm::runtime::kCVMNDArrayListMagic)
-  //    << "Invalid parameters file format";
-  //  VERIFY(strm->Read(&reserved))
-  //    << "Invalid parameters file format";
-
-  //  std::vector<std::string> names;
-  //  VERIFY(strm->Read(&names))
-  //    << "Invalid parameters file format";
-  //  uint64_t sz;
-  //  strm->Read(&sz);
-  //  size_t size = static_cast<size_t>(sz);
-  //  VERIFY(size == names.size())
-  //    << "Invalid parameters file format";
-  //  for(size_t i = 0; i < names.size(); i++){
-  //    printf("names %d = %s\n", i, names[i].c_str());
-  //  }
-  //
-  //}
-  API_END();
-}
-
-
-// pointers are newed in this function and not deleted.
-// `CVMDeleteLDPointer` must be called manually by the caller.
-int CVMLoadParamsDict(const char* data, int datalen, int* retNum, char*** retNames, void*** retValues) {
-  std::cout << "doing my LoadParamsDict" << std::endl;
-  API_BEGIN();
-  uint64_t magic = 0, reserved = 0;
-  std::vector<std::string> names;
-  std::vector<cvm::runtime::NDArray> values;
-
-  std::string dataBuffer(data, datalen);
-  utils::MemoryStringStream strm(&dataBuffer);
-  utils::Stream* fi = &strm;
-
-  CHECK(fi->Read(&magic)) << "read magic number from memory failed\n";
-  CHECK_EQ(magic, cvm::runtime::kCVMNDArrayListMagic)
-      << "magic number check failed\n";
-  CHECK(fi->Read(&reserved)) << "read reserved bytes from memory failed\n";
-
-  CHECK(fi->Read(&names)) << "read key names of dict from memory failed\n";
-  for (auto it = names.begin(); it != names.end(); it++) {
-    std::cout << "name is " << *it << std::endl;
-  }
-  uint64_t sz = 0;
-  CHECK(fi->Read(&sz)) << "read # of DLTensor from memory failed\n";
-  CHECK_EQ(sz, names.size())
-      << "# of names should equal to # of DLTensors\n";
-  std::cout << "read size fininsed: " << sz << std::endl;
-  for (uint32_t i = 0; i < sz; i++) {
-    cvm::runtime::NDArray* tmp = new cvm::runtime::NDArray();
-    tmp->Load(fi);
-    std::cout << "reading " << i << "th tensors of " << sz
-              << " the tensor* points to " << tmp->operator->()
-              << ". location of the NDArray is " << &tmp << std::endl;
-    cvm::runtime::printTensor(tmp->operator->());
-
-    values.push_back(*tmp);
-    //delete tmp;
-  }
-
-  union nd2voidp {
-    cvm::runtime::NDArray nd;
-    void* voidp;
-    nd2voidp() { voidp = nullptr; }
-    ~nd2voidp() { nd.~NDArray(); }
-  };
-  *retNum = sz;
-  *retNames = new char*[sz];
-  *retValues = new void*[sz];
-  for (uint32_t i = 0; i < sz; i++) {
-    (*retNames)[i] = new char[names[i].length() + 1];
-    std::copy(names[i].c_str(), names[i].c_str() + names[i].length() + 1, (*retNames)[i]);
-    (names[i].c_str());
-    std::cout << "copying to retValues. the tensor* points to " << values[i].operator->() << std::endl;
-    cvm::runtime::printTensor(values[i].operator->());
-    nd2voidp n2p;
-    // TODO: whz. fix segment fault error here.
-    n2p.nd = values[i];
-    //std::cout << "the NDArray, as void*, points to " << n2p.voidp << std::endl;
-    (*retValues)[i] = n2p.voidp;
-  }
-  API_END();
-}
-
-int CVMDeleteLDPointer(int num, char** names, void** values) {
-  API_BEGIN();
-  for (int i = 0; i < num; i++) {
-    delete names[i];
-    ((cvm::runtime::NDArray::Container*)values[i])->DecRef();
-  }
-  delete[] names;
-  delete[] values;
-  API_END();
-}
