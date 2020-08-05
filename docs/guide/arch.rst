@@ -1038,7 +1038,8 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \text{iou}(p, q) = \begin{cases}
   \text{overlap_ratio}(R[b, p, :], R[b, q, :]), &
   \begin{array}{}
-  \text{force_suppress is true} \vee R[b, p, 0] = R[b, q, 0] 
+  \text{force_suppress is true}\\
+  \vee R[b, p, 0] = R[b, q, 0] 
   \end{array} \\[1ex]
   0, & \text{otherwise}
   \end{cases} \\
@@ -1048,7 +1049,7 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \forall q \in U \wedge q < p\}
    \text{ and } \\
   \text{IDX}: \{i \mid i \in [0, card\{U\})\} \to U, \text{s.t. }
-  \text{IDX}(i) < \text{IDX}(j), \forall 0 \leqslant i < j < card\{U\}
+  \text{IDX}(i) < \text{IDX}(j), \forall  i < j
 
 .. math::
   Y[b, n, k] = -1, \\
