@@ -9,12 +9,9 @@ namespace runtime {
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.relu")
 .set_body([](CVMArgs args, CVMRetValue* rv){
-  auto X = args[0];
-  auto Y = args[1];
-
-  auto X_data = CVMArg2Data<int32_t>(X);
-  auto Y_data = CVMArg2Data<int32_t>(Y);
-  TShape const& shp = CVMArgShape(X);
+  auto X_data = CVMArg2Data<int32_t>(args[0]);
+  auto Y_data = CVMArg2Data<int32_t>(args[1]);
+  const TShape &shp = CVMArgShape(args[0]);
 
   for (size_t i = 0; i < shp.Size(); ++i) {
     Y_data[i] = std::max(X_data[i], 0);
@@ -42,26 +39,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   auto X_data = CVMArg2Data<int32_t>(X); 
   auto W_data = CVMArg2Data<int32_t>(W); 
   auto Y_data = CVMArg2Data<int32_t>(Y); 
-  // Y = X * WT
+  // Y = X * W^T
+  Indices xIdx(X_shape), wIdx(W_shape), yIdx(Y_shape);
   for (int64_t m = 0; m < Y_shape[0]; ++m) {
     // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
-    int32_t Y_offset = m * Y_shape[1], X_offset = m * X_shape[1];
+    xIdx[0] = m;
     for (int64_t n = 0; n < Y_shape[1]; ++n) {
-      int32_t sum = 0, W_offset = n * W_shape[1];
+      wIdx[0] = n;
+      int32_t sum = 0;  //, W_offset = n * W_shape[1];
       for (int64_t k = 0; k < X_shape[1]; ++k) {
-        sum += X_data[X_offset + k] * W_data[W_offset + k];
+        xIdx[1] = k, wIdx[1] = k;
+        sum += X_data[xIdx.Index()] * W_data[wIdx.Index()];
       }
-      Y_data[Y_offset + n] = sum;
+      Y_data[yIdx.Index()] = sum;
+      yIdx++;
     }
   }
   // if B is not None, Y = X * WT + B
   if (param.use_bias) {
     auto B = args[2];
-    auto B_data = CVMArg2Data<int32_t>(B); 
+    auto B_data = CVMArg2Data<int32_t>(B);
+    Indices yIdx(Y_shape);
     for (int64_t m = 0; m < Y_shape[0]; ++m) {
-      int32_t Y_offset = m * Y_shape[1];
+      yIdx[0] = m;
       for (int64_t n = 0; n < Y_shape[1]; ++n) {
-        Y_data[Y_offset + n] += B_data[n];
+        yIdx[1] = n;
+        Y_data[yIdx.Index()] += B_data[n];
       }
     }
   }
@@ -106,7 +109,7 @@ static void groupwise_conv2d(
    int32_t *y_data, int32_t out_channels, int32_t o_h, int32_t o_w,
    int32_t *b_data,
    int32_t padding[2], int32_t stride_h, int32_t stride_w, int32_t dilation_h, int32_t dilation_w,
-   int32_t groups=1){
+   int32_t groups){
   int32_t ochannels_per_group = out_channels / groups;
   int32_t ichannels_per_group = in_channels / groups;
   for(int32_t n = 0; n < n_batch; ++n){
@@ -138,22 +141,23 @@ static void groupwise_conv2d(
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
     .set_body([](CVMArgs args, CVMRetValue* rv)
 {
-  DLTensor *x = args[0];
-  DLTensor *w = args[1];
-  DLTensor *b = nullptr; //args[2];
-  DLTensor *y = nullptr;
-  void *_attr;
+  //DLTensor *x = args[0];
+  //DLTensor *w = args[1];
+  //DLTensor *b = nullptr; //args[2];
+  //DLTensor *y = nullptr;
+  //void *_attr;
 
-  if(args.num_args == 5){
-    b = args[2];
-    y = args[3];
-    _attr = args[4];
-  } else {
-    y = args[2];
-    _attr = args[3];
-  }
-  auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-  auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
+  //if(args.num_args == 5){
+  //  b = args[2];
+  //  y = args[3];
+  //  //_attr = args[4];
+  //} else {
+  //  y = args[2];
+  //  //_attr = args[3];
+  //}
+  //auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
+  //auto &param = cvm::get<cvm::top::Conv2DParam>(attr->parsed);
+  auto& param = CVMArg2Attr<top::Conv2DParam>(args[args.num_args - 1]);
   int groups = param.groups;
   int dilation[2] = {(int)param.dilation[0], (int)param.dilation[1]};
   // int kernel_size[2] = {(int)param.kernel_size[0], (int)param.kernel_size[1]};
@@ -165,42 +169,42 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
   //int dilation_h = dilation[0];
   //int dilation_w = dilation[1];
 
-  int32_t* x_data = (int32_t*)x->data;
-  int32_t* w_data = (int32_t*)w->data;
-  int32_t* y_data = (int32_t*)y->data;
-  int32_t* b_data = b != nullptr ? (int32_t*)b->data : nullptr;
+  int32_t* x_data = CVMArg2Data<int32_t>(args[0]);
+  int32_t* w_data = CVMArg2Data<int32_t>(args[1]);
+  int32_t* y_data = CVMArg2Data<int32_t>(param.use_bias ? args[3] : args[2]);
+  int32_t* b_data = param.use_bias ? CVMArg2Data<int32_t>(args[2]) : nullptr;
+  // b != nullptr ? (int32_t*)b->data : nullptr;
 
-  int out_channels = static_cast<int>(w->shape[0]);
-  int filter_c = static_cast<int>(w->shape[1]);
-  int filter_h = static_cast<int>(w->shape[2]);
-  int filter_w = static_cast<int>(w->shape[3]);
+  TShape const& xShape = CVMArgShape(args[0]);
+  TShape const& wShape = CVMArgShape(args[1]);
+
+  int out_channels = static_cast<int>(wShape[0]);
+  int filter_c = static_cast<int>(wShape[1]);
+  int filter_h = static_cast<int>(wShape[2]);
+  int filter_w = static_cast<int>(wShape[3]);
   int t_filter_h = (filter_h - 1) * dilation[0] + 1;
   int t_filter_w = (filter_w - 1) * dilation[1] + 1;
 
-  int n_batch = static_cast<int>(x->shape[0]);
-  int in_channels = static_cast<int>(x->shape[1]);
-  int x_h = static_cast<int>(x->shape[2]);
-  int x_w = static_cast<int>(x->shape[3]);
+  int n_batch = static_cast<int>(xShape[0]);
+  int in_channels = static_cast<int>(xShape[1]);
+  int x_h = static_cast<int>(xShape[2]);
+  int x_w = static_cast<int>(xShape[3]);
   int o_h = (x_h + 2 * padding[0] - t_filter_h) / strides[0] + 1;
   int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
-  if(groups > 1){
-    groupwise_conv2d(
-        x_data, n_batch, in_channels, x_h, x_w,
-        w_data, filter_c, filter_h, filter_w,
-        y_data, out_channels, o_h, o_w,
-        b_data,
-        padding, stride_h, stride_w, dilation[0], dilation[1],
-        groups);
-  } else {
-    groupwise_conv2d(
-        x_data, n_batch, in_channels, x_h, x_w,
-        w_data, filter_c, filter_h, filter_w,
-        y_data, out_channels, o_h, o_w,
-        b_data,
-        padding, stride_h, stride_w, dilation[0], dilation[1]);
-  }
-  print_to_file(y, "conv2d.txt");
+  //if(groups > 1){
+  groupwise_conv2d(x_data, n_batch, in_channels, x_h, x_w, w_data, filter_c,
+                   filter_h, filter_w, y_data, out_channels, o_h, o_w, b_data,
+                   padding, stride_h, stride_w, dilation[0], dilation[1],
+                   groups);
+  //} else {
+  //  groupwise_conv2d(
+  //      x_data, n_batch, in_channels, x_h, x_w,
+  //      w_data, filter_c, filter_h, filter_w,
+  //      y_data, out_channels, o_h, o_w,
+  //      b_data,
+  //      padding, stride_h, stride_w, dilation[0], dilation[1]);
+  //}
 });
 
 
@@ -212,13 +216,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
 * padding (1, 1)
 */
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
-    .set_body([](CVMArgs args, CVMRetValue *ret)
-{
-  DLTensor *x = args[0];
-  DLTensor *y = args[1];
-  void *_attr = args[2];
-  auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-  auto &param = cvm::get<cvm::top::MaxPool2DParam>(attr->parsed);
+    .set_body([](CVMArgs args, CVMRetValue *ret) {
+  int32_t* x_data = CVMArg2Data<int32_t>(args[0]);
+  int32_t* y_data = CVMArg2Data<int32_t>(args[1]);
+  auto& param = CVMArg2Attr<top::MaxPool2DParam>(args[2]);
+  TShape const& xShape = CVMArgShape(args[0]);
+  TShape const& yShape = CVMArgShape(args[1]);
   int padding[2] = {(int)param.padding[0], (int)param.padding[0]};
   if(param.padding.ndim() == 2){
     padding[1] = (int)param.padding[1];
@@ -227,19 +230,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
   int stride_h = param.strides[0];
   int stride_w = param.strides[1];
 
-  int32_t* x_data = (int32_t*)x->data;
-  int32_t* y_data = (int32_t*)y->data;
-
   int filter_h = param.pool_size[0];
   int filter_w = param.pool_size[1];
 
-  int n_batch = static_cast<int>(x->shape[0]);
-  int in_channels = static_cast<int>(x->shape[1]);
+  int n_batch = static_cast<int>(xShape[0]);
+  int in_channels = static_cast<int>(xShape[1]);
   int out_channels = in_channels;
-  int x_h = static_cast<int>(x->shape[2]);
-  int x_w = static_cast<int>(x->shape[3]);
-  int o_h = static_cast<int>(y->shape[2]);
-  int o_w = static_cast<int>(y->shape[3]);
+  int x_h = static_cast<int>(xShape[2]);
+  int x_w = static_cast<int>(xShape[3]);
+  int o_h = static_cast<int>(yShape[2]);
+  int o_w = static_cast<int>(yShape[3]);
 #define GETX(n, c, h, w) x_data[(n) * in_channels * x_h * x_w + (c) * x_h * x_w + (h) * x_w + (w)]
 #define GETY(n, c, h, w) y_data[(n) * out_channels * o_h * o_w + (c) * o_h * o_w + (h) * o_w + (w)]
   auto calc_func = [&](int n, int k, int p, int q) {
@@ -249,9 +249,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
       for (int s = 0; s < filter_w; ++s) {
         int32_t tp = p * stride_h + r - padding[0];
         int32_t tq = q * stride_w + s - padding[1];
-        int32_t x_tmp = minV; 
-        if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w)
-          x_tmp = GETX(n, k, tp, tq);
+        int32_t x_tmp = minV;
+        if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w) {
+          Indices xIdx(xShape, {n, k, tp, tq});
+          //std::cout << "xIndex is " << xIdx.Index() << std::endl;
+          x_tmp = x_data[xIdx.Index()];
+        }
         y_max = std::max(x_tmp, y_max);
       }
     }
@@ -261,13 +264,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
     for (int k = 0; k < out_channels; ++k) {
       for (int p = 0; p < o_h; ++p) {
         for (int q = 0; q < o_w; ++q) {
-          GETY(n, k, p, q) = calc_func(n, k, p, q);
+          Indices yIdx(yShape, {n, k, p, q});
+          y_data[yIdx.Index()] = calc_func(n, k, p, q);
         }
       }
     }
   }
-  print_to_file(y, "max_pool.txt");
-
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_precision")
@@ -474,18 +476,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
     auto X_data = CVMArg2Data<int32_t>(args[0]);
     auto Y_data = CVMArg2Data<int32_t>(args[1]);
 
-//<<<<<<< HEAD
-//    int32_t ndim = y->ndim;
-//    // assert y->ndim == x->ndim
-//    //TShape axes = param.axes;
-//=======
     auto &param = CVMArg2Attr<top::TransposeParam>(args[2]);
 
     TShape const& X_shape = CVMArgShape(args[0]);
     TShape const& Y_shape = CVMArgShape(args[1]);
 
     int32_t ndim = Y_shape.ndim();
-//>>>>>>> wlt
     std::vector<int32_t> axes(ndim);
     for(int32_t i = 0; i < ndim; i++){
         if(param.axes.ndim() == 0){
@@ -496,57 +492,29 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
         }
     }
 
-//<<<<<<< HEAD
-//    TShape xShape(x->shape, x->shape + x->ndim),
-//        yShape(y->shape, y->shape + y->ndim);
-//    for (uint32_t i = 0; i < getSize(x); i++) {
-//      auto xIndex = VectorIndex(xShape, i);
-//      TShape yIndex(y->ndim);
-//      for (int j = yIndex.ndim() - 1; j >= 0; j--) {
-//        yIndex[j] = xIndex[axes[j]];
-//      }
-//      y_data[ScalarIndex(yShape, yIndex)] = x_data[i];
-//=======
     for (Indices Y_indices(Y_shape); !Y_indices.End(); ++Y_indices) {
       Indices X_indices(X_shape);
       for (uint32_t i = 0; i < Y_indices.ndim(); ++i) {
         X_indices[axes[i]] = Y_indices[i];
       }
       Y_data[Y_indices.Index()] = X_data[X_indices.Index()];
-//>>>>>>> wlt
     }
-
-    // for(uint64_t i = 0; i < Y_shape.Size(); i++) {
-      // uint64_t o_i = i, in_i = 0;
-      // for(int j = ndim - 1; j >= 0; j--){
-        // uint64_t col = o_i % Y_shape[j];
-        // o_i /= Y_shape[j];
-        // int xi = 1;
-        // for(int tx = ndim-1; tx > axes[j]; tx--){
-          // xi *= X_shape[tx];
-        // }
-        // in_i += col * xi;
-      // }
-      // Y_data[i] = X_data[in_i];
-    // }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-    DLTensor *x = args[0];
-    DLTensor *y = args[1];
-    void *_attr = args[2];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::StridedSliceParam>(attr->parsed);
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
+    //DLTensor *x = args[0];
+    //DLTensor *y = args[1];
+    int32_t* x_data = CVMArg2Data<int32_t>(args[0]);
+    int32_t* y_data = CVMArg2Data<int32_t>(args[1]);
+    auto& param = CVMArg2Attr<cvm::top::StridedSliceParam>(args[2]);
     TShape begin = param.begin;
     TShape end = param.end;
     TShape stride = param.stride;
-    int ndim = y->ndim;
-    int32_t num_axis = x->ndim;
-    int64_t *dshp = x->shape;
+    int num_axis = CVMArgNdim(args[0]);
+    int ndim = CVMArgNdim(args[1]);
+    TShape const& xShape = CVMArgShape(args[0]);
+    TShape const& yShape = CVMArgShape(args[1]);
 
     std::vector<int64_t> begin_vec;
     std::copy(begin.begin(), begin.end(), std::back_inserter(begin_vec));
@@ -562,37 +530,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.strided_slice")
 
     for (size_t i = 0; i < begin_vec.size(); ++i) {
       int64_t begin_range = stride_vec[i] < 0 ? -1 : 0;
-      int64_t end_range = stride_vec[i] < 0 ? dshp[i] -1 : dshp[i];
+      int64_t end_range = stride_vec[i] < 0 ? xShape[i] -1 : xShape[i];
       int64_t begin = begin_vec[i];
-      if (begin < 0) begin += dshp[i];
+      if (begin < 0) begin += xShape[i];
       begin_vec[i]= std::min(std::max(begin, begin_range), end_range);
     }
 
-//<<<<<<< HEAD
-//    TShape xShape(x->shape, x->shape + x->ndim),
-//        yShape(y->shape, y->shape + y->ndim);
-//    for(uint64_t i = 0; i < getSize(y); i++){
-//      TShape yVecIndex = VectorIndex(yShape, i);
-//      TShape xVecIndex(ndim);
-//      for (int j = 0; j < xVecIndex.ndim(); j++) {
-//        xVecIndex[j] = begin_vec[j] + stride_vec[j] * yVecIndex[j];
-//      }
-//      y_data[i] = x_data[ScalarIndex(xShape, xVecIndex)];
-//=======
-    for(uint64_t i = 0; i < CVMArgSize(args[1]); i++){
-        uint64_t o_i = i, in_i = 0, shapeSize = 1;
-        for(int j = ndim-1; j >= 0; j--){
-            uint64_t col = o_i % y->shape[j];
-            o_i /= y->shape[j];
-            int64_t tbegin = begin_vec[j];
-            int64_t tstep = stride_vec[j];
-            col = tbegin + col * tstep;
-            in_i += col * shapeSize;
-            shapeSize *= x->shape[j];
-        }
-        y_data[i] = x_data[in_i];
-//>>>>>>> wlt
+    Indices xIdx(xShape);
+    for (Indices yIdx(yShape); !yIdx.End(); yIdx++) {
+      for (int i = 0; i < xIdx.ndim(); i++) {
+        xIdx[i] = begin_vec[i] + stride_vec[i] * yIdx[i];
+      }
+      y_data[yIdx.Index()] = x_data[xIdx.Index()];
     }
+    //for(uint64_t i = 0; i < yShape.Size(); i++){
+    //    uint64_t o_i = i, in_i = 0, shapeSize = 1;
+    //    for(int j = ndim-1; j >= 0; j--){
+    //        uint64_t col = o_i % yShape[j];
+    //        o_i /= yShape[j];
+    //        int64_t tbegin = begin_vec[j];
+    //        int64_t tstep = stride_vec[j];
+    //        col = tbegin + col * tstep;
+    //        in_i += col * shapeSize;
+    //        shapeSize *= xShape[j];
+    //    }
+    //    y_data[i] = x_data[in_i];
+    //}
     // print_to_file(y, "stride_slice.txt");
 });
 
@@ -682,34 +645,50 @@ static void take(CVMArgValue x,
 
     if(axis < 0) { axis += xndim; }
 
-    std::vector<size_t> x_shape_size(xndim, 1), indices_shape_size(indices_ndim, 1);
-    for (int i = xndim-2; i >= 0; --i) {
-      x_shape_size[i] = x_shape_size[i+1] * X_shape[i+1];
-    }
-    for (int i = indices_ndim-2; i >= 0; --i) {
-      indices_shape_size[i] = indices_shape_size[i+1] * Indices_shape[i+1];
-    }
-    for (size_t i = 0; i < Y_shape.Size(); ++i) {
-      size_t oi = i, xi = 0, idxi = 0;
-      for(int j = yndim - 1; j>=0; --j){
-        size_t col = oi % Y_shape[j];
-        oi /= Y_shape[j];
-        if (axis <= j && j < axis+indices_ndim) {
-          idxi += col * indices_shape_size[j - axis];
-        } else {
-          int xidx = j < axis ? j : j - indices_ndim + 1;
-          xi += col * x_shape_size[xidx];
-        }
-
-        if (axis == j) {
-          int64_t idxx = std::min(std::max(indices_data[idxi], 0), 
-              (int32_t)X_shape[j]-1);
-          xi += idxx * x_shape_size[j];
-        }
+    for (Indices yIdx(Y_shape); !yIdx.End(); yIdx++) {
+      Indices xIdx(X_shape), idxIdx(Indices_shape);
+      for (int j = 0; j < axis; j++) {
+        xIdx[j] = yIdx[j];
       }
-      y_data[i] = x_data[xi];
-//>>>>>>> wlt
+      for (int j = 0; j < indices_ndim; j++) {
+        idxIdx[j] = yIdx[j + axis];
+      }
+      int32_t axisIndex = indices_data[idxIdx.Index()];
+      xIdx[axis] = std::min(std::max(axisIndex, 0), (int32_t)X_shape[axis] - 1);
+      for (int j = axis + 1; j < xndim; j++) {
+        xIdx[j] = yIdx[j + indices_ndim - 1];
+      }
+      y_data[yIdx.Index()] = x_data[xIdx.Index()];
     }
+
+    //std::vector<size_t> x_shape_size(xndim, 1), indices_shape_size(indices_ndim, 1);
+    //for (int i = xndim-2; i >= 0; --i) {
+    //  x_shape_size[i] = x_shape_size[i+1] * X_shape[i+1];
+    //}
+    //for (int i = indices_ndim-2; i >= 0; --i) {
+    //  indices_shape_size[i] = indices_shape_size[i+1] * Indices_shape[i+1];
+    //}
+    //for (size_t i = 0; i < Y_shape.Size(); ++i) {
+    //  size_t oi = i, xi = 0, idxi = 0;
+    //  for(int j = yndim - 1; j>=0; --j){
+    //    size_t col = oi % Y_shape[j];
+    //    oi /= Y_shape[j];
+    //    if (axis <= j && j < axis+indices_ndim) {
+    //      idxi += col * indices_shape_size[j - axis];
+    //    } else {
+    //      int xidx = j < axis ? j : j - indices_ndim + 1;
+    //      xi += col * x_shape_size[xidx];
+    //    }
+
+    //    if (axis == j) {
+    //      int64_t idxx = std::min(std::max(indices_data[idxi], 0), 
+    //          (int32_t)X_shape[j]-1);
+    //      xi += idxx * x_shape_size[j];
+    //    }
+    //  }
+    //  y_data[i] = x_data[xi];
+//>>>>>>> wlt
+    //}
     //y_data[i] = x_data[ScalarIndex(xShape, xIndex)];
   //}
 }
@@ -734,20 +713,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_lut")
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
 .set_body([](CVMArgs args, CVMRetValue *ret)
 {
-  DLTensor *x = args[0];
-  DLTensor *y = args[1];
-
-  void *_attr = args[2];
-  auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-  auto &param = cvm::get<cvm::top::UpSamplingParam>(attr->parsed);
+  int32_t* x_data = CVMArg2Data<int32_t>(args[0]);
+  int32_t* y_data = CVMArg2Data<int32_t>(args[1]);
+  auto& param = CVMArg2Attr<top::UpSamplingParam>(args[2]);
+  TShape const& xShape = CVMArgShape(args[0]);
+  TShape const& yShape = CVMArgShape(args[1]);
 
   uint32_t scale = {(uint32_t)param.scale};
-  uint32_t h = x->shape[2], w = x->shape[3];
-  uint32_t oh = y->shape[2], ow = y->shape[3];
-  uint32_t n_batch = x->shape[0], n_channels = x->shape[1];
-
-  auto x_data = static_cast<int32_t*>(x->data);
-  auto y_data = static_cast<int32_t*>(y->data);
+  uint32_t h = xShape[2], w = xShape[3];
+  uint32_t oh = yShape[2], ow = yShape[3];
+  uint32_t n_batch = xShape[0], n_channels = xShape[1];
 
   for (uint32_t batch = 0; batch < n_batch; ++batch) {
     for (uint32_t c = 0; c< n_channels; ++c) {
@@ -766,13 +741,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.where")
 .set_body([](CVMArgs args, CVMRetValue *ret){
     DLTensor *condition = args[0];
     DLTensor *x = args[1];
-    DLTensor *y = args[2];
     DLTensor *result = args[3];
 
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-    int32_t *condition_data = static_cast<int32_t*>(condition->data);
-    int32_t *result_data = static_cast<int32_t*>(result->data);
+    int32_t *x_data = CVMArg2Data<int32_t>(args[1]);
+    int32_t *y_data = CVMArg2Data<int32_t>(args[2]);
+    int32_t *condition_data = CVMArg2Data<int32_t>(args[0]);
+    int32_t *result_data = CVMArg2Data<int32_t>(args[3]);
 
     if(x->ndim == condition->ndim){
       for(uint64_t i = 0; i < CVMArgSize(args[3]); ++i){

@@ -12,6 +12,7 @@
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
+#include <cvm/runtime/param_dict.h>
 #include <cvm/node.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include "npy.hpp"

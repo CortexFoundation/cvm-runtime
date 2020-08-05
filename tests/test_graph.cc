@@ -45,20 +45,20 @@ CVMByteArray save_param_dict(const std::map<string, NDArray>& data) {
 std::map<string, NDArray> load_param_dict(CVMByteArray data) {
   std::map<string, NDArray> ret;
   int retNum;
-  char** retName;
+  void** retName;
   void** retVal;
   int rv = CVMLoadParamsDict(data.data, data.size, &retNum, &retName, &retVal);
   CHECK(rv == 0) << "CVMLoadParamsDict failed\n";
   for (int i = 0; i < retNum; i++) {
-    string name = retName[i];
+    string name = (char*)retName[i];
     NDArray::Container* tensor = (NDArray::Container*)retVal[i];
     std::cout << "returned name[" << i << "] is " << name << retName[i] << std::endl
               << "tensor is ";
     cvm::runtime::printTensor(&tensor->dl_tensor);
     ret[name] = NDArray(tensor);
   }
-  CHECK(CVMDeleteLDPointer(retNum, retName, retVal) == 0)
-      << "CVMDeleteLDPointer failed\n";
+  //CHECK(CVMDeleteLDPointer(retNum, retName, retVal) == 0)
+  //    << "CVMDeleteLDPointer failed\n";
   return ret;
 }
 
