@@ -3,9 +3,9 @@
 MRT operators API
 *****************
 
-.. contents::
-
 .. _mrt_tfm_ops_api:
+
+.. contents::
 
 mrt.tfm_ops
 ___________

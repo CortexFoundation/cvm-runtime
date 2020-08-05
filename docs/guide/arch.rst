@@ -67,6 +67,8 @@ Example Inference Flow
 ======================
 
 
+.. _operator_math_formalization:
+
 Operator Math Formalization
 ===========================
 
