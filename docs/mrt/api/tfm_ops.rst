@@ -4,8 +4,6 @@
 MRT operators API
 *****************
 
-.. content:
-
 mrt.tfm_ops
 ___________
 .. automodule:: mrt.tfm_ops
