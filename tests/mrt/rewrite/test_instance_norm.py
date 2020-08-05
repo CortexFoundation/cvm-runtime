@@ -30,6 +30,7 @@ def test():
 
 def verify_instance_norm_rewrite(shp, eps):
     # assert len(shp) == 4 # NCHW
+    assert len(shp) >= 3
     vshp = (shp[1],)
     data_np = np.random.uniform(size=shp)
     gamma_np = np.random.uniform(size=vshp)
