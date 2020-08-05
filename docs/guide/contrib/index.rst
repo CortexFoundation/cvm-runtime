@@ -8,4 +8,3 @@ Contribute to cvm-runtime
 
   code_style
   write_document
-  pull_request
