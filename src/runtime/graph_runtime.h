@@ -34,9 +34,6 @@ using cvm::NodeAttrs;
         << CVMGetLastError();                                      \
   }
 
-/*! \brief Magic number for NDArray list file  */
-constexpr uint64_t kCVMNDArrayListMagic = 0xF7E58D4F05049CB7;
-
 /*! \brief operator attributes about cvm op */
 struct CVMOpParam : public utils::Parameter<CVMOpParam> {
   std::string func_name;
