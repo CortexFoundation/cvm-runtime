@@ -148,7 +148,7 @@ ___________
   :members: quantize
 
 
-.. autoclass:: mrt.tfm_ops.InstantNorm
+.. autoclass:: mrt.tfm_ops.InstanceNorm
   :members: rewrite
 
 
