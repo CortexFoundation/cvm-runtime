@@ -10,7 +10,7 @@ This document is intended for developers who want to understand the architecture
 
 - The `Example Inference Flow`_ gives an overview of the steps
   that CVM takes to load a hard-disk model into CPU/GPU memory
-  for running the deterministic result. 
+  for running the deterministic result.
 
 - The `Operator Math Formalization`_ section describes the ideal
   process logic for specific input data with strict mathematical
@@ -38,7 +38,7 @@ Developer need to assert conditions with pre-defined macros,
 such as :c:func:`CHECK` and :c:func:`VERIFY`. :c:func:`CHECK`
 macro will throw runtime exception and :c:func:`VERIFY` will
 throw logic error. A example usage likes this:
-  
+
 .. code-block:: C
 
   CHECK(condition) << "error information";
@@ -50,7 +50,7 @@ to the CVM in Cortex Foundation's full-node: CortexTheasus. A
 inference call in the cortex blockchain will cost the Endophin,
 A calculation unit for model inference takes up, including
 memory, time-spending, etc. And then according to the Endophin
-cost, the logic error will consume the invoker's CTXC token 
+cost, the logic error will consume the invoker's CTXC token
 even if the inference fails, whereas the runtime error won't.
 
 **Briefly, a logic error is caused by model supplier or invoker
@@ -105,7 +105,7 @@ A simple inference code blocks refer to:
   CVMArrayAlloc(..., &output);
 
   CVMAPIInference(handle,
-                  data->data, data_len, 
+                  data->data, data_len,
                   &output->data, output_len);
 
   ... // process output data
@@ -121,11 +121,11 @@ CVM Model
 - definition: `src/core/model.cc`
 
 The API above invokes the lower level
-:cpp:class:`cvm::runtime::CVMModel` class, which exposes the 
+:cpp:class:`cvm::runtime::CVMModel` class, which exposes the
 mainly inference interface.
 
-And the :cpp:class:`cvm::runtime::CVMModel` wrappered a pure 
-on-device graph runtime, and set extra post-process logic on 
+And the :cpp:class:`cvm::runtime::CVMModel` wrappered a pure
+on-device graph runtime, and set extra post-process logic on
 output Tensor.
 More details refer to source code please.
 
@@ -135,9 +135,9 @@ Graph Runtime
 - declaration: `src/runtime/graph_runtime.h`
 - definition: `src/runtime/graph_runtime.cc`
 
-The :cpp:class:`cvm::runtime::CVMRuntime` manages all the 
+The :cpp:class:`cvm::runtime::CVMRuntime` manages all the
 resources allocated via CPU, CUDA, OPENCL, ..., etc.
-It will pre-allocate the model memory space on device and 
+It will pre-allocate the model memory space on device and
 recognize the right order that operators execute.
 
 :cpp:func:`cvm::runtime::CvmRuntime::Init()` initialize the
@@ -173,7 +173,7 @@ Currently cvm-runtime has supportted all 33 operators, grouped
 by similar properties. Specific operators name refer to
 :ref:`the op list <op_list>`.
 
-All operators are the instance for class :cpp:class:`cvm::Op`, 
+All operators are the instance for class :cpp:class:`cvm::Op`,
 with different attribites, inputs, parameters, outputs.
 
 Generally, we register an new opertors using the pre-defined
@@ -220,11 +220,11 @@ All the operators' formalization obeys the unify format:
 
   \forall \text{given range}, \\
 
-  \text{where } \text{condition}_1 \text{ and } \text{condition}_2 \text{ and } 
+  \text{where } \text{condition}_1 \text{ and } \text{condition}_2 \text{ and }
   \cdots \text{condition}_n
 
-which means that for given value range, the forluma in the first 
-line is always true, subjecting to the constraints listed as the 
+which means that for given value range, the forluma in the first
+line is always true, subjecting to the constraints listed as the
 condition variable.
 
 The quick operators reference is listed as below:
@@ -247,14 +247,14 @@ for each operators respectively.
 - Output: :math:`Y`
 - Attribute:
 
-  + `axes` (TShape), which is :math:`M`-length vector,
+  + ``axes`` (TShape), which is :math:`M`-length vector,
     where :math:`M \in [0, N+1)`
-  + `keepdims` (bool)
-  + `exclude` (bool)
+  + ``keepdims`` (bool)
+  + ``exclude`` (bool)
 
 .. math::
 
-  T = \left\{x \mid i \in \text{axes} \wedge 
+  T = \left\{x \mid i \in \text{axes} \wedge
   x = \begin{cases}
     i, & \text{if } i\geqslant 0 \\
     i + N, & \text{otherwise}
@@ -264,7 +264,7 @@ for each operators respectively.
     j \in [0, N), \forall j \in \text{T}
 
 .. math::
-  
+
   U = \{ 0, 1, \cdots, N-1 \}
 
 .. math::
@@ -279,32 +279,32 @@ for each operators respectively.
   r = card\{R\}
 
 
-1. Case `exclude` is true and :math:`M = N`
+1. Case ``exclude`` is true and :math:`M = N`
 
   .. math::
     Y = X
 
 
-2. Case `exclude` is false and :math:`M = 0`
+2. Case ``exclude`` is false and :math:`M = 0`
 
   .. math::
-    Y[\underbrace{0, 0, \cdots, 0}_{K}] = 
-      \text{REDUCE_FUNC}(X)
+    Y[\underbrace{0, 0, \cdots, 0}_{K}] =
+      \text{REDUCE_FUNC}(X),
 
     \text{where } K = \begin{cases}
       1, & \text{if keepdims is false} \\
       N, & \text{otherwise}
     \end{cases}
 
-3. Case `keepdims` is false
+3. Case ``keepdims`` is false
 
   .. math::
     Y[d_{I(0)}, d_{I(1)}, \cdots, d_{I(N-r-1)}] =
-      \text{REDUCE_FUNC}(Z)
+      \text{REDUCE_FUNC}(Z),
 
-    \forall d_{I(i)} \in [0, n_{I(i)}) \wedge i \in [0, N-r)
+    \forall d_{I(i)} \in [0, n_{I(i)}) \wedge i \in [0, N-r),
 
-    \text{where } 
+    \text{where }
     I: [0, N-r) \to U-R, \text{s.t. }
       \forall i < j, I(i) < I(j) \text{ and} \\
     J: [0, r) \to R, \text{s.t. }
@@ -319,9 +319,9 @@ for each operators respectively.
       M[d_{I(0)}, d_{I(1)}, \cdots, d_{I(N-r-1)}], \\
 
     \forall d_i \in [0, n_i) \wedge i \in U - R
-      \wedge d_j = 0 \wedge j \in R \\
+      \wedge d_j = 0 \wedge j \in R, \\
 
-    \text{where } 
+    \text{where }
     I: [0, N-r) \to U-R, \text{s.t. }
       \forall i < j, I(i) < I(j) \text{ and} \\
     J: [0, r) \to R, \text{s.t. }
@@ -332,7 +332,7 @@ for each operators respectively.
 sum
 ~~~
 
-- Set :math:`\text{OP_NAME}` as `sum`
+- Set :math:`\text{OP_NAME}` as ``sum``
 - Set :math:`\text{REDUCE_FUNC}` as
 
   .. math::
@@ -357,7 +357,7 @@ sum
 max
 ~~~
 
-- Set :math:`\text{OP_NAME}` as `max`
+- Set :math:`\text{OP_NAME}` as ``max``
 - Set :math:`\text{REDUCE_FUNC}` as
 
   .. math::
@@ -367,7 +367,7 @@ max
 Broadcast Operators
 -------------------
 
-A broadcast operator performs the broadcast function to input data, and the process logic over all kinds of operators are the same. 
+A broadcast operator performs the broadcast function to input data, and the process logic over all kinds of operators are the same.
 
 - Input: There are 2 inputs.
 
@@ -385,13 +385,13 @@ We abstract the formalization here and introduce the details as below:
 .. math::
 
   Y[d_0, d_1, \cdots, d_{K-1}] = \begin{cases}
-   & A[d_{N-M}, d_1, \cdots, d_{N-1}] \text{ OP } B[d_0, d_1, \cdots, d_{N-1}], M \leq N\\
-   & A[d_0, d_1, \cdots, d_{M-1}] \text{ OP } B[d_{M-N}, d_1, \cdots, d_{M-1}], M > N
-   \end{cases}
+    A[d_{N-M}, d_1, \cdots, d_{N-1}] \text{ OP } B[d_0, d_1, \cdots, d_{N-1}], & M \leq N \\
+    A[d_0, d_1, \cdots, d_{M-1}] \text{ OP } B[d_{M-N}, d_1, \cdots, d_{M-1}], & M > N
+  \end{cases}, \\
 
-.. math::
+  \forall i \in [0, K), \\
 
-  \forall i \in [0, K), \text{ where } K = max(M, N),\\
+  \text{ where } K = max(M, N),\\
   d_i \in [0, n_i) \text{ if } N \geq M \text{ or } d_i \in [0, m_i) \text{ otherwise}
 
 
@@ -434,8 +434,8 @@ set :math:`\text{BROADCAST_OP}` to :math:`\text{max}`.
 
 NN Operators
 ------------
-We provide NN operators for users. 
-In fact, NN operators stand for neural network operators, the core of neural network learning mechanism. 
+We provide NN operators for users.
+In fact, NN operators stand for neural network operators, the core of neural network learning mechanism.
 NN operators have parameters to be trained and logic for linear or non-linear transformation in a model graph.
 
 conv2d
@@ -448,15 +448,15 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
 
   + :math:`X`, input data to be calculated whose shape is :math:`(N, C, H, W)`
   + :math:`W`, convolution kernel weight whose shape is :math:`(OC, IC, KH, KW)`, :math:`C = IC \cdot \text{groups} \wedge OC \text{ mod } \text{groups} = 0`
-  + :math:`B`, bias, of type `Optional<DLTensor>`. If `B` is not None, it's shape is :math:`(\text{OC},)`.
+  + :math:`B`, bias, of type ``Optional<DLTensor>``. If :math:`B` is not None, it's shape is :math:`(\text{OC},)`.
 
 - Output: :math:`Y`
 - Attributes:
 
-  + `padding`, a `TShape` of length 2, namely :math:`(PH, PW), PH,PW \in [min\_attr, max\_attr)`, indicating padding size.
-  + `stride`, a `TShape` of length 2, namely :math:`(SH, SW) \in [1, max\_attr)`, indicating strides.
-  + `dilation`, a `TShape` of length 2, namely :math:`(DH, DW) \in [1, max\_attr)`, parameter used in dilation convolution.
-  + `groups`, an `int` in :math:`\text{range} [1, C]`, indicating group number.
+  + ``padding``, a ``TShape`` of length 2, namely :math:`(PH, PW), PH,PW \in [min\_attr, max\_attr)`, indicating padding size.
+  + ``stride``, a ``TShape`` of length 2, namely :math:`(SH, SW) \in [1, max\_attr)`, indicating strides.
+  + ``dilation``, a ``TShape`` of length 2, namely :math:`(DH, DW) \in [1, max\_attr)`, parameter used in dilation convolution.
+  + ``groups``, an ``int`` in :math:`\text{range} [1, C]`, indicating group number.
 
 .. math::
 
@@ -479,6 +479,7 @@ where :math:`\text{kernel}` function does the 2D image convolution calculation, 
 .. math::
 
   \text{kernel}(n, j, p, q, o, i) = \sum_{k_i=0}^{\text{KH}} \sum_{k_j = 0}^{\text{KW}} \text{pad}(p'+k_i*\text{DH},q'+k_j*\text{DW}) \cdot W[o, i, k_i, k_j], \\
+
   \text{where } p' = p \cdot \text{SH} -\text{PH} \text{ and }
   q' = q \cdot \text{SW}-\text{PW} \text{ and } \\
   \text{pad}(p, q) = \begin{cases}
@@ -496,7 +497,7 @@ Dense operator provides a full connected layer.
 
   + :math:`X`, a matrix of shape :math:`(M, K)`
   + :math:`W`, a matrix of shape :math:`(N, K)`
-  + :math:`B`, bias, of type `Optional<DLTensor>`, If `B` is not `NONE`, it's shape is :math:`(N,)`.
+  + :math:`B`, bias, of type ``Optional`<DLTensor>``, If :math:`B` is not ``NONE``, it's shape is :math:`(N,)`.
 
 - Output: :math:`Y`, a matrix of shape :math:`(M, N)`
 
@@ -530,10 +531,10 @@ Max_pool2d performs max pooling over every plane for each batch and channel.
 - Output: :math:`Y`
 - Attributes:
 
-  + `pool_size`, a `TShape` of length 2, namely :math:`(PSH, PSW)`
-  + `padding`, either a `TShape` of length 2, namely :math:`(PH, PW) \in [min\_attr, max\_attr)`, or an int indicating :math:`PH=PW`
-  + `strides`, a `TShape` of length 2, namely :math:`(SH, SW)`
-  + `ceil_mode`, `boolean`.
+  + ``pool_size``, a ``TShape`` of length 2, namely :math:`(PSH, PSW)`
+  + ``padding``, either a ``TShape`` of length 2, namely :math:`(PH, PW) \in [min\_attr, max\_attr)`, or an int indicating :math:`PH=PW`
+  + ``strides``, a ``TShape`` of length 2, namely :math:`(SH, SW)`
+  + ``ceil_mode``, ``boolean``.
 
 .. math::
   PSH \in [0, H + 2PH + 1), \\
@@ -543,16 +544,18 @@ Max_pool2d performs max pooling over every plane for each batch and channel.
 .. math::
 
   Y[n,i,p,q] = \max\{\text{pad}(n, i, p', q') \\
-  \mid p' \in [p \cdot \text{SH} -\text{PH}, p \cdot \text{SH} -\text{PH}+\text{PSH}), 
+  \mid p' \in [p \cdot \text{SH} -\text{PH}, p \cdot \text{SH} -\text{PH}+\text{PSH}),
   q' \in [q \cdot \text{SW}-\text{PW}, q \cdot \text{SW}-\text{PW}+\text{PSW})\}, \\
+
   \forall n \in [0, N) \wedge i \in [0, C) \wedge \\
   p \in \left[0, \text{ceil_func}\left({H+2 \cdot \text{PH}-  \text{PSH}\over\text{SH}}\right)+1 \right) \wedge \\
   q \in \left[0, \text{ceil_func}\left({W+2 \cdot \text{PW}- \text{PSW} \over \text{SW}}\right)+1 \right), \\
+
   \text{where } \text{ceil_func(val)} = \begin{cases}
   \lceil \text{val} \rceil, & \text{if ceil_mode is true} \\
   \lfloor \text{val} \rfloor, & \text{otherwise}
   \end{cases} \text{ and } \\
-  \text{pad}(n, i, p, q) = \begin{cases} 
+  \text{pad}(n, i, p, q) = \begin{cases}
   X[n, i, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
   0, & \text{otherwise}
   \end{cases}
@@ -566,11 +569,11 @@ Upsampling operator performs upsampling to the input data by copying the value i
 
 - Input :math:`X`, whose shape is :math:`(N, C, H, W)`
 - Output :math:`Y`
-- Attributes: `scale`, in range :math:`[1, max\_attr)`.
+- Attributes: ``scale``, in range :math:`[1, max\_attr)`.
 
 .. math::
   Y[n, i, h, w] = X[n, i, \left\lfloor {h \over \text{scale}}\right\rfloor, \left\lfloor {w \over \text{scale}}\right\rfloor], \\
-  \forall n \in [0, N) \wedge i \in [0, C) \wedge 
+  \forall n \in [0, N) \wedge i \in [0, C) \wedge
   h \in [0, H \cdot \text{scale}) \wedge w \in [0, W \cdot \text{scale})
 
 Elemwise Operators
@@ -589,7 +592,7 @@ This operator calculates absolute value of input data.
 .. math::
   Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
   x, &  x \geqslant 0  \\
-  -x, & x < 0 
+  -x, & x < 0
   \end{cases},\\
   \forall i \in [0, N), d_i \in [0, n_i) \text{, where }x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
@@ -606,7 +609,7 @@ The precision operator gives how many bits the absolute value of a number takes.
 .. math::
   Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
   \lceil log_2(abs(x)+1) \rceil, & x \neq 0\\
-  1, & x = 0 
+  1, & x = 0
   \end{cases},\\
   \forall i \in [0, N), d_i \in [0, n_i) \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
@@ -665,8 +668,8 @@ This operator performs clip, cutting the data into a range, to the input tensor.
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`.
 - Attributes:
 
-  + `a_min`
-  + `a_max`
+  + ``a_min``
+  + ``a_max``
 
 .. math::
   Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
@@ -674,7 +677,10 @@ This operator performs clip, cutting the data into a range, to the input tensor.
   x, & x \in (\text{a_min}, \text{a_max}) \\
   \text{a_min}, & x \leqslant \text{a_min}
   \end{cases},\\
-  \forall i \in [0, N), d_i \in [0, n_i) \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+
+  \forall i \in [0, N), d_i \in [0, n_i),
+
+  \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 cvm_cilp
 ~~~~~~~~
@@ -684,7 +690,7 @@ This operator clips the input data into a certain CVM precision.
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`.
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`.
-- Attribute: `precision`, an int in range :math:`[1, 33)`
+- Attribute: ``precision``, an int in range :math:`[1, 33)`
 
 .. math::
   Y = clip(X, \text{a_min}=-\alpha, \text{a_max}=\alpha), \\
@@ -701,13 +707,13 @@ This operator performs right shift. Slightly different from C right shift, the r
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`.
 - Attribute:
 
-  + `precision`, an int in range :math:`[1, 33)`
-  + `shift_bit`, an int in range :math:`[1, 33)`
+  + ``precision``, an int in range :math:`[1, 33)`
+  + ``shift_bit``, an int in range :math:`[1, 33)`
 
 .. math::
   Y = clip(T, \text{a_min} = -\alpha, \text{a_max}=\alpha), \\
-  \text{where } T = {\left\lfloor 
-  \left(\left\lfloor \frac{X}{2^{\text{shift_bit} - 1}} \right\rfloor + 1 \right) 
+  \text{where } T = {\left\lfloor
+  \left(\left\lfloor \frac{X}{2^{\text{shift_bit} - 1}} \right\rfloor + 1 \right)
   \div 2 \right\rfloor} \text{ and } \alpha = 2 ^ {\text{precision} - 1} - 1
 
 
@@ -721,8 +727,8 @@ This operator performs left shift to the input tensor, same as C left shift oper
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`.
 - Attribute:
 
-  + `precision`, an int in range :math:`[1, 33)`
-  + `shift_bit`, an int in range :math:`[1, 33)`
+  + ``precision``, an int in range :math:`[1, 33)`
+  + ``shift_bit``, an int in range :math:`[1, 33)`
 
 .. math::
   Y = clip(T, \text{a_min} = -\alpha, \text{a_max}=\alpha), \\
@@ -739,7 +745,7 @@ repeat
 .. _repeat_operator:
 
 
-This operator repeats the input data by `repeats` times along the given `axis`. Each element is repeated right after itself.
+This operator repeats the input data by ``repeats`` times along the given ``axis``. Each element is repeated right after itself.
 
 *Math Formalization*
 
@@ -747,11 +753,11 @@ This operator repeats the input data by `repeats` times along the given `axis`. 
 - Output: :math:`Y`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{\text{axis}} \cdot repeats, \cdots, n_{N-1})`
 - Attribute:
 
-  + `axis`, an int in range :math:`[0, N)`, indicating on which axis is the repeatation performed.
-  + `repeats`, an int in range :math:`[1, +\infty)`, indicating how many times the data is repeated.
+  + ``axis``, an int in range :math:`[0, N)`, indicating on which axis is the repeatation performed.
+  + ``repeats``, an int in range :math:`[1, +\infty)`, indicating how many times the data is repeated.
 
 .. math::
-  Y[d_0, d_1, \cdots, d_\text{axis}, \cdots, d_{N-1}] = 
+  Y[d_0, d_1, \cdots, d_\text{axis}, \cdots, d_{N-1}] =
   X[d_0, d_1, \cdots, \left\lfloor{d_\text{axis} \over \text{repeats}}\right\rfloor, \cdots, d_{N-1}], \\
   \forall d_0 \in [0, n_0) \wedge \cdots \wedge d_{axis-1} \in [0, n_{axis-1}) \wedge
   d_{axis} \in [0, n_{axis} \cdot \text{repeats}) \wedge \\
@@ -766,7 +772,7 @@ This operator tiles the input data serveral times on serveral dimensions. Differ
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`,
 - Output: :math:`Y`
-- Attribute: `reps`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M-1})`.
+- Attribute: ``reps``, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M-1})`.
 
 .. math::
   r \in [1, max\_attr), \forall r \in \text{reps}
@@ -775,6 +781,7 @@ This operator tiles the input data serveral times on serveral dimensions. Differ
   Y[k_0, \cdots, k_{K-N-1}, k_{K-N}, k_{K-N+1}, \cdots, k_{K-1}] = \\
   X[k_{K-N+0} \text{ mod } n_0, k_{K-N+1} \text{ mod } n_1, \cdots, k_{K-N+N-1} \text{ mod } n_{N-1}], \\
   \forall k_0 \in [0, S_0) \wedge \cdots \wedge k_{K-1} \in [0, S_{K-1}), \\
+
   \text{where } K = \max\{M, N\} \text{ and } S_i = SX_i \cdot SR_i \text{ and } \\
   SX_p = \begin{cases}
   n_{p-K+N}, & p \in [K-N, K-1) \\
@@ -794,21 +801,20 @@ This operator flattens the input tensor data to an array in a row-major order.
 *Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`.
-- Output: :math:`Y`. 
+- Output: :math:`Y`.
 
 .. math::
   Y[\text{flatten_index}(d_0, d_1, \cdots, d_{N-1}, n_0, n_1, \cdots, n_{N-1})]  =  \\
   X[d_0, d_1, \cdots, d_{N-1}], \\
   \forall d_0 \in [0, n_0) \wedge d_1 \in [0, n_1) \wedge \cdots \wedge
   d_{N-1} \in [0, n_{N-1})
-  
 
-  where :math:`\text{flatten_index}` is 
+  where :math:`\text{flatten_index}` is
 
 .. math::
   \text{flatten_index}(d_0, d_1, \cdots, d_{N-1}, n_0, n_1, \cdots, n_{N-1}) = \\
-  d_0 \cdot \prod_{i = 1}^{N-1} n_i + 
-  d_1 \cdot \prod_{i = 2}^{N-1} n_i + 
+  d_0 \cdot \prod_{i = 1}^{N-1} n_i +
+  d_1 \cdot \prod_{i = 2}^{N-1} n_i +
   \cdots + d_{N-2} * n_{N-1} + d_{N-1}
 
 concatenate
@@ -820,7 +826,7 @@ This operator concatenates tensors along a given axis.
 
 - Inputs: :math:`M` tensors, namely :math:`I^0, I^1, \cdots, I^{M-1}`. They all have :math:`N` dimensions, namely :math:`I^i`'s shape is :math:`(n^i_0, n^i_1, \cdots, n^i_{N-1})`. All dimensions except the axis to be concatenated along must have the same length.
 - Output: :math:`Y`
-- Attribute: `axis`, an int in range :math:`[0, N)`.
+- Attribute: ``axis``, an int in range :math:`[0, N)`.
 
 .. math::
   n^i_j = n^0_j, \forall i \in [1, M) \wedge j \in [0, N) \wedge j \neq \text{axis}
@@ -829,6 +835,7 @@ This operator concatenates tensors along a given axis.
   Y[d_0, d_1, \cdots, d_\text{axis-1}, \text{new_idx}, d_\text{axis+1}, \cdots, d_{N-1}] = I^i[d_0, d_1, \cdots, d_{N-1}], \\
   \forall d_0 \in [0, n^i_0) \wedge \cdots \wedge d_{N-1} \in [0, n^i_{N-1})
   \wedge i \in [0, M), \\
+
   \text{where new_idx} = \sum_{j=0}^{i-1} n^j_\text{axis} + d_\text{axis}
 
 transpose
@@ -839,16 +846,18 @@ This operator transposes the input data with a certain sequence.
 *Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
-- Output: :math:`Y`, 
-- Attribute: `axes`, a TShape of length :math:`M \in \{0, N\}`, which means `axes` is either empty or a permutation of :math:`\{0, 1, \cdots, N-1\}`
+- Output: :math:`Y`,
+- Attribute: ``axes``, a TShape of length :math:`M \in \{0, N\}`, which means ``axes`` is either empty or a permutation of :math:`\{0, 1, \cdots, N-1\}`
 
 .. math::
   \text{axis} \in [-N, N), \forall \text{axis} \in \text{axes}
 
 .. math::
-  Y[d_{\text{real_axes}_0}, d_{\text{real_axes}_1}, \cdots, d_{\text{real_axes}_{N-1}}] = 
+  Y[d_{\text{real_axes}_0}, d_{\text{real_axes}_1}, \cdots, d_{\text{real_axes}_{N-1}}] =
   X[d_0, d_1, \cdots, d_{N-1}], \\
+
   \forall d_0 \in [0, n_0) \wedge \cdots \wedge d_{N-1} \in [0, n_{N-1}), \\
+
   \text{where real_axes}_i = \begin{cases}
   \text{axes}_i, & M = N \wedge \text{axes}_i \geqslant 0 \\
   \text{axes}_i + N, & M = N \wedge \text{axes}_i < 0 \\
@@ -864,12 +873,12 @@ This operator slices an input array with given attribute. For each dimension, st
 *Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
-- Output: :math:`Y`, 
-- Attributes: 
+- Output: :math:`Y`,
+- Attributes:
 
-  + `begin`, :math:`B` dimensions.
-  + `end`, :math:`E` dimensions.
-  + `strides`: :math:`S` dimensions.
+  + ``begin``, :math:`B` dimensions.
+  + ``end``, :math:`E` dimensions.
+  + ``strides``: :math:`S` dimensions.
 
   :math:`B`, :math:`E`, :math:`S` can be different.
 
@@ -897,11 +906,11 @@ This operator slices an input array with given attribute. For each dimension, st
   n_i - 1, & \text{s_arr}[i] < 0 \\
   n_i, & \text{s_arr}[i] \geqslant 0
   \end{cases} \\
-  \text{b_vec}[b] = 
+  \text{b_vec}[b] =
   clip(\text{b_arr}[b], \text{a_min}=\text{b_range}(b), \text{a_max}=\text{e_range}(b)-1), b \in [0, N) \\
-  \text{e_vec}[e] = 
+  \text{e_vec}[e] =
   clip(\text{e_arr}[e], \text{a_min}=\text{b_range}(e), \text{a_max}=\text{e_range}(e)-1), e \in [0, N) \\
-  \forall \{i \mid i \in [0, N) \}: 
+  \forall \{i \mid i \in [0, N) \}:
   \begin{cases}
   \text{b_vec}[i] < \text{e_vec}[i], & \text{s_arr}[i] > 0 \\
   \text{e_vec}[i] < \text{b_vec}[i], & \text{s_arr}[i] < 0
@@ -911,35 +920,39 @@ This operator slices an input array with given attribute. For each dimension, st
   X[\text{b_vec}[0] + \text{s_arr}[0] * d_0,
   \text{b_vec}[1] + \text{s_arr}[1] * d_1,
   \cdots, \text{b_vec}[N-1] + \text{s_arr}[N-1] * d_{N-1}]] \\
-  \forall (d_0, d_1, \cdots, d_{N-1}), 
-  \text{ where } d_j \in [0, 
-  \left\lceil{\text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j]}\right\rceil) 
+
+  \forall (d_0, d_1, \cdots, d_{N-1}),
+
+  \text{ where } d_j \in [0,
+  \left\lceil{\text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j]}\right\rceil)
   \wedge j \in [0, N)
 
 
 slice_like
 ~~~~~~~~~~
 
-This operator slices the input `X` to a shape that looks like the other given input `shape_like`.
+This operator slices the input :math:`X` to a shape that looks like the other given input ``shape_like``.
 
 *Math Formalization*
 
 - Input: there are 2 inputs
-  
+
   + :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
-  + :math:`shape_like`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M- 1 })`,
+  + :math:`\text{shape_like}`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M- 1 })`,
 
 - Output: :math:`Y`
-- Attribute :`axes`, a `TShape` with length :math:`K`. If `axes` is not empty, only those axes mentioned will be sliced on and others in `shape_like` will also be ignored. :math:`M \ne N` is allowed only if non-empty `axes` are given. If :math:`M>N`, those dimensions higher than :math:`N` will be ignored and if :math:`M<N`, only the first :math:`M` dimensions are sliced while those dimensions higher than :math:`M` will stay the same. 
+- Attribute: ``axes``, a ``TShape`` with length :math:`K`. If ``axes`` is not empty, only those axes mentioned will be sliced on and others in ``shape_like`` will also be ignored. :math:`M \ne N` is allowed only if non-empty ``axes`` are given. If :math:`M>N`, those dimensions higher than :math:`N` will be ignored and if :math:`M<N`, only the first :math:`M` dimensions are sliced while those dimensions higher than :math:`M` will stay the same.
 
 .. math::
-  \text{sliced_axes} = \begin{cases} 
+  \text{sliced_axes} = \begin{cases}
   \{j \mid j \in axes \wedge j \geqslant 0\} \bigcup
   \{j + N \mid j \in axes \wedge j < 0\}, & K > 0\\
   \{0, 1, \cdots, M-1\}, & K = 0
-  \end{cases} \\
+  \end{cases}, \\
+
   \forall j \in \text{sliced_axes}: j < \min(M, N) \text{ and } m_j \leqslant n_j\\
   Y[d_0, d_1, \cdots, d_{N-1}] = X[d_0, d_1, \cdots, d_{N-1}], \\
+
   \text{where } j \in [0, N) \wedge d_j \in \begin{cases}
   [0, m_j), & j \in \text{sliced_axes} \\
   [0, n_j), & j \notin \text{sliced_axes}
@@ -957,18 +970,21 @@ This operator takes some elements from the input data. If axis is not given, it 
   + :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
   + :math:`indices`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M- 1})`
 
-- Output: :math:`Y`, 
-- Attribute: `axis` an `Optional<int>` .
+- Output: :math:`Y`,
+- Attribute: ``axis`` an ``Optional<int>``.
 
-1. Case axis is `None` :
+1. Case axis is ``None`` :
 
 .. math::
   T = flatten(X) \\
   Y[d_0, d_1, \cdots, d_{M-1}] = T[clip(\text{xidx}, \text{a_min}=0, \text{a_max}=|T|-1],\\
-  \forall (d_0, d_1, \cdots, d_{M-1}), \text{ where } d_j \in [0, m_j) \wedge j \in [0, M) \text{ and }\\
+
+  \forall (d_0, d_1, \cdots, d_{M-1}), \\
+
+  \text{ where } d_j \in [0, m_j) \wedge j \in [0, M) \text{ and }\\
   \text{xidx} = \text{indices}[d_0, d_1, \cdots, d_{M-1}]
 
-2. Case axis is `int`:
+2. Case axis is ``int``:
 
 .. math::
   \text{axis} \in [-N, N) \\
@@ -977,12 +993,14 @@ This operator takes some elements from the input data. If axis is not given, it 
   \text{axis} + N, & \text{axis} < 0
   \end{cases} \\
   Y[d_0, d_1, \cdots, d_{M+N-2}] = X[d_0, \cdots, d_{\text{real_axis}-1}, \text{xdix}, d_{\text{real_axis}+M}, \cdots, d_{M+N-2}], \\
-  \forall (d_0, d_1, \cdots, d_{M+N-2}), \text{where } d_j \in \begin{cases} 
+
+  \forall (d_0, d_1, \cdots, d_{M+N-2}), \\
+
+  \text{where } d_j \in \begin{cases}
   [0, n_j), & j < \text{real_axis} \\
   [0, m_{j-\text{real_axis}}), & j \in [\text{real_axis}, \text{real_axis}+M) \\
   [0, n_{j-M+1}), & j \in [\text{real_axis} + M, M+N-1)
   \end{cases}\\
-
   \text{where } \text{xidx}{} = clip(\text{indices}[d_{\text{real_axis}}, d_{\text{real_axis}+1}, \cdots, d_{\text{real_axis}+M-1}],\\
   \text{a_min}=0, \text{a_max}=n_{\text{real_axis}}-1)
 
@@ -995,11 +1013,11 @@ This operator is a alias for a take where axis is None.
 *Math Formalization*
 
 - Input: there are 2 inputs.
-  
+
   + :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
   + :math:`indices`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M- 1})`
 
-- Output: :math:`Y`. 
+- Output: :math:`Y`.
 
 
 .. math::
@@ -1016,16 +1034,18 @@ This operator expands some new dimensions right from the given axis.
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`,
 - Output: :math:`Y`
 - Attributes:
-  
-  + `axis`, an int in range :math:`[-N-1, N+1)`, indicating where the new dimensions starts. Note that :math:`N+1`, instead of :math:`N`, will be added to negative axis.
-  + `num_newaxis`, an int in range :math:`[min\_attr, max\_attr)`
+
+  + ``axis``, an int in range :math:`[-N-1, N+1)`, indicating where the new dimensions starts. Note that :math:`N+1`, instead of :math:`N`, will be added to negative axis.
+  + ``num_newaxis``, an int in range :math:`[min\_attr, max\_attr)`
 
 .. math::
-  Y[d_0,d_1, \cdots, d_{\text{real_axis}-1}, 
-  \underbrace{0, 0, \cdots, 0}_{\text{num_newaxis}}, 
+  Y[d_0,d_1, \cdots, d_{\text{real_axis}-1},
+  \underbrace{0, 0, \cdots, 0}_{\text{num_newaxis}},
   d_\text{real_axis}, \cdots, d_{N-1}] = X[d_0, d_1, \cdots, d_{N-1}], \\
+
   \forall d_0 \in [0, n_0) \wedge \cdots \wedge d_{N-1} \in [0, n_{N-1}), \\
-  \text{where real_axis} = 
+
+  \text{where real_axis} =
   \begin{cases}
   \text{axis},& \text{axis} \geqslant 0 \\
   \text{axis} + N,& \text{axis} < 0
@@ -1041,11 +1061,13 @@ This operator reshapes the input data.
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`,
 - Output: :math:`Y`,
-- Attribute: `target_shape`, a `TShape` of length `M`,  namely :math:`(m_0, m_1, \cdots,  m_{M-1})` , s.t. :math:`m_0 * m_1 * \cdots * m_{M-1} = n_0 * n_1 * \cdots * n_{N-1}`.
+- Attribute: ``target_shape``, a ``TShape`` of length ``M``,  namely :math:`(m_0, m_1, \cdots,  m_{M-1})` , s.t. :math:`m_0 * m_1 * \cdots * m_{M-1} = n_0 * n_1 * \cdots * n_{N-1}`.
 
 .. math::
   Y[d_0, d_1, \cdots, d_{M-1}] = T[\text{flatten_index}(d_0, d_1, \cdots, d_{M-1}, m_0, m_1, \cdots, m_{N-1})], \\
+
   \forall d_0 \in [0, m_0) \wedge \cdots \wedge d_{N-1} \in [0, m_{N-1}), \\
+
   \text{where } T = \text{flatten}(X)
 
 
@@ -1056,15 +1078,15 @@ This operator removes dimensions of length 1.
 
 *Math Formalization*
 
-- Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})` 
+- Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
 - Output: :math:`Y`.
-- Attribute: `axes`, a `TShape` of length M.
+- Attribute: ``axes``, a ``TShape`` of length M.
 
 .. math::
   \text{axis} \in [-N, N), \forall \text{axis} \in \text{axes}
 
 .. math::
-  \text{real_axes} = 
+  \text{real_axes} =
   \begin{cases}
   \{\text{axis} \mid \text{axis} \geqslant 0 \wedge \text{axis} \in \text{axes} \} \bigcup
   \{\text{axis} + N \mid \text{axis} < 0 \wedge \text{axis} \in \text{axis}\},
@@ -1078,11 +1100,12 @@ This operator removes dimensions of length 1.
 .. math::
   Y[d_{I(0)}, d_{I(1)}, \cdots, d_{I(N-K-1)}] = X[d_0, d_1, \cdots, d_{N-1}], \\
 
-  \forall d_0 \in [0, n_0) \wedge d_1 \in [0, n_1) 
+  \forall d_0 \in [0, n_0) \wedge d_1 \in [0, n_1)
   \wedge \cdots \wedge d_{N-1} \in [0, n_{N-1}), \\
+
   \text{where } K = card \; \text{\{real_axes\}} \text{ and } \\
 
-  I: \{i \mid i \in [0, N-K) \} \to 
+  I: \{i \mid i \in [0, N-K) \} \to
   \{i \mid i \in [0, N) \wedge i \notin \text{real_axes} \}, \\
   \text{s.t. } I(i) < I(j), \forall 0 \leqslant i < j < N-K
 
@@ -1102,28 +1125,28 @@ This operator counts how many results are more than a threshold and what are the
 - Input: :math:`X`, a 3D tensor of shape :math:`(B, N, K), 2 \leqslant K \leqslant 32`
 - Output:
 
-  + :math:`valid_count`,
+  + :math:`\text{valid_count}`,
   + :math:`Y`,
 
-- Attribute: `score_threshold`, an `int`.
+- Attribute: ``score_threshold``, an ``int``.
 
 
 .. math::
   \text{valid_count}[b] = card\{ q \mid q \in [0, N) \wedge
   X[b, q, 1] > \text{score_threshold} \}, \\
   \quad \forall b \in [0, B)
-  
 
 .. math::
   Y[b, \text{idx}, k] = X[b, n, k], \\
-  \quad \forall b \in [0, B) \wedge n \in [0, N) \wedge 
+  \quad \forall b \in [0, B) \wedge n \in [0, N) \wedge
   k \in [0, K) \wedge X[b, n, 1] > \text{score_threshold}, \\
+
   \quad \text{where idx = }
-  card \{q \mid q \in [0, n) \wedge 
+  card \{q \mid q \in [0, n) \wedge
   X[b, q, 1] > \text{score_threshold} \}
 
 .. math::
-  Y[b,n, k] = -1, \forall b \in [0, B) \wedge 
+  Y[b,n, k] = -1, \forall b \in [0, B) \wedge
   n \in [\text{valid_count}[b], N) \wedge k \in [0, K)
 
 
@@ -1137,15 +1160,15 @@ This operator implements the nms algorithm, finding valid bounding boxes.
 - Input: there are 2 inputs.
 
   + :math:`X`, a 3D tensor of shape :math:`(B, N, K), K = 6`
-  + `valid_count`, a 1D tensor of length :math:`B`
+  + ``valid_count``, a 1D tensor of length :math:`B`
 
 - Output: :math:`Y`
 - Attributes:
 
-  + `iou_threshold`, an `int`, representing the percentage of intersection over union with value in range :math:`(0, +\infty)` where 101 stands for bounding box full-overlap specifically and larger integer is equivalent to that. 
-  + `max_output_size`, an `int`
-  + `force_suppress`, a `boolean`
-  + `top_k`, an `int`. 
+  + ``iou_threshold``, an ``int``, representing the percentage of intersection over union with value in range :math:`(0, +\infty)` where 101 stands for bounding box full-overlap specifically and larger integer is equivalent to that.
+  + ``max_output_size``, an ``int``
+  + ``force_suppress``, a ``boolean``
+  + ``top_k``, an ``int``.
 
 .. math::
   R[b, i, k] = X[b, I(i), k], \\
@@ -1156,34 +1179,34 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \text{min}(N, \text{valid_count}[b]), 0\} \text{ and } \\
   I: \{ i \mid i \in [0, T) \} \to \{ i \mid i \in [0, T) \}, \\
   \text {s.t. } X[b, I(i), 1] > X[b, I(j), 1] \vee \\
-  (X[b, I(i), 1] = X[b, I(j), 1] \wedge I(i) < I(j)), 
+  (X[b, I(i), 1] = X[b, I(j), 1] \wedge I(i) < I(j)),
   \forall 0 \leqslant i < j < T
 
 .. math::
   Y[b, n, k] = R[b, \text{IDX}(n), k], \\
 
-  \forall b \in [0, B) \wedge n \in [0, \min\{T, \text{MOS}, card\{U\}\}) \wedge 
+  \forall b \in [0, B) \wedge n \in [0, \min\{T, \text{MOS}, card\{U\}\}) \wedge
   k \in [0, K), \\
-  \text{where } \text{TK} = 
-  \begin{cases}
-  +\infty, & \text{if top_k < 0} \\[1ex]
-  \text{top_k}, & \text{otherwise}
+
+  \text{where } \text{TK} = \begin{cases}
+    +\infty, & \text{if top_k < 0} \\[1ex]
+    \text{top_k}, & \text{otherwise}
   \end{cases} \text{ and } \\
-  \text{MOS} = 
+  \text{MOS} =
   \begin{cases}
-  +\infty, & \text{if max_output_size < 0} \\[1ex]
-  \text{max_output_size}, & \text{otherwise}
+    +\infty, & \text{if max_output_size < 0} \\[1ex]
+    \text{max_output_size}, & \text{otherwise}
   \end{cases} \text{ and } \\
   \text{iou}(p, q) = \begin{cases}
-  \text{overlap_ratio}(R[b, p, :], R[b, q, :]), &
-  \begin{array}{}
-  \text{force_suppress is true}\\
-  \vee R[b, p, 0] = R[b, q, 0] 
-  \end{array} \\[1ex]
-  0, & \text{otherwise}
+    \text{overlap_ratio}(R[b, p, :], R[b, q, :]), &
+    \begin{array}{}
+    \text{force_suppress is true}\\
+    \vee R[b, p, 0] = R[b, q, 0]
+    \end{array} \\[1ex]
+    0, & \text{otherwise}
   \end{cases} \\
   \text{ and } \\
-  \text{U} = \{p \mid p \in [0, min\{TK, T\}) \wedge 
+  \text{U} = \{p \mid p \in [0, min\{TK, T\}) \wedge
   R[b,p,0] >= 0 \wedge \text{iou}(p, q) < \text{iou_threshold}, \\
   \forall q \in U \wedge q < p\}
    \text{ and } \\
@@ -1192,6 +1215,6 @@ This operator implements the nms algorithm, finding valid bounding boxes.
 
 .. math::
   Y[b, n, k] = -1, \\
-  \forall b \in [0, B) \wedge k \in [0, K) \wedge 
+  \forall b \in [0, B) \wedge k \in [0, K) \wedge
   n \in [min\{T, \text{MOS},card\{U\}\}, N)
 
