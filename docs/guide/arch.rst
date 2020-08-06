@@ -244,7 +244,7 @@ A broadcast operator performs the broadcast function to input data, and the proc
 
 - Output: :math:`Y`, a tensor with :math:`max(M, N)` dimensions, the higher dimension of the two inputs, and it's shape is identical to the input with higher dimension.
 
-The lower :math:`min(M, N)` dimensions of the two inputs must be the same and the remaining higher dimensions of the input of lower dimension is expanded to the higher dimension with 1.
+The lower :math:`min(M, N)` dimensions of the two inputs must be the same. The input with lower dimension is expanded with 1 so that the two inputs can have the same dimension.
 
 Then the elementwise opertaion is performed to the inputs with broadcast.
 
@@ -253,18 +253,21 @@ We abstract the formalization here and introduce the details as below:
 .. math::
 
   Y[d_0, d_1, \cdots, d_{K-1}] = \begin{cases}
-   & A[d_{N-M}, d_1, \cdots, d_{M-1}] OP B[d_0, d_1, \cdots, d_{N-1}], M \leq N\\
-   & A[d_0, d_1, \cdots, d_{M-1}] OP B[d_{M-N}, d_1, \cdots, d_{K-1}], M > N
+   & A[d_{N-M}, d_1, \cdots, d_{N-1}] \text{ OP } B[d_0, d_1, \cdots, d_{N-1}], M \leq N\\
+   & A[d_0, d_1, \cdots, d_{M-1}] \text{ OP } B[d_{M-N}, d_1, \cdots, d_{M-1}], M > N
    \end{cases}
+
 .. math::
 
-  \forall i \in [0, K), \text{ where } K = max(M, N), d_i \in [0, n_i) if N \geq M or d_i \in [0, m_i) \text{ otherwise}
+  \forall i \in [0, K), \text{ where } K = max(M, N),\\
+  d_i \in [0, n_i) \text{ if } N \geq M \text{ or } d_i \in [0, m_i) \text{ otherwise}
 
 
 broadcast_add
 ~~~~~~~~~~~~~
 
 set :math:`\text{BROADCAST_OP}` to :math:`\text{add}`.
+
 *Example*
 
 .. code-block:: Python
