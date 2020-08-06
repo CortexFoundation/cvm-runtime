@@ -20,10 +20,16 @@ MRT, short of Model Representation Tool, aims at quantizing floating model into 
 Python API
 ==========
 
+Core python API briefly involves model quantization, compilation and evaluation. For standardized implementation of MRT stages, please refer to :ref:`MRT Main2 API <mrt_main2_api>`
+
+For other detailed classes and methods, please refer to the API links.
+
+`MRT` Module will preprocess the MxNet model and transform the it into CVM format. Inference process can be performed using `CVM` python API.
+
 .. toctree::
   :maxdepth: 2
 
-  MRT main2 API <api/main2>
+  MRT Main2 API <api/main2>
   MRT Transformer API <api/transformer>
   MRT base API <api/tfm_base>
   MRT operators API <api/tfm_ops>

@@ -1,13 +1,19 @@
-.. _mrt_main2_api:
 
 *************
 MRT main2 API
 *************
 
-The main stages of main2 include the following 6 stages.
+.. _mrt_main2_api:
 
-**1. prepare**
+.. contents::
 
+The main stages of main2 include the following 6 stages, which are enumerated as follows.
+
+Main2 Stages
+============
+
+Prepare
+_______
 The raw model need to be prepared in order to be compatible with the mrt pipeline:
 
 ::
@@ -15,16 +21,16 @@ The raw model need to be prepared in order to be compatible with the mrt pipelin
   model = Model.load(sym_path, prm_path)
   model.prepare(set_batch(input_shape, 1))
 
-**2. split model**
-
+Split Model
+___________
 In a model split operation, a model can be split into top and base by specifying keys. 
 
 ::
 
   base, top = model.split(keys)
 
-**3. calibration**
-
+Calibration
+___________
 A mrt instance is created for calibration and quantization stage.
 
 ::
@@ -40,8 +46,8 @@ The calibration can be executed by specifying the number of calibration, lambd a
       mrt.set_data(data)
       mrt.calibrate(lambd=lambd, ctx=ctx)
 
-**4. quantization**
-
+Quantization
+____________
 A mrt instance can perform the quantization process, the user can set up some predefined parameters for mrt if needed, such as input precision, output precision, softmax lambd, shift bits as well as threshold for a particular node, etc.
 
 ::
@@ -58,8 +64,8 @@ Then, the quantization process is performed as follows:
 
   mrt.quantize()
 
-**5. merge model**
-
+Merge Model
+___________
 By specifying the base and top models along with corresponding node key maps, the user can create a model merger instance.
 
 ::
@@ -76,9 +82,10 @@ By specifying callback merging function, the user can merge the top and base mod
   oscales = model_merger.get_output_scales(
       mrt_oscales, oscale_maps)
 
-**6. evaluation**
-
+Evaluation
+__________
 Quantized model reduction and performance comparison are implemented in the evaluation stage:
+
 ::
 
   org_model = Model.load(sym_path, prm_path)
@@ -104,9 +111,10 @@ Quantized model reduction and performance comparison are implemented in the eval
 
 
 
-**7. compilation**
-
+Compilation
+___________
 Compilation stage include model conversion from mxnet to cvm, and model dump:
+
 ::
 
   qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
@@ -129,8 +137,9 @@ as well as dump of sample data and ext files:
   sim.save_ext(path.join(model_root, "ext"), infos)
 
 
-mrt.main2
-__________
+Main2 Helper Functions
+======================
+
 .. automodule:: mrt.main2
 
 .. autofunction:: mrt.main2.set_batch
