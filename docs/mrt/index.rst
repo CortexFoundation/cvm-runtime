@@ -31,7 +31,7 @@ For other detailed classes and methods, please refer to the API links.
 
   MRT Main2 API <api/main2>
   MRT Transformer API <api/transformer>
-  MRT operators API <api/operator.rst>
-  MRT utils API <api/tfm_utils>
+  MRT Operator API <api/operator.rst>
+  MRT Utils API <api/tfm_utils>
   MRT helper API <api/sim_quant_helper>
   MRT pass API <api/tfm_pass>
