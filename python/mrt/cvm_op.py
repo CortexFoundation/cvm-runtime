@@ -1,3 +1,11 @@
+""" Customized Op-level realization of MxNet Forward Computing Framework.
+
+    MxNet customized operator property class.
+
+    Only **crucial parts** of the custommized 
+    forward operator implementation are elaborated.
+"""
+
 import mxnet as mx
 from mxnet import ndarray as nd
 
@@ -11,6 +19,16 @@ class Clip(mx.operator.CustomOp):
         self.max = float(clip)
 
     def forward(self, is_train, req, in_data, out_data, aux):
+        """ MxNet customized operator forward implementation.
+
+            .. math::
+                rnd = round(X)
+
+            where X is the input tensor.
+
+            .. math:
+                out = clip(a\_min, a\_max)
+        """
         assert is_train == False
         X = in_data[0]
         a_min, a_max = self.min, self.max
@@ -132,6 +150,8 @@ class Pad(mx.operator.CustomOp):
 
 @mx.operator.register("cvm_clip")
 class ClipProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_clip operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -152,6 +172,8 @@ class ClipProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_left_shift")
 class LeftShiftProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_left_shift operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -172,6 +194,8 @@ class LeftShiftProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_right_shift")
 class RightShiftProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_right_shift operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -192,6 +216,8 @@ class RightShiftProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_lut")
 class LUTProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_lut operator property class.
+    """
     def __init__(self, in_dim):
         self.in_dim = in_dim
         super(LUTProp, self).__init__(need_top_grad=False)

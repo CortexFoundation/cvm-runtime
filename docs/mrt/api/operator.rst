@@ -186,3 +186,22 @@ ___________
 .. autofunction:: mrt.tfm_ops.reverse_sequence
 
 .. autofunction:: mrt.tfm_ops.reverse_transpose
+
+
+mrt.cvm_op
+__________
+.. _mrt_cvm_op_api:
+
+.. automodule:: mrt.cvm_op
+
+
+.. autoclass:: mrt.cvm_op.ClipProp
+
+
+.. autoclass:: mrt.cvm_op.LeftShiftProp
+
+
+.. autoclass:: mrt.cvm_op.RightShiftProp
+
+
+.. autoclass:: mrt.cvm_op.LUTProp

@@ -52,7 +52,9 @@ ____________
 
 mrt.sym_utils
 _____________
-.. _mrt_sym_utils:
+.. _mrt_sym_utils_api:
+
+.. automodule:: mrt.sym_utils
 
 .. autofunction:: mrt.sym_utils.is_op
 
@@ -95,3 +97,24 @@ _____________
 .. autofunction:: mrt.sym_utils.topo_visit
 
 .. autofunction:: mrt.sym_utils.topo_visit_transformer
+
+mrt.utils
+_________
+.. _mrt_utils_api:
+
+.. automodule:: mrt.utils
+
+.. autofunction:: mrt.utils.load_parameters
+
+.. autofunction:: mrt.utils.multi_validate
+
+
+mrt.gluon_zoo
+_____________
+.. _mrt_gluon_zoo_api:
+
+.. automodule:: mrt.gluon_zoo
+
+.. autofunction:: mrt.gluon_zoo.get_model
+
+.. autofunction:: mrt.gluon_zoo.save_model
