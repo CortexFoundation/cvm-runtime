@@ -195,6 +195,22 @@ __________
 .. automodule:: mrt.cvm_op
 
 
+.. autoclass:: mrt.cvm_op.Clip
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.LeftShift
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.RightShift
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.LUT
+  :members: forward
+
+
 .. autoclass:: mrt.cvm_op.ClipProp
 
 
