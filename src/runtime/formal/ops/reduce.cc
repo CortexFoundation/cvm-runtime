@@ -87,7 +87,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
       // otherwise, it is fixed with y during the traverse.
       Indices xIdx(X_shape);
       for (uint j = 0, yi = 0; j < X_shape.ndim(); j++) {
-        xIdx[j] = flag[j] ? 0 : yIdx[yi++];
+        xIdx.Ref(j) = flag[j] ? 0 : yIdx[yi++];
       }
       int32_t tmp = X_data[xIdx.Index()];
       // the first x is tmp. we start from the second in the reduced space, so
@@ -96,7 +96,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
       reducIdx++;
       for (; !reducIdx.End(); reducIdx++) {
         for (uint j = 0, yj = 0, rj = 0; j < X_shape.ndim(); j++) {
-          xIdx[j] = flag[j] ? reducIdx[rj++] : yIdx[yj++];
+          xIdx.Ref(j) = flag[j] ? reducIdx[rj++] : yIdx[yj++];
         }
         f(tmp, X_data[xIdx.Index()]);
       }

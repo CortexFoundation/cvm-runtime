@@ -31,7 +31,7 @@ inline size_t CVMArgSize(CVMArgValue const& av) {
   return shape.Size();
 }
 
-inline int CVMArgNdim(CVMArgValue const& av) {
+inline uint32_t CVMArgNdim(CVMArgValue const& av) {
   DLTensor* tensor = av.operator DLTensor*();
   return tensor->ndim;
 }
@@ -82,13 +82,14 @@ class Indices {
     index_cache_ = -1;
     indices_ = vecIdx;
   }
+  dim_t& Ref(size_t i) {
+    index_cache_ = -1;
+    return indices_[i];
+  }
 
   void operator++();
   void operator++(int) { return this->operator++(); }
-  dim_t& operator[](size_t i) { 
-    index_cache_ = -1;
-    return indices_[i]; 
-  }
+
   dim_t const& operator[](size_t i) const { return indices_[i]; }
 
   void swap(Indices &other);
