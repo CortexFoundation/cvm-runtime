@@ -196,6 +196,8 @@ and the next section will abstract the mathematical logic in
 the formalization format.
 
 
+.. _operator_math_formalization:
+
 Operator Math Formalization
 ===========================
 

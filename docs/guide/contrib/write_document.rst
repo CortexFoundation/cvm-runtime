@@ -3,7 +3,7 @@
 Write Documentation and Tutorials
 *********************************
 
-.. content:
+.. contents::
 
 .. _write_math_formalization:
 
