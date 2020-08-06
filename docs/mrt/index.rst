@@ -33,4 +33,5 @@ For other detailed classes and methods, please refer to the API links.
   MRT Transformer API <api/transformer>
   MRT Operator API <api/operator>
   MRT Graph API <api/graph>
+  MRT Dataset API <api/dataset>
   MRT Utils API <api/utils>

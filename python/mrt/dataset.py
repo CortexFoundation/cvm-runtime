@@ -86,7 +86,7 @@ class Dataset:
             of your data iterator, metrics and validate function.
 
         Notice:
-        =======
+
             our default imagenet dataset is organized as an `record`
             binary format, which can amplify the throughput for image read.
             Custom dataset of third party should be preprocessed by the `im2rec`
@@ -97,7 +97,7 @@ class Dataset:
 
 
         Parameters:
-        ===========
+
             input_shape: the input shape requested from user, and some dataset would
                 check the validity format.
             root: the location where dataset is stored, defined with variable `MRT_DATASET_ROOT`
@@ -105,7 +105,7 @@ class Dataset:
 
 
         Derived Class Implementation:
-        =============================
+
             1. register dataset name into DS_REG that can be accessed
                 at the `dataset` package API. releated function is
                 `register_dataset`.
