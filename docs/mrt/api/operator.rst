@@ -3,12 +3,23 @@
 MRT operators API
 *****************
 
-.. _mrt_tfm_ops_api:
-
 .. contents::
+
+mrt.tfm_base
+____________
+.. _mrt_tfm_base_api:
+
+.. automodule:: mrt.tfm_base
+
+
+.. autoclass:: mrt.tfm_base.Transformer
+  :members:
+
 
 mrt.tfm_ops
 ___________
+.. _mrt_tfm_ops_api:
+
 .. automodule:: mrt.tfm_ops
 
 
