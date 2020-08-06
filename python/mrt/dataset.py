@@ -174,6 +174,8 @@ class COCODataset(Dataset):
     # download_deps = ['val2017.zip']
 
     def _load_data(self):
+        """ Customized _load_data method Introduction.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -186,6 +188,8 @@ class COCODataset(Dataset):
             last_batch='rollover', num_workers=30)
 
     def metrics(self):
+        """ Customized metrics method Introduction.
+        """
         _, _, H, W = self.ishape
         metric = COCODetectionMetric(
             self.val_dataset, '_eval', cleanup=True, data_shape=(H, W))
@@ -193,6 +197,8 @@ class COCODataset(Dataset):
         return metric
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method Introduction.
+        """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
 
@@ -223,6 +229,8 @@ class VOCDataset(Dataset):
     # download_deps = ["VOCtest_06-Nov-2007.tar"]
 
     def _load_data(self):
+        """ Customized _load_data method Introduction.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -236,12 +244,16 @@ class VOCDataset(Dataset):
             last_batch='discard', num_workers=30)
 
     def metrics(self):
+        """ Customized metric method Introduction.
+        """
         metric = VOC07MApMetric(
             iou_thresh=0.5, class_names=gdata.VOCDetection.CLASSES)
         metric.reset()
         return metric
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method Introduction.
+        """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
 
@@ -267,6 +279,8 @@ class VOCDataset(Dataset):
 
 class VisionDataset(Dataset):
     def metrics(self):
+        """ Customized metric method Introduction.
+        """
         return [mx.metric.Accuracy(),
                 mx.metric.TopKAccuracy(5)]
 
