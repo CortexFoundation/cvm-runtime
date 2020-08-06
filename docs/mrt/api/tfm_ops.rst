@@ -145,6 +145,26 @@ ___________
 .. autoclass:: mrt.tfm_ops.PlusScalar
   :members: rewrite
 
+
+.. autoclass:: mrt.tfm_ops.Sqrt
+  :members: quantize
+
+
+.. autoclass:: mrt.tfm_ops.InstanceNorm
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.BatchDot
+  :members: rewrite, quantize
+
+
+.. autoclass:: mrt.tfm_ops.BroadcastLike
+  :members: rewrite
+
+
+.. autoclass:: mrt.tfm_ops.ReshapeLike
+  :members: rewrite
+
 .. autofunction:: mrt.tfm_ops._quantize_scale
 
 .. autofunction:: mrt.tfm_ops._quantize_xwb

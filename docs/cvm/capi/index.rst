@@ -3,16 +3,34 @@ C Backend API
 =============
 
 This is a reference to :cpp:class:`utils::ValueVerifyFatal`.
-:c:func:`VERIFY`.
+:c:func:`CVMAPILoadModel`.
+
+.. doxygenfunction:: CVMAPILoadModel
+.. doxygenfunction:: CVMAPIFreeModel
+.. doxygenfunction:: CVMAPIInference
+
+.. doxygenfunction:: CVMAPIGetInputLength
+.. doxygenfunction:: CVMAPIGetInputTypeSize
+.. doxygenfunction:: CVMAPIGetOutputLength
+.. doxygenfunction:: CVMAPIGetOutputTypeSize
+
+.. doxygenfunction:: CVMArrayAlloc
+.. doxygenfunction:: CVMArrayFree
+
+.. doxygenstruct:: cvm::runtime::CVMModel
+  :members:
+  :undoc-members:
+
+.. doxygenclass:: cvm::runtime::CvmRuntime
+  :members:
+
+.. doxygenfunction:: cvm::runtime::CvmRuntime::Setup
+.. doxygenfunction:: cvm::runtime::CvmRuntime::Run
 
 .. doxygenclass:: cvm::Op
   :members:
 
-.. doxygenclass:: cvm::runtime::Indices
-  :members:
-
-.. doxygenclass:: cvm::TShape
-  :members:
+.. doxygendefine:: CVM_REGISTER_OP
 
 .. doxygenclass:: utils::LogMessageFatal
   :members:

@@ -617,9 +617,17 @@ class SliceChannel(Transformer):
     pass
 
 
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
 @register_pass("prepare_for_compile")
 @register_transformer('UpSampling')
 class UpSampling(Transformer):
+    def validate(self, op, **kwargs):
+        attrs = op.list_attr()
+        sample_type = get_attr(attrs, "sample_type")
+        assert sample_type == "nearest"
+
     def compile(self, op, **kwargs):
         childs = kwargs['childs']
         attrs = kwargs['attr']
@@ -1205,11 +1213,36 @@ class BroadcastAdd(Transformer):
 
 
 @register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("broadcast_div")
 class BroadcastDiv(Transformer):
-    pass
+    def quantize(self, op, **kwargs):
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        X, Y = sym_iter(op.get_children())
+        xn, yn = X.attr("name"), Y.attr("name")
+
+        xs, ys = scales[xn], scales[yn]
+        th = th_dict[name]
+
+        if get_bit(th*xs/ys) > MAX_BIT:
+            ys = xs / scale(th, MAX_BIT)
+            yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
+            Y, _, ys = requant(
+                Y, yprec, oname=N.n("denominator"), **kwargs)
+
+            xs = scale(th, MAX_BIT) * ys
+            xprec = get_bit(th_dict[xn] * xs)
+            X, _, xs = requant(
+                X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
+
+        oscale = scales[name] = xs / ys
+        precs[name][OUT_KEY] = get_bit(th * oscale)
+        return get_mxnet_op(op_name)(X, Y, name=name)
 
 
 @register_pass("calculate_ops")
@@ -2210,12 +2243,468 @@ class L2Normalization(Transformer):
                      op_name, name, scales[name], cns)
         return op
 
+
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("sqrt")
 class Sqrt(Transformer):
-    pass
+    def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
 
+            The quantized scale equals to the square root of input scale.
+        """
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        X = op.get_children()[0]
+        xs = scales[X.attr("name")]
+
+        oscale = scales[name] = math.sqrt(xs)
+        precs[name][OUT_KEY] = get_bit(th_dict[name]*oscale)
+
+        op = mx.sym.sqrt(X, name=name)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_transformer("InstanceNorm")
+class InstanceNorm(Transformer):
+    def rewrite(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            Dynamic shape fusion verison of InstanceNorm operator equivalent transform  function. 
+
+            .. code-block:: python
+
+                axis = [i for i in range(len(xshp)) if i != 1]
+
+            where xshp is the infer shape of the input operator, which is of layout 'NCH...'.
+
+            The mean of X is equivalently calculated as:
+
+            .. math::
+                sum\_x = sum(X, axis=axis, keepdims=True)
+
+            .. math::
+                mul = 1/product(xshp[2:])
+
+            .. math::
+                mena = sum\_x * mul.
+
+            The variance can be calculated as follows:
+
+            .. math::
+                dev = X - mean
+
+            .. math::
+                dev\_mul = dev * dev
+
+            .. math::
+                var = sum(dev_mul, axis=axis, keepdims=True) * mul
+
+            The standard deviation can be calculated as follows:
+
+            .. math::
+                std = sqrt(var) + eps
+
+            where eps is the attribute to prevent zero division.
+
+            The equivalent operator is finally calculated:
+
+            .. math::
+                frac = dev / std
+
+            .. math::
+                op = frac * gamma + beta
+
+        """
+        infer_shapes = kwargs["infer_shapes"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
+        X, gamma, beta = childs
+
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
+        assert len(xshp) >= 3
+        gshp = infer_shapes[cns[1]][get_entry_id(gamma)]
+        bshp = infer_shapes[cns[2]][get_entry_id(beta)]
+        assert len(gshp) == len(bshp) == 1 and \
+            gshp[0] == bshp[0] == xshp[1]
+
+        axis = [i for i in range(len(xshp)) if i != 1]
+        for i in axis:
+            gamma = mx.sym.expand_dims(
+                gamma, axis=i, name=N.n("expand_dims"))
+            beta = mx.sym.expand_dims(
+                beta, axis=i, name=N.n("expand_dims"))
+
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        assert len(batch_axes) == 1 and batch_axes[0] == 0, \
+            "Only NCH... format is supported for op: (%s). " + \
+            "name: (%s), batch_axes: (%s)." % \
+            (op_name, name, batch_axes)
+
+        sum_x = mx.sym.sum(
+            X, axis=axis, keepdims=True, name=N.n("sum"))
+        mul = nd_const(
+            1/np.product(xshp[2:]),
+            kwargs["graph"], kwargs["params"])
+        mean = mx.sym.broadcast_mul(
+            sum_x, mul, name=N.n("broadcast_mul"))
+        dev = mx.sym.broadcast_sub(X, mean, name=N.n("broadcast_sub"))
+        dev_mul = mx.sym.broadcast_mul(
+            dev, dev, name=N.n("broadcast_mul"))
+        var = mx.sym.broadcast_mul(
+            mx.sym.sum(dev_mul, axis=axis, keepdims=True, name=N.n("sum")),
+            mul, name=N.n("broadcast_mul"))
+        eps = nd_const(
+            get_attr(attrs, "eps", 0.00100000005),
+            kwargs["graph"], kwargs["params"])
+        std = mx.sym.broadcast_add(
+            mx.sym.sqrt(var, name=N.n("sqrt")),
+            eps, name=N.n("broadcast_add"))
+        frac = mx.sym.broadcast_div(
+            dev, std, name=N.n("broadcast_div"))
+        frac_mul = mx.sym.broadcast_mul(
+            frac, gamma, name=N.n("broadcast_mul"))
+        op = mx.sym.broadcast_add(frac_mul, beta, name=name)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_transformer("batch_dot")
+class BatchDot(Transformer):
+    def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Using matrix decomposition to avoid overflow.
+
+            .. math::
+                Y = A dot B = A1 dot B1 + A2 dot B2 + ...
+
+            where:
+
+            .. math::
+                Ai.shape = (batch, M, step)
+
+            .. math::
+                Bi.shape = (batch, step, N)
+        """
+        infer_shapes = kwargs["infer_shapes"]
+
+        name = op.attr("name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        A, B = childs
+        an, bn = [c.attr("name") for c in childs]
+
+        transpose_a = get_attr(attrs, "transpose_a", 0)
+        transpose_b = get_attr(attrs, "transpose_b", 0)
+        ashp = infer_shapes[an][get_entry_id(A)]
+        bshp = infer_shapes[bn][get_entry_id(B)]
+
+        andims, bndims = len(ashp), len(bshp)
+        assert andims == 3 and bndims == 3, \
+            "batch_dot currently only support 3D*3D array." + \
+            "name: (%s), op_name: (%s)" % (name, op_name)
+
+        if transpose_a:
+            ashp = ashp[:-2] + (ashp[-1], ashp[-2])
+            axes = tuple(range(andims-2)) + (andims-1, andims-2)
+            A = mx.sym.transpose(
+                A, axes=axes, name=N.n("transpose_a"))
+
+        if transpose_b:
+            bshp = bshp[:-2] + (bshp[-1], bshp[-2])
+            bndims = len(bshp)
+            axes = tuple(range(bndims-2)) + (bndims-1, bndims-2)
+            B = mx.sym.transpose(
+                B, axes=axes, name=N.n("transpose_b"))
+
+        assert ashp[-1] == bshp[1]
+        C, MATRIX_MAXIMUM_SIZE = ashp[-1], 65536
+        if ashp[-1] <= MATRIX_MAXIMUM_SIZE:
+            return mx.sym.batch_dot(A, B, name=name)
+
+        C, nodes, step, start = \
+            ashp[-1], [], MATRIX_MAXIMUM_SIZE, 0
+
+        while start < C:
+            stop = min(start+step, C)
+
+            begin, end = (0,0,start), (ashp[0],ashp[1],stop)
+            Ak = mx.sym.slice(
+                A, begin=begin, end=end, name=N.n("slice_a"))
+
+            begin, end = (0,start,0), (bshp[0],stop,bshp[2])
+            Bk = mx.sym.slice(
+                B, begin=begin, end=end, name=N.n("slice_b"))
+
+            tmp = mx.sym.batch_dot(
+                Ak, Bk, name=N.n("batch_dot"))
+            nodes.append(tmp)
+            start += step
+
+        while len(nodes) > 1:
+            A, B = nodes.pop(0), nodes.pop(0)
+            nname = N.n("elemwise_add") if nodes else name
+            tmp = mx.sym.elemwise_add(A, B, name=nname)
+            nodes.append(tmp)
+
+        op = nodes[0]
+        return op
+
+    def quantize(self, op, **kwargs):
+        """ Customized quantize pass Introduction.
+
+            The inputs are quantized into the same precision level.
+        """
+        precs, scales = kwargs["precs"], kwargs["scales"]
+        th_dict = kwargs["th_dict"]
+
+        name, op_name = op.attr("name"), op.attr("op_name")
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr("name") for c in childs]
+
+        oprec = kwargs["op_input_precs"][op_name]
+        A, aprec, ascale = requant(
+            childs[0], oprec, oname=name, **kwargs)
+        B, bprec, bscale = requant(
+            childs[1], oprec, oname=name, **kwargs)
+
+        op = get_mxnet_op(op_name)(A, B, **attr, name=name)
+        scales[name] = ascale * bscale
+        precs[name][OUT_KEY] = aprec + bprec
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                     op_name, name, scales[name], cns)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_transformer("broadcast_like")
+class BroadcastLike(Transformer):
+    def _broadcast_like(self, X, W, name, **kwargs):
+        graph, params = kwargs["graph"], kwargs["params"]
+        one = nd_const(1, graph, params)
+        zero = nd_const(0, graph, params)
+        nW = mx.sym.broadcast_add(
+            mx.sym.broadcast_mul(W, zero, name=N.n("broadcast_mul")),
+            one, name=N.n("broadcast_add"))
+        op = mx.sym.broadcast_mul(X, nW, name=name)
+        return op
+
+    def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            The original operator:
+
+            .. math::
+                op = broadcast\_like(X, W, lhs\_axes, rhs\_axes)
+
+            can be transformed in threee conditions.
+
+            *Case 1. Null Attributes*
+
+            .. math::
+                mul = broadcast\_mul(W, 0)
+
+            .. math::
+                add = broadcast\_add(mul, 1)
+
+            .. math::
+                op = broadcast\_mul(X, add)
+
+            *Case 2. Batch Axis not in Attributes*
+
+            Calculate attributes for tile as follows:
+
+            .. code-block:: python
+
+                cnts = {v: wshp[rhs_axes[i]] for i, v in enumerate(lhs_axes)}
+                reps = tuple([cnts[v] if v in lhs_axes else 1 for v in range(xndims)])
+
+            where wshp is the shape of input weight.
+
+            .. math::
+                op = tile(X, reps=reps)
+
+            *Case 3. Other Cases*
+
+            In this case, we only support injection of  batchaxis from lhs_axes to rhs_axes.
+
+            After transformation of weight (see source code for ref), result was calculated as in case 1.
+
+        """
+        infer_shapes = kwargs["infer_shapes"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr("name") for c in childs]
+        X, W = childs
+
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
+        xndims = len(xshp)
+        wshp = infer_shapes[cns[1]][get_entry_id(W)]
+        wndims = len(wshp)
+        lhs_axes = get_attr(attrs, "lhs_axes", None)
+        rhs_axes = get_attr(attrs, "rhs_axes", None)
+
+        if lhs_axes is None or rhs_axes is None:
+            assert xndims == wndims and lhs_axes is None \
+                and rhs_axes is None
+            return self._broadcast_like(X, W, name, **kwargs)
+
+        lhs_axes, lndims = list(lhs_axes), len(lhs_axes)
+        rhs_axes, rndims = list(rhs_axes), len(rhs_axes)
+        assert lndims == rndims > 0
+
+        lhs_axes = tuple([v+xndims if v<0 else v for v in lhs_axes])
+        assert all([0<=v<xndims for v in list(lhs_axes)])
+
+        rhs_axes = tuple([v+wndims if v<0 else v for v in rhs_axes])
+        assert all([0<=v<wndims for v in list(rhs_axes)])
+
+        assert all([xshp[lhs_axes[i]] == 1 for i in range(lndims)])
+
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        flg = all([batch_axis not in rhs_axes \
+            for batch_axis in batch_axes])
+        if flg:
+            cnts = {v: wshp[rhs_axes[i]] \
+                for i, v in enumerate(lhs_axes)}
+            reps = tuple([cnts[v] if v in lhs_axes else 1 \
+                for v in range(xndims)])
+            return mx.sym.tile(X, reps=reps, name=name)
+
+        axis_map = {}
+        for i, v in enumerate(lhs_axes):
+            axis_map[v] = rhs_axes[i]
+        for batch_axis in batch_axes:
+            assert sum([1 if v == batch_axis else 0 \
+                for k, v in axis_map.items()]) <= 1, \
+                "multiple broadcast on batch_axis: (%s), " + \
+                "which is not support by dynamic shape fusion. " + \
+                "name: (%s), op_name: (%s)" % (batch_axis, name, op_name)
+        assert wndims < 6, "slice can manipulate at most 5d, " + \
+            "name: (%s), op_name: (%s)" % (name, op_name)
+
+        # reduce shape to 1 for non-broadcast dimensions
+        begin = tuple([0]*wndims)
+        end = tuple([wshp[v] if v in axis_map.values() else 1 \
+            for v in range(wndims)])
+        W = mx.sym.slice(
+            W, begin=begin, end=end, name=N.n("slice"))
+
+        # decompose k1->v, k2->v into k1->v, k2->v2
+        # which make axis
+        while True:
+            vs, flag, paxis_map = set(), True, axis_map
+            for pk, pv in paxis_map.items():
+                if pv not in vs:
+                    vs.add(pv)
+                    continue
+                flag = False
+                axis_map = {k: (v+1 if v>pv or k==pk else v) \
+                    for k, v in axis_map.items()}
+                W = mx.sym.expand_dims(
+                    W, axis=pv, name=N.n("expand_dims"))
+                W = mx.sym.repeat(
+                    W, axis=pv, repeats=wshp[pv], name=N.n("repeat"))
+                wshp = wshp[:pv] + (wshp[pv],) + wshp[pv:]
+                break
+            if flag:
+                break
+        wndims = len(wshp)
+
+        # trim wndims if not equal to xndims
+        v = 0
+        while wndims > xndims:
+            while v in axis_map.values():
+                v += 1
+            W = mx.sym.squeeze(W, axis=v, name=N.n("squeeze"))
+            wndims -= 1
+            axis_map = {k: (nv-1 if nv > v else nv) \
+                for k, nv in axis_map.items()}
+        while wndims < xndims:
+            W = mx.sym.expand_dims(
+                W, axis=wndims, name=N.n("expand_dims"))
+            wndims += 1
+        axes = list(range(wndims))
+        while True:
+            dels = [k for k, v in axis_map.items() if k==v]
+            for k in dels:
+                del axis_map[k]
+            if not axis_map:
+                break
+            keys = list(axis_map.keys())
+            k, v = keys[0], axis_map[keys[0]]
+            axes[k], axes[v] = axes[v], axes[k]
+            for nk in keys:
+                nv = axis_map[nk]
+                if nv == k:
+                    axis_map[nk] = v
+                elif nv == v:
+                    axis_map[nk] = k
+        axes = tuple(axes)
+        if axes != tuple(range(wndims)):
+            assert wndims < 7, \
+                "slice can manipulate at most 6d"
+            W = mx.sym.transpose(W, axes=axes, name=N.n("transpose"))
+
+        op = self._broadcast_like(X, W, name, **kwargs)
+        return op
+
+
+@register_pass("fuse_transpose")
+@register_transformer("reshape_like")
+class ReshapeLike(Transformer):
+    def rewrite(self, op, **kwargs):
+        """ Customized rewrite pass Introduction.
+
+            Equivalently transformed into reshape. 
+            Since dynamic shape fusion is supported, only single 
+            batch axis is supported rather than multiple ones.
+        """
+        infer_shapes = kwargs["infer_shapes"]
+        name, op_name = op.attr("name"), op.attr("op_name")
+        attrs, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr("name") for c in childs]
+        X, W = childs
+
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
+        xndims = len(xshp)
+        wshp = infer_shapes[cns[1]][get_entry_id(W)]
+        wndims = len(wshp)
+
+        lhs_begin = get_attr(attrs, "lhs_begin", 0)
+        lhs_end = get_attr(attrs, "lhs_end", xndims)
+        rhs_begin = get_attr(attrs, "rhs_begin", 0)
+        rhs_end = get_attr(attrs, "rhs_end", wndims)
+
+        lhs_begin = lhs_begin+xndims if lhs_begin < 0 else lhs_begin
+        lhs_end = lhs_end+xndims if lhs_end< 0 else lhs_end
+        assert 0 <= lhs_begin < lhs_end <= xndims
+
+        rhs_begin = rhs_begin+wndims if rhs_begin < 0 else rhs_begin
+        rhs_end = rhs_end+wndims if rhs_end< 0 else rhs_end
+        assert 0 <= rhs_begin < rhs_end <= wndims
+
+        rshp = xshp[:lhs_begin] + \
+            wshp[rhs_begin:rhs_end] + xshp[lhs_end:]
+
+        # TODO(ryt_tune): get batch_axes from **kwargs
+        batch_axes = [0]
+        assert len(batch_axes) == 1, \
+            "Dynamic batch shape fusion of (%s) only support" + \
+            "single dimension of batch. Providied: (%s)" % \
+            (op_name, batch_axes)
+        batch_axis = batch_axes[0]
+        rshp = rshp[:batch_axis] + (-1,) + rshp[batch_axis+1:]
+
+        op = mx.sym.reshape(X, shape=rshp, name=name)
+        return op
 
 def _ft_multi_input(op):
     name, childs = op.attr('name'), sym_iter(op.get_children())

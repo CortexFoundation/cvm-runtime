@@ -18,23 +18,8 @@
 #ifndef CVM_RUNTIME_C_RUNTIME_API_H_
 #define CVM_RUNTIME_C_RUNTIME_API_H_
 
-// Macros to do weak linking
-#ifdef _MSC_VER
-#define CVM_WEAK __declspec(selectany)
-#else
-#define CVM_WEAK __attribute__((weak))
-#endif
-
 #ifndef CVM_DLL
-#ifdef _WIN32
-#ifdef CVM_EXPORTS
-#define CVM_DLL __declspec(dllexport)
-#else
-#define CVM_DLL __declspec(dllimport)
-#endif
-#else
 #define CVM_DLL __attribute__((visibility("default")))
-#endif
 #endif
 
 // CVM version
