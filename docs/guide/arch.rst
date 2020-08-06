@@ -270,7 +270,7 @@ for each operators respectively.
 .. math::
 
   R = \begin{cases}
-    U - T, & \text{if 5exclude is true} \\
+    U - T, & \text{if exclude is true} \\
     T, & \text{otherwise}
   \end{cases}
 
@@ -431,7 +431,9 @@ set :math:`\text{BROADCAST_OP}` to :math:`\text{max}`.
 
 NN Operators
 ------------
-We provide NN operators for users. Unlike reduce operators or broadcast operators, the logic of each operators are different but usage scenario may be the same. In this way, we discribe them together.
+We provide NN operators for users. 
+In fact, NN operators stand for neural network operators, the core of neural network learning mechanism. 
+NN operators have parameters to be trained and logic for linear or non-linear transformation in a model graph.
 
 conv2d
 ~~~~~~
@@ -464,6 +466,7 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
   0, & \text{if B is None}\\
   B[oc], & \text{otherwise}
   \end{cases}, \\
+
   \forall n \in [0, N) \wedge oc\in [0, OC) \wedge\\
   p \in \left[0, \left\lfloor{H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1\over\text{SH}}\right\rfloor+1 \right) \wedge \\
   q \in \left[0, \left\lfloor{W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}}\right\rfloor+1 \right)
@@ -724,7 +727,8 @@ This operator performs left shift to the input tensor, same as C left shift oper
 
 
 Transform Operators
--------------------\\
+-------------------
+
 transform operator do not do the calculation on  the data but simply reshape, copy or select part of it. The process logic over all kinds of operators are quite different.
 
 repeat
