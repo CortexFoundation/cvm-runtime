@@ -8,16 +8,19 @@
 #ifndef CVM_C_API_H_
 #define CVM_C_API_H_
 
-/*! \brief CVM_DLL prefix for windows */
-#ifdef _WIN32
-#ifdef CVM_EXPORTS
-#define CVM_DLL __declspec(dllexport)
-#else
-#define CVM_DLL __declspec(dllimport)
-#endif
-#else
+#ifndef CVM_DLL
 #define CVM_DLL __attribute__((visibility("default")))
 #endif
+// [>! \brief CVM_DLL prefix for windows <]
+// #ifdef _WIN32
+// #ifdef CVM_EXPORTS
+// #define CVM_DLL __declspec(dllexport)
+// #else
+// #define CVM_DLL __declspec(dllimport)
+// #endif
+// #else
+// #define CVM_DLL __attribute__((visibility("default")))
+// #endif
 
 #ifdef __cplusplus
 extern "C" {
