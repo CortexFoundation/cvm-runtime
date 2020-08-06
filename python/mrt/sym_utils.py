@@ -1,6 +1,8 @@
-""" Collection of MRT pass tool functions.
-    Topo sequence helper function for MxNet graph parsing.
+""" Collection of MRT pass tool functions. 
+    Topo sequence helper function for MxNet graph parsing. 
     Simplification of MRT graph traversal.
+
+    Only key part of util functions are elaborated.
 """
 from mxnet.symbol import _internal
 from mxnet import symbol as _sym
