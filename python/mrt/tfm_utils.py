@@ -1,6 +1,4 @@
-""" MRT Utils API
-
-    Collection of MRT quantization tool functions.
+""" Collection of MRT quantization tool functions.
     Simplification of MRT quantization process.
 """
 

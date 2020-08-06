@@ -7,10 +7,9 @@ MRT main2 API
 
 .. contents::
 
-The main stages of main2 include the following 6 stages, which are enumerated as follows.
-
 Main2 Stages
 ============
+The main stages of main2 include the following 6 stages, which are enumerated as follows.
 
 Prepare
 _______

@@ -1,3 +1,7 @@
+""" Collection of MRT pass tool functions.
+    Topo sequence helper function for MxNet graph parsing.
+    Simplification of MRT graph traversal.
+"""
 from mxnet.symbol import _internal
 from mxnet import symbol as _sym
 from mxnet import ndarray as nd
@@ -13,25 +17,105 @@ INT8_MIN, INT8_MAX = -127, 127
 INT8_TYPE, INT32_TYPE= ('int8', 'int32')
 
 def is_op(sym, params):
+    """ Judge whether the input symbol is an operator.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol.
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : bool
+            Return False if the input symbol is not an operator, else True.
+    """
     return (sym.attr('op_name') != 'null')
 def is_var(sym, params):
+    """ Judge whether the input symbol is a variable.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol.
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : bool
+            Return False if the input symbol is not a variable, else True.
+    """
     return (sym.attr('op_name') == 'null')
 def is_params(sym, params):
+    """ Judge whether the input symbol is a parameter.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol.
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : bool
+            Return False if the input symbol is not a parameter, else True.
+    """
     return is_var(sym, params) and \
         (sym.attr('name') in params)
 def is_inputs(sym, params):
+    """ Judge whether the input symbol is an input.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol.
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : bool
+            Return False if the input symbol is not an input, else True.
+    """
     return is_var(sym, params) and \
         (sym.attr('name') not in params)
 
 def nd_array(source_array, ctx=None, dtype="float64"):
+    """ Convert the source array into MxNet NDArray.
+
+        Parameters
+        __________
+        source_array : tuple or list
+            The input array to be converted.
+        ctx : mxnet.context
+            The context on which to store the converted array.
+        dtype : str
+            The entry data type of the converted array.
+
+        Returns
+        _______
+        ret : mxnet.NDArray
+            The converted result.
+    """
     return nd.array(source_array, ctx=ctx, dtype=dtype)
 def nd_arange(*args, **kwargs):
+    """ MRT wrapper method for mxnet.NDArray.arange.
+    """
     return nd.arange(*args, dtype="float64", **kwargs)
 def nd_full(*args, **kwargs):
+    """ MRT wrapper method for mxnet.NDArray.full.
+    """
     return nd.full(*args, dtype="float64", **kwargs)
 def nd_zeros(*args, **kwargs):
+    """ MRT wrapper method for mxnet.NDArray.zeros.
+    """
     return nd.zeros(*args, dtype="float64", **kwargs)
 def nd_ones(*args, **kwargs):
+    """ MRT wrapper method for mxnet.NDArray.ones.
+    """
     return nd.ones(*args, dtype="float64", **kwargs)
 
 DATA_NAME = "data"
@@ -43,6 +127,22 @@ def gen_name(name):
     return name + '_' + str(_name_dict[name] - 1)
 
 def check_graph(symbol, params, logger=logging):
+    """ Check whether duplicate symbol name exists in a graph.
+
+        Also, check input name and params name, and remove unused params name.
+
+        Parameters
+        __________
+        sym : mxnet.symbol
+            The input symbol.
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : tuple
+            The validated symbol and params.
+    """
     # check duplicate name
     graph_str = json.loads(symbol.tojson())
     nodes = graph_str['nodes']
@@ -99,6 +199,20 @@ def check_ext_deps(ext, deps=[], logger=logging):
 
 NoneAttr = object()
 def get_attr(attr, name, default=NoneAttr):
+    """ Check whether duplicate symbol name exists in a graph.
+
+        Parameters
+        __________
+        attr : str
+            The input attribute name.
+        name : str
+            The input symbol name.
+
+        Returns
+        _______
+        ret : str, int, float, etc.
+            The attribute value.
+    """
     if name in attr:
         if isinstance(default, str):
             return attr[name]
@@ -109,6 +223,20 @@ def get_attr(attr, name, default=NoneAttr):
 
 _MX_OP_CONTRIB_PREFIX = '_contrib_'
 def get_nd_op(op_name):
+    """ Get the MxNet NDArray operator handle of the specified op type.
+
+        Typical usage: Calibration, op-level output restore, etc.
+
+        Parameters
+        __________
+        op_name : str
+            The input operator type name.
+
+        Returns
+        _______
+        ret : mxnet.NDArray
+            The MxNet NDArray operator handle.
+    """
     op = getattr(nd, op_name, None)
     if op is None:
         op = getattr(nd._internal, op_name, None)
@@ -120,6 +248,18 @@ def get_nd_op(op_name):
     return op
 
 def get_mxnet_op(op_name):
+    """ Get the MxNet symbol operator handle of the specified op type.
+
+        Parameters
+        __________
+        op_name : str
+            The input operator type name.
+
+        Returns
+        _______
+        ret : mxnet.NDArray
+            The MxNet symbol operator handle.
+    """
     op = getattr(_internal, op_name, None)
     if op is None:
         op = getattr(_sym, op_name, None)
@@ -131,6 +271,18 @@ def get_mxnet_op(op_name):
     return op
 
 def get_nnvm_op(op_name):
+    """ Get the CVM symbol operator handle of the specified op type.
+
+        Parameters
+        __________
+        op_name : str
+            The input operator type name.
+
+        Returns
+        _______
+        ret : cvm.symbol
+            The CVM symbol operator handle.
+    """
     op = getattr(cvm.symbol, op_name)
 
     if not op:
@@ -138,6 +290,18 @@ def get_nnvm_op(op_name):
     return op
 
 def sym_iter(sym):
+    """ Iterate the symbol and get a list of from the symbol group.
+
+        Parameters
+        __________
+        sym : mxnet.symbol or cvm.symbol
+            The input symbol.
+
+        Returns
+        _______
+        ret : list
+            list of CVM symbols or MxNet symbols.
+    """
     if sym is None:
         return None
 
@@ -168,6 +332,22 @@ def examine_parameters(symbol, params, inputs_ext, allows=[], callback=None):
     return new_params
 
 def nd_const(number, graph, params):
+    """ Get the MxNet symbol with respect to the given constant.
+
+        Parameters
+        __________
+        number : float
+            The input constant number to be converted.
+        graph : dict
+            The symbol name maps to MxNet symbol.
+        params : dict
+            The symbol name maps to MxNet NDArray.
+
+        Returns
+        _______
+        ret : mxnet.symbol
+            The created MxNet variable symbol.
+    """
     name = 'const_var_' + str(number)
     prec = math.ceil(math.log2(math.fabs(number)+1)) + 1
     if name not in params and name not in graph:
@@ -192,7 +372,19 @@ def op_const(number, graph, var=mx.sym.var):
     return graph[name], name
 
 def topo_sort(symbol, logger=logging, with_deps=False):
-    """Sort all symbols in the mxnet graph in topological order.
+    """ Sort all symbols in the mxnet graph in topological order.
+
+        Parameters
+        __________
+        symbol : mxnet.symbol or cvm.symbol
+            The input symbol.
+        with_deps: bool
+            Whether to return op-level output dict or not, which maps symbol name to a set of output names.
+
+        Returns
+        _______
+        ret : tuple
+            The Mxnet symbol or CVM symbol; and if with_deps is True, also return operator output dict.
     """
     queue = []
     symbol_map = {}
@@ -255,6 +447,18 @@ MULTIPYE_OUTS_NODE = [
     'None',
 ]
 def get_entry_id(sym):
+    """ Get the entry id of the symbol with respect to its symbol group.
+
+        Parameters
+        __________
+        sym : mxnet.symbol or cvm.symbol
+            The input symbol.
+
+        Returns
+        _______
+        ret : int
+            The entry id.
+    """
     oindex = 0
     if sym.attr('op_name') in MULTIPYE_OUTS_NODE:
         if isinstance(sym, _sym.Symbol):
@@ -265,9 +469,23 @@ def get_entry_id(sym):
     return oindex
 
 def get_node(sym, graph):
-    """ Assume all graph node have single output.
-        Multiple output node will be fused
-        by `fuse_multiple_outputs` sym_pass.
+    """ Get the symbol from the provided graph which has the same name as the given symbol.
+
+        Assume all graph node have single output.
+
+        Multiple output node will be fused by `fuse_multiple_outputs` sym_pass.
+
+        Parameters
+        __________
+        sym : mxnet.symbol or cvm.symbol
+            The input symbol.
+        graph : dict
+            The symbol name maps to MxNet symbol or CVM symbol.
+
+        Returns
+        _______
+        ret : mxnet.symbol or cvm.symbol
+            The Mxnet symbol or CVM symbol.
     """
     name = sym.attr('name')
     if name not in graph:
@@ -278,6 +496,28 @@ def get_node(sym, graph):
 def topo_visit(symbol, params, inputs_ext, callback,
         get_op=get_mxnet_op, logger=logging,
         with_maps=False, **kwargs):
+    """ MRT topological graph traversal function.
+
+        Parameters
+        __________
+        symbol : mxnet.symbol or cvm.symbol
+            The input symbol.
+        params : dict
+            MxNet or CVM symbol name (str) maps to mxnet.NDArray or cvm.ndarray.
+        inputs_ext : dict
+            Input info name maps to input info value.
+        callback : function
+            op-level pass function.
+        get_op : function
+            Operator acquisition function
+        with_maps: bool
+            After each visit, the corresponding symbol name may change. This flag stands for Whether to return old-new name dict or not.
+
+        Returns
+        _______
+        ret : tuple
+            The Mxnet symbol or CVM symbol, parameters dict; and if with_maps is True, also return operator output dict, which maps symbol name to .
+    """
     graph, maps = {}, {}
     params = {k:v[:] for k,v in params.items()} # copy params
     for sym in topo_sort(symbol, logger=logger):
@@ -300,6 +540,24 @@ def topo_visit(symbol, params, inputs_ext, callback,
 
 def topo_visit_transformer(symbol, params, callback,
         get_op=get_mxnet_op, logger=logging, **kwargs):
+    """ MRT transformer topological graph traversal function.
+
+        Parameters
+        __________
+        symbol : mxnet.symbol or cvm.symbol
+            The input symbol.
+        params : dict
+            MxNet or CVM symbol name (str) maps to mxnet.NDArray or cvm.ndarray.
+        callback : function
+            op-level pass function.
+        get_op : function
+            Operator acquisition function
+
+        Returns
+        _______
+        ret : tuple
+            The Mxnet symbol or CVM symbol, parameters dict.
+    """
     graph = {}
     params = {k:v[:] for k, v in params.items()}
     for op in topo_sort(symbol, logger=logger):

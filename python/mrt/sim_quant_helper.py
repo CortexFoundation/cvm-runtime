@@ -1,6 +1,4 @@
-""" MRT Helper API
-
-    Collection of MRT helper functions.
+""" Collection of MRT helper functions.
     Simplification of MRT implementation.
 """
 
