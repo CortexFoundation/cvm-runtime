@@ -51,3 +51,27 @@ _____________
 .. autofunction:: mrt.tfm_utils.get_range
 
 .. autofunction:: mrt.tfm_utils.realize
+
+
+mrt.gluon_zoo
+_____________
+.. _mrt_gluon_zoo_api:
+
+.. automodule:: mrt.gluon_zoo
+
+.. autofunction:: mrt.gluon_zoo.get_model
+
+.. autofunction:: mrt.gluon_zoo.save_model
+
+
+mrt.utils
+_________
+.. _mrt_utils_api:
+
+.. automodule:: mrt.utils
+
+.. autofunction:: mrt.utils.extend_fname
+
+.. autofunction:: mrt.utils.load_parameters
+
+.. autofunction:: mrt.utils.multi_validate
