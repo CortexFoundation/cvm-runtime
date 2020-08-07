@@ -1,6 +1,4 @@
-""" MRT Base API
-
-    Customized Symbolic Pass Interfaces.
+""" Customized Symbolic Pass Interfaces.
     Base passes with default operation settings.
     Collection of transformer management functions.
 """

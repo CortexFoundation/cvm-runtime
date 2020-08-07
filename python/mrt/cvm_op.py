@@ -1,3 +1,11 @@
+""" Customized Op-level realization of MxNet Forward Computing Framework.
+
+    MxNet customized operator property class.
+
+    Only **crucial parts** of the custommized 
+    forward operator implementation are elaborated.
+"""
+
 import mxnet as mx
 from mxnet import ndarray as nd
 
@@ -11,6 +19,20 @@ class Clip(mx.operator.CustomOp):
         self.max = float(clip)
 
     def forward(self, is_train, req, in_data, out_data, aux):
+        """ MxNet customized operator forward implementation.
+
+            Clip the input within [-2^prec, 2^prec].
+
+            .. math::
+                rnd = round(X)
+
+            where X is the input tensor.
+
+            .. math::
+                out = clip(rnd, -2^{prec}, 2^{prec})
+
+            where prec is an operator attribute representing integer bits.
+        """
         assert is_train == False
         X = in_data[0]
         a_min, a_max = self.min, self.max
@@ -31,6 +53,23 @@ class LeftShift(mx.operator.CustomOp):
         assert self.sb > 0
 
     def forward(self, is_train, req, in_data, out_data, aux):
+        """ MxNet customized operator forward implementation.
+
+            Left shift data for sb bits and clip within [-2^prec, 2^prec].
+
+            .. math::
+                rnd = round(X)
+
+            where X is the input tensor.
+
+            .. math::
+                val = rnd * 2^{sb}
+
+            .. math::
+                out = clip(val1, -2^{prec}, 2^{prec})
+
+            where prec is an operator attribute representing integer bits, sb represents the left shift bits.
+        """
         assert is_train == False
         X = in_data[0]
         a_min, a_max = self.min, self.max
@@ -52,6 +91,26 @@ class RightShift(mx.operator.CustomOp):
         assert self.sb > 0
 
     def forward(self, is_train, req, in_data, out_data, aux):
+        """ MxNet customized operator forward implementation.
+
+            Right shift data for sb bits and clip within [-2^prec, 2^prec].
+
+            .. math::
+                rnd = round(X)
+
+            where X is the input tensor.
+
+            .. math::
+                val0 = floor(rnd / 2^{sb-1})
+
+            .. math::
+                val1 = floot((val0+1) / 2)
+
+            .. math::
+                out = clip(val1, -2^{prec}, 2^{prec})
+
+            where prec is an operator attribute representing integer bits, sb represents the right shift bits.
+        """
         assert is_train == False
         X = in_data[0]
         a_min, a_max = self.min, self.max
@@ -74,6 +133,21 @@ class LUT(mx.operator.CustomOp):
         self.in_dim = int(in_dim)
 
     def forward(self, is_train, req, in_data, out_data, aux):
+        """ MxNet customized operator forward implementation.
+
+            Embed X with respect to T with vocabulary size of indim. 
+            The dimension of the embedding vectors is 1.
+
+            where X is the input tensor and T is the weight tensor.
+
+            .. math::
+                val = Embedding(X, T, indim, 1)
+
+            .. math::
+                out = squeeze(val, axis=-1)
+
+            where indim is an operator attribute representing vocabulary size of input indices.
+        """
         assert is_train == False
         X, T = in_data[0], in_data[1]
         Y = nd.Embedding(X, T, self.in_dim, 1)
@@ -132,6 +206,8 @@ class Pad(mx.operator.CustomOp):
 
 @mx.operator.register("cvm_clip")
 class ClipProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_clip operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -152,6 +228,8 @@ class ClipProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_left_shift")
 class LeftShiftProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_left_shift operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -172,6 +250,8 @@ class LeftShiftProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_right_shift")
 class RightShiftProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_right_shift operator property class.
+    """
     def __init__(self, precision=8, shift_bit=0):
         self.precision= precision
         self.shift_bit = shift_bit
@@ -192,6 +272,8 @@ class RightShiftProp(mx.operator.CustomOpProp):
 
 @mx.operator.register("cvm_lut")
 class LUTProp(mx.operator.CustomOpProp):
+    """ MxNet cvm_lut operator property class.
+    """
     def __init__(self, in_dim):
         self.in_dim = in_dim
         super(LUTProp, self).__init__(need_top_grad=False)
