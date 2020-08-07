@@ -39,4 +39,4 @@ CVM Operators
 
 CVM operators are compiled from MRT operators that are equivalently transformed, thus CVM supports a relatively bounded set of operators.
 
-For more details, please refer to :ref:`CVM Operator Math Formulation <operator_math_formalization>`.
+For more details, please refer to :ref:`CVM Operator List<op_list>`.

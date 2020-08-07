@@ -26,17 +26,18 @@ class Transformer(object):
 
         Please refer to file `tfm_ops.py` for more examples about
             operator transformers.
+    """
 
-    Attributes
-    ----------
-    op_name: Transformer is associated with operator which is defined
+    op_name = "none"
+    """ Transformer Operator Name
+
+        Transformer is associated with operator which is defined
             in mxnet, and the variable indicates the type name of mxnet
             symbol.
-            Attention please, the base transformer should not be instantiated
+        Attention please, the base transformer should not be instantiated
             since it's just an abstarct aggregation of graph pass, and it's
             named `none` by default.
     """
-    op_name = "none"
 
     def __init__(self):
         if self.op_name == "none":

@@ -38,7 +38,7 @@ Inference package contains the model load, inference, and free pass etc. A simpl
 
 And the detail methods refer to the API link.
 
-Model graph generally used to construct the network like `keras` does. This module is invoked by `MRT` to transform the MxNet model into CVM format.
+Model graph generally used to construct the network like ``keras`` does. This module is invoked by ``MRT`` to transform the MxNet model into CVM format.
   
 
 .. toctree::

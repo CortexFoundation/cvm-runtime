@@ -88,8 +88,8 @@ And the relative NDArray data API functions are:
 #. :cpp:func:`CVMArrayAlloc`: allocate the NDArray space
 #. :cpp:func:`CVMArrayFree`: free the NDArray space
 
-- declaration: `include/cvm/runtime/c_runtime_api.h`
-- definition: `src/runtime/ndarray.cc`
+- declaration: ``include/cvm/runtime/c_runtime_api.h``
+- definition: ``src/runtime/ndarray.cc``
 
 A simple inference code blocks refer to:
 
@@ -117,8 +117,8 @@ A simple inference code blocks refer to:
 CVM Model
 ---------
 
-- declaration: `inclulde/cvm/model.h`
-- definition: `src/core/model.cc`
+- declaration: ``inclulde/cvm/model.h``
+- definition: ``src/core/model.cc``
 
 The API above invokes the lower level
 :cpp:class:`cvm::runtime::CVMModel` class, which exposes the 
@@ -132,8 +132,8 @@ More details refer to source code please.
 Graph Runtime
 -------------
 
-- declaration: `src/runtime/graph_runtime.h`
-- definition: `src/runtime/graph_runtime.cc`
+- declaration: ``src/runtime/graph_runtime.h``
+- definition: ``src/runtime/graph_runtime.cc``
 
 The :cpp:class:`cvm::runtime::CVMRuntime` manages all the 
 resources allocated via CPU, CUDA, OPENCL, ..., etc.
@@ -178,12 +178,12 @@ with different attribites, inputs, parameters, outputs.
 
 Generally, we register an new opertors using the pre-defined
 macro :c:func:`CVM_REGISTER_OP`. And all the operators
-registry are located at directory `src/top`.
+registry are located at directory ``src/top``.
 
 Besides, all the above registry function won't set the specific
 operators' inference logic. It's a device-relative code
 implementation, so we put the forward function code in the
-`src/runtime/{device_type}/ops` directory according to the
+``src/runtime/{device_type}/ops`` directory according to the
 device type. Currently we have achieved three on-device version:
 
 - CPU
