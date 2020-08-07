@@ -80,12 +80,13 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
      *      get x possible indexes and add value to result.
      **/
 
-    for (Indices yIdx(reducYShape); !yIdx.End(); yIdx++) {
+    for (Indices yIdx(reducYShape), xIdx(X_shape);
+      !yIdx.End(); yIdx++) {
       // for each y to be filled, find related xs and calculate.
       // the index for each dim of an x:
       // for a dim to be reduced, index of this dim differs from each x.
       // otherwise, it is fixed with y during the traverse.
-      Indices xIdx(X_shape);
+      
       for (uint j = 0, yi = 0; j < X_shape.ndim(); j++) {
         xIdx.Ref(j) = flag[j] ? 0 : yIdx[yi++];
       }
@@ -101,6 +102,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
         f(tmp, X_data[xIdx.Index()]);
       }
       Y_data[yIdx.Index()] = tmp;
+      xIdx.reset();
     }
   }
 }

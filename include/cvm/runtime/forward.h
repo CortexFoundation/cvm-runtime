@@ -52,10 +52,7 @@ class Indices {
   Indices(TShape && src)
     : shape_(src), max_size_(src.Size()),
       indices_(src.ndim()), index_cache_(0) {}
-  Indices(TShape const& src, std::vector<dim_t>&& idx)
-      : shape_(src), max_size_(src.Size()), indices_(idx), index_cache_(-1) {
-    index_correct();
-  }
+
   Indices(Indices && other) {
     this->swap(other);
   }
@@ -94,6 +91,9 @@ class Indices {
 
   void swap(Indices &other);
   std::string to_string() const;
+  void reset() {
+    std::fill(indices_.begin(), indices_.end(), 0);
+  }
 
  private:
   void index_correct() const;
