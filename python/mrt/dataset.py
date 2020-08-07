@@ -1,3 +1,11 @@
+""" Dataset Base Class Definition.
+
+    File manipulation helper function set. 
+    Customized datasets definition and customized interface definition including `metrics`, `validate`, `_load_data`, `iter_func` and `__iter__`.
+
+    Only **crucial parts** of the custommized interface implementation are elaborated.
+"""
+
 import mxnet as mx
 from mxnet import gluon
 from mxnet import nd
@@ -174,7 +182,11 @@ class COCODataset(Dataset):
     # download_deps = ['val2017.zip']
 
     def _load_data(self):
-        """ Customized _load_data method Introduction.
+        """ Customized _load_data method introduction.
+
+            COCO dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size).
+
+            The validation dataset will be created by *MS COCO Detection Dataset* and use SSDDefaultValTransform as data preprocess function.
         """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
@@ -188,7 +200,9 @@ class COCODataset(Dataset):
             last_batch='rollover', num_workers=30)
 
     def metrics(self):
-        """ Customized metrics method Introduction.
+        """ Customized metrics method introduction.
+
+            COCODetectionMetric is used which is the detection metric for COCO bbox task.
         """
         _, _, H, W = self.ishape
         metric = COCODetectionMetric(
@@ -197,7 +211,20 @@ class COCODataset(Dataset):
         return metric
 
     def validate(self, metrics, predict, label):
-        """ Customized validate method Introduction.
+        """ Customized validate method introduction.
+
+            The image height must be equal to the image width.
+
+            The model output is [id, score, bounding_box], 
+            where bounding_box is of layout (x1, y1, x2, y2).
+
+            The data label is implemented as follows:
+
+            .. code-block:: python
+
+                map_name, mean_ap = metrics.get()
+                acc = {k: v for k,v in zip(map_name, mean_ap)}
+                acc = float(acc['~~~~ MeanAP @ IoU=[0.50, 0.95] ~~~~\\n']) / 100
         """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
@@ -229,7 +256,11 @@ class VOCDataset(Dataset):
     # download_deps = ["VOCtest_06-Nov-2007.tar"]
 
     def _load_data(self):
-        """ Customized _load_data method Introduction.
+        """ Customized _load_data method introduction.
+
+            VOC dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size).
+
+            The validation dataset will be created by Pascal *VOC detection Dataset* and use YOLO3DefaultValTransform as data preprocess function.
         """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
@@ -244,7 +275,9 @@ class VOCDataset(Dataset):
             last_batch='discard', num_workers=30)
 
     def metrics(self):
-        """ Customized metric method Introduction.
+        """ Customized metric method introduction.
+
+            VOC07MApMetric is used which is the Mean average precision metric for PASCAL V0C 07 dataset.
         """
         metric = VOC07MApMetric(
             iou_thresh=0.5, class_names=gdata.VOCDetection.CLASSES)
@@ -252,7 +285,19 @@ class VOCDataset(Dataset):
         return metric
 
     def validate(self, metrics, predict, label):
-        """ Customized validate method Introduction.
+        """ Customized validate method introduction.
+
+            The image height must be equal to the image width.
+
+            The model output is [id, score, bounding_box], 
+            where bounding_box is of layout (x1, y1, x2, y2).
+
+            The data label is implemented as follows:
+
+            .. code-block:: python
+
+                map_name, mean_ap = metrics.get()
+                acc = {k: v for k,v in zip(map_name, mean_ap)}['mAP']
         """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
@@ -279,12 +324,18 @@ class VOCDataset(Dataset):
 
 class VisionDataset(Dataset):
     def metrics(self):
-        """ Customized metric method Introduction.
+        """ Customized metric method introduction.
+
+            Computes accuracy classification score and top k predictions accuracy.
         """
         return [mx.metric.Accuracy(),
                 mx.metric.TopKAccuracy(5)]
 
     def validate(self, metrics, predict, label):
+        """ Customized metric method introduction.
+
+            The model output include score for 1000 classes.
+        """
         metrics[0].update(label, predict)
         metrics[1].update(label, predict)
         _, top1 = metrics[0].get()
@@ -298,6 +349,26 @@ class ImageNetDataset(VisionDataset):
     download_deps = ["rec/val.rec", "rec/val.idx"]
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            ImageNet dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size). The image height must be equal to the image width.
+
+            The data preprocess process includes:
+
+            .. math::
+                crop_ratio = 0.875
+
+            .. math::
+                resize = ceil(H / crop\_ratio)
+
+            .. math::
+                mean_rgb = [123.68, 116.779, 103.939]
+
+            .. math::
+                std_rgb = [58.393, 57.12, 57.375]
+
+            Use ImageRecordIter to iterate on image record io files.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -341,6 +412,18 @@ class Cifar10Dataset(VisionDataset):
     #  download_deps = ["cifar-10-binary.tar.gz"]
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            Cifar10Dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, 32, 32). The image height and width must be equal to 32.
+
+            The data preprocess process includes:
+
+            .. math::
+                mean = [0.4914, 0.4822, 0.4465]
+
+            .. math::
+                std = [0.2023, 0.1994, 0.2010]
+        """
         N, C, H, W = self.ishape
         assert C == 3 and H == W and H == 32
         transform_test = gluon.data.vision.transforms.Compose([
@@ -365,6 +448,10 @@ class QuickDrawDataset(VisionDataset):
         super().__init__(input_shape, **kwargs)
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            QuickDrawDataset only support layout of NCHW and the number of channels must be 3, the image height and width must be equal to 32, i.e. (batch_size, 3, 28, 28).
+        """
         N, C, H, W = self.ishape
         assert C == 1 and H == 28 and W == 28
         X = nd.array(np.load(path.join(self.root_dir, self.download_deps[0])))
@@ -388,8 +475,11 @@ class MnistDataset(VisionDataset):
     #                  "train-labels-idx1-ubyte.gz"]
 
     def _load_data(self):
-        """
+        """ Customized _load_data method introduction.
+
             The MxNet gluon package will auto-download the mnist dataset.
+
+            MnistDataset only support layout of NCHW and the number of channels must be 1, the image height and width must be equal to 32, i.e. (batch_size, 1, 28, 28).
         """
         val_data = mx.gluon.data.vision.MNIST(
             root=self.root_dir, train=False).transform_first(data_xform)
@@ -410,6 +500,12 @@ class TrecDataset(Dataset):
         super().__init__(input_shape, **kwargs)
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            The MxNet gluon package will auto-download the mnist dataset.
+
+            TrecDataset only support layout of (I, N), the image height and width must be equal to 32, i.e. (batch_size, 1, 28, 28).
+        """
         fname = path.join(
             self.root_dir, self.download_deps[0] \
             if self.is_train else self.download_deps[1])
@@ -437,6 +533,14 @@ class TrecDataset(Dataset):
         return {"acc": 0, "total": 0}
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method introduction.
+
+            The score for 6 classes is the model output. The data label is implemented as follows:
+
+            .. code-block:: python
+
+                acc = 1. * metrcs["acc"] / metrics["total"]
+        """
         for idx in range(predict.shape[0]):
             res_label = predict[idx].asnumpy().argmax()
             data_label = label[idx].asnumpy()

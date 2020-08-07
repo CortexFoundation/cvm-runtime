@@ -12,11 +12,6 @@ MRT Dataset API
 
 Dataset Module Base
 ___________________
-.. autofunction:: mrt.dataset.extract_file
-
-.. autofunction:: mrt.dataset.download_files
-
-
 .. autoclass:: mrt.dataset.Dataset
   :members: __iter__, iter_func
 
@@ -24,4 +19,32 @@ ___________________
 Customized Datasets
 ___________________
 .. autoclass:: COCODataset
+  :members: _load_data, metrics, validate
 
+
+.. autoclass:: VOCDataset
+  :members: _load_data, metrics, validate
+
+
+.. autoclass:: VisionDataset
+  :members: metrics, validate
+
+
+.. autoclass:: ImageNetDataset
+  :members: _load_data
+
+
+.. autoclass:: Cifar10Dataset 
+  :members: _load_data
+
+
+.. autoclass:: QuickDrawDataset 
+  :members: _load_data
+
+
+.. autoclass:: MnistDataset
+  :members: _load_data
+
+
+.. autoclass:: TrecDataset 
+  :members: _load_data, validate
