@@ -1,6 +1,4 @@
-""" MRT Pass API
-
-    Collection of MRT pass tions.
+""" Collection of MRT pass tions.
     Graph-level symbol helper function for MRT.
     Stage-level symbol pass designation for MRT.
 """

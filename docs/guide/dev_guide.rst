@@ -29,7 +29,7 @@ If there exist operators that are not supported by MRT, the process will be inte
 
 .. code-block:: bash
 
-  NotImplementedError: Transformer sqrt has not been registered
+  NotImplementedError: Transformer <unknown operator name> has not been registered
 
 For more details, please refer to :ref:`MRT Operators API <mrt_tfm_ops_api>`.
 
