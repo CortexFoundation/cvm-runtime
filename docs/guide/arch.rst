@@ -389,16 +389,16 @@ We abstract the formalization here and introduce the details as below:
     A[d_0, d_1, \cdots, d_{M-1}] \text{ OP } B[d_{M-N}, d_1, \cdots, d_{M-1}], & M > N
   \end{cases}, \\
 
-  \forall i \in [0, K), \\
+  \forall d_i \in [0, n_i) \text{ if } N \geq M \text{ or } d_i \in [0, m_i) \text{ otherwise} \\
 
-  \text{ where } K = max(M, N),\\
-  d_i \in [0, n_i) \text{ if } N \geq M \text{ or } d_i \in [0, m_i) \text{ otherwise}
+  \text{where } i \in [0, max(M, N))\\
+  
 
 
 broadcast_add
 ~~~~~~~~~~~~~
 
-set :math:`\text{BROADCAST_OP}` to :math:`\text{add}`.
+set :math:`\text{OP}` to :math:`\text{add}`.
 
 *Example*
 
@@ -417,20 +417,20 @@ set :math:`\text{BROADCAST_OP}` to :math:`\text{add}`.
 
 broadcast_sub
 ~~~~~~~~~~~~~
-set :math:`\text{BROADCAST_OP}` to :math:`\text{sub}`.
+set :math:`\text{OP}` to :math:`\text{sub}`.
 Note that there's no need to make sure that the dimension of the minuend :math:`A` is higher than subtractor :math:`B`
 
 broadcast_mul
 ~~~~~~~~~~~~~
-set :math:`\text{BROADCAST_OP}` to :math:`\text{mutiply}`.
+set :math:`\text{OP}` to :math:`\text{mutiply}`.
 
 broadcast_div
 ~~~~~~~~~~~~~
-set :math:`\text{BROADCAST_OP}` to :math:`\text{divide}`.
+set :math:`\text{OP}` to :math:`\text{divide}`.
 
 broadcast_max
 ~~~~~~~~~~~~~
-set :math:`\text{BROADCAST_OP}` to :math:`\text{max}`.
+set :math:`\text{OP}` to :math:`\text{max}`.
 
 NN Operators
 ------------
@@ -447,7 +447,7 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
 - Input: there are 2 or 3 inputs.
 
   + :math:`X`, input data to be calculated whose shape is :math:`(N, C, H, W)`
-  + :math:`W`, convolution kernel weight whose shape is :math:`(OC, IC, KH, KW)`, :math:`C = IC \cdot \text{groups} \wedge OC \text{ mod } \text{groups} = 0`
+  + :math:`W`, convolution kernel weight whose shape is :math:`(OC, IC, KH, KW)`
   + :math:`B`, bias, of type ``Optional<DLTensor>``. If :math:`B` is not None, it's shape is :math:`(\text{OC},)`.
 
 - Output: :math:`Y`
@@ -456,12 +456,7 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
   + ``padding``, a ``TShape`` of length 2, namely :math:`(PH, PW), PH,PW \in [min\_attr, max\_attr)`, indicating padding size.
   + ``stride``, a ``TShape`` of length 2, namely :math:`(SH, SW) \in [1, max\_attr)`, indicating strides.
   + ``dilation``, a ``TShape`` of length 2, namely :math:`(DH, DW) \in [1, max\_attr)`, parameter used in dilation convolution.
-  + ``groups``, an ``int`` in :math:`\text{range} [1, C]`, indicating group number.
-
-.. math::
-
-  OC = \text{groups} * OPG, \text{ where } OPG \in \mathbb N^+ \\
-  C = IC * \text{groups}
+  + ``groups``, an ``int`` in :math:`\text{range} [1, C]`, indicating group number. :math:`C = IC \cdot \text{groups} \wedge OC \text{ mod } \text{groups} = 0`
 
 .. math::
 
@@ -470,9 +465,13 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
   B[oc], & \text{otherwise}
   \end{cases}, \\
 
-  \forall n \in [0, N) \wedge oc\in [0, OC) \wedge\\
-  p \in \left[0, \left\lfloor{H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1\over\text{SH}}\right\rfloor+1 \right) \wedge \\
-  q \in \left[0, \left\lfloor{W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}}\right\rfloor+1 \right)
+  \forall n \in [0, N) \wedge oc\in [0, OC) \wedge
+  p \in \left[0, \text{Y_HMAX} \right) \wedge 
+  q \in \left[0, \text{Y_WMAX} \right),
+
+  \text{where } \text{Y_HMAX} = \left\lfloor{H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1\over\text{SH}}\right\rfloor+1\wedge\\
+  \text{Y_WMAX} = \left\lfloor{W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}}\right\rfloor+1 \wedge\\
+  OPG = OC / \text{groups, }  OPG \in \mathbb N^+ \text{ since } OC \text{ mod } \text{groups} = 0\\
 
 where :math:`\text{kernel}` function does the 2D image convolution calculation, and the formulation is
 
@@ -491,13 +490,14 @@ where :math:`\text{kernel}` function does the 2D image convolution calculation, 
 dense
 ~~~~~
 Dense operator provides a full connected layer.
-* Math Formalization*
+
+*Math Formalization*
 
 - Input: there 2 or 3 inputs.
 
   + :math:`X`, a matrix of shape :math:`(M, K)`
   + :math:`W`, a matrix of shape :math:`(N, K)`
-  + :math:`B`, bias, of type ``Optional`<DLTensor>``, If :math:`B` is not ``NONE``, it's shape is :math:`(N,)`.
+  + :math:`B`, bias, of type ``Optional<DLTensor>``, If :math:`B` is not ``NONE``, it's shape is :math:`(N,)`.
 
 - Output: :math:`Y`, a matrix of shape :math:`(M, N)`
 
@@ -512,7 +512,8 @@ relu
 ~~~~
 
 Relu performs elementwise rectified linear unit function.
-* Math Formalization*
+
+*Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{n-1})`
 - Output: :math:`Y`, the same shape as :math:`X`
@@ -585,16 +586,22 @@ There might be 1 or 2 input tensors and the logic might be complicated for someo
 abs
 ~~~
 This operator calculates absolute value of input data.
+
 *Math Formalization*
+
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`.
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`
 
 .. math::
+
   Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
   x, &  x \geqslant 0  \\
   -x, & x < 0
   \end{cases},\\
-  \forall i \in [0, N), d_i \in [0, n_i) \text{, where }x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+
+  \forall i \in [0, N), d_i \in [0, n_i),\\
+
+  \text{, where }x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 cvm_precision
 ~~~~~~~~~~~~~
@@ -607,11 +614,15 @@ The precision operator gives how many bits the absolute value of a number takes.
 - Output :math:`Y`, a tensor whose shape is same as :math:`X`
 
 .. math::
+
   Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
   \lceil log_2(abs(x)+1) \rceil, & x \neq 0\\
   1, & x = 0
   \end{cases},\\
-  \forall i \in [0, N), d_i \in [0, n_i) \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+  
+  \forall i \in [0, N), d_i \in [0, n_i),\\
+
+  \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 
 elemwise_add
@@ -678,7 +689,7 @@ This operator performs clip, cutting the data into a range, to the input tensor.
   \text{a_min}, & x \leqslant \text{a_min}
   \end{cases},\\
 
-  \forall i \in [0, N), d_i \in [0, n_i),
+  \forall i \in [0, N) \wedge d_i \in [0, n_i),
 
   \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
@@ -686,7 +697,7 @@ cvm_cilp
 ~~~~~~~~
 This operator clips the input data into a certain CVM precision.
 
-* Math Formalization*
+*Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`.
 - Output: :math:`Y`, a tensor whose shape is same as :math:`X`.
@@ -809,7 +820,7 @@ This operator flattens the input tensor data to an array in a row-major order.
   \forall d_0 \in [0, n_0) \wedge d_1 \in [0, n_1) \wedge \cdots \wedge
   d_{N-1} \in [0, n_{N-1})
 
-  where :math:`\text{flatten_index}` is
+where :math:`\text{flatten_index}` is
 
 .. math::
   \text{flatten_index}(d_0, d_1, \cdots, d_{N-1}, n_0, n_1, \cdots, n_{N-1}) = \\
@@ -888,15 +899,18 @@ This operator slices an input array with given attribute. For each dimension, st
   \text{begin}[b], & b \in [0, N) \wedge b < B \wedge begin[b] \geqslant 0 \\
   0, & b \in [0, N) \wedge b \geqslant B
   \end{cases}, b \in [0, N) \\
+
   \text{e_arr}[e] = \begin{cases}
   \text{end}[e] + n_i, & e \in [0, N) \wedge e < E \wedge end[e] < 0\\
   \text{end}[e], & e \in [0, N) \wedge e < E \wedge end[e] \geqslant 0\\
   n_{e}, & e \in [0, N) \wedge e \geqslant E
   \end{cases}, e \in [0, N) \\
+
   \text{s_arr}[s] = \begin{cases}
   \text{stride}[s], & s \in [0, N) \wedge s < S \\
   1, & s \in [0, N) \wedge s \geqslant S
   \end{cases}, s \in [0, N) \\
+
   \forall \{i \mid i \in [0, N)\}: \text{s_arr}[i] \ne 0 \\
   \text{b_range}(i) = \begin{cases}
   -1, & \text{s_arr}[i] < 0 \\
@@ -906,6 +920,7 @@ This operator slices an input array with given attribute. For each dimension, st
   n_i - 1, & \text{s_arr}[i] < 0 \\
   n_i, & \text{s_arr}[i] \geqslant 0
   \end{cases} \\
+
   \text{b_vec}[b] =
   clip(\text{b_arr}[b], \text{a_min}=\text{b_range}(b), \text{a_max}=\text{e_range}(b)-1), b \in [0, N) \\
   \text{e_vec}[e] =
@@ -919,13 +934,11 @@ This operator slices an input array with given attribute. For each dimension, st
   Y[d_0, d_1, \cdots, d_{N-1}] = \\
   X[\text{b_vec}[0] + \text{s_arr}[0] * d_0,
   \text{b_vec}[1] + \text{s_arr}[1] * d_1,
-  \cdots, \text{b_vec}[N-1] + \text{s_arr}[N-1] * d_{N-1}]] \\
+  \cdots, \text{b_vec}[N-1] + \text{s_arr}[N-1] * d_{N-1}] \\
 
-  \forall (d_0, d_1, \cdots, d_{N-1}),
+  \forall d_j \in [0, \left\lceil{\text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j]}\right\rceil),
 
-  \text{ where } d_j \in [0,
-  \left\lceil{\text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j]}\right\rceil)
-  \wedge j \in [0, N)
+  \text{where } j \in [0, N)
 
 
 slice_like
@@ -936,7 +949,7 @@ This operator slices the input :math:`X` to a shape that looks like the other gi
 *Math Formalization*
 
 - Input: there are 2 inputs
-
+  
   + :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
   + :math:`\text{shape_like}`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M- 1 })`,
 
@@ -950,13 +963,17 @@ This operator slices the input :math:`X` to a shape that looks like the other gi
   \{0, 1, \cdots, M-1\}, & K = 0
   \end{cases}, \\
 
-  \forall j \in \text{sliced_axes}: j < \min(M, N) \text{ and } m_j \leqslant n_j\\
-  Y[d_0, d_1, \cdots, d_{N-1}] = X[d_0, d_1, \cdots, d_{N-1}], \\
+  \text{where } \forall j \in \text{sliced_axes}: j < \min(M, N) \text{ and } m_j \leqslant n_j\\
 
-  \text{where } j \in [0, N) \wedge d_j \in \begin{cases}
+.. math::
+  Y[d_0, d_1, \cdots, d_{N-1}] = X[d_0, d_1, \cdots, d_{N-1}], \\
+  
+  \forall d_j \in \begin{cases}
   [0, m_j), & j \in \text{sliced_axes} \\
   [0, n_j), & j \notin \text{sliced_axes}
-  \end{cases}
+  \end{cases},\\
+
+  \text{where } j \in [0, N)
 
 take
 ~~~~
@@ -977,7 +994,7 @@ This operator takes some elements from the input data. If axis is not given, it 
 
 .. math::
   T = flatten(X) \\
-  Y[d_0, d_1, \cdots, d_{M-1}] = T[clip(\text{xidx}, \text{a_min}=0, \text{a_max}=|T|-1],\\
+  Y[d_0, d_1, \cdots, d_{M-1}] = T[clip(\text{xidx}, \text{a_min}=0, \text{a_max}=|T|-1)],\\
 
   \forall (d_0, d_1, \cdots, d_{M-1}), \\
 
@@ -994,13 +1011,12 @@ This operator takes some elements from the input data. If axis is not given, it 
   \end{cases} \\
   Y[d_0, d_1, \cdots, d_{M+N-2}] = X[d_0, \cdots, d_{\text{real_axis}-1}, \text{xdix}, d_{\text{real_axis}+M}, \cdots, d_{M+N-2}], \\
 
-  \forall (d_0, d_1, \cdots, d_{M+N-2}), \\
 
-  \text{where } d_j \in \begin{cases}
+  \forall d_j \in \begin{cases}
   [0, n_j), & j < \text{real_axis} \\
   [0, m_{j-\text{real_axis}}), & j \in [\text{real_axis}, \text{real_axis}+M) \\
   [0, n_{j-M+1}), & j \in [\text{real_axis} + M, M+N-1)
-  \end{cases}\\
+  \end{cases},\\
   \text{where } \text{xidx}{} = clip(\text{indices}[d_{\text{real_axis}}, d_{\text{real_axis}+1}, \cdots, d_{\text{real_axis}+M-1}],\\
   \text{a_min}=0, \text{a_max}=n_{\text{real_axis}}-1)
 
@@ -1218,3 +1234,4 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \forall b \in [0, B) \wedge k \in [0, K) \wedge
   n \in [min\{T, \text{MOS},card\{U\}\}, N)
 
+:math:`\text{overlap_ratio}` calculates the overlap ratio of two rectangles: area of their intersection over the area of their union.
