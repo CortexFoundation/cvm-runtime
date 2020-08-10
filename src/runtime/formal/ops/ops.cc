@@ -105,16 +105,14 @@ static void groupwise_conv2d(
   
   int32_t ochannels_per_group = out_channels / groups;
   int32_t ichannels_per_group = in_channels / groups;
-  //for(int32_t n = 0; n < n_batch; ++n){
-  //  for(int32_t oc = 0; oc < out_channels; ++oc){
-  //    for(int32_t oh = 0; oh < o_h; ++oh){
-  //      for(int32_t ow = 0; ow < o_w; ++ow){
+
   for (Indices yIdx(TShape({n_batch, out_channels, o_h, o_w})), 
     xIdx(TShape{n_batch, in_channels, x_h, x_w}), 
     ftrIdx(TShape{out_channels, filter_c, filter_h, filter_w});
        !yIdx.End(); yIdx++) {
+    // no need to reset xIdx and ftrIdx(stands for filter index) 
+    // since they are assigned to a completely new value each time in the loop.
     int n = yIdx[0], oc = yIdx[1], oh = yIdx[2], ow = yIdx[3];
-    //int32_t oi = n * out_channels * o_h * o_w + oc * o_h * o_w + oh * o_w + ow;
     int32_t sum = 0;
     int32_t ic = oc / ochannels_per_group * ichannels_per_group;
     for (int32_t tic = 0; tic < ichannels_per_group; ++tic) {
@@ -134,15 +132,8 @@ static void groupwise_conv2d(
         }
       }
     }
-    xIdx.reset();
-    ftrIdx.reset();
     y_data[yIdx.Index()] = sum + (b_data == nullptr ? 0 : b_data[oc]);
   }
-          
-  //      }
-  //    }
-  //  }
-  //}
 }
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
@@ -220,27 +211,23 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
   int x_w = static_cast<int>(xShape[3]);
   int o_h = static_cast<int>(yShape[2]);
   int o_w = static_cast<int>(yShape[3]);
-  auto calc_func = [&](const Indices& idx) {
-    int n = idx[0], k = idx[1], p = idx[2], q = idx[3];
+  for (Indices yIdx(yShape), xIdx(xShape); !yIdx.End(); yIdx++) {
+    // no need to reset xIdx since content of xIdx assigned completely.
+    int n = yIdx[0], k = yIdx[1], p = yIdx[2], q = yIdx[3];
     // 1 << 31 will be the min value for int32: 0x80000000
     const int32_t minV = int32_t(1) << 31;
     int32_t y_max = minV;
-    Indices xIdx(xShape);
     for (int r = 0; r < filter_h; ++r) {
       for (int s = 0; s < filter_w; ++s) {
         int32_t tp = p * stride_h + r - padding[0];
         int32_t tq = q * stride_w + s - padding[1];
         if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w) {
-          xIdx.CopyIndicesFrom(std::vector<dim_t>{idx[0], idx[1], tp, tq});
+          xIdx.CopyIndicesFrom({yIdx[0], yIdx[1], tp, tq});
           y_max = std::max(x_data[xIdx.Index()], y_max);
         }
-        
       }
     }
-    return y_max;
-  };
-  for (Indices yIdx(yShape); !yIdx.End(); yIdx++) {
-    y_data[yIdx.Index()] = calc_func(yIdx);
+    y_data[yIdx.Index()] = y_max;
   }
 });
 
@@ -564,28 +551,21 @@ static void take(CVMArgValue x,
     /**
     * takes the input data on this axis for every coordinates in other axes.
     *
-    * Math:
-    * \text{axis} \in [-N, N) \\
-    * \text{real_axis} = \begin{cases}
-    * \text{axis}, & \text{axis} \geqslant 0 \\
-    * \text{axis} + N, & \text{axis} < 0
-    * \end{cases} \\
-    * Y[d_0, d_1, \cdots, d_{M+N-2}] = X[d_0, \cdots, d_{\text{real_axis}-1},
-    * \text{xdix}, d_{\text{real_axis}+M}, \cdots, d_{M+N-2}], \\
     *
-    * \forall d_j \in \begin{cases}
-    * [0, n_j), & j < \text{real_axis} \\
-    * [0, m_{j-\text{real_axis}}), & j \in [\text{real_axis}, \text{real_axis}+M)\\
-    * [0, n_{j-M+1}), & j \in [\text{real_axis} + M, M+N-1)
-    * \end{cases},\\
-    * \text{where } \text{xidx}{} = clip(\text{indices}[d_{\text{real_axis}},
-    * d_{\text{real_axis}+1}, \cdots, d_{\text{real_axis}+M-1}],\\ \text{a_min}=0,
-    * \text{a_max}=n_{\text{real_axis}}-1)
+    *                   idxIdx[0, 1, ...................., indices_ndim - 1]
+    *                        ||               /\
+    *  yIdx:                 ||               ||
+    *  0, 1, ..., axis-1, | axis, axis+1, ..., axis + ind.ndim - 1, | axis + ind.ndim, ..., yIdx.ndim
+    *           ||           ||                                                    ||
+    *           ||           ||               ++===================================++
+    *           ||           ||               ||
+    *  xIdx:    \/           \/               \/
+    *  0, 1, ..., axis-1, | axis | axis+1, ..., xIdx.ndim
     */
-
     for (Indices yIdx(Y_shape), xIdx(X_shape), idxIdx(Indices_shape);
          !yIdx.End(); yIdx++) {
-      
+      // all elements in xIdx and idxIdx assigned to some other values.
+      // no need to reset explictly.
       for (int j = 0; j < axis; j++) {
         xIdx.Ref(j) = yIdx[j];
       }
@@ -598,10 +578,6 @@ static void take(CVMArgValue x,
         xIdx.Ref(j) = yIdx[j + indices_ndim - 1];
       }
       y_data[yIdx.Index()] = x_data[xIdx.Index()];
-      // xIdx and idxIdx are assigned to some other values. 
-      // no need to reset explictly.
-      //xIdx.reset();
-      //idxIdx.reset();
     }
 }
 
