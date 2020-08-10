@@ -102,32 +102,47 @@ static void groupwise_conv2d(
    int32_t *b_data,
    int32_t padding[2], int32_t stride_h, int32_t stride_w, int32_t dilation_h, int32_t dilation_w,
    int32_t groups){
+  
   int32_t ochannels_per_group = out_channels / groups;
   int32_t ichannels_per_group = in_channels / groups;
-  for(int32_t n = 0; n < n_batch; ++n){
-    for(int32_t oc = 0; oc < out_channels; ++oc){
-      for(int32_t oh = 0; oh < o_h; ++oh){
-        for(int32_t ow = 0; ow < o_w; ++ow){
-          int32_t oi = n * out_channels * o_h * o_w + oc * o_h * o_w + oh * o_w + ow;
-          int32_t sum = 0;
-          int32_t ic = oc / ochannels_per_group * ichannels_per_group;
-          for(int32_t tic = 0; tic < ichannels_per_group; ++tic){
-            for(int32_t fh = 0; fh < filter_h; ++fh){
-              for(int32_t fw = 0; fw < filter_w; ++fw){
-                int32_t th = oh * stride_h + fh*dilation_h - padding[0];
-                int32_t tw = ow * stride_w + fw*dilation_w - padding[1];
-                if(th < 0 || tw < 0 || th >= x_h || tw >= x_w)
-                  continue;
-                sum += x_data[n * in_channels * x_h * x_w + (ic+tic) * x_h * x_w + th * x_w + tw]
-                  * w_data[oc * filter_c * filter_h * filter_w + tic * filter_h * filter_w + fh * filter_w + fw];
-              }
-            }
-          }
-          y_data[oi] = sum + (b_data == nullptr ? 0 : b_data[oc]);
+  //for(int32_t n = 0; n < n_batch; ++n){
+  //  for(int32_t oc = 0; oc < out_channels; ++oc){
+  //    for(int32_t oh = 0; oh < o_h; ++oh){
+  //      for(int32_t ow = 0; ow < o_w; ++ow){
+  for (Indices yIdx(TShape({n_batch, out_channels, o_h, o_w})), 
+    xIdx(TShape{n_batch, in_channels, x_h, x_w}), 
+    ftrIdx(TShape{out_channels, filter_c, filter_h, filter_w});
+       !yIdx.End(); yIdx++) {
+    int n = yIdx[0], oc = yIdx[1], oh = yIdx[2], ow = yIdx[3];
+    //int32_t oi = n * out_channels * o_h * o_w + oc * o_h * o_w + oh * o_w + ow;
+    int32_t sum = 0;
+    int32_t ic = oc / ochannels_per_group * ichannels_per_group;
+    for (int32_t tic = 0; tic < ichannels_per_group; ++tic) {
+      for (int32_t fh = 0; fh < filter_h; ++fh) {
+        for (int32_t fw = 0; fw < filter_w; ++fw) {
+          int32_t th = oh * stride_h + fh * dilation_h - padding[0];
+          int32_t tw = ow * stride_w + fw * dilation_w - padding[1];
+          if (th < 0 || tw < 0 || th >= x_h || tw >= x_w) continue;
+          xIdx.CopyIndicesFrom({n, ic + tic, th, tw});
+          ftrIdx.CopyIndicesFrom({oc, tic, fh, fw});
+          sum += x_data[n * in_channels * x_h * x_w + (ic + tic) * x_h * x_w +
+                        th * x_w + tw] * w_data[ftrIdx.Index()];
+          //sum += x_data[n * in_channels * x_h * x_w + (ic + tic) * x_h * x_w +
+          //              th * x_w + tw] *
+          //       w_data[oc * filter_c * filter_h * filter_w +
+          //              tic * filter_h * filter_w + fh * filter_w + fw];
         }
       }
     }
+    xIdx.reset();
+    ftrIdx.reset();
+    y_data[yIdx.Index()] = sum + (b_data == nullptr ? 0 : b_data[oc]);
   }
+          
+  //      }
+  //    }
+  //  }
+  //}
 }
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
@@ -165,19 +180,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.conv2d")
   int o_h = (x_h + 2 * padding[0] - t_filter_h) / strides[0] + 1;
   int o_w = (x_w + 2 * padding[1] - t_filter_w) / strides[1] + 1;
 
-  //if(groups > 1){
   groupwise_conv2d(x_data, n_batch, in_channels, x_h, x_w, w_data, filter_c,
                    filter_h, filter_w, y_data, out_channels, o_h, o_w, b_data,
                    padding, stride_h, stride_w, dilation[0], dilation[1],
                    groups);
-  //} else {
-  //  groupwise_conv2d(
-  //      x_data, n_batch, in_channels, x_h, x_w,
-  //      w_data, filter_c, filter_h, filter_w,
-  //      y_data, out_channels, o_h, o_w,
-  //      b_data,
-  //      padding, stride_h, stride_w, dilation[0], dilation[1]);
-  //}
+
 });
 
 
@@ -223,13 +230,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
       for (int s = 0; s < filter_w; ++s) {
         int32_t tp = p * stride_h + r - padding[0];
         int32_t tq = q * stride_w + s - padding[1];
-        int32_t x_tmp = minV;
         if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w) {
-          xIdx.CopyIndicesFrom({idx[0], idx[1], tp, tq});
-          //std::cout << "xIndex is " << xIdx.Index() << std::endl;
-          x_tmp = x_data[xIdx.Index()];
+          xIdx.CopyIndicesFrom(std::vector<dim_t>{idx[0], idx[1], tp, tq});
+          y_max = std::max(x_data[xIdx.Index()], y_max);
         }
-        y_max = std::max(x_tmp, y_max);
+        
       }
     }
     return y_max;
@@ -556,6 +561,28 @@ static void take(CVMArgValue x,
 
     if(axis < 0) { axis += xndim; }
 
+    /**
+    * takes the input data on this axis for every coordinates in other axes.
+    *
+    * Math:
+    * \text{axis} \in [-N, N) \\
+    * \text{real_axis} = \begin{cases}
+    * \text{axis}, & \text{axis} \geqslant 0 \\
+    * \text{axis} + N, & \text{axis} < 0
+    * \end{cases} \\
+    * Y[d_0, d_1, \cdots, d_{M+N-2}] = X[d_0, \cdots, d_{\text{real_axis}-1},
+    * \text{xdix}, d_{\text{real_axis}+M}, \cdots, d_{M+N-2}], \\
+    *
+    * \forall d_j \in \begin{cases}
+    * [0, n_j), & j < \text{real_axis} \\
+    * [0, m_{j-\text{real_axis}}), & j \in [\text{real_axis}, \text{real_axis}+M)\\
+    * [0, n_{j-M+1}), & j \in [\text{real_axis} + M, M+N-1)
+    * \end{cases},\\
+    * \text{where } \text{xidx}{} = clip(\text{indices}[d_{\text{real_axis}},
+    * d_{\text{real_axis}+1}, \cdots, d_{\text{real_axis}+M-1}],\\ \text{a_min}=0,
+    * \text{a_max}=n_{\text{real_axis}}-1)
+    */
+
     for (Indices yIdx(Y_shape), xIdx(X_shape), idxIdx(Indices_shape);
          !yIdx.End(); yIdx++) {
       
@@ -571,8 +598,10 @@ static void take(CVMArgValue x,
         xIdx.Ref(j) = yIdx[j + indices_ndim - 1];
       }
       y_data[yIdx.Index()] = x_data[xIdx.Index()];
-      xIdx.reset();
-      idxIdx.reset();
+      // xIdx and idxIdx are assigned to some other values. 
+      // no need to reset explictly.
+      //xIdx.reset();
+      //idxIdx.reset();
     }
 }
 

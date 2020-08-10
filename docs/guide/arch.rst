@@ -558,7 +558,7 @@ Max_pool2d performs max pooling over every plane for each batch and channel.
   \end{cases} \text{ and } \\
   \text{pad}(n, i, p, q) = \begin{cases}
   X[n, i, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
-  0, & \text{otherwise}
+  INT32_MIN, & \text{otherwise}
   \end{cases}
 
 

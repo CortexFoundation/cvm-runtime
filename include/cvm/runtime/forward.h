@@ -75,9 +75,13 @@ class Indices {
     index_cache_ = -1;
     indices_ = indices.indices_;
   }
-  void CopyIndicesFrom(std::vector<dim_t> vecIdx) {
+  void CopyIndicesFrom(const std::vector<dim_t>& vecIdx) {
     index_cache_ = -1;
     indices_ = vecIdx;
+  }
+  void CopyIndicesFrom(std::vector<dim_t>&& vecIdx) {
+    std::swap(vecIdx, indices_);
+    index_cache_ = -1;
   }
   dim_t& Ref(size_t i) {
     index_cache_ = -1;
@@ -93,6 +97,7 @@ class Indices {
   std::string to_string() const;
   void reset() {
     std::fill(indices_.begin(), indices_.end(), 0);
+    index_cache_ = -1;
   }
 
  private:
