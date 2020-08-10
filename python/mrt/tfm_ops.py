@@ -1,6 +1,4 @@
-""" MRT Operators API
-
-    Op-level realization of Model Representation Tool.
+""" Op-level realization of Model Representation Tool.
     Implementation of validation, 
     equivalent transformation, 
     quantization, transpose fusion, 

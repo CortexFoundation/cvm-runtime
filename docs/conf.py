@@ -86,6 +86,7 @@ html_static_path = ['_static']
 html_logo = "_static/img/icon.png"
 
 # doxygen -------------------------------------
+# breathe_domain_by_extension = {"h": "cpp"}
 breathe_projects = {"cvm-runtime": "doxygen_output/xml"}
 breathe_default_project = "cvm-runtime"
 

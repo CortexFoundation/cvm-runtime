@@ -1,11 +1,25 @@
-.. _mrt_tfm_ops_api:
 
-*****************
-MRT operators API
-*****************
+****************
+MRT Operator API
+****************
+
+.. contents::
+
+mrt.tfm_base
+____________
+.. _mrt_tfm_base_api:
+
+.. automodule:: mrt.tfm_base
+
+
+.. autoclass:: mrt.tfm_base.Transformer
+  :members:
+
 
 mrt.tfm_ops
 ___________
+.. _mrt_tfm_ops_api:
+
 .. automodule:: mrt.tfm_ops
 
 
@@ -172,3 +186,38 @@ ___________
 .. autofunction:: mrt.tfm_ops.reverse_sequence
 
 .. autofunction:: mrt.tfm_ops.reverse_transpose
+
+
+mrt.cvm_op
+__________
+.. _mrt_cvm_op_api:
+
+.. automodule:: mrt.cvm_op
+
+
+.. autoclass:: mrt.cvm_op.Clip
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.LeftShift
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.RightShift
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.LUT
+  :members: forward
+
+
+.. autoclass:: mrt.cvm_op.ClipProp
+
+
+.. autoclass:: mrt.cvm_op.LeftShiftProp
+
+
+.. autoclass:: mrt.cvm_op.RightShiftProp
+
+
+.. autoclass:: mrt.cvm_op.LUTProp
