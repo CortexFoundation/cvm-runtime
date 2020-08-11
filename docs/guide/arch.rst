@@ -1126,6 +1126,49 @@ This operator removes dimensions of length 1.
   \text{s.t. } I(i) < I(j), \forall 0 \leqslant i < j < N-K
 
 
+where
+~~~~~
+
+This operator selects data from 2 inputs with condition given.
+
+*Math Formalization*
+
+- Input: there are 3 inputs
+
+  + :math:`Cond`, either a tensor whose shape is same as others, or a 1d tensor whose length is same as the length of others' first dimension.
+  + :math:`A`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
+  + :math:`B`, a tensor whose shape is same as :math:`A`
+
+- Output: :math:`Y`
+
+1. Case shape of :math:`Cond` is same as others:
+
+.. math::
+
+  Y[d_0, d_1, \cdots, d_{N-1}] = \begin{cases}
+  A[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0, d_1, \cdots, d_{N-1}] \neq 0\\
+  B[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0, d_1, \cdots, d_{N-1}] = 0\end{cases},\\
+
+  \forall d_i \in [0, n_i),\\
+
+  \text{where } i \in [0, N)
+
+2. Case :math:`Cond` is a 1d tensor:
+
+.. math::
+
+  Y[d_0, d_1, \cdots, d_{N-1}] =
+  \begin{cases}
+  A[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0]
+  \neq 0\\
+  B[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0] = 0
+  \end{cases},\\
+
+  \forall d_i \in [0, n_i),\\
+
+  \text{where } i \in [0, N)
+
+
 Vision Operators
 ----------------
 
