@@ -42,8 +42,8 @@ import (
 	_ "runtime"
 	"unsafe"
 
-	"github.com/CortexFoundation/CortexTheseus/cvm-runtime/kernel"
 	"github.com/CortexFoundation/CortexTheseus/log"
+	"github.com/CortexFoundation/cvm-runtime/kernel"
 )
 
 func test() {
