@@ -123,8 +123,7 @@ static void groupwise_conv2d(
           if (th < 0 || tw < 0 || th >= x_h || tw >= x_w) continue;
           xIdx.CopyIndicesFrom({n, ic + tic, th, tw});
           ftrIdx.CopyIndicesFrom({oc, tic, fh, fw});
-          sum += x_data[n * in_channels * x_h * x_w + (ic + tic) * x_h * x_w +
-                        th * x_w + tw] * w_data[ftrIdx.Index()];
+          sum += x_data[xIdx.Index()] * w_data[ftrIdx.Index()];
           //sum += x_data[n * in_channels * x_h * x_w + (ic + tic) * x_h * x_w +
           //              th * x_w + tw] *
           //       w_data[oc * filter_c * filter_h * filter_w +
@@ -222,6 +221,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
         int32_t tp = p * stride_h + r - padding[0];
         int32_t tq = q * stride_w + s - padding[1];
         if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w) {
+          // if the region is out of the feature map, y_max remains INT_MIN
           xIdx.CopyIndicesFrom({yIdx[0], yIdx[1], tp, tq});
           y_max = std::max(x_data[xIdx.Index()], y_max);
         }

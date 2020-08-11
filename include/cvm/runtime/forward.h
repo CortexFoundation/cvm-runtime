@@ -97,7 +97,7 @@ class Indices {
   std::string to_string() const;
   void reset() {
     std::fill(indices_.begin(), indices_.end(), 0);
-    index_cache_ = -1;
+    index_cache_ = 0;
   }
 
  private:
