@@ -227,9 +227,9 @@ which means that for given value range, the forluma in the first
 line is always true, subjecting to the constraints listed as the 
 condition variable.
 
-The quick operators reference is listed as below:
-
 .. _op_list:
+
+The quick operators reference is listed as below:
 
 .. contents::
   :local:
