@@ -680,6 +680,7 @@ int main() {
   //test_op("cvm_right_shift");  // no test case
   test_op("elemwise_add"); // formal & cpu pass
   //test_op("elemwise_sub"); // no test case
+  //test_op("where"); // no test case
   test_op("non_max_suppression");  // formal & cpu pass
   test_op("broadcast_sub"); // formal & cpu pass
   test_op("broadcast_add");  // formal & cpu pass
