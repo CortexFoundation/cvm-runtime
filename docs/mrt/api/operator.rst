@@ -6,7 +6,7 @@ MRT Operator API
 .. contents::
 
 mrt.tfm_base
-____________
+------------
 .. _mrt_tfm_base_api:
 
 .. automodule:: mrt.tfm_base
@@ -17,7 +17,7 @@ ____________
 
 
 mrt.tfm_ops
-___________
+-----------
 .. _mrt_tfm_ops_api:
 
 .. automodule:: mrt.tfm_ops
@@ -189,7 +189,7 @@ ___________
 
 
 mrt.cvm_op
-__________
+----------
 .. _mrt_cvm_op_api:
 
 .. automodule:: mrt.cvm_op
