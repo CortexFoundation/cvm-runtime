@@ -338,29 +338,32 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.cvm_lut")
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.where")
 .set_body([](CVMArgs args, CVMRetValue *ret){
-  DLTensor *condition = args[0];
-  DLTensor *x = args[1];
-  DLTensor *result = args[3];
 
+  int32_t *cond_data = CVMArg2Data<int32_t>(args[0]);
   int32_t *x_data = CVMArg2Data<int32_t>(args[1]);
   int32_t *y_data = CVMArg2Data<int32_t>(args[2]);
-  int32_t *condition_data = CVMArg2Data<int32_t>(args[0]);
-  int32_t *result_data = CVMArg2Data<int32_t>(args[3]);
+  int32_t *res_data = CVMArg2Data<int32_t>(args[3]);
 
-  if(x->ndim == condition->ndim){
-    for(uint64_t i = 0; i < CVMArgSize(args[3]); ++i){
-      result_data[i] = condition_data[i] == 0 ? y_data[i] : x_data[i];
+  TShape condShape = CVMArgShape(args[0]);
+  TShape xShape = CVMArgShape(args[1]);
+  TShape resShape = CVMArgShape(args[3]);
+
+  if(xShape.ndim() == condShape.ndim()){
+    for (Indices resIdx(resShape); !resIdx.End(); resIdx++) {
+      int idx = resIdx.Index();
+      res_data[idx] = cond_data[idx] ? x_data[idx] : y_data[idx];
     }
-  }else{
-    uint64_t size = 1;
-    for(int32_t i = 1; i < result->ndim; i++){
-      size *= result->shape[i];
+  } else {
+    uint64_t size = resShape.Size() / resShape[0];
+    Indices resIdx(resShape);
+    for (int i = 0; i < condShape[0]; i++) {
+      resIdx.Ref(0) = i;
+      int offset = resIdx.Index();
+      memcpy(res_data + offset,
+             (cond_data[i] ? x_data + offset : y_data + offset), size);
     }
-    for(int32_t i = 0; i < result->shape[0]; ++i){
-      memcpy(&result_data[i*size], (condition_data[i] == 0 ? &y_data[i*size] : &x_data[i*size]), size); 
-    } 
   } 
-  print_to_file(result, "where.txt");
+  //print_to_file(result, "where.txt");
 });
 
 }
