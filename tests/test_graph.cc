@@ -30,7 +30,7 @@ using cvm::runtime::NDArray;
 
 typedef std::map<string, NDArray> ParamDict;
 
-CVMByteArray save_param_dict(const std::map<string, NDArray>& data) {
+CVMByteArray test_save_param_dict(const std::map<string, NDArray>& data) {
   vector<void*> passed;
   for (auto it = data.begin(); it != data.end(); ++it) {
     passed.push_back(const_cast<char*>(it->first.c_str()));
@@ -42,23 +42,23 @@ CVMByteArray save_param_dict(const std::map<string, NDArray>& data) {
   return ret;
 }
 
-std::map<string, NDArray> load_param_dict(CVMByteArray data) {
+std::map<string, NDArray> test_load_param_dict(CVMByteArray data) {
   std::map<string, NDArray> ret;
   int retNum;
-  char** retName;
+  void** retName;
   void** retVal;
   int rv = CVMLoadParamsDict(data.data, data.size, &retNum, &retName, &retVal);
   CHECK(rv == 0) << "CVMLoadParamsDict failed\n";
   for (int i = 0; i < retNum; i++) {
-    string name = retName[i];
+    string name = (char*)retName[i];
     NDArray::Container* tensor = (NDArray::Container*)retVal[i];
     std::cout << "returned name[" << i << "] is " << name << retName[i] << std::endl
               << "tensor is ";
     cvm::runtime::printTensor(&tensor->dl_tensor);
     ret[name] = NDArray(tensor);
   }
-  CHECK(CVMDeleteLDPointer(retNum, retName, retVal) == 0)
-      << "CVMDeleteLDPointer failed\n";
+  //CHECK(CVMDeleteLDPointer(retNum, retName, retVal) == 0)
+  //    << "CVMDeleteLDPointer failed\n";
   return ret;
 }
 
@@ -78,8 +78,8 @@ void test_SL_param_dict() {
   }
   data["a"] = a;
   data["b"] = b;
-  CVMByteArray saved = save_param_dict(data);
-  std::map<string, NDArray> loaded = load_param_dict(saved);
+  CVMByteArray saved = test_save_param_dict(data);
+  std::map<string, NDArray> loaded = test_load_param_dict(saved);
 }
 
 int main() {

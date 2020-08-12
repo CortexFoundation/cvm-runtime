@@ -93,7 +93,7 @@ typedef struct {
   /*! \brief The device context of the tensor */
   DLContext ctx;
   /*! \brief Number of dimensions */
-  int ndim;
+  int32_t ndim;
   /*! \brief The data type of the pointer*/
   DLDataType dtype;
   /*! \brief The shape of the tensor */

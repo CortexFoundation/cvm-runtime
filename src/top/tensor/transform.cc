@@ -1087,6 +1087,9 @@ inline bool WhereShape(const cvm::NodeAttrs& attrs,
     VERIFY_EQ(cond_shape.ndim(), 1)
       << "Shape of condition " << cond_shape
       << " must be either equal to x or has dimension of 1.";
+    VERIFY_EQ(cond_shape[0], x_shape[0])
+        << "If dim of condition is 1, " << cond_shape
+        << " must be the same as the first dimension of input shape.";
   }
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, x_shape);
   return true;

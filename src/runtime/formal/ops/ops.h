@@ -31,9 +31,7 @@ namespace runtime {
 //
 
 
-  
-  
-//<<<<<<< HEAD
+
 template<typename DType>
 inline DType* CVMArg2Data(cvm::runtime::CVMArgValue const& av) {
   DLTensor *tensor = av.operator DLTensor *();
