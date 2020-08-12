@@ -6,7 +6,7 @@ from mxnet import ndarray as nd
 import numpy as np
 import json
 
-from .sym_utils import topo_visit_transformer
+from .sym_utils import topo_visit_transformer, topo_sort
 
 #----------------------------
 # Feature Registration
@@ -518,15 +518,17 @@ class MinMaxChannelSampler(Sampler):
 # Module calbration interfaces
 #----------------------------
 
-def sample(
-    out, ft_type=DEFAULT_FT_TYPE, smp_info=DEFAULT_SMP_INFO,
-    opt_info=DEFAULT_OPT_INFO, **kwargs):
+def sample(out, cfg_info={}, **kwargs):
     """ Interface for MRT calibration Sampling
     """
+    ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
+    smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
+    opt_info = cfg_info.get("opt_info", DEFAULT_OPT_INFO)
     name = kwargs.get("name", "<unspecified>")
     if not isinstance(out, nd.NDArray):
         raise TypeError(
-            "Unsupported data type: %s" % (type(out), name))
+            "Unsupported data type: %s" % \
+            (type(out), name))
     sample = SMP_INSTANCES[smp_type].sample(out)
     ft = FT_REG[ft_type](**sample)
     opt = OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
@@ -537,9 +539,50 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
 
         Generalized MRT calibration framework pass.
     """
-    ft_dict = {}
-    # TODO(archRev): implementation
     # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
+    logger = logging.getLogger('log.mrt')
+    _, deps = topo_sort(symbol, logger=logger, with_deps=True)
+    ft_dict, out_cache = {}, {}
+    ctx = kwargs.get('ctx', mx.cpu())
+    logger.info("calibrate model outputs")
+    nparams = convert_params_dtype(
+        params, src_dtypes="float64", dest_dtype="float32")
+
+    def _impl(op, params, graph, **kwargs):
+        deps, old_ths = kwargs['deps'], kwargs['old_ths']
+        logger = logging.getLogger('log.mrt.calibrate')
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        if op_name == 'null':
+            out = data if is_inputs(op, params) else params[name]
+        elif childs is None:
+            out = get_nd_op(op_name)(**attr)
+        else:
+            cinfos = [(c.attr('name'), get_entry_id(c)) for c in childs]
+            nd_inputs = [out_cache[n[0]][n[1]] for n in cinfos]
+            out = get_nd_op(op_name)(*nd_inputs, **attr)
+            for n, _ in cinfos:
+                assert n in deps
+                if name not in deps[n]:
+                    # for op like: op = broadcast_mul(X, X)
+                    # `cinfos` will have duplicate entries
+                    # avoid removing more than once
+                    continue
+                deps[n].remove(name)
+                if len(deps[n]) == 0:
+                    del out_cache[n]
+        out = [out] if len(op) == 1 else out
+        out_cache[name] = [o.as_in_context(ctx) for o in out]
+        hft = ft_dict[name] if name in ft_dict else None
+        ft_dict[name] = sample(
+            out[0], cfg_info=kwargs["cfg_dict"][name],
+            name=name, hft=hft)
+
+    topo_visit_transformer(
+        symbol, nparams, _impl, logger=logger,
+        deps=deps, data=data, **kwargs)
+    out_cache.clear()
+
     return ft_dict
 
 #----------------------------
