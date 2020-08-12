@@ -37,6 +37,16 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
 
   // all axes after the axis we want to concatenate on can be copied as 
   // a batch at once thanks to cpp's row-major order standard.
+  // Example:
+  // Input:
+  // 1: [[0, 1, 2], [3, 4, 5]]
+  // 2: [[6, 7, 8], [9, 10, 11], [12, 13, 14]]
+  // axis: 0
+  // Output:
+  // [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11], [12, 13, 14]]
+  // considering cpp's memory layout, [0, 1, 2, 3, 4, 5] can be copied to the
+  // output all at once, with a `memcpy`, consuming less time than copying
+  // one by one.
   int64_t y_start_idx = 0;
   int64_t y_axis_batch = y_shape[axis] * axis_batch;
   for (int m = 0; m < M; ++m) {

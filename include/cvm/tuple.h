@@ -159,7 +159,7 @@ class Tuple {
     return ndim_ <= kStackCache ? (data_stack_ + ndim_): (data_heap_ + ndim_);
   }
   /*! \return number of dimension of the tuple */
-  inline uint32_t ndim() const {
+  inline int32_t ndim() const {
     return ndim_;
   }
   /*!

@@ -61,7 +61,7 @@ class Indices {
     return *this;
   }
 
-  inline uint32_t ndim() const { return indices_.size(); }
+  inline int32_t ndim() const { return indices_.size(); }
   /**
    * \brief Returns the flatten index corresponding with the
    *    indices_ value and source shape.

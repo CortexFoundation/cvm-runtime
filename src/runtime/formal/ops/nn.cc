@@ -38,6 +38,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.dense")
   auto W_data = CVMArg2Data<int32_t>(W);
   auto Y_data = CVMArg2Data<int32_t>(Y);
   // Y = X * W^T
+  // TODO: optimize performance. Is it possible to optimize like `conv2d`?
   Indices xIdx(X_shape), wIdx(W_shape), yIdx(Y_shape);
   for (; !yIdx.End(); yIdx++) {
     // Y(m, n) = X(m, k) * WT(k, n) = X(m, k) * W(n, k)
@@ -217,7 +218,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
         int32_t tp = p * stride_h + r - padding[0];
         int32_t tq = q * stride_w + s - padding[1];
         if (0 <= tp && tp < x_h && 0 <= tq && tq < x_w) {
-          // if the region is out of the feature map, y_max remains INT_MIN
+          // if the region is out of the feature map, y_max remains unchanged
+          // y_max may only change in the if, i.e., in the range of feature map
           xIdx.CopyIndicesFrom({yIdx[0], yIdx[1], tp, tq});
           y_max = std::max(x_data[xIdx.Index()], y_max);
         }
@@ -235,7 +237,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
   TShape const& xShape = CVMArgShape(args[0]);
   TShape const& yShape = CVMArgShape(args[1]);
 
-  uint32_t scale = {(uint32_t)param.scale};
+  int scale = param.scale;
   uint32_t h = xShape[2], w = xShape[3];
   uint32_t oh = yShape[2], ow = yShape[3];
   uint32_t n_batch = xShape[0], n_channels = xShape[1];
