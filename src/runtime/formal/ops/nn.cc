@@ -224,7 +224,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
       }
     }
     y_data[yIdx.Index()] = y_max;
-  }x
+  }
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
