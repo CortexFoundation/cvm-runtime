@@ -4,6 +4,7 @@
 
 from mxnet import ndarray as nd
 import numpy as np
+import json
 
 from .sym_utils import topo_visit_transformer
 
@@ -534,31 +535,57 @@ def sample(
 def sym_calibrate_gen(symbol, params, data, **kwargs):
     """ Customized graph-level topo pass definition.
 
-        Generized MRT calibration framework pass.
+        Generalized MRT calibration framework pass.
     """
     ft_dict = {}
     # TODO(archRev): implementation
+    # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
     return ft_dict
 
 #----------------------------
 # Module main2 interfaces
 #----------------------------
 
-def sym_config_info(symbol, params, cfg_dict=None, logger=logging, **kwargs):
+_RES_NAME = "_RES_"
+
+def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     """ Customized graph-level topo pass definition.
 
         Interface for MRT main2 configuration
         Create customized samplers and optimizors.
     """
 
+    names = set()
+
+    def _collect_names(symbol, params):
+        names.add(symbol.attr("name"))
+
+    topo_visit_transformer(symbol, params, _collect_names, **kwargs)
+    cfg_dict, noncfgs = {} if cfg_dict is None else cfg_dict, set()
+    keys = cfg_dict.keys()
+    for name in keys:
+        if name == _RES_NAME:
+            continue
+        if name not in names:
+            del cfg_dict[name]
+            noncfgs.add(name)
+    if noncfgs:
+        logger.warn(
+            "Symbols (names: %s) not found in graph." + \
+            "Please double check config file (.ini)." % \
+            noncfgs)
+    if _RES_NAME in cfg_dict:
+        cfg_info = cfg_dict.pop(_RES_NAME)
+        keys = cfg_dict.keys()
+        for name in [n for n in names if n not in keys]:
+            cfg_dict[name] = cfg_info
+
     def _extract_attr(info):
         if not info:
             return {}
         return {v[i]: v[i+1] for i in range(0, len(info), 2)}
 
-    cfg_dict, syms_set = {} if cfg_dict is None else cfg_dict, {}
-
-    def _impl(sym, params, **kwargs):
+    def _sym_config_infos(sym, params, **kwargs):
         name = sym.attr("name")
         cfg_info = cfg_dict.get(name, {})
         syms_set.add(name)
@@ -583,58 +610,103 @@ def sym_config_info(symbol, params, cfg_dict=None, logger=logging, **kwargs):
         cfg_dict[name] = cfg_info if cfg_info else \
             {"ft_type": ft_type, "smp_info": smp_info, "opt_info", opt_info}
 
-    sym, params = topo_visit_transformer(symbol, params, _impl, **kwargs)
-    syms_notset = {}
-    for name in cfg_dict.keys():
-        if name not in syms_set:
-            del cfg_dict[name]
-            syms_notset.add(name)
-    if syms_notset:
-        logger.warn(
-            "Symbols (names: %s) not found in graph." + \
-            "Please double check config file (.ini)." % syms_notset)
-    return sym, params
+    topo_visit_transformer(symbol, params, _sym_config_infos, **kwargs)
+    return cfg_dict
 
 def deserialize(val_dict):
     """ Interface for MRT main2 configuration
 
         Check the validity and compatibility of feature, sampler and optimizor configurations.
     """
-    def _deserialize(val):
-        # TODO(archRev): implementation
-        return {}
+
+    def _extract_attr(info):
+        if not info:
+            return {}
+        return {v[i]: v[i+1] for i in range(0, len(info), 2)}
 
     cfg_dict = {}
-    for name, val in val_dict.items():
-        cfg_info = _deserialize(val)
+    for val, names in val_dict.items():
+        val = val if val else "{}"
+        cfg_info = json.loads(val)
 
         # feature
         ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
         if ft_type not in FT_REG:
             raise TypeError(
-                "Unsupported feature type: %s, name: %s" % (ft_type, name))
+                "Unsupported feature type: %s, names: %s" % \
+                (ft_type, names))
 
         # sampler
         smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
         smp_type = smp_info[0]
         if smp_type not in SMP_REG:
             raise TypeError(
-                "Unsupported sampler type: %s, name: %s" % (smp_type, name))
+                "Unsupported sampler type: %s, names: %s" % \
+                (smp_type, names))
         if ft_type not in SMP_REG[smp_type].list_supported_features():
             raise ValueError(
-                "Feature type: (%s) is supported by sampler type: (%s)" % \
-                (ft_type, smp_type))
+                "Feature type: (%s) is not supported by " + \
+                "sampler type: (%s), names: %s" % \
+                (ft_type, smp_type, names))
+        smp_attrs = _extract_attr(smp_info[1:])
+        smp_attr_types = SMP_REG[smp_type].list_attr_types()
+        for k, v in smp_attr.items():
+            if k not in smp_attr_types:
+                raise ValueError(
+                    "Attribute: (%s) is not found in " + \
+                    "sampler type: (%s), names: %s" % \
+                    (k, smp_type, names))
+            dtypes = smp_attr_types[k]
+            if isinstance(v, int) and float in dtypes and int not in dtypes:
+                v = float(v)
+            elif v == "_NoneType":
+                v = None
+            for dtype in [k]:
+            if not any([isinstance(v, dtype) for dtype in dtypes]):
+                raise TypeError(
+                    "Attribute: (%s) dtype: (%s) is not compatible " + \
+                    "with any of supported dtypes: (%s), names: %s, " + \
+                    "sampler type: %s" % \
+                    (k, type(v), dtypes, names, smp_type))
 
         # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
         opt_type = opt_info[0]
         if opt_type not in OPT_REG:
             raise TypeError(
-                "Unsupported optimizor type: %s, name: %s" % (opt_type, name))
+                "Unsupported optimizor type: %s, names: %s" % \
+                (opt_type, names))
         if ft_type not in OPT_REG[opt_type].list_supported_features():
             raise ValueError(
-                "Feature type: (%s) is supported by sampler type: (%s)" % \
-                (ft_type, opt_type))
+                "Feature type: (%s) is not supported by " + \
+                "optimizor type: (%s), names: %s" % \
+                (ft_type, opt_type, names))
+        opt_attrs = _extract_attr(opt_info[1:])
+        opt_attr_types = OPT_REG[opt_type].list_attr_types()
+        for k, v in opt_attr.items():
+            if k not in opt_attr_types:
+                raise ValueError(
+                    "Attribute: (%s) is not found in " + \
+                    "optimizor type: (%s), names: %s" % \
+                    (k, opt_type, names))
+            dtypes = opt_attr_types[k]
+            if isinstance(v, int) and float in dtypes and int not in dtypes:
+                v = float(v)
+            elif v == "_NoneType":
+                v = None
+            for dtype in [k]:
+            if not any([isinstance(v, dtype) for dtype in dtypes]):
+                raise TypeError(
+                    "Attribute: (%s) dtype: (%s) is not compatible " + \
+                    "with any of supported dtypes: (%s), names: %s, " + \
+                    "optimizor type: %s" % \
+                    (k, type(v), dtypes, names, opt_type))
 
-        cfg_dict[name] = cfg_info
+        for name in names:
+            if name in cfg_dict:
+                raise ValueError(
+                    "Duplicate name: %s, parsed value: %s" % \
+                    (name, val))
+            cfg_dict[name] = cfg_info
+
     return cfg_dict
