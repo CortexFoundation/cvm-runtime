@@ -31,6 +31,11 @@ inline size_t CVMArgSize(CVMArgValue const& av) {
   return shape.Size();
 }
 
+inline uint32_t CVMArgNdim(CVMArgValue const& av) {
+  DLTensor* tensor = av.operator DLTensor*();
+  return tensor->ndim;
+}
+
 /**
  * \brief TShape Iterator Class: Indices
  *
@@ -56,7 +61,7 @@ class Indices {
     return *this;
   }
 
-  inline uint32_t ndim() const { return indices_.size(); }
+  inline int32_t ndim() const { return indices_.size(); }
   /**
    * \brief Returns the flatten index corresponding with the
    *    indices_ value and source shape.
@@ -70,18 +75,30 @@ class Indices {
     index_cache_ = -1;
     indices_ = indices.indices_;
   }
-
+  void CopyIndicesFrom(const std::vector<dim_t>& vecIdx) {
+    index_cache_ = -1;
+    indices_ = vecIdx;
+  }
+  void CopyIndicesFrom(std::vector<dim_t>&& vecIdx) {
+    std::swap(vecIdx, indices_);
+    index_cache_ = -1;
+  }
+  dim_t& Ref(size_t i) {
+    index_cache_ = -1;
+    return indices_[i];
+  }
 
   void operator++();
   void operator++(int) { return this->operator++(); }
-  dim_t& operator[](size_t i) { 
-    index_cache_ = -1;
-    return indices_[i]; 
-  }
+
   dim_t const& operator[](size_t i) const { return indices_[i]; }
 
   void swap(Indices &other);
   std::string to_string() const;
+  void reset() {
+    std::fill(indices_.begin(), indices_.end(), 0);
+    index_cache_ = 0;
+  }
 
  private:
   void index_correct() const;

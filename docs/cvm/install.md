@@ -87,13 +87,13 @@ It will generate many test binary in the `build/tests/` directory.
 
 #### doc generator
 
-CVM support `sphinx` documentation, and before compile the documentation in directory `docs`, you need to install some python required packages. We have collect the neccessary packages in the `docs/requirements.txt`, so you can simply run the command to install the pre-requisites:
+CVM support `sphinx` documentation, and before compiling the documentation in directory `docs`, you need to install some required python packages. We have collected the neccessary packages in the `docs/requirements.txt`, so you can simply run the command to install the pre-requisites:
 
 ``` bash
 pip install -r docs/requirements.txt
 ```
 
-Besides, check your system have installed the doxygen for C++ API
+Besides, make sure that you have installed the doxygen for C++ API
 generator. Refer to offical website for more details:
 [Doxygen Install](https://www.doxygen.nl/manual/install.html).
 
