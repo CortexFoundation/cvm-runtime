@@ -75,23 +75,19 @@ class Transpose(Transformer):
             For continuous transpose sequence like:
 
             .. math::
-                Z = Transpose(Y, axes2)
+                Z = \\text{Transpose}(Y, axes_2)
 
             .. math::
-                Y = Transpose(X, axes1)
+                Y = \\text{Transpose}(X, axes_1)
 
-            Exert equivalent transformation on the adjacent two ops:
-
-            .. math::
-                Z(j) = Y(axes2[j]) = X(axes1(axes2[j])) = X(axes3[j]),
+            Exert equivalent transformation on the adjacent two transpose ops:
 
             .. math::
-                axes3[j] = axes1(axes2[j])
+                Z(j) = \\text{Transpose}(Y, axes_2) \\\\
+                     = \\text{Transpose}(\\text{Tranpose}(X, axes_1), axes_2) \\\\
+                     = \\text{Transpose}(X, axes_3), \\\\
 
-            The adjacent two tranpose operation can be equivalently transformed into:
-
-            .. math::
-                Z = Transpose(X, axes3)
+                \\text{where } axes_3(j) = axes_1(axes_2(j))
         """
         name, attr = op.attr('name'), op.list_attr()
         axes = get_attr(attr, 'axes')
@@ -1210,37 +1206,37 @@ class BroadcastAdd(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
-@register_pass("calculate_ops")
-@register_pass("fuse_transpose")
-@register_pass("rewrite")
-@register_pass("prepare_for_compile")
-@register_pass("compile")
-@register_transformer("broadcast_div")
-class BroadcastDiv(Transformer):
-    def quantize(self, op, **kwargs):
-        precs, scales = kwargs["precs"], kwargs["scales"]
-        th_dict = kwargs["th_dict"]
-        name, op_name = op.attr("name"), op.attr("op_name")
-        X, Y = sym_iter(op.get_children())
-        xn, yn = X.attr("name"), Y.attr("name")
-
-        xs, ys = scales[xn], scales[yn]
-        th = th_dict[name]
-
-        if get_bit(th*xs/ys) > MAX_BIT:
-            ys = xs / scale(th, MAX_BIT)
-            yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
-            Y, _, ys = requant(
-                Y, yprec, oname=N.n("denominator"), **kwargs)
-
-            xs = scale(th, MAX_BIT) * ys
-            xprec = get_bit(th_dict[xn] * xs)
-            X, _, xs = requant(
-                X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
-
-        oscale = scales[name] = xs / ys
-        precs[name][OUT_KEY] = get_bit(th * oscale)
-        return get_mxnet_op(op_name)(X, Y, name=name)
+# @register_pass("calculate_ops")
+# @register_pass("fuse_transpose")
+# @register_pass("rewrite")
+# @register_pass("prepare_for_compile")
+# @register_pass("compile")
+# @register_transformer("broadcast_div")
+# class BroadcastDiv(Transformer):
+#     def quantize(self, op, **kwargs):
+#         precs, scales = kwargs["precs"], kwargs["scales"]
+#         th_dict = kwargs["th_dict"]
+#         name, op_name = op.attr("name"), op.attr("op_name")
+#         X, Y = sym_iter(op.get_children())
+#         xn, yn = X.attr("name"), Y.attr("name")
+# 
+#         xs, ys = scales[xn], scales[yn]
+#         th = th_dict[name]
+# 
+#         if get_bit(th*xs/ys) > MAX_BIT:
+#             ys = xs / scale(th, MAX_BIT)
+#             yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
+#             Y, _, ys = requant(
+#                 Y, yprec, oname=N.n("denominator"), **kwargs)
+# 
+#             xs = scale(th, MAX_BIT) * ys
+#             xprec = get_bit(th_dict[xn] * xs)
+#             X, _, xs = requant(
+#                 X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
+# 
+#         oscale = scales[name] = xs / ys
+#         precs[name][OUT_KEY] = get_bit(th * oscale)
+#         return get_mxnet_op(op_name)(X, Y, name=name)
 
 
 @register_pass("calculate_ops")
@@ -2121,253 +2117,253 @@ class Squeeze(Transformer):
     pass
 
 
-@register_pass("fuse_transpose")
-@register_pass("rewrite")
-# @register_pass("prepare_for_compile") # only for restore
-@register_transformer("L2Normalization")
-class L2Normalization(Transformer):
-    def quantize(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
+# @register_pass("fuse_transpose")
+# @register_pass("rewrite")
+# # @register_pass("prepare_for_compile") # only for restore
+# @register_transformer("L2Normalization")
+# class L2Normalization(Transformer):
+#     def quantize(self, op, **kwargs):
+#         """ Customized quantize pass Introduction.
 
-            **Step 1. Requant Input**
+#             **Step 1. Requant Input**
 
-            .. math::
-                Xq, xprec, xs = requant(X, oprec)
+#             .. math::
+#                 Xq, xprec, xs = requant(X, oprec)
 
-            where 'oprec' is default quantize precision for 'L2Normalization'.
+#             where 'oprec' is default quantize precision for 'L2Normalization'.
 
-            See :func:`mrt.tfm_utils.requant <.requant>` for reference.
+#             See :func:`mrt.tfm_utils.requant <.requant>` for reference.
 
-            **Step 2. Equivalent Transformation**
+#             **Step 2. Equivalent Transformation**
 
-            .. math::
-                product = Xq * Xq
+#             .. math::
+#                 product = Xq * Xq
 
-            .. math::
-                scale\_product = xs * xs
+#             .. math::
+#                 scale\_product = xs * xs
 
-            Consider the attribute 'mode', if it's "channel":
+#             Consider the attribute 'mode', if it's "channel":
 
-            .. math::
-                axis = [1]
+#             .. math::
+#                 axis = [1]
 
-            If 'mode' is "instance":
+#             If 'mode' is "instance":
 
-            .. math::
-                axis = [1,2,3]
+#             .. math::
+#                 axis = [1,2,3]
 
-            If 'mode' is "spatial":
+#             If 'mode' is "spatial":
 
-            .. math::
-                axis = [2,3]
+#             .. math::
+#                 axis = [2,3]
 
-            .. math::
-                sum\_reduce = sum(product, axis)
+#             .. math::
+#                 sum\_reduce = sum(product, axis)
 
-            .. math::
-                epsilon = int(eps * scale\_product)
+#             .. math::
+#                 epsilon = int(eps * scale\_product)
 
-            where 'eps' is the attribute, which is a small constant for numerical stability.
+#             where 'eps' is the attribute, which is a small constant for numerical stability.
 
-            .. math::
-                add_eps = sum\_reduce + eps
+#             .. math::
+#                 add_eps = sum\_reduce + eps
 
-            .. math::
-                r = sqrt(add\_eps)
+#             .. math::
+#                 r = sqrt(add\_eps)
 
-            .. code-block:: python
+#             .. code-block:: python
 
-                reps = tuple(
-                    [shp if i in axis else 1 
-                    for i, shp in enumerate(list(shape))])
+#                 reps = tuple(
+#                     [shp if i in axis else 1
+#                     for i, shp in enumerate(list(shape))])
 
-            where 'shape' is the infer shape of the input.
+#             where 'shape' is the infer shape of the input.
 
-            Then, exert tile operation on 'r':
+#             Then, exert tile operation on 'r':
 
-            .. math::
-                tile\_r = rile(r, reps)
+#             .. math::
+#                 tile\_r = rile(r, reps)
 
-            .. math::
-                op = Xq / tile\_r
-        """
-        scales = kwargs['scales']
-        name, op_name = op.attr('name'), op.attr('op_name')
-        attrs, childs = op.list_attr(), sym_iter(op.get_children())
-        cns = [c.attr('name') for c in childs]
-        X, xname = childs[0], cns[0]
+#             .. math::
+#                 op = Xq / tile\_r
+#         """
+#         scales = kwargs['scales']
+#         name, op_name = op.attr('name'), op.attr('op_name')
+#         attrs, childs = op.list_attr(), sym_iter(op.get_children())
+#         cns = [c.attr('name') for c in childs]
+#         X, xname = childs[0], cns[0]
 
-        # broadcast_mul
-        oprec = kwargs['op_input_precs'][op_name]
-        X, xprec, xs = requant(X, oprec, oname=name, **kwargs)
-        product = mx.sym.broadcast_mul(X, X, name=N.n('L2norm_mul'))
-        scale_product = xs*xs
+#         # broadcast_mul
+#         oprec = kwargs['op_input_precs'][op_name]
+#         X, xprec, xs = requant(X, oprec, oname=name, **kwargs)
+#         product = mx.sym.broadcast_mul(X, X, name=N.n('L2norm_mul'))
+#         scale_product = xs*xs
 
-        # sum
-        # TODO(ryt): precision check align with runtime infer precision
-        mode = attrs.get('mode', 'instance')
-        if mode == "channel":
-            axis = [1]
-        elif mode == "instance":
-            axis = [1,2,3]
-        elif mode == "spatial":
-            axis = [2,3]
-        else:
-            assert "not valid `mode` type: %s" % mode
-        shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
-        reps = tuple([shp if i in axis else 1 for i, shp in enumerate(list(shape))])
+#         # sum
+#         # TODO(ryt): precision check align with runtime infer precision
+#         mode = attrs.get('mode', 'instance')
+#         if mode == "channel":
+#             axis = [1]
+#         elif mode == "instance":
+#             axis = [1,2,3]
+#         elif mode == "spatial":
+#             axis = [2,3]
+#         else:
+#             assert "not valid `mode` type: %s" % mode
+#         shape = kwargs['infer_shapes'][xname][get_entry_id(X)]
+#         reps = tuple([shp if i in axis else 1 for i, shp in enumerate(list(shape))])
 
-        sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'), keepdims=True)
+#         sum_reduce = mx.sym.sum(product, axis=axis, name=N.n('l2norm_sum'), keepdims=True)
 
-        # broadcast_add eps
-        eps_val = int(eval(attrs.get('eps', '1e-10')) * scale_product)
-        eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
-        add_eps = mx.sym.broadcast_add(sum_reduce, eps, N.n('l2norm_add'))
+#         # broadcast_add eps
+#         eps_val = int(eval(attrs.get('eps', '1e-10')) * scale_product)
+#         eps = nd_const(eps_val, kwargs['graph'], kwargs['params'])
+#         add_eps = mx.sym.broadcast_add(sum_reduce, eps, N.n('l2norm_add'))
 
-        # get root
-        op = mx.sym.sqrt(add_eps, N.n('l2norm_root'))
+#         # get root
+#         op = mx.sym.sqrt(add_eps, N.n('l2norm_root'))
 
-        # exert `tile` on `op`
-        # to get the same shape as 'X'
-        op = mx.sym.tile(op, reps=reps)
+#         # exert `tile` on `op`
+#         # to get the same shape as 'X'
+#         op = mx.sym.tile(op, reps=reps)
 
-        # since `op` and `X`
-        op = mx.sym.broadcast_div(X, op, name=name)
-        scales[name] = 1
-        prec = kwargs['precs'][name][OUT_KEY] = get_bit(kwargs['th_dict'][name])
+#         # since `op` and `X`
+#         op = mx.sym.broadcast_div(X, op, name=name)
+#         scales[name] = 1
+#         prec = kwargs['precs'][name][OUT_KEY] = get_bit(kwargs['th_dict'][name])
 
-        logger = logging.getLogger('log.mrt.realize')
-        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
-                     op_name, name, scales[name], cns)
-        return op
-
-
-@register_pass("prepare_for_compile")
-@register_pass("compile")
-@register_transformer("sqrt")
-class Sqrt(Transformer):
-    def quantize(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
-
-            The quantized scale equals to the square root of input scale.
-        """
-        precs, scales = kwargs["precs"], kwargs["scales"]
-        th_dict = kwargs["th_dict"]
-        name, op_name = op.attr("name"), op.attr("op_name")
-        X = op.get_children()[0]
-        xs = scales[X.attr("name")]
-
-        oscale = scales[name] = math.sqrt(xs)
-        precs[name][OUT_KEY] = get_bit(th_dict[name]*oscale)
-
-        op = mx.sym.sqrt(X, name=name)
-        return op
+#         logger = logging.getLogger('log.mrt.realize')
+#         logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+#                      op_name, name, scales[name], cns)
+#         return op
 
 
-@register_pass("fuse_transpose")
-@register_transformer("InstanceNorm")
-class InstanceNorm(Transformer):
-    def rewrite(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
+#  @register_pass("prepare_for_compile")
+#  @register_pass("compile")
+#  @register_transformer("sqrt")
+#  class Sqrt(Transformer):
+#      def quantize(self, op, **kwargs):
+#          """ Customized quantize pass Introduction.
 
-            Dynamic shape fusion verison of InstanceNorm operator equivalent transform  function. 
+#              The quantized scale equals to the square root of input scale.
+#          """
+#          precs, scales = kwargs["precs"], kwargs["scales"]
+#          th_dict = kwargs["th_dict"]
+#          name, op_name = op.attr("name"), op.attr("op_name")
+#          X = op.get_children()[0]
+#          xs = scales[X.attr("name")]
 
-            .. code-block:: python
+#          oscale = scales[name] = math.sqrt(xs)
+#          precs[name][OUT_KEY] = get_bit(th_dict[name]*oscale)
 
-                axis = [i for i in range(len(xshp)) if i != 1]
+#          op = mx.sym.sqrt(X, name=name)
+#          return op
 
-            where xshp is the infer shape of the input operator, which is of layout 'NCH...'.
 
-            The mean of X is equivalently calculated as:
+#  @register_pass("fuse_transpose")
+#  @register_transformer("InstanceNorm")
+#  class InstanceNorm(Transformer):
+#      def rewrite(self, op, **kwargs):
+#          """ Customized quantize pass Introduction.
 
-            .. math::
-                sum\_x = sum(X, axis=axis, keepdims=True)
+#              Dynamic shape fusion verison of InstanceNorm operator equivalent transform  function.
 
-            .. math::
-                mul = 1/product(xshp[2:])
+#              .. code-block:: python
 
-            .. math::
-                mena = sum\_x * mul.
+#                  axis = [i for i in range(len(xshp)) if i != 1]
 
-            The variance can be calculated as follows:
+#              where xshp is the infer shape of the input operator, which is of layout 'NCH...'.
 
-            .. math::
-                dev = X - mean
+#              The mean of X is equivalently calculated as:
 
-            .. math::
-                dev\_mul = dev * dev
+#              .. math::
+#                  sum\_x = sum(X, axis=axis, keepdims=True)
 
-            .. math::
-                var = sum(dev_mul, axis=axis, keepdims=True) * mul
+#              .. math::
+#                  mul = 1/product(xshp[2:])
 
-            The standard deviation can be calculated as follows:
+#              .. math::
+#                  mena = sum\_x * mul.
 
-            .. math::
-                std = sqrt(var) + eps
+#              The variance can be calculated as follows:
 
-            where eps is the attribute to prevent zero division.
+#              .. math::
+#                  dev = X - mean
 
-            The equivalent operator is finally calculated:
+#              .. math::
+#                  dev\_mul = dev * dev
 
-            .. math::
-                frac = dev / std
+#              .. math::
+#                  var = sum(dev_mul, axis=axis, keepdims=True) * mul
 
-            .. math::
-                op = frac * gamma + beta
+#              The standard deviation can be calculated as follows:
 
-        """
-        infer_shapes = kwargs["infer_shapes"]
-        name, op_name = op.attr("name"), op.attr("op_name")
-        attrs, childs = op.list_attr(), sym_iter(op.get_children())
-        cns = [c.attr('name') for c in childs]
-        X, gamma, beta = childs
+#              .. math::
+#                  std = sqrt(var) + eps
 
-        xshp = infer_shapes[cns[0]][get_entry_id(X)]
-        assert len(xshp) >= 3
-        gshp = infer_shapes[cns[1]][get_entry_id(gamma)]
-        bshp = infer_shapes[cns[2]][get_entry_id(beta)]
-        assert len(gshp) == len(bshp) == 1 and \
-            gshp[0] == bshp[0] == xshp[1]
+#              where eps is the attribute to prevent zero division.
 
-        axis = [i for i in range(len(xshp)) if i != 1]
-        for i in axis:
-            gamma = mx.sym.expand_dims(
-                gamma, axis=i, name=N.n("expand_dims"))
-            beta = mx.sym.expand_dims(
-                beta, axis=i, name=N.n("expand_dims"))
+#              The equivalent operator is finally calculated:
 
-        # TODO(ryt_tune): get batch_axes from **kwargs
-        batch_axes = [0]
-        assert len(batch_axes) == 1 and batch_axes[0] == 0, \
-            "Only NCH... format is supported for op: (%s). " + \
-            "name: (%s), batch_axes: (%s)." % \
-            (op_name, name, batch_axes)
+#              .. math::
+#                  frac = dev / std
 
-        sum_x = mx.sym.sum(
-            X, axis=axis, keepdims=True, name=N.n("sum"))
-        mul = nd_const(
-            1/np.product(xshp[2:]),
-            kwargs["graph"], kwargs["params"])
-        mean = mx.sym.broadcast_mul(
-            sum_x, mul, name=N.n("broadcast_mul"))
-        dev = mx.sym.broadcast_sub(X, mean, name=N.n("broadcast_sub"))
-        dev_mul = mx.sym.broadcast_mul(
-            dev, dev, name=N.n("broadcast_mul"))
-        var = mx.sym.broadcast_mul(
-            mx.sym.sum(dev_mul, axis=axis, keepdims=True, name=N.n("sum")),
-            mul, name=N.n("broadcast_mul"))
-        eps = nd_const(
-            get_attr(attrs, "eps", 0.00100000005),
-            kwargs["graph"], kwargs["params"])
-        std = mx.sym.broadcast_add(
-            mx.sym.sqrt(var, name=N.n("sqrt")),
-            eps, name=N.n("broadcast_add"))
-        frac = mx.sym.broadcast_div(
-            dev, std, name=N.n("broadcast_div"))
-        frac_mul = mx.sym.broadcast_mul(
-            frac, gamma, name=N.n("broadcast_mul"))
-        op = mx.sym.broadcast_add(frac_mul, beta, name=name)
-        return op
+#              .. math::
+#                  op = frac * gamma + beta
+
+#          """
+#          infer_shapes = kwargs["infer_shapes"]
+#          name, op_name = op.attr("name"), op.attr("op_name")
+#          attrs, childs = op.list_attr(), sym_iter(op.get_children())
+#          cns = [c.attr('name') for c in childs]
+#          X, gamma, beta = childs
+
+#          xshp = infer_shapes[cns[0]][get_entry_id(X)]
+#          assert len(xshp) >= 3
+#          gshp = infer_shapes[cns[1]][get_entry_id(gamma)]
+#          bshp = infer_shapes[cns[2]][get_entry_id(beta)]
+#          assert len(gshp) == len(bshp) == 1 and \
+#              gshp[0] == bshp[0] == xshp[1]
+
+#          axis = [i for i in range(len(xshp)) if i != 1]
+#          for i in axis:
+#              gamma = mx.sym.expand_dims(
+#                  gamma, axis=i, name=N.n("expand_dims"))
+#              beta = mx.sym.expand_dims(
+#                  beta, axis=i, name=N.n("expand_dims"))
+
+#          # TODO(ryt_tune): get batch_axes from **kwargs
+#          batch_axes = [0]
+#          assert len(batch_axes) == 1 and batch_axes[0] == 0, \
+#              "Only NCH... format is supported for op: (%s). " + \
+#              "name: (%s), batch_axes: (%s)." % \
+#              (op_name, name, batch_axes)
+
+#          sum_x = mx.sym.sum(
+#              X, axis=axis, keepdims=True, name=N.n("sum"))
+#          mul = nd_const(
+#              1/np.product(xshp[2:]),
+#              kwargs["graph"], kwargs["params"])
+#          mean = mx.sym.broadcast_mul(
+#              sum_x, mul, name=N.n("broadcast_mul"))
+#          dev = mx.sym.broadcast_sub(X, mean, name=N.n("broadcast_sub"))
+#          dev_mul = mx.sym.broadcast_mul(
+#              dev, dev, name=N.n("broadcast_mul"))
+#          var = mx.sym.broadcast_mul(
+#              mx.sym.sum(dev_mul, axis=axis, keepdims=True, name=N.n("sum")),
+#              mul, name=N.n("broadcast_mul"))
+#          eps = nd_const(
+#              get_attr(attrs, "eps", 0.00100000005),
+#              kwargs["graph"], kwargs["params"])
+#          std = mx.sym.broadcast_add(
+#              mx.sym.sqrt(var, name=N.n("sqrt")),
+#              eps, name=N.n("broadcast_add"))
+#          frac = mx.sym.broadcast_div(
+#              dev, std, name=N.n("broadcast_div"))
+#          frac_mul = mx.sym.broadcast_mul(
+#              frac, gamma, name=N.n("broadcast_mul"))
+#          op = mx.sym.broadcast_add(frac_mul, beta, name=name)
+#          return op
 
 
 @register_pass("fuse_transpose")
@@ -2379,15 +2375,16 @@ class BatchDot(Transformer):
             Using matrix decomposition to avoid overflow.
 
             .. math::
-                Y = A dot B = A1 dot B1 + A2 dot B2 + ...
+                Y = A \cdot B
+                  = A_1 \cdot B_1 + A_2 \cdot B_2 + ...
 
-            where:
-
-            .. math::
-                Ai.shape = (batch, M, step)
+            where
 
             .. math::
-                Bi.shape = (batch, step, N)
+                A_i\\text{.shape} = (batch, M, step)
+
+            .. math::
+                B_i\\text{.shape} = (batch, step, N)
         """
         infer_shapes = kwargs["infer_shapes"]
 
