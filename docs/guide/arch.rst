@@ -1149,9 +1149,7 @@ This operator selects data from 2 inputs with condition given.
   A[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0, d_1, \cdots, d_{N-1}] \neq 0\\
   B[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0, d_1, \cdots, d_{N-1}] = 0\end{cases},\\
 
-  \forall d_i \in [0, n_i),\\
-
-  \text{where } i \in [0, N)
+  \forall d_i \in [0, n_i) \wedge i \in [0, N)
 
 2. Case :math:`Cond` is a 1d tensor:
 
@@ -1164,9 +1162,7 @@ This operator selects data from 2 inputs with condition given.
   B[d_0, d_1, \cdots, d_{N-1}], & Cond[d_0] = 0
   \end{cases},\\
 
-  \forall d_i \in [0, n_i),\\
-
-  \text{where } i \in [0, N)
+  \forall d_i \in [0, n_i) \wedge i \in [0, N)
 
 
 Vision Operators

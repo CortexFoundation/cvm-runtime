@@ -224,7 +224,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
       }
     }
     y_data[yIdx.Index()] = y_max;
-  }
+  }x
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
@@ -240,17 +240,12 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
   uint32_t oh = yShape[2], ow = yShape[3];
   uint32_t n_batch = xShape[0], n_channels = xShape[1];
 
-  for (uint32_t batch = 0; batch < n_batch; ++batch) {
-    for (uint32_t c = 0; c < n_channels; ++c) {
-      auto bc_y_data = y_data + batch * n_channels * oh * ow + c * oh * ow;
-      auto bc_x_data = x_data + batch * n_channels * h * w + c * h * w;
-      for (uint32_t y = 0; y < oh; ++y) {
-        for (uint32_t x = 0; x < ow; ++x) {
-          bc_y_data[y * ow + x] = bc_x_data[y / scale * w + x / scale];
-        }
-      }
-    }
+  for (Indices yIdx(yShape), xIdx(xShape); !yIdx.End(); yIdx++) {
+    int y = yIdx[2], x = yIdx[3];
+    xIdx.CopyIndicesFrom({yIdx[0], yIdx[1], y / scale, x / scale});
+    y_data[yIdx.Index()] = x_data[xIdx.Index()];
   }
+
 });
 
 }
