@@ -762,9 +762,29 @@ def deserialize(val_dict):
 # Info Types Definition
 #----------------------------
 
+SC_REG = {
+}
+
 class Info:
+    """
+        scale
+        precs
+    """
     def __init__(self, info):
         self.info = info
+
+
+class Scale:
+    pass
+
+def get_scale(self, ft, prec):
+    if isinstance(ft, AbsmaxLayerFeature):
+        absmax = ft.get_feature()
+        assert absmax >= 0
+        if absmax == 0:
+            return 1
+        alpha = 2**(prec-1) - 1
+        return alpha / absmax
 
 
 #----------------------------
@@ -772,6 +792,18 @@ class Info:
 #----------------------------
 
 class Quantizer:
+    pass
+
+
+class UniformSymmetricQuantizer(Quantizer):
+    pass
+
+
+class UniformAffineQuantizer(Quantizer):
+    pass
+
+
+class StochasticQuantizer(Quantizer):
     pass
 
 #----------------------------
