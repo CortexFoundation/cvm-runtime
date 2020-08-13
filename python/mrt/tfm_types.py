@@ -1,5 +1,7 @@
 """ Optimizor and Sampler definition for MRT calibration.
-    Feature Data Types Definition For MRT calibration and quantization.
+    Quantizer definition for MRT calibration.
+    Feature Types Definition For MRT calibration and quantization.
+    Quant Types Definition For MRT quantization.
 """
 
 from mxnet import ndarray as nd
@@ -9,7 +11,7 @@ import json
 from .sym_utils import topo_visit_transformer, topo_sort
 
 #----------------------------
-# Feature Registration
+# Feature Types Definition
 #----------------------------
 
 FT_REG = {
@@ -515,7 +517,7 @@ class MinMaxChannelSampler(Sampler):
         return {"ich": [int]}
 
 #----------------------------
-# Module calbration interfaces
+# Module calbrate interfaces
 #----------------------------
 
 def sample(out, cfg_info={}, **kwargs):
@@ -596,6 +598,8 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
 
         Interface for MRT main2 configuration
         Create customized samplers and optimizors.
+
+        Use it just before calibration.
     """
 
     names = set()
@@ -753,3 +757,23 @@ def deserialize(val_dict):
             cfg_dict[name] = cfg_info
 
     return cfg_dict
+
+#----------------------------
+# Info Types Definition
+#----------------------------
+
+class Info:
+    def __init__(self, info):
+        self.info = info
+
+
+#----------------------------
+# Quantizer Types Definition
+#----------------------------
+
+class Quantizer:
+    pass
+
+#----------------------------
+# Module quantize interfaces
+#----------------------------
