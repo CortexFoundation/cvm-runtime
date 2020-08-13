@@ -165,10 +165,6 @@ class Dataset:
                 "Derived " + self.name + " dataset not override the" +
                 " base `_load_data` function defined in Dataset")
 
-    def __iter__(self):
-        """ Returns (data, label) iterator """
-        return iter(self.data)
-
     def iter_func(self):
         """ Returns (data, label) iterator function """
         data_iter = iter(self.data)
@@ -474,6 +470,12 @@ class MnistDataset(VisionDataset):
     #                  "train-images-idx3-ubyte.gz",
     #                  "train-labels-idx1-ubyte.gz"]
 
+    def data_xform(self, data):
+        """Move channel axis to the beginning,
+            cast to float32, and normalize to [0, 1].
+        """
+        return nd.moveaxis(data, 2, 0).astype('float32') / 255
+
     def _load_data(self):
         """ Customized _load_data method introduction.
 
@@ -482,7 +484,8 @@ class MnistDataset(VisionDataset):
             MnistDataset only support layout of NCHW and the number of channels must be 1, the image height and width must be equal to 32, i.e. (batch_size, 1, 28, 28).
         """
         val_data = mx.gluon.data.vision.MNIST(
-            root=self.root_dir, train=False).transform_first(data_xform)
+            root=self.root_dir, train=False).transform_first(
+                self.data_xform)
 
         N, C, H, W = self.ishape
         assert C == 1 and H == 28 and W == 28
@@ -510,24 +513,26 @@ class TrecDataset(Dataset):
             self.root_dir, self.download_deps[0] \
             if self.is_train else self.download_deps[1])
 
-        # (38, batch), (batch,)
-        with open(fname, "rb") as fin:
-            self.data = pickle.load(fin)
-
         I, N = self.ishape
         assert I == 38
 
-    def iter_func(self):
-        def _wrapper():
+        # (38, batch), (batch,)
+        with open(fname, "rb") as fin:
+            reader = pickle.load(fin)
+
+        def data_loader():
             data, label = [], []
-            for x, y in self.data:
+            for x, y in reader:
                 if len(data) < self.ishape[1]:
                     data.append(x)
                     label.append(y)
                 else:
-                    return nd.transpose(nd.array(data)), nd.array(label)
-            return nd.transpose(nd.array(data)), nd.array(label)
-        return _wrapper
+                    yield nd.transpose(nd.array(data)), nd.array(label)
+                    data, label = [], []
+            yield nd.transpose(nd.array(data)), nd.array(label)
+            raise RuntimeError("Data loader have been the end")
+
+        self.data = data_loader()
 
     def metrics(self):
         return {"acc": 0, "total": 0}
