@@ -1,7 +1,10 @@
 """ Dataset Base Class Definition.
 
-    File manipulation helper function set. 
-    Customized datasets definition and customized interface definition including `metrics`, `validate`, `_load_data`, `iter_func` and `__iter__`.
+    File manipulation helper function set.
+
+    Customized datasets definition and customized interface
+    definition including `metrics`, `validate`, `_load_data`
+    and `iter_func`.
 
     Only **crucial parts** of the custommized interface implementation are elaborated.
 """
@@ -88,48 +91,103 @@ def register_dataset(name):
 class Dataset:
     """ Base dataset class, with pre-defined interface.
 
-        The dataset directory is located at the `root` directory containing
-            the dataset `name` directory. And the custom dataset should pass
-            the parameter location of root, or implement the derived class
-            of your data iterator, metrics and validate function.
+        The dataset directory is located at the ``root`` directory containing
+        the dataset `name` directory. And the custom dataset should pass
+        the parameter location of root, or implement the derived class
+        of your data iterator, metrics and validate function.
 
         Notice:
-
-            our default imagenet dataset is organized as an `record`
+            Our default imagenet dataset is organized as an ``record``
             binary format, which can amplify the throughput for image read.
-            Custom dataset of third party should be preprocessed by the `im2rec`
-            procedure to transform the image into the record format.
-            The transformation script is located at `docs/mrt/im2rec.py`. And more
-            details refer to the script helper documentation please(print usage
-            with command `-h`).
+            Custom Image dataset of third party could be preprocessed by the
+            `im2rec` procedure to transform the image into the record format.
+
+            The transformation script is located at ``docs/mrt/im2rec.py``.
+            And more details refer to the script helper documentation
+            please(print usage with command ``-h``).
 
 
-        Parameters:
+        Parameters
+        ==========
+        input_shape: Tuple or List
+            The input shape requested from user, and some dataset would
+            check the format validity. Generally, specific dataset will
+            do some checks for input shape, such as the channel number for
+            image.
+            Example: imagenet's input shape is like to this, (N, C, H, W),
+            where the C must be equal to 3, H equals to W and N indicates
+            the batch size user want. Different H(W) requests the dataset
+            loader to resize image.
 
-            input_shape: the input shape requested from user, and some dataset would
-                check the validity format.
-            root: the location where dataset is stored, defined with variable `MRT_DATASET_ROOT`
-                in conf.py or custom directory.
+        root: os.path.Path or path string
+            The location where dataset is stored, defined with variable
+            ``MRT_DATASET_ROOT`` in conf.py or custom directory.
 
 
-        Derived Class Implementation:
+        **Custom Dataset Implementation(derived this class):**
 
-            1. register dataset name into DS_REG that can be accessed
-                at the `dataset` package API. releated function is
-                `register_dataset`.
+            1. Register dataset name into DS_REG that can be accessed
+            at the ``dataset`` package API. And releated function is
+            the ``register_dataset`` function.
 
-            2. override the abstract method defined in base dataset class,
-                _load_data[Required]:
-                    load data from disk that stored into the data variable.
-                iter_func[Optional]:
-                    return the tuple (data, label) for each invocation.
-                metrics[Required]:
-                    returns the metrics object for the dataset.
-                validate[Required];
-                    calculates the accuracy for model inference of string.
+            2. Override the abstract method defined in base dataset class:
 
+                _load_data(self) [Required]:
+                    Load data from disk that stored into the data variable.
+                    And save the required `data_loader` to the member: `data`.
+
+                iter_func(self) [Optional]:
+                    Return the tuple (data, label) for each invocation according
+                    to the member `data` loaded from the function `_load_data`.
+
+                    Also, this function is optional since we have implemented
+                    a naive version if the member `data` is python generator-
+                    compatible type, supporting the `iter(data)` function. Or
+                    you will override the function you need.
+
+                metrics(self) [Required]:
+                    Return the metrics object for the dataset, such as
+                    some auxiliary variable.
+
+                validate(self, metrics, predict, label) [Required]:
+                    Calculates the accuracy for model inference of string.
+                    Return formated string type
+
+        Examples
+        ========
+        >>> from mxnet import ndarray as nd
+        >>> @register_dataset("my_dataset")
+        >>> class MyDataset(Dataset):
+        ...     def _load_data(self):
+        ...         B = self.ishape[0]
+        ...         def _data_loader():
+        ...             for i in range(1000):
+        ...                 yield nd.array([i + c for c in range(B)])
+        ...         self.data = _data_loader()
+        ...
+        ...     # use the default `iter_func` defined in base class
+        ...
+        ...     def metrics(self):
+        ...         return {"count": 0, "total": 0}
+        ...     def validate(self, metrics, predict, label):
+        ...         for idx in range(predict.shape[0]):
+        ...             res_label = predict[idx].asnumpy().argmax()
+        ...             data_label = label[idx].asnumpy()
+        ...             if res_label == data_label:
+        ...                 metrics["acc"] += 1
+        ...             metrics["total"] += 1
+        ...         acc = 1. * metrics["acc"] / metrics["total"]
+        ...         return "{:6.2%}".format(acc)
+        >>>
+        >>> # usage
+        >>> md_cls = DS_REG["my_dataset"]
+        >>> ds = md_cls([8]) # batch size is 8
+        >>> data_iter_func = ds.iter_func()
+        >>> data_iter_func() # get the batch data
+        NDArray<[0, 1, 2, 3, 4, 5, 6, 7] @ctx(cpu)>
     """
     name = None
+    """ Registered Dataset Name """
 
     def __init__(self, input_shape, root=conf.MRT_DATASET_ROOT):
         self.ishape = input_shape
@@ -155,12 +213,27 @@ class Dataset:
                 "Derived " + self.name + " dataset not override the" +
                 " base `metric` function defined in Dataset")
 
-    def validate(self, metrics, predicts, labels):
+    def validate(self, metrics, predict, label):
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `validate` function defined in Dataset")
 
     def _load_data(self):
+        """ Load data from disk.
+
+            Save the data loader into member `data` like:
+
+            .. code-block:: python
+
+                self.data = data_loader
+
+            And validate the input shape if necessary:
+
+            .. code-block:: python
+
+                N, C, H, W = self.ishape
+                assert C == 3 and H == W
+        """
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `_load_data` function defined in Dataset")

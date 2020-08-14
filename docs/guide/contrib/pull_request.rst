@@ -19,7 +19,7 @@ the ``git checkout`` command, such as ``master``, etc.
 Then what's your job is:
 
 1. Checkout your base branch(almost other's branch that have 
-  existed) to migrate the newest source code.
+    existed) to migrate the newest source code.
 
   .. code-block:: bash
 
