@@ -73,7 +73,7 @@ operators process logic are deterministic**. We strictly define
 the :ref:`operator-math-formalization` for each operator
 according to the common AI framework definition.
 
-CVM Runtime have defined the total **33 operators**, and please 
+CVM Runtime have defined the total **36 operators**, and please 
 refer to :ref:`CVM Operator List <op_list>` for more 
 details.
 
