@@ -106,7 +106,7 @@ MRT transformation usage is simple to model-training programmer
 since we have separated model quantization procedures from
 source code. One can invoke MRT via programming or configuring
 the settings file, more detail usage refers to
-:ref:`dev-guide` please.
+:ref:`mrt-quantize-guide` please.
 
 Supported Operators
 -------------------
