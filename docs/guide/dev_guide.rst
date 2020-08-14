@@ -1,4 +1,6 @@
 
+.. _dev-guide:
+
 *******************
 Developer Guideline
 *******************
@@ -10,8 +12,6 @@ Such as op registry, compiler pass add, extra device(TPU) support.
 Another thing is CVM Codebase Walkthrough.
 
 .. contents::
-
-.. _dev_guide:
 
 Supported Operators
 ===================

@@ -1,4 +1,6 @@
 
+.. _design-and-arch:
+
 ***********************
 Design and Architecture
 ***********************
@@ -21,6 +23,9 @@ This document is intended for developers who want to understand the architecture
 
 System Architecture
 ===================
+
+Integer Data Flow
+-----------------
 
 Assertion
 ---------
@@ -62,6 +67,23 @@ And one another noticable thing is that cvm-runtime uses exception
 to record errors, and it's a big offense to segement fault or dump.
 Try your best to avoid core dump and use CHECK macro to check if
 you are uncertain to some conditions.
+
+NDArray Module
+--------------
+
+Precision Schema
+----------------
+
+Shape Inference
+---------------
+
+Operator Gas Table
+------------------
+
+.. toctree::
+  :maxdepth: 2
+
+  OPs Table <../cvm/ops.md>
 
 Example Inference Flow
 ======================
@@ -196,7 +218,7 @@ and the next section will abstract the mathematical logic in
 the formalization format.
 
 
-.. _operator_math_formalization:
+.. _operator-math-formalization:
 
 Operator Math Formalization
 ===========================
