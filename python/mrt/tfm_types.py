@@ -199,10 +199,9 @@ class HVOptimizor(Optimizor):
     def __init__(self, **attrs):
         super().__init__(**attrs)
 
-    def get_opt(self, ft, out, hft=None, **kwargs):
+    def get_opt(self, ft, out, hft=None, name="[not specified]", **kwargs):
         logger = kwargs.get(
             "logger", logging.getLogger("mrt.calibrate.optimize"))
-        name = kwargs.get("name", "<unspecified>")
 
         if hft is None:
             return ft
@@ -520,13 +519,12 @@ class MinMaxChannelSampler(Sampler):
 # Module calbrate interfaces
 #----------------------------
 
-def sample(out, cfg_info={}, **kwargs):
+def sample(out, cfg_info={}, name="not specified", **kwargs):
     """ Interface for MRT calibration Sampling
     """
     ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
     smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
     opt_info = cfg_info.get("opt_info", DEFAULT_OPT_INFO)
-    name = kwargs.get("name", "<unspecified>")
     if not isinstance(out, nd.NDArray):
         raise TypeError(
             "Unsupported data type: %s" % \
@@ -759,51 +757,122 @@ def deserialize(val_dict):
     return cfg_dict
 
 #----------------------------
-# Info Types Definition
+# Scale Types Definition
 #----------------------------
 
 SC_REG = {
+    # "absmax": AbsmaxLayerScale,
+    # "absmax_ch": AbsmaxChannelScale,
+    # "minmax": MinMaxLayerScale,
+    # "minmax_ch": MinMaxChannelScale,
 }
 
-class Info:
-    """
-        scale
-        precs
-    """
-    def __init__(self, info):
-        self.info = info
+def register_scale(name):
+    def _wrapper(scale):
+        scale.name = name
+        if name in SC_REG:
+            raise NameError(
+                "Scale" + name + " has been registered")
+        SC_REG[name] = scale
+        return scale
+    return _wrapper
 
 
 class Scale:
+    name = None
+
+    def __init__(self, sc):
+        self.sc = sc
+
+
+@register_scale("absmax")
+class AbsmaxLayerScale(Scale):
     pass
 
-def get_scale(self, ft, prec):
-    if isinstance(ft, AbsmaxLayerFeature):
-        absmax = ft.get_feature()
-        assert absmax >= 0
-        if absmax == 0:
-            return 1
-        alpha = 2**(prec-1) - 1
-        return alpha / absmax
 
+@register_scale("absmax_ch")
+class AbsmaxChannelScale(Scale):
+    pass
+
+
+@register_scale("minmax")
+class MinMaxLayerScale(Scale):
+    pass
+
+
+@register_scale("minmax_ch")
+class MinMaxChannelScale(Scale):
+    pass
 
 #----------------------------
 # Quantizer Types Definition
 #----------------------------
 
+QUANT_REG = {
+    # "absmax": AbsmaxLayerQuantizer,
+    # "absmax_ch": AbsmaxChannelQuantizer,
+    # "minmax": MinMaxLayerQuantizer,
+    # "minmax_ch": MinMaxChannelQuantizer,
+}
+
+def register_quantizer(name):
+    def _wrapper(quantizer):
+        quantizer.name = name
+        if name in QUANT_REG:
+            raise NameError(
+                "Quantizer" + name + " has been registered")
+        QUANT_REG[name] = quantizer
+        return quantizer
+    return _wrapper
+
 class Quantizer:
-    pass
+    def quantize(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `quantize` function defined in Quantizer")
+
+    def scale(self, ft, prec):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `scale` function defined in Quantizer")
+
+    def rescale(self, iscale, oscale):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `scale` function defined in Quantizer")
+
+    @staticmethod
+    def list_supported_features():
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `list_supported_features` " + \
+            "function defined in Quantizer")
 
 
-class UniformSymmetricQuantizer(Quantizer):
-    pass
+class AbsmaxLayerQuantizer(Quantizer):
+    """ Uniform symmetric layerwise quantizer.
+    """
+    def quantize(self, sym, prec, scale=None, **kwargs):
+        params = kwargs["params"]
+        scales = kwargs["scales"]
+
+    def scale(self, ft, prec, name="<not specified>"):
+        if not isinstance(ft, AbsmaxLayerFeature):
+            raise TypeError(
+                "AbsmaxLayerQuantizer only support feature AbsmaxLayerFeature")
+        absmax = ft.get_feature()
+        if absmax < 0:
+            raise ValueError(
+                "Not a valid absmax value: %s, name: %s" % \
+                (absmax, name))
+        sc = 1 if absmax == 0 else (2**(prec-1)-1) / absmax`
+        return AbsmaxLayerScale(sc)
+
+    def rescale(self, iscale, oscale):
+        pass
 
 
 class UniformAffineQuantizer(Quantizer):
-    pass
-
-
-class StochasticQuantizer(Quantizer):
     pass
 
 #----------------------------
