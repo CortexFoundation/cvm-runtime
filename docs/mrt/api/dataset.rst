@@ -10,17 +10,17 @@ MRT Dataset API
 .. automodule:: mrt.dataset
 
 
-Dataset Module Base
-___________________
+Abstract Dataset
+----------------
 .. autoclass:: mrt.dataset.Dataset
-  :members: __iter__, iter_func
+  :members: _load_data, iter_func
+  :undoc-members: metrics, validate
 
 
 Customized Datasets
-___________________
+-------------------
 .. autoclass:: COCODataset
   :members: _load_data, metrics, validate
-
 
 .. autoclass:: VOCDataset
   :members: _load_data, metrics, validate

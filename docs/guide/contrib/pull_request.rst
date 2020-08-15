@@ -3,12 +3,30 @@
 Submit a Pull Request
 *********************
 
+This gives a brief and necessary PR flow that a newer developer 
+should follow before starting any task.
+
 .. contents::
 
-Synchronize Version
-===================
+Source Code Synchronize
+=======================
 
-This is a reference to submit a CVM pull request.
+This is a reference to submit a CVM pull request. Before submit or
+development, please ask your leader for **the base branch** of the
+project starting from, which is the branch you need to diverse via
+the ``git checkout`` command, such as ``master``, etc.
+
+Then what's your job is:
+
+1. Checkout your base branch(almost other's branch that have 
+    existed) to migrate the newest source code.
+
+  .. code-block:: bash
+
+    git checkout [base branch]
+    git pull
+
+2. After that, verify
 
 - Before submit or development, please synchronize your code on the most recent version of your branch, you can do it by
 
@@ -34,6 +52,9 @@ This is a reference to submit a CVM pull request.
     # Reformating python modules
     pylint [your python file]
 
+
+Feature Implement
+=================
 
 Write Tests and Documentation
 =============================

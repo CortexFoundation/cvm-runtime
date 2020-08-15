@@ -11,10 +11,10 @@ Welcome to cvm-runtime's documentation!
   :caption: HowTo
 
   cvm/install
+  guide/ack
   guide/contrib/index
   guide/dev_guide
   guide/arch
-  guide/ack
 
 .. toctree::
    :maxdepth: 2
