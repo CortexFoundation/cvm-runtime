@@ -805,6 +805,39 @@ class MinMaxChannelScale(Scale):
     pass
 
 #----------------------------
+# rescaler Definition
+#----------------------------
+
+RSC_REG = {
+    # "absmax": AbsmaxLayerScale,
+    # "absmax_ch": AbsmaxChannelScale,
+    # "minmax": MinMaxLayerScale,
+    # "minmax_ch": MinMaxChannelScale,
+}
+
+def register_scale(name):
+    def _wrapper(scale):
+        scale.name = name
+        if name in SC_REG:
+            raise NameError(
+                "Scale" + name + " has been registered")
+        SC_REG[name] = scale
+        return scale
+    return _wrapper
+
+
+class Scale:
+    name = None
+
+    def __init__(self, sc):
+        self.sc = sc
+
+
+@register_scale("absmax")
+class AbsmaxLayerScale(Scale):
+    pass
+
+#----------------------------
 # Quantizer Types Definition
 #----------------------------
 
