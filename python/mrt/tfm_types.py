@@ -757,32 +757,32 @@ def deserialize(val_dict):
     return cfg_dict
 
 #----------------------------
-# Scale Types Definition
+# Quantized Buffer Definition
 #----------------------------
 
-SC_REG = {
-    # "absmax": AbsmaxLayerScale,
-    # "absmax_ch": AbsmaxChannelScale,
-    # "minmax": MinMaxLayerScale,
-    # "minmax_ch": MinMaxChannelScale,
+QBUF_REG = {
+    # "absmax": AbsmaxLayerQBuffer,
+    # "absmax_ch": AbsmaxChannelQBuffer,
+    # "minmax": MinMaxLayerQBuffer,
+    # "minmax_ch": MinMaxChannelQBuffer,
 }
 
-def register_scale(name):
-    def _wrapper(scale):
-        scale.name = name
-        if name in SC_REG:
+def register_qbuffer(name):
+    def _wrapper(qbuffer):
+        qbuffer.name = name
+        if name in QBUF_REG:
             raise NameError(
-                "Scale" + name + " has been registered")
-        SC_REG[name] = scale
-        return scale
+                "Qbuffer" + name + " has been registered")
+        QBUF_REG[name] = qbuffer
+        return qbuffer
     return _wrapper
 
 
-class Scale:
+class QBuffer:
     name = None
 
-    def __init__(self, sc):
-        self.sc = sc
+    def __init__(self, qbuf):
+        self.qbuf = qbuf
 
 
 @register_scale("absmax")
