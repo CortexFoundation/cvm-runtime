@@ -2,45 +2,23 @@
 
 [TOC]
 
-### Quantize and Re-quantize Process
+### Quantization
 
 #### Symmetric Layer-wise
 
 Scale Definition:
 $$
-sc_x = \frac{2^{PREC-1} - 1}{\max{(|x|)}}
+sc_x = \frac{2^{PREC-1} - 1}{\max{(|Xr|)}}
 $$
 
-
-Float-to-int quantize formalization:
+MRT symmetric symbol quantize process:
 $$
-Xq = \left\lfloor sc_x \cdot X \right\rfloor
-$$
-Int-to-float re-quantize formalization:
-$$
-Xr = \frac{Xq}{sc_x}
+Xq = \text{round}\Bigg( \frac{sc_x}{sc_{xe}} \Bigg) \cdot Xe
 $$
 
-Int-propagation quantize formalization:
+MRT symmetric parameter quantize process:
 $$
-Xqn = \Bigg\lfloor \frac{sc_{xn}}{sc_x} Xq \Bigg\rfloor
-$$
-
-$$
-Xqn \approx \text{cvm_shift}(frac \cdot Xq, sb)
-$$
-
-where:
-$$
-frac, sb = \text{cvm_float}\left(rsc_{xn}\right)
-$$
-
-$$
-rsc_{xn} = \frac{sc_{xn}}{sc_x}
-$$
-
-$$
-sc_{xn} = \frac{2^{PREC-1}-1}{\max{(|x|)}}
+Wq = \text{round}(sc_w \cdot Wr)
 $$
 
 #### Symmetric Channel-wise
@@ -51,55 +29,20 @@ $$
 
 Scale definition:
 $$
-sc_x = \frac{2^{PREC}-1}{\text{max}(x)-\text{min}(x)}
+sc_x = \frac{2^{PREC}-1}{\text{max}(Xr)-\text{min}(Xr)}
 $$
 Zero point definition:
 $$
-zp_x = \big\lceil -sc_x \cdot \min{(x)} \big\rceil
+zp_x = \big\lceil -sc_x \cdot \min{(Xr)} \big\rceil
 $$
-Float-to-int quantize formalization:
+MRT zero point symbol quantize process:
 $$
-Xq = \left\lfloor sc_x \cdot X + zp_x \right\rfloor
-$$
-Int-to-float re-quantize formalization:
-$$
-X = \frac{Xq - zp_x}{sc_x}
+Xq = \text{round}\Bigg( \frac{sc_x}{sc_{xe}}\Bigg) \cdot Xe + zp_x
 $$
 
-Int-propagation quantize formalization:
+MRT zero point parameter quantize process:
 $$
-Xqn = \left\lfloor sc_{xn} \cdot X + zp_{xn} \right\rfloor
-= \left\lfloor sc_{xn} \cdot \frac{Xq - rzp_x}{rsc_x} + zp_{xn} \right\rfloor
-= \Bigg\lfloor \frac{sc_{xn}}{rsc_x}Xq + zp_{xn} - \frac{sc_{xn}}{rsc_x}rzp_x\Bigg\rfloor
-$$
-
-$$
-Xqn \approx \text{cvm_shift}(frac_1 \cdot Xq, sb_1) + \text{cvm_shift}(frac_2, sb_2)
-$$
-
-where:
-$$
-frac_1, sb_1 = \text{cvm_float}\left(rsc_{xn}\right)
-$$
-
-$$
-frac_2, sb_2 = \text{cvm_float}\left(rzp_{xn}\right)
-$$
-
-$$
-rsc_{xn} = \frac{sc_{xn}}{rsc_x}
-$$
-
-$$
-rzp_{xn} = zp_{xn} - rsc_{xn} \cdot rzp_x
-$$
-
-$$
-sc_{xn} = \frac{2^{PREC-1}-1}{\max{(|x|)}}
-$$
-
-$$
-zp_{xn} = sc_{xn} \cdot \min{(x)}
+Wq = \text{round}\Big( sc_w \cdot Wr \Big) + zp_w
 $$
 
 #### Zero Point Channel-wise
@@ -107,7 +50,7 @@ $$
 
 
 
-### Multiplication Operations
+### NN Operator Expansion
 
 #### Convolution
 
@@ -130,6 +73,10 @@ Attributes are listed below:
 
 2-D convolution formalization:
 $$
+Y = \text{Convolution}(X, W, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
+$$
+Adequately:
+$$
 \forall n \in [0, N)
 $$
 
@@ -146,11 +93,7 @@ $$
 $$
 
 $$
-Y = \text{Convolution}(X, W, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
-$$
-
-$$
-Y[n,o,p',q'] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} X[n,i,p',q'] \cdot W[o,i,ki,kj]
+Yr[n,o,p',q'] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr[n,i,p',q'] \cdot Wr[o,i,ki,kj]
 $$
 
 where:
@@ -165,86 +108,164 @@ $$
 1. Symmetric Layer-wise quantized $X$ and $W$
 
 $$
-\frac{Yq[n,o,p',q']}{sc_y} 
+Yr[n,o,p',q']
 = \frac{1}{sc_x \cdot sc_w} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
 $$
 
-Thus:
+MRT expansion process:
 $$
-Yq = rsc_y \cdot \text{Convolution}(Xq, Wq, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
+Ye = \text{Convolution}(Xq, Wq, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
 $$
 
-where:
 $$
-rsc_y = \frac{sc_x \cdot sc_w}{sc_y}
+sc_{ye} = sc_x \cdot sc_w
 $$
+
 Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
 $$
-\max{(|Xqn|)} \leq 2^{xp-1} - 1
+\max{(|Xq|)} \leq 2^{xp-1} - 1
 $$
 
 $$
 \max{(|Wq|)} \leq 2^{wp-1} - 1
 $$
 
-Assert that:
 $$
-C \cdot KH \cdot KW <= 2^{16} - 1 = 65535
-$$
-which guarantees that:
-$$
-\max{(|Yq|)} \leq 2^{32-1} - 1
+\text{infer_prec} = \lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp
 $$
 
 2. Zero point Layer-wise quantized $X$ and $W$
 
+Since:
 $$
-\frac{Yq[n,o,p',q'] - zp_y}{sc_y} 
-= \frac{1}{rsc_{xn} \cdot sc_w} \Bigg\{ \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj] \\
-+ KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] 
-+ zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
+Yr[n,o,p',q']
+= \frac{1}{sc_x \cdot sc_w} \Bigg\{ \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj] \\
+- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] 
+- zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
 + C \cdot KH \cdot KW \cdot zp_x \cdot zp_w \Bigg\}
 $$
-
-Thus:
+MRT expansion process:
 $$
-Yq = rsc_y \cdot \left[\text{Convolution}(Xq, Wq, \text{stride}=\text{stride}, \text{dilation}=\text{dilation}) \\
-+ C_1 \cdot \text{sum}(Xq, \text{axis}=1, \text{keep_dims}=\text{True}) + C_2 \right] + zp_y
+Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
++ C_1 \cdot \text{sum}(Xq, \text{axis=1}, \text{keep_dims=True}) 
++ C2
+$$
+
+$$
+sc_{ye} = sc_x \cdot sc_w
+$$
+
+where:
+$$
+C_1 = -KH \cdot KW \cdot zp_w
+$$
+
+$$
+C_2 = -zp_x \cdot \Big{[}C_1 + \text{sum} \left(Wq, \text{axis=(1,2,3)}, \text{keep_dims=True}\right) \Big{]}
+$$
+
+Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
+$$
+\max{(Xq)} \leq 2^{xp} - 1
+$$
+
+$$
+\max{(Wq)} \leq 2^{wp} - 1
+$$
+
+$$
+\text{infer_prec} = 2 + \max{ \Big{\{}
+\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 2, \\
+\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_w|}} \big\rceil + xp + 1, \\
+\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|}} \big\rceil + wp + 1, \\
+\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|} + \log{|zp_w|}} \big\rceil
+\Big{\}}}
+$$
+
+3. Zero point Layer-wise quantized $X$ and Symmetric Layer-wise quantized $W$
+
+Since:
+$$
+Yr[n,o,p',q'] = \frac{1}{sc_x \cdot sc_w} \Bigg\{ 
+\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
+- zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
+ \Bigg\}
+$$
+MRT expansion process:
+$$
+Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
++ C_1
+$$
+
+$$
+sc_{ye} = sc_x \cdot sc_w
+$$
+
+where:
+$$
+C_1 = -zp_x \cdot \text{sum} \left(Wq, \text{axis=(1,2,3)}, \text{keep_dims=True}\right)
+$$
+Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
+$$
+\max{(Xq)} \leq 2^{xp} - 1
+$$
+
+$$
+\max{(|Wq|)} \leq 2^{wp-1} - 1
+$$
+
+$$
+\text{infer_prec} = 1 + \max{ \Big{\{}
+\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 1, \\
+\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|}} \big\rceil + wp
+\Big{\}}}
+$$
+
+4. Symmetric Layer-wise quantized $X$ and Zero point Layer-wise quantized $W$
+
+Since:
+$$
+Yr[n,o,p',q'] = \frac{1}{sc_x \cdot sc_w} \Bigg\{ 
+\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
+- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] 
+ \Bigg\}
+$$
+MRT expansion process:
+$$
+Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
++ C_1 \cdot \text{sum}(Xq, \text{axis=1}, \text{keep_dims=True})
 $$
 where:
 $$
-rsc_y = rsc_{xn} \cdot sc_w
+C_1 = -KH \cdot KW \cdot zp_w
+$$
+Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
+$$
+\max{(|Xq|)} \leq 2^{xp-1} - 1
 $$
 
 $$
-C_1 = KH \cdot KW \cdot zp_w
+\max{(Wq)} \leq 2^{wp} - 1
 $$
 
 $$
-C_2 = zp_x \cdot \text{sum}\left(Wq, \text{axis}=(1,2,3), \text{keep_dims}=\text{True}\right)
-+ C \cdot KH \cdot KW \cdot zp_x \cdot zp_w
-$$
-
-Denote $Xqn$ is of precision $xp$ and $Wq$ is of precision
-
-$Xqn$ and $Wq$ is both of precision 8 of lower, i.e.
-$$
-\max{(|Xqn|)} \leq 2^{8} - 1
-$$
-
-$$
-\max{(|Wq|)} \leq 2^{8} - 1
-$$
-
-Assert that:
-$$
-C \cdot KH \cdot KW <= 2^{16} - 1 = 65535
-$$
-which guarantees that:
-$$
-\max{(|Yq|)} \leq 2^{32-1} - 1
+\text{infer_prec} = 1 + \max{ \Big{\{}
+\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 1, \\
+\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_w|}} \big\rceil + xp
+\Big{\}}}
 $$
 
 
-### Addition Operations
+
+#### Pad
+
+
+
+#### relu
+
+#### Pooling
+
+#### FullyConnected
+
+### Broadcast Operator Expansion
 
