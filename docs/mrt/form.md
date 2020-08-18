@@ -4,51 +4,33 @@
 
 ### Quantization
 
-#### Symmetric Layer-wise
+#### Quantized Buffer Definition
 
-Scale Definition:
-$$
-sc_x = \frac{2^{PREC-1} - 1}{\max{(|Xr|)}}
-$$
+| Symmetry   | Granularity  | Quantized Buffer Definition                                  |
+| ---------- | ------------ | ------------------------------------------------------------ |
+| Symmetric  | Layer-wise   | $sc_x = \Big(2^{PREC-1}-1\Big) / \max{|Xr|}$                 |
+| Symmetric  | Channel-wise | $sc_x[i] = (2^{PREC-1} - 1) / \max{(Xr, \text{axis=ich})}[i]$<br>$\forall i \in [0, shp[ich])$ |
+| Zero Point | Layer-wise   | $sc_x = \Big(2^{PREC}-1\Big) / \Big({\text{max}Xr-\text{min}Xr}\Big)$<br>$zp_x = \big\lceil -sc_x \cdot \min{(Xr)} \big\rceil$ |
+| Zero Point | Channel-wise | $sc_x[i] = \Big(2^{PREC}-1\Big) / \Big[\max{(Xr, \text{axis=ich})}[i] - \min{(Xr, \text{axis=ich})}[i]\Big]$<br>$zp_x[i] = \big\lceil -sc_x \cdot \min{(Xr, \text{axis=ich})} \big\rceil$<br>$\forall i \in [0, shp[ich])$ |
 
-MRT symmetric symbol quantize process:
-$$
-Xq = \text{round}\Bigg( \frac{sc_x}{sc_{xe}} \Bigg) \cdot Xe
-$$
+#### Channel Split
 
-MRT symmetric parameter quantize process:
 $$
-Wq = \text{round}(sc_w \cdot Wr)
+\forall i \in [0, C)
 $$
 
-#### Symmetric Channel-wise
-
-
-
-#### Zero Point Layer-wise
-
-Scale definition:
 $$
-sc_x = \frac{2^{PREC}-1}{\text{max}(Xr)-\text{min}(Xr)}
-$$
-Zero point definition:
-$$
-zp_x = \big\lceil -sc_x \cdot \min{(Xr)} \big\rceil
-$$
-MRT zero point symbol quantize process:
-$$
-Xq = \text{round}\Bigg( \frac{sc_x}{sc_{xe}}\Bigg) \cdot Xe + zp_x
+Xei = \text{slice}\Big(Xe, \text{begin=(None,)*i+(i,)+(None,)*(ndims-i-1)}, \text{end=(None,)*i+(i+1,)+(None,)*(ndims-i-1)}\Big)
 $$
 
-MRT zero point parameter quantize process:
-$$
-Wq = \text{round}\Big( sc_w \cdot Wr \Big) + zp_w
-$$
+#### Quantization Process
 
-#### Zero Point Channel-wise
-
-
-
+| Symmetry   | Granularity  | Quantization Process                                         |
+| ---------- | ------------ | ------------------------------------------------------------ |
+| Symmetric  | Layer-wise   | $Xq = \text{round}\Big( sc_x / sc_{xe} \Big) \cdot Xe$<br>$Wq = \text{round}(sc_w \cdot We)$ |
+| Symmetric  | Channel-wise | $Xqi = \text{round}\Big( sc_x[i] / sc_{xe}[i] \Big) \cdot Xei$<br>$Wq = \text{round}(sc_w[i] \cdot Wei)$ |
+| Zero Point | Layer-wise   | $Xq = \text{round}\Big(sc_x / sc_{xe}\Big) \cdot Xe + zp_x$<br>$Wq = \text{round}\Big( sc_w \cdot Wr \Big) + zp_w$ |
+| Zero Point | Channel-wise | $Xqi = \text{round}\Big( sc_x[i] / sc_{xe}[i] \Big) \cdot Xei + zp_x[i]$<br>$Wqi = \text{round}\Big( sc_w[i] \cdot Wei \Big) + zp_w[i]$ |
 
 ### NN Operator Expansion
 
@@ -71,11 +53,7 @@ Attributes are listed below:
 2. $\text{stride} = (SH,SW)$
 3. $\text{dilation} = (DH,DW)$
 
-2-D convolution formalization:
-$$
-Y = \text{Convolution}(X, W, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
-$$
-Adequately:
+Layer-wise 2-D convolution formalization:
 $$
 \forall n \in [0, N)
 $$
@@ -105,161 +83,89 @@ $$
 q' = q \cdot SW + kj \cdot DW
 $$
 
-1. Symmetric Layer-wise quantized $X$ and $W$
-
+Expansion scale definition:
 $$
-Yr[n,o,p',q']
-= \frac{1}{sc_x \cdot sc_w} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
-$$
-
-MRT expansion process:
-$$
-Ye = \text{Convolution}(Xq, Wq, \text{stride}=\text{stride}, \text{dilation}=\text{dilation})
-$$
-
-$$
-sc_{ye} = sc_x \cdot sc_w
+\begin{equation}
+  sc_{ye} =
+    \begin{cases}
+      sc_{xe} \cdot sc_{we} & \text{Layer-wise} \\
+      \max_{i \in [0, C)}{\big\{sc_{xe}[i] \cdot sc_{we}[i]\big\}} & \text{Channel-wise}
+    \end{cases}       
+\end{equation}
 $$
 
-Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
-$$
-\max{(|Xq|)} \leq 2^{xp-1} - 1
-$$
 
-$$
-\max{(|Wq|)} \leq 2^{wp-1} - 1
-$$
+**Symmetric quantized $X$ and $W$**
 
+Layer-wise:
 $$
-\text{infer_prec} = \lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp
+Ye = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
 $$
+Channel-wise:
+$$
+Ye[n,o,p',q'] = \sum_{i=0}^{C-1} \frac{sc_{ye}}{sc_{xe}[i] \cdot sc_{we}[i]} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n,0,p',q'] \cdot Wqi[o,0,ki,kj]
+$$
+**Zero point quantized $X$ and $W$**
 
-2. Zero point Layer-wise quantized $X$ and $W$
-
-Since:
+Layer-wise:
 $$
-Yr[n,o,p',q']
-= \frac{1}{sc_x \cdot sc_w} \Bigg\{ \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj] \\
-- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] 
+Ye[n,o,p',q']
+= \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
+- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] \\
 - zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
-+ C \cdot KH \cdot KW \cdot zp_x \cdot zp_w \Bigg\}
++ C \cdot KH \cdot KW \cdot zp_x \cdot zp_w
 $$
-MRT expansion process:
+Channel-wise:
 $$
-Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
-+ C_1 \cdot \text{sum}(Xq, \text{axis=1}, \text{keep_dims=True}) 
-+ C2
+Ye[n,o,p',q']
+= \sum_{i=0}^{C-1} \frac{sc_{ye}}{sc_{xe}[i] \cdot sc_{we}[i]} \Bigg\{
+\sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n,0,p',q'] \cdot Wqi[o,0,ki,kj]
+- KH \cdot KW \cdot zp_w[i] \cdot Xqi[n,0,p',q'] \\
+- zp_x[i] \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wqi[o,0,ki,kj]
++ KH \cdot KW \cdot zp_x[i] \cdot zp_w[i]
+\Bigg\}
 $$
+**Zero point quantized $X$ and Symmetric quantized $W$**
 
+Layer-wise:
 $$
-sc_{ye} = sc_x \cdot sc_w
-$$
-
-where:
-$$
-C_1 = -KH \cdot KW \cdot zp_w
-$$
-
-$$
-C_2 = -zp_x \cdot \Big{[}C_1 + \text{sum} \left(Wq, \text{axis=(1,2,3)}, \text{keep_dims=True}\right) \Big{]}
-$$
-
-Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
-$$
-\max{(Xq)} \leq 2^{xp} - 1
-$$
-
-$$
-\max{(Wq)} \leq 2^{wp} - 1
-$$
-
-$$
-\text{infer_prec} = 2 + \max{ \Big{\{}
-\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 2, \\
-\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_w|}} \big\rceil + xp + 1, \\
-\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|}} \big\rceil + wp + 1, \\
-\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|} + \log{|zp_w|}} \big\rceil
-\Big{\}}}
-$$
-
-3. Zero point Layer-wise quantized $X$ and Symmetric Layer-wise quantized $W$
-
-Since:
-$$
-Yr[n,o,p',q'] = \frac{1}{sc_x \cdot sc_w} \Bigg\{ 
+Ye[n,o,p',q'] = 
 \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
 - zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
+$$
+Channel-wise:
+$$
+Ye[n,o,p',q'] = \sum_{i=0}^{C-1} \frac{sc_{ye}}{sc_{xe}[i] \cdot sc_{we}[i]} \Bigg\{ 
+\sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n,0,p',q'] \cdot Wqi[o,0,ki,kj]
+- zp_x[i] \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wqi[o,0,ki,kj]
  \Bigg\}
 $$
-MRT expansion process:
-$$
-Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
-+ C_1
-$$
 
-$$
-sc_{ye} = sc_x \cdot sc_w
-$$
 
-where:
-$$
-C_1 = -zp_x \cdot \text{sum} \left(Wq, \text{axis=(1,2,3)}, \text{keep_dims=True}\right)
-$$
-Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
-$$
-\max{(Xq)} \leq 2^{xp} - 1
-$$
+**Symmetric quantized $X$ and Zero point quantized $W$**
 
+Layer-wise:
 $$
-\max{(|Wq|)} \leq 2^{wp-1} - 1
-$$
-
-$$
-\text{infer_prec} = 1 + \max{ \Big{\{}
-\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 1, \\
-\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_x|}} \big\rceil + wp
-\Big{\}}}
-$$
-
-4. Symmetric Layer-wise quantized $X$ and Zero point Layer-wise quantized $W$
-
-Since:
-$$
-Yr[n,o,p',q'] = \frac{1}{sc_x \cdot sc_w} \Bigg\{ 
+Ye[n,o,p',q'] =  
 \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n,i,p',q'] \cdot Wq[o,i,ki,kj]
-- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q'] 
+- KH \cdot KW \cdot zp_w \sum_{i=0}^{C-1} Xq[n,i,p',q']
+$$
+Channel-wise:
+$$
+Ye[n,o,p',q'] = \sum_{i=0}^{C-1} \frac{sc_{ye}}{sc_{xe}[i] \cdot sc_{we}[i]} \Bigg\{ 
+\sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n,0,p',q'] \cdot Wqi[o,0,ki,kj]
+- KH \cdot KW \cdot zp_w[i] \sum_{i=0}^{C-1} Xq[n,0,p',q'] 
  \Bigg\}
 $$
-MRT expansion process:
-$$
-Ye = \text{Convolution}(Xq, Wq, \text{sride=stride}, \text{dilation=dilation}) 
-+ C_1 \cdot \text{sum}(Xq, \text{axis=1}, \text{keep_dims=True})
-$$
-where:
-$$
-C_1 = -KH \cdot KW \cdot zp_w
-$$
-Denote $Xq$ is of precision $xp$ and $Wq$ is of precision $wp$:
-$$
-\max{(|Xq|)} \leq 2^{xp-1} - 1
-$$
-
-$$
-\max{(Wq)} \leq 2^{wp} - 1
-$$
-
-$$
-\text{infer_prec} = 1 + \max{ \Big{\{}
-\big\lceil \log{(C \cdot KH \cdot KW)} \rceil + xp + wp + 1, \\
-\big\lceil \log{(C \cdot KH \cdot KW) + \log{|zp_w|}} \big\rceil + xp
-\Big{\}}}
-$$
 
 
+#### pad
 
-#### Pad
+For simplicity:
 
-
+1. Only 
+2. `num_group` is asserted to be 1
+3. `bias` as well as `padding` are fused.
 
 #### relu
 
@@ -269,3 +175,4 @@ $$
 
 ### Broadcast Operator Expansion
 
+#### broadcast_add
