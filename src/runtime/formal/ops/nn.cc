@@ -200,16 +200,11 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.max_pool2d")
   int filter_h = param.pool_size[0];
   int filter_w = param.pool_size[1];
 
-  int n_batch = static_cast<int>(xShape[0]);
-  int in_channels = static_cast<int>(xShape[1]);
-  int out_channels = in_channels;
   int x_h = static_cast<int>(xShape[2]);
   int x_w = static_cast<int>(xShape[3]);
-  int o_h = static_cast<int>(yShape[2]);
-  int o_w = static_cast<int>(yShape[3]);
   for (Indices yIdx(yShape), xIdx(xShape); !yIdx.End(); yIdx++) {
     // no need to reset xIdx since content of xIdx assigned completely.
-    int n = yIdx[0], k = yIdx[1], p = yIdx[2], q = yIdx[3];
+    int p = yIdx[2], q = yIdx[3];
     // 1 << 31 will be the min value for int32: 0x80000000
     const int32_t minV = int32_t(1) << 31;
     int32_t y_max = minV;
@@ -238,9 +233,6 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.upsampling")
   TShape const& yShape = CVMArgShape(args[1]);
 
   int scale = param.scale;
-  uint32_t h = xShape[2], w = xShape[3];
-  uint32_t oh = yShape[2], ow = yShape[3];
-  uint32_t n_batch = xShape[0], n_channels = xShape[1];
 
   for (Indices yIdx(yShape), xIdx(xShape); !yIdx.End(); yIdx++) {
     int y = yIdx[2], x = yIdx[3];

@@ -33,7 +33,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.concatenate")
   int64_t y_size = 1;
   for (int i = 0; i < axis; ++i) y_size *= y_shape[i];
   int32_t axis_batch = 1;
-  for (size_t i = axis+1; i < y_shape.ndim(); ++i) axis_batch *= y_shape[i];
+  for (int i = axis+1; i < y_shape.ndim(); ++i) axis_batch *= y_shape[i];
 
   // all axes after the axis we want to concatenate on can be copied as 
   // a batch at once thanks to cpp's row-major order standard.
@@ -193,7 +193,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.transpose")
 
   for (Indices Y_indices(Y_shape); !Y_indices.End(); ++Y_indices) {
     Indices X_indices(X_shape);
-    for (uint32_t i = 0; i < Y_indices.ndim(); ++i) {
+    for (int32_t i = 0; i < Y_indices.ndim(); ++i) {
       X_indices.Ref(axes[i]) = Y_indices[i];
     }
     Y_data[Y_indices.Index()] = X_data[X_indices.Index()];
@@ -282,7 +282,6 @@ static void take(CVMArgValue x,
   auto Indices_shape = CVMArgShape(indices);
   auto Y_shape = CVMArgShape(y);
 
-  int32_t yndim = Y_shape.ndim();
   int32_t xndim = X_shape.ndim();
   int32_t indices_ndim = Indices_shape.ndim();
 

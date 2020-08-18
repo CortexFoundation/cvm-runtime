@@ -10,18 +10,18 @@ namespace runtime {
 
 inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, uint32_t ndim){
   // axis has been checked, it must be in range [-N, N)
-  for(size_t i = 0; i < axis.ndim(); i++){
+  for(int i = 0; i < axis.ndim(); i++){
     if(axis[i] < 0) axis[i] += ndim;
   }
   std::vector<int64_t> raxis;
   if(!exclude){
-    for(size_t i = 0; i < axis.ndim(); i++){
+    for(int i = 0; i < axis.ndim(); i++){
       raxis.push_back(axis[i]);
     }
   }else{
     raxis.resize(ndim - axis.ndim());
     std::vector<bool> flags(ndim, false);
-    for (uint32_t i = 0; i < axis.ndim(); i++) {
+    for (int i = 0; i < axis.ndim(); i++) {
       flags[axis[i]] = true;
     }
     for (size_t i = 0, k = 0; i < flags.size(); i++) {
@@ -64,7 +64,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
     // find the true Y shape after reducing
     // - since CVMArgShape(args[1]) will be incorrect when `keepdims` is true
     TShape reducedAxShape(realAxis.size()), reducYShape(X_shape.ndim() - realAxis.size());
-    for (uint i = 0, ax = 0, yi = 0; i < X_shape.ndim(); i++) {
+    for (int i = 0, ax = 0, yi = 0; i < X_shape.ndim(); i++) {
       if (flag[i]) {
         reducedAxShape[ax++] = X_shape[i];
       } else {
@@ -87,7 +87,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
       // for a dim to be reduced, index of this dim differs from each x.
       // otherwise, it is fixed with y during the traverse.
       
-      for (uint j = 0, yi = 0; j < X_shape.ndim(); j++) {
+      for (int j = 0, yi = 0; j < X_shape.ndim(); j++) {
         xIdx.Ref(j) = flag[j] ? 0 : yIdx[yi++];
       }
       int32_t tmp = X_data[xIdx.Index()];
@@ -96,7 +96,7 @@ static void Reduce(CVMArgs args, reduce_func const& f) {
       Indices reducIdx(reducedAxShape);
       reducIdx++;
       for (; !reducIdx.End(); reducIdx++) {
-        for (uint j = 0, yj = 0, rj = 0; j < X_shape.ndim(); j++) {
+        for (int j = 0, yj = 0, rj = 0; j < X_shape.ndim(); j++) {
           xIdx.Ref(j) = flag[j] ? reducIdx[rj++] : yIdx[yj++];
         }
         f(tmp, X_data[xIdx.Index()]);

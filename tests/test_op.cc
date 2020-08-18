@@ -455,7 +455,7 @@ void load_input(int num_inputs, string case_path, vector<vector<uint64_t>>& tsha
       //npy::LoadArrayFromNumpy(in_path, tshape[in_i], tdata[in_i]);
       read_data(in_path.c_str(), tshape[i], tdata[i]);
       TShape shp(tshape[i].size());
-      for (size_t ti = 0; ti < shp.ndim(); ++ti) {
+      for (int ti = 0; ti < shp.ndim(); ++ti) {
         shp[ti] = tshape[i][ti];
       }
       ishape[i] = shp;
@@ -622,7 +622,7 @@ void test_op(string op_name) {
     op();
 
     // compare each expected output and actual output
-    for (int out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
+    for (uint out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
       vector<int32_t> cpu_output_tensor(tdata[params.num_inputs+out_no].size());
       {
         DLTensor* cpu_tensor;
@@ -641,7 +641,7 @@ void test_op(string op_name) {
                  sizeof(int32_t) * tdata[params.num_inputs+out_no].size());
       printf("match %d | %d\n", ret == 0, ret);
       if (ret != 0) {
-        for (int i = 0; i < num_inputs; i++) {
+        for (uint i = 0; i < num_inputs; i++) {
           printf("input%d:\n", i);
           print(tdata[i]);
         }
