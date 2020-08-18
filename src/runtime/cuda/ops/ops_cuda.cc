@@ -406,21 +406,21 @@ CVM_REGISTER_GLOBAL("cvm.runtime.gpu.sum")
       auto &param = cvm::get<cvm::top::ReduceParam>(attr->parsed);
       TShape axis = param.axis;
       int64_t *axis_data = axis.begin();
-      for(size_t i = 0; i < axis.ndim(); i++){
+      for(int i = 0; i < axis.ndim(); i++){
         if(axis_data[i] < 0) axis_data[i] += dlx->ndim;
       }
       //bool keepdims = param.keepdims;
       std::vector<int64_t> raxis;
       bool exclude = param.exclude;
       if(!exclude){
-        for(size_t i = 0; i < axis.ndim(); i++){
+        for(int i = 0; i < axis.ndim(); i++){
           raxis.push_back(axis[i]);
         }
       }else{
         raxis.resize(dlx->ndim - axis.ndim());
         for(int32_t i = 0, k = 0; i < dlx->ndim; i++){
           bool flag = false;
-          for(uint32_t j = 0; j < axis.ndim(); j++){
+          for(int j = 0; j < axis.ndim(); j++){
             if(axis_data[j] == i) {
               flag = true;
               break;
@@ -618,21 +618,21 @@ CVM_REGISTER_GLOBAL("cvm.runtime.gpu.max")
       auto &param = cvm::get<cvm::top::ReduceParam>(attr->parsed);
       TShape axis = param.axis;
       int64_t *axis_data = axis.begin();
-      for(size_t i = 0; i < axis.ndim(); i++){
+      for(int i = 0; i < axis.ndim(); i++){
       if(axis_data[i] < 0) axis_data[i] += dlx->ndim;
       }
       //bool keepdims = param.keepdims;
       std::vector<int64_t> raxis;
       bool exclude = param.exclude;
       if(!exclude){
-        for(size_t i = 0; i < axis.ndim(); i++){
+        for(int i = 0; i < axis.ndim(); i++){
         raxis.push_back(axis[i]);
         }
       }else{
         raxis.resize(dlx->ndim - axis.ndim());
         for(int i = 0, k = 0; i < dlx->ndim; i++){
           bool flag = false;
-          for(size_t j = 0; j < axis.ndim(); j++){
+          for(int j = 0; j < axis.ndim(); j++){
             if(axis_data[j] == i) {
               flag = true;
               break;
@@ -849,7 +849,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.gpu.transpose")
 
       TShape axes = param.axes;
       int64_t *axes_data = axes.begin();
-      for(uint32_t i = 0; i < axes.ndim(); i++){
+      for(int i = 0; i < axes.ndim(); i++){
         if(axes_data[i] < 0) axes_data[i] += x->ndim;
       }
 

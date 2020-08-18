@@ -116,7 +116,7 @@ inline bool shape_assign(TShape *y, const TShape& x) {
   } else if (y->ndim() != x.ndim()) {
     return x.ndim() == 0;
   } else {
-    for (size_t i = 0; i < y->ndim(); ++i) {
+    for (int i = 0; i < y->ndim(); ++i) {
       if ((*y)[i] == 0) {
         (*y)[i] = x[i];
       } else if ((*y)[i] != x[i] && x[i] != 0) {

@@ -492,7 +492,7 @@ struct hash<cvm::TShape> {
   size_t operator()(const cvm::TShape& val) const {
     std::hash<uint32_t> hash_uint;
     size_t res = hash_uint(val.ndim());
-    for (uint32_t i = 0; i < val.ndim(); ++i) {
+    for (int32_t i = 0; i < val.ndim(); ++i) {
       res = utils::HashCombine(res, val[i]);
     }
     return res;
