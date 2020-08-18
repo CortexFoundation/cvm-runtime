@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.2)
-project(cvm C CXX)
+project(cvm C CXX CUDA)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
@@ -75,9 +75,11 @@ if(ENABLE_CUDA)
 
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDART_LIBRARY})
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_CUDA_LIBRARY})
-    list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
+    # list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
-    set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
+    # set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
+    set(CMAKE_CUDA_FLAGS 
+      ${CMAKE_CUDA_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
     if(USE_NANO)
@@ -91,8 +93,8 @@ if(ENABLE_CUDA)
     list(APPEND RUNTIME_SRCS ${CVM_OPS_CUDA_SRCS})
 
     file(GLOB CUDA_SRCS src/runtime/cuda/ops/*.cu)
-    cuda_compile(CUDA_LIBS ${CUDA_SRCS})
-    list(APPEND RUNTIME_SRCS ${CUDA_LIBS})
+    # cuda_compile(CUDA_LIBS ${CUDA_SRCS})
+    list(APPEND RUNTIME_SRCS ${CUDA_SRCS})
 endif()
 
 if(ENABLE_OPENCL)
