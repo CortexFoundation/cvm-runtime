@@ -35,12 +35,12 @@ Merge the channel symbol components for the purpose of latter-layer quantization
 $$
 sc_{xe} = \max_{\forall i \in [0,C)}{sc_{xei}}
 $$
-For operators like `Convolution`, use `broadcast_add` to merge:
+For operators like `Convolution`, `FullyConnceted`, use `broadcast_add` to merge:
 $$
 Xe = \sum_{i=0}^{C-1} \frac{sc_{xe}}{sc_{xei}} Xei
 \tag{broadcast_add}
 $$
-For operators like `pad`, use `concat` to merge:
+For operators like `pad`, `relu`, `Pooling`, use `concat` to merge:
 $$
 Xe = \text{concat}\Bigg( \Bigg[\frac{sc_{xe}}{sc_{xei}}Xei,i=0,1,...,C-1\Bigg],
 \text{dim=ich}
@@ -53,13 +53,13 @@ $$
 | Symmetry   | Granularity  | Quantization Process                                         |
 | ---------- | ------------ | ------------------------------------------------------------ |
 | Symmetric  | Layer-wise   | $Xq = \text{round}\Big( sc_x / sc_{xe} \Big) \cdot Xe$<br>$Wq = \text{round}(sc_w \cdot We)$ |
-| Symmetric  | Channel-wise | $Xqi = \text{round}\Big( sc_{xi} / sc_{xei} \Big) \cdot Xei$<br>$Wq = \text{round}(sc_{wi} \cdot Wei)$ |
+| Symmetric  | Channel-wise | $Xqi = \text{round}\Big( sc_{xi} / sc_{xei} \Big) \cdot Xei$<br>$Wqi = \text{round}(sc_{wi} \cdot Wei)$ |
 | Zero Point | Layer-wise   | $Xq = \text{round}\Big(sc_x / sc_{xe}\Big) \cdot Xe + zp_x$<br>$Wq = \text{round}\Big( sc_w \cdot Wr \Big) + zp_w$ |
 | Zero Point | Channel-wise | $Xqi = \text{round}\Big( sc_{xi} / sc_{xei} \Big) \cdot Xei + zp_{xi}$<br>$Wqi = \text{round}\Big( sc_{wi} \cdot Wei \Big) + zp_{wi}$ |
 
 ### Expansion Scale
 
-Expansion scale definition for operators like `Convolution`:
+Expansion scale definition for operators like `Convolution`, `FullyConnected` (Layer-wise only):
 $$
 sc_{ye} = sc_{x} \cdot sc_{w}
 \tag{Layer-wise}
@@ -127,16 +127,11 @@ Xe = pad(Xe, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=0)
 Xei = pad(Xei, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=0)
 ```
 
-**Symmetric quantized $X$ and $W$**
+**Expansion Case 1: Symmetric Quantized $X$ and $W$**
 $$
 Ye[n,o,p,q] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj]
 \tag{Layer-wise}
 $$
-
-```python
-# Layer-wise
-Ye = Convoltion(Xq, Wq, stride=(SH,SW), dilation=(DH,DW))
-```
 
 $$
 Yei[n,o,p,q] = \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n, 0, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wqi[o,0,ki,kj]
@@ -144,11 +139,13 @@ Yei[n,o,p,q] = \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n, 0, p \cdot SH + ki \
 $$
 
 ```python
+# Layer-wise
+Ye = Convoltion(Xq, Wq, **attrs)
 # Channel-wise
-Yei = Convoltion(Xqi, Wqi, stride=(SH,SW), dilation=(DH,DW))
+Yei = Convoltion(Xqi, Wqi, **attrs)
 ```
 
-**Zero point quantized $X$ and Symmetric quantized $W$**
+**Expansion Case 2: Zero Point Quantized $X$ and Symmetric Quantized $W$**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] = 
@@ -157,11 +154,6 @@ Ye[n,o,p,q] =
 \end{split} \end{equation}
 \tag{Layer-wise}
 $$
-```python
-# Layer-wise
-Ye = Convoltion(Xq, Wq, stride=(SH,SW), dilation=(DH,DW)) + C
-```
-
 $$
 \begin{equation} \begin{split}
 Yei[n,o,p,q] = \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n, 0, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wqi[o,0,ki,kj] \\
@@ -171,11 +163,13 @@ Yei[n,o,p,q] = \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xqi[n, 0, p \cdot SH + ki \
 $$
 
 ```python
+# Layer-wise
+Ye = Convoltion(Xq, Wq, **attrs) + C
 # Channel-wise
-Yei = Convoltion(Xqi, Wqi, stride=(SH,SW), dilation=(DH,DW)) + C
+Yei = Convoltion(Xqi, Wqi, **attrs) + C
 ```
 
-**Symmetric quantized $X$ and Zero point quantized $W$**
+**Expansion Case 3: Symmetric Quantized $X$ and Zero Point Quantized $W$**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] =  
@@ -184,12 +178,6 @@ Ye[n,o,p,q] =
 \end{split} \end{equation}
 \tag{Layer-wise}
 $$
-```python
-# Layer-wise
-Ye = Convoltion(Xq, Wq, stride=(SH,SW), dilation=(DH,DW)) + \
-	C * Convolution(Xq, W1, stride=(SH,SW), dilation=(DH,DW))
-```
-
 $$
 \begin{equation} \begin{split}
 Yei[n,o,p,q] = 
@@ -200,12 +188,13 @@ Yei[n,o,p,q] =
 $$
 
 ```python
+# Layer-wise
+Ye = Convoltion(Xq, Wq, **attrs) + C * Convolution(Xq, W1, **attrs)
 # Channel-wise
-Yei = Convoltion(Xqi, Wqi, stride=(SH,SW), dilation=(DH,DW)) + \
-	C * Convolution(Xqi, W1, stride=(SH,SW), dilation=(DH,DW))
+Yei = Convoltion(Xqi, Wqi, **attrs) + C * Convolution(Xqi, W1, **attrs)
 ```
 
-**Zero point quantized $X$ and $W$**
+**Expansion Case 4: Zero Point Quantized $X$ and $W$**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q]
@@ -216,12 +205,6 @@ Ye[n,o,p,q]
 \end{split} \end{equation}
 \tag{Layer-wise}
 $$
-
-```python
-# Layer-wise
-Ye = Convoltion(Xq, Wq, stride=(SH,SW), dilation=(DH,DW)) + \
-	C1 * Convoltion(Xq, W1, stride=(SH,SW), dilation=(DH,DW)) + C2
-```
 
 $$
 \begin{equation} 
@@ -237,9 +220,10 @@ Yei[n,o,p,q] =
 $$
 
 ```python
+# Layer-wise
+Ye = Convoltion(Xq, Wq, **attrs) + C1 * Convoltion(Xq, W1, **attrs) + C2
 # Channel-wise
-Yei = Convoltion(Xqi, Wqi, stride=(SH,SW), dilation=(DH,DW)) + \
-	C1 * Convolution(Xqi, W1, stride=(SH,SW), dilation=(DH,DW)) + C2
+Yei = Convoltion(Xqi, Wqi, **attrs) + C1 * Convolution(Xqi, W1, **attrs) + C2
 ```
 
 #### pad
@@ -277,28 +261,23 @@ $$
 \end{equation}
 $$
 
-**Symmetric quantized $X$**
+**Expansion Case: Null Quantization**
 $$
 \begin{equation} \begin{split}
   Ye[n,c,h,w] =
     \begin{cases}
-      Xq[n, c, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
+      Xe[n, c, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
       \text{round}\big(PV \cdot sc_{x}\big) & \text{otherwise}
     \end{cases}       
 \end{split} \end{equation}
 \tag{Layer-wise}
 $$
 
-```python
-# Layer-wise
-Ye = pad(Xq, mode="constant", pad_width=(0,0,0,0,PH1,PH2,PW1,PW2), constant_value=round(PV*sc_x))
-```
-
 $$
 \begin{equation} \begin{split}
   Yei[n,0,h,w] =
     \begin{cases}
-      Xqi[n, 0, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
+      Xei[n, 0, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
       \text{round}\big(PV \cdot sc_{xi}\big) & \text{otherwise}
     \end{cases}       
 \end{split} \end{equation}
@@ -306,41 +285,10 @@ $$
 $$
 
 ```python
-# Channel-wise
-Yei = pad(Xqi, mode="constant", pad_width=(0,0,0,0,PH1,PH2,PW1,PW2), constant_value=round(PV*sc_xi))
-```
-
-**Zero point quantized $X$**
-$$
-\begin{equation} \begin{split}
-  Ye[n,c,h,w] =
-    \begin{cases}
-      Xq[n, c, h-PH_1, w-PW_1] + zp_{x} & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
-      \text{round}\big(PV \cdot sc_{x}\big) & \text{otherwise}
-    \end{cases}       
-\end{split} \end{equation}
-\tag{Layer-wise}
-$$
-
-```python
 # Layer-wise
-Ye = pad(Xq+C, mode="constant", pad_width=(0,0,0,0,PH1,PH2,PW1,PW2), constant_value=round(PV*sc_x))
-```
-
-$$
-\begin{equation} \begin{split}
-  Yei[n,0,h,w] =
-    \begin{cases}
-      Xqi[n, 0, h-PH_1, w-PW_1] + zp_{xi} & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
-      \text{round}\big(PV \cdot sc_{xi}\big) & \text{otherwise}
-    \end{cases}       
-\end{split} \end{equation}
-\tag{Channel-wise}
-$$
-
-```python
+Ye = pad(Xe, mode="constant", pad_width=pad_width, constant_value=round(PV*sc_x))
 # Channel-wise
-Yei = pad(Xqi+C, mode="constant", pad_width=(0,0,0,0,PH1,PH2,PW1,PW2), constant_value=round(PV*sc_xi))
+Yei = pad(Xei, mode="constant", pad_width=pad_width, constant_value=round(PV*sc_xi))
 ```
 
 #### relu
@@ -358,46 +306,22 @@ $$
 Yr[m_0,m_1,...,m_{N-1}] = \max{\big( 0, Xr[m_0,m_1,...,m_{N-1}] \big)}
 $$
 
-**Symmetric quantized $X$**
+**Expansion Case: Null Quantization**
 $$
-Ye[m_0,m_1,...,m_{N-1}] = \max{\big(0, Xq[m_0,m_1,...,m_{N-1}]\big)}
+Ye[m_0,m_1,...,m_{N-1}] = \max{\big(0, Xe[m_0,m_1,...,m_{N-1}]\big)}
 \tag{Layer-wise}
 $$
 
-```python
-# Layer-wise
-Ye = relu(xq)
-```
-
 $$
-Yei[m_0,m_1,...,m_{N-1}] = \max{\big(0, Xqi[m_0,m_1,...,m_{N-1}] +zp_{xi}\big)}
+Yei[m_0,m_1,...,0,...,m_{N-1}] = \max{\big(0, Xei[m_0,m_1,...,0,...,m_{N-1}]\big)}
 \tag{Channel-wise}
 $$
 
 ```python
-# Channel-wise
-Yei = relu(xqi)
-```
-
-**Zero point quantized $X$**
-$$
-Ye[m_0,m_1,...,m_{N-1}] = \max{\big(0, Xq[m_0,m_1,...,m_{N-1}] +zp_{x}\big)}
-\tag{Layer-wise}
-$$
-
-```python
 # Layer-wise
-Ye = relu(xq+C)
-```
-
-$$
-Yei[m_0,m_1,...,0,...,m_{N-1}] = \max{\big(0, Xqi[m_0,m_1,...,0,...,m_{N-1}] +zp_{xi}\big)}
-\tag{Channel-wise}
-$$
-
-```python
+Ye = relu(Xe)
 # Channel-wise
-Yei = relu(Xqi+C)
+Yei = relu(Xei)
 ```
 
 #### Pooling
@@ -406,7 +330,7 @@ Yei = relu(Xqi+C)
 
 1. Only 2-D case is considered
 2.  `avg` pooling will be rewritten into `Convolution` or `broadcast_mul`
-3. Only `max` pooling will be considered.
+3. Only `max` pooling will be considered
 
 **Inputs**
 
@@ -418,6 +342,7 @@ Yei = relu(Xqi+C)
 1. $\text{stride} = (SH,SW)$
 
 2. $\text{kernel} = (KH, KW)$
+3. $\text{padding} = (PH, PW)$
 
 **Formalization**
 $$
@@ -442,52 +367,26 @@ Xe = pad(Xe, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=IN
 Xei = pad(Xei, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=INT_MIN)
 ```
 
-**Symmetric quantized $X$**
+**Expansion Case: Null Quantization**
 $$
 Ye[n,c,p,q] = \max_{p' \in [p \cdot SH, p \cdot SH + KH) \\
 q' \in [q \cdot SW, q \cdot SW + KW)} 
-Xq[n,c,p',q']
+Xe[n,c,p',q']
+\tag{Layer-wise}
 $$
-
-```python
-# Layer-wise
-Ye = Pooling(Xq, stride=(SH,SW), kernel=(KH,KW))
-```
 
 $$
 Yei[n,0,p,q] = \max_{p' \in [p \cdot SH, p \cdot SH + KH) \\
 q' \in [q \cdot SW, q \cdot SW + KW)} 
-Xqi[n,0,p',q']
-$$
-
-```python
-# Channel-wise
-Yei = Pooling(Xqi, stride=(SH,SW), kernel=(KH,KW))
-```
-
-**Zero point quantized $X$**
-$$
-Ye[n,c,p,q] = zp_x +
-\max_{p' \in [p \cdot SH, p \cdot SH + KH) \\
-q' \in [q \cdot SW, q \cdot SW + KW)} 
-Xq[n,c,p',q']
+Xei[n,0,p',q']
+\tag{Channel-wise}
 $$
 
 ```python
 # Layer-wise
-Ye = C + Pooling(Xq, stride=(SH,SW), kernel=(KH,KW))
-```
-
-$$
-Yei[n,0,p,q] = zp_{xi} +
-\max_{p' \in [p \cdot SH, p \cdot SH + KH) \\
-q' \in [q \cdot SW, q \cdot SW + KW)} 
-Xqi[n,0,p',q']
-$$
-
-```python
+Ye = Pooling(Xe, stride=stride, kernel=kernel)
 # Channel-wise
-Yei = C + Pooling(Xqi, stride=(SH,SW), kernel=(KH,KW))
+Yei = Pooling(Xei, stride=stride, kernel=kernel)
 ```
 
 #### FullyConnected
@@ -507,7 +406,7 @@ $$
 Yr[n,m] = \sum_{i=0}^{K-1} X[n,i] \cdot W[m,i]
 $$
 
-**Symmetric quantized $X$ and $W$**
+**Expansion Case 1: Symmetric Quantized $X$ and $W$**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i]
 \tag{Layer-wise}
@@ -518,7 +417,7 @@ $$
 Ye = FullyConnected(Xq, Wq)
 ```
 
-**Zero point quantized $X$ and Symmetric quantized $W$**
+**Expansion Case 2: Zero Point Quantized $X$ and Symmetric Quantized $W$**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i] 
 + zp_x \sum_{i=0}^{K-1} Wq[m,i]
@@ -530,7 +429,7 @@ $$
 Ye = FullyConnected(Xq, Wq) + C
 ```
 
-**Symmetric quantized $X$ and Zero point quantized $W$**
+**Expansion Case 3: Symmetric Quantized $X$ and Zero Point Quantized $W$**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i] +
 zp_{w} \sum_{i=0}^{K-1} Xq[n,i]
@@ -542,7 +441,7 @@ $$
 Ye = FullyConnected(Xq, Wq) + C * sum(Xq, axis=1, keep_dims=True)
 ```
 
-**Zero point quantized $X$ and $W$**
+**Expansion Case 4: Zero Point Quantized $X$ and $W$**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i]
 + zp_{w} \sum_{i=0}^{K-1} Xq[n,i]
@@ -560,7 +459,21 @@ Ye = FullyConnected(Xq, Wq) + C1 * sum(Xq, axis=1, keep_dims=True) + C2
 
 #### broadcast_add
 
-#### broadcast_mul
+**Input**
+
+1. Input data $L$
+2. Input data $R$
+
+**Formalization**
+$$
+Yr = Lr + Rr
+\tag{Layer-wise}
+$$
+**Symmetric quantized $L$ and $R$**
+$$
+Ye = Lq + Rq
+$$
+
 
 ### Transform Operator Expansion
 
