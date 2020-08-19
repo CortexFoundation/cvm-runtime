@@ -15,6 +15,7 @@ MRT, short of Model Representation Tool, aims at quantizing floating model into 
   mrt.md
   model.md
   mnist_tutorial.md
+  form.md
 
 
 Python API
