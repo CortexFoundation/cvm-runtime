@@ -40,9 +40,10 @@ The memory layout is as below:
 
 This graph shows the memory layout of NDArray.
 
-A ``DLTensor`` is a data structure that holds the data, running context, shape
-of the data and other information. Considering that the ``DLTensor`` is still
-very simple, it should be wrapped in a container class providing operations
+A ``DLTensor`` is a data structure that holds the data, data context, shape of
+the data and other information. Considering that the ``DLTensor`` is just a 
+simple struct for data containing no functions, it should be wrapped in a container 
+class providing operations
 and optimizations like reference count and lazy copy, that's why ``Container``
 class is introduced -- to store other necessary data right after a ``DLTensor``.
 
@@ -52,7 +53,7 @@ initialize an ``NDArray`` or a ``DLTensor`` object. There's an interface called
 However, **what the interface actually returned is a pointer to a** ``Container``.
 The memory layout princilpe of C++ promises ``DLTensor`` is right at the
 beginning of a ``Container`` and thus, a ``Container*`` can be treated as a
-``DLTensor*``.
+``DLTensor*`` and can be converted back to a ``Container*`` if necessary.
 
 The benifit of such method is that memory memagement procedure is totally
 transparent to API callers, which means all it can see is a ``DLTensor`` and all it
@@ -85,12 +86,41 @@ happen.
 
 For detailed information, you can refer to ``CVMArrayFree`` in :ref:`c-backend-api-label`.
 
+
 NDArray & Model
 ---------------
 
-In present CVM version, the most useful use case of NDArray is using it in a model.
-To use it in a model, persistence is necessary. ``CVMSaveParamsDict`` and
-``CVMLoadParamsDict`` do the persistence work, saving and loading a string-value
-dictionary.
+A ``CvmRuntime`` represents a model. The components of a model can be classified
+into two types: either data or parameters. Data comes from users' input while
+parameters are deterministic for a certain model and should be loaded from some
+storage. Parameters are usually stored as in a dictionary: the key is the name
+indicating its place in the model and the value is, of course, a ``DLTensor``.
 
-For detailed information, you can refer to :ref:`c-backend-api-label`.
+That's why persistence of such dictionary is necessary in this project. A model,
+aka ``CvmRuntime``, calls ``LoadParams`` to load the dictionary into itself and
+there's an API ``CVMLoadParamsDict`` for other languages to get the dictionary.
+What's more, models trained by other frameworks should be converted to integer
+models and the converter needs an API to save the converter model:
+``CVMSaveParamsDict`` is then introduced.
+
+Such APIs save/load names and data. Saving and loading names is easy while
+saving and loading a ``DLTensor`` is not that trivial so related functions are
+needed. As mentioned above, ``DLTensor`` doesn't provide management methods of
+itself so we usually wrap it with an ``NDArray`` to do the management.
+``NDArray`` provides ``Save`` and ``Load`` APIs.
+
+The layout of a saved parameter dictionary is:
+
+- the first 64 bits is a magic number ``0xF7E58D4F05049CB7``
+- the following 64 bits is reserved.
+- the following is the names, aka keys, of parameters, whose layout is
+
+  + the first 64 bits is the number of keys
+  + for each key, 64 bits indicating the length and followed by the content of the key.
+
+- the values, whose layout is
+
+  + the first 64 bits is the number of values
+  + for each value, 64 bits magic number ``0xDD5E40F096B4A13F``, 64 bits reserved, followed by content of ``DLTensor``. ``DLTensor`` is POD type so it is easy to store.
+
+For detailed information for the APIs, you can refer to :ref:`c-backend-api-label`.
