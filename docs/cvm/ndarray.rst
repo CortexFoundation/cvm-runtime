@@ -59,9 +59,9 @@ transparent to API callers, which means all it can see is a ``DLTensor`` and all
 need to do is call an API to get this tensor and call another API to destruct it.
 Destructing the tensor needs the data in its ``Container``.
 
-All in all, remember that **users can only create a** ``DLTensor`` ** with**
-``CVMArrayAlloc`` **, must destruct it with calling** ``CVMArrayFree`` and should
-NEVER write into the memory after it.
+All in all, remember that **users can only create a** ``DLTensor`` **with**
+``CVMArrayAlloc`` **, must destruct it with calling** ``CVMArrayFree`` **and should
+NEVER write into the memory after it.**
 
 
 NDArray & API
@@ -74,7 +74,7 @@ As mentioned above, this API creats a pointer to a ``DLTensor`` in users' view. 
 it actually returns, however, is a point to a ``Container`` and the content outside
 the ``DLTensor`` but inside the ``Container`` should never be modified.
 
-For detailed information, you can refer to ?????????
+For detailed information, you can refer to ``CVMArrayAlloc`` in :ref:`c-backend-api-label`.
 
 CVMArrayFree
 ~~~~~~~~~~~~
@@ -83,6 +83,7 @@ If a ``DLTensor`` is created manually created by calling ``CVMArrayAlloc``, the 
 then must call ``CVMArrayFree`` to free the memory. Otherwise memory leakage may
 happen.
 
+For detailed information, you can refer to ``CVMArrayFree`` in :ref:`c-backend-api-label`.
 
 NDArray & Model
 ---------------
@@ -92,4 +93,4 @@ To use it in a model, persistence is necessary. ``CVMSaveParamsDict`` and
 ``CVMLoadParamsDict`` do the persistence work, saving and loading a string-value
 dictionary.
 
-For detailed information, you can refer to ????????
+For detailed information, you can refer to :ref:`c-backend-api-label`.
