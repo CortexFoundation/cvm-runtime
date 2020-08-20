@@ -4,6 +4,9 @@
     Quant Types Definition For MRT quantization.
 """
 
+import math
+import logging
+
 from mxnet import ndarray as nd
 import numpy as np
 import json
@@ -816,6 +819,16 @@ QUANT_REG = {
     # "usgq": UniformSymmetricGroupQuantizer,
 }
 
+DEFAULT_QUANT_TYPE = "usq"
+
+DEFAULT_QUANTIZER = UniformSymmetricQuantizer()
+
+QUANT_INSTANCES = {
+    DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
+    # "uaq": UniformAffineQuantizer(),
+    # "usgq": UniformSymmetricGroupQuantizer(),
+}
+
 def register_quantizer(name):
     def _wrapper(quantizer):
         quantizer.name = name
@@ -833,10 +846,22 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `quantize` function defined in Quantizer")
 
-    def _get_buf(self, prec, **kwargs):
+    def _quantize_symbol(self, symbol, oprec, buf, **kwargs):
+        if sutils.is_params(symbol, kwargs["params"]):
+            return self._quantize_parameter(symbol, oprec, buf, **kwargs)
+        return self._quantize_operator(symbol, oprec, buf, **kwargs)
+
+    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
-            " base `scale` function defined in Quantizer")
+            " base `_quantize_parameter` function " + \
+            "defined in Quantizer")
+
+    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_opoerator` function " + \
+            "defined in Quantizer")
 
     @staticmethod
     def list_supported_features():
@@ -850,11 +875,17 @@ class Quantizer:
 class UniformSymmetricQuantizer(Quantizer):
     """ Uniform symmetric quantizer
     """
-    def quantize(self, sym, oprec, **kwargs):
-        pass
+    def quantize(self, symbol, oprec, **kwargs):
+        absmax = kwargs["ft_dict"][symbol.attr("name")].get_feature()
+        sc = (2**(oprec-1)-1) / absmax
+        buf = SymmetricBuf(sc)
+        return self._quantize_symbol(symbol, oprec, buf, **kwargs)
 
-    def _get_buf(self, oprec, **kwargs):
-        return 
+    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
+        return W, wprec, wscale
+
+    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
+        return X, xprec, xscale
 
     @staticmethod
     def list_supported_features():
@@ -866,10 +897,17 @@ class UniformAffineQuantizer(Quantizer):
     """ Uniform affine quantizer
     """
     def quantize(self, symbol, oprec, **kwargs):
-        pass
+        minv, maxv = \
+            kwargs["ft_dict"][symbol.attr("name")].get_feature()
+        sc, zp = (2**oprec-1) / (maxv-minv), math.ceil(sc*minv)
+        buf = AffineBuf(sc, zp)
+        return self._quantize_symbol(symbol, oprec, buf, **kwargs)
 
-    def _get_buf(self, symbol, oprec, **kwargs):
-        ft_dict = kwargs["ft_dict"]
+    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
+        return W, wprec, wscale
+
+    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
+        return X, xprec, xscale
 
     @staticmethod
     def list_supported_features():
@@ -881,55 +919,27 @@ class UniformSymmetricGroupQuantizer(UniformSymmetricQuantizer):
     """ Uniform symmetric group quantizer
     """
     def quantize(self, symbol, oprec, **kwargs):
-        oscale = self._get_buf(symbol, oprec, **kwargs)
-        xs, xprecs, xscales = [], [], []
-        for sym in sutils.sym_iter(symbol)
-            if sutils.is_params(sym, kwargs["params"]):
+        absmax = max([kwargs["ft_dict"[sym.attr("name")].get_feature() \
+            for sym in sutils.sym_iter(symbol)])
+        sc = (2**(oprec-1)-1) / absmax
+        buf = SymmetricBuf(sc)
 
-                X, xprec, xscale = \
-                    quantize_weight(sym, oprec, buf, **kwargs)
-            else:
-                X, xprec, Xscale = \
-                    quantize_operator(sym, oprec, buf, **kwargs)
-
-    def _get_buf(self, symbol, oprec, **kwargs):
-
-        pass
-
-    @staticmethod
-    def list_supported_features():
-        return ["absmax"]
-
-
-class AbsmaxLayerQuantizer(Quantizer):
-    def quantize(self, sym, prec, scale=None, **kwargs):
-        params = kwargs["params"]
-        scales = kwargs["scales"]
-
-    def scale(self, ft, prec, name="<not specified>"):
-        if not isinstance(ft, AbsmaxLayerFeature):
-            raise TypeError(
-                "AbsmaxLayerQuantizer only support feature AbsmaxLayerFeature")
-        absmax = ft.get_feature()
-        if absmax < 0:
-            raise ValueError(
-                "Not a valid absmax value: %s, name: %s" % \
-                (absmax, name))
-        sc = 1 if absmax == 0 else (2**(prec-1)-1) / absmax`
-        return AbsmaxLayerScale(sc)
-
-    def rescale(self, iscale, oscale):
-        pass
-
+        Xs, xprecs, xscales = [], [], []
+        for sym in sutils.sym_iter(symbol):
+            X, xprec, xscale = \
+                self._quantize_symbol(sym, oprec, buf, **kwargs)
+            Xs.append(X)
+            xprecs.append(xprec)
+            xscales.append(xscale)
+        return Xs, xprecs, xscales
 
 #----------------------------
 # Module quantize interfaces
 #----------------------------
 
-def quantize_parameter(symbol, oprec, oscale, **kwargs):
-    logger = logging.getLogger("log.mrt.quantize")
-    params = kwargs["params"]
-
-def quantize_oprerator(symbol, oprec, oscale, **kwargs):
-    pass
+def quantize_symbol(symbol, oprec, **kwargs):
+    quant_type = \
+        kwargs["cfg_dict"][symbol.attr("name")].get_attr("quant_type")
+    return QUANT_INSTANCES[quant_type].quantize(
+        symbol, oprec, **kwargs)
 
