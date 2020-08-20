@@ -6,39 +6,58 @@
 
 #### Quantized Buffer Definition
 
-**Symmetric**
 $$
 sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}
+\tag{Symmetric Quantization Scale}
 $$
-**Zero Point**
+
+$$
+sc_{xi} = \frac{2^{PREC-1}-1}{\max_{i \in [0, C)} \max{Xri}}
+\tag{Multiple Symmetric Quantization Scale}
+$$
+
 $$
 sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}
+\tag{Zero-point Quantization Scale}
 $$
 
 $$
 zp_{x} = \lceil sc_{x} \cdot \min{Xr} \rceil
+\tag{Zero Point}
 $$
 
 #### Quantization Process
 
-**Operator quantization**
 $$
 Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe
+\tag{Symmetric Operator Quantization}
 $$
-**Weight quantization**
+
+$$
+Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe - zp_{x}
+\tag{Zero-point Operator Quantization}
+$$
+
 $$
 Wq = \text{round}(sc_{w} \cdot We)
+\tag{Symmetric Weight Quantization}
+$$
+
+$$
+Wq = \text{round}\Bigg(sc_{w} \cdot We\Bigg) - zp_{w}
+\tag{Zero-point Weight Quantization}
 $$
 
 #### Re-quantization Process
 
-**Symmetric**
 $$
 Xr = \frac{Xq}{sc_{x}}
+\tag{Symmetric Re-quantization}
 $$
-**Zero Point**
+
 $$
 Xr = \frac{Xq + zp_{x}}{sc_{x}}
+\tag{Zero-point Re-quantization}
 $$
 
 #### Channel Split
@@ -456,10 +475,6 @@ Ye = flatten(Xe)
 
 1. All the inputs only support symmetric quantize
 
-**Quantization Scale**
-$$
-sc_{xi} = \frac{2^{PREC-1}-1}{\max_{i \in [0, C)} \max{Xri}}
-$$
 **Expansion Scale**
 $$
 sc_{ye} = sc_{xi}
