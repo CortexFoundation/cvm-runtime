@@ -8,7 +8,7 @@ from mxnet import ndarray as nd
 import numpy as np
 import json
 
-from .sym_utils import topo_visit_transformer, topo_sort, is_params
+from mrt import sym_utils as sutils
 
 #----------------------------
 # Feature Types Definition
@@ -73,7 +73,7 @@ class Feature:
     def get_feature(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `get_val` function defined in Feature")
+            " base `get_feature` function defined in Feature")
 
 
 @register_featrue("absmax")
@@ -541,7 +541,8 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
     """
     # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
     logger = logging.getLogger('log.mrt')
-    _, deps = topo_sort(symbol, logger=logger, with_deps=True)
+    _, deps = sutils.topo_sort(
+        symbol, logger=logger, with_deps=True)
     ft_dict, out_cache = {}, {}
     ctx = kwargs.get('ctx', mx.cpu())
     logger.info("calibrate model outputs")
@@ -552,7 +553,8 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
         deps, old_ths = kwargs['deps'], kwargs['old_ths']
         logger = logging.getLogger('log.mrt.calibrate')
         name, op_name = op.attr('name'), op.attr('op_name')
-        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        childs, attr = sutils.sym_iter(
+            op.get_children()), op.list_attr()
         if op_name == 'null':
             out = data if is_inputs(op, params) else params[name]
         elif childs is None:
@@ -578,7 +580,7 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
             out[0], cfg_info=kwargs["cfg_dict"][name],
             name=name, hft=hft)
 
-    topo_visit_transformer(
+    sutils.topo_visit_transformer(
         symbol, nparams, _impl, logger=logger,
         deps=deps, data=data, **kwargs)
     out_cache.clear()
@@ -605,7 +607,8 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     def _collect_names(symbol, params):
         names.add(symbol.attr("name"))
 
-    topo_visit_transformer(symbol, params, _collect_names, **kwargs)
+    sutils.topo_visit_transformer(
+        symbol, params, _collect_names, **kwargs)
     cfg_dict, noncfgs = {} if cfg_dict is None else cfg_dict, set()
     keys = cfg_dict.keys()
     for name in keys:
@@ -655,7 +658,8 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
         cfg_dict[name] = cfg_info if cfg_info else \
             {"ft_type": ft_type, "smp_info": smp_info, "opt_info", opt_info}
 
-    topo_visit_transformer(symbol, params, _sym_config_infos, **kwargs)
+    sutils.topo_visit_transformer(
+        symbol, params, _sym_config_infos, **kwargs)
     return cfg_dict
 
 def deserialize(val_dict):
@@ -760,92 +764,56 @@ def deserialize(val_dict):
 # Quantized Buffer Definition
 #----------------------------
 
-QBUF_REG = {
-    # "absmax": AbsmaxLayerQBuffer,
-    # "absmax_ch": AbsmaxChannelQBuffer,
-    # "minmax": MinMaxLayerQBuffer,
-    # "minmax_ch": MinMaxChannelQBuffer,
+BUF_REG = {
+    # "symmetric": SymmetricBuf,
+    # "affine": AffineBuf,
 }
 
-def register_qbuffer(name):
-    def _wrapper(qbuffer):
-        qbuffer.name = name
-        if name in QBUF_REG:
+def register_buf(name):
+    def _wrapper(buf):
+        buf.name = name
+        if name in BUF_REG:
             raise NameError(
-                "Qbuffer" + name + " has been registered")
-        QBUF_REG[name] = qbuffer
-        return qbuffer
+                "Buf" + name + " has been registered")
+        BUF_REG[name] = buf
+        return buf
     return _wrapper
 
 
-class QBuffer:
+class Buf:
     name = None
 
-    def __init__(self, qbuf):
-        self.qbuf = qbuf
+    def get_buf(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " buf not override the" + \
+            " base `get_buf` function defined in Buf")
 
 
-@register_scale("absmax")
-class AbsmaxLayerScale(Scale):
-    pass
-
-
-@register_scale("absmax_ch")
-class AbsmaxChannelScale(Scale):
-    pass
-
-
-@register_scale("minmax")
-class MinMaxLayerScale(Scale):
-    pass
-
-
-@register_scale("minmax_ch")
-class MinMaxChannelScale(Scale):
-    pass
-
-#----------------------------
-# rescaler Definition
-#----------------------------
-
-RSC_REG = {
-    # "absmax": AbsmaxLayerScale,
-    # "absmax_ch": AbsmaxChannelScale,
-    # "minmax": MinMaxLayerScale,
-    # "minmax_ch": MinMaxChannelScale,
-}
-
-def register_scale(name):
-    def _wrapper(scale):
-        scale.name = name
-        if name in SC_REG:
-            raise NameError(
-                "Scale" + name + " has been registered")
-        SC_REG[name] = scale
-        return scale
-    return _wrapper
-
-
-class Scale:
-    name = None
-
+@register_buf("symmetric")
+class SymmetricBuf(Buf):
     def __init__(self, sc):
         self.sc = sc
 
+    def get_buf(self):
+        return self.sc
 
-@register_scale("absmax")
-class AbsmaxLayerScale(Scale):
-    pass
+
+@register_buf("affine")
+class AffineBuf(Buf):
+    def __init__(self, sc, zp):
+        self.sc, self.zp = sc, zp
+
+    def get_buf(self):
+        return self.sc, self.zp
 
 #----------------------------
 # Quantizer Types Definition
 #----------------------------
 
 QUANT_REG = {
-    # "absmax": AbsmaxLayerQuantizer,
-    # "absmax_ch": AbsmaxChannelQuantizer,
-    # "minmax": MinMaxLayerQuantizer,
-    # "minmax_ch": MinMaxChannelQuantizer,
+    # "usq": UniformSymmetricQuantizer,
+    # "uaq": UniformAffineQuantizer,
+    # "usgq": UniformSymmetricGroupQuantizer,
 }
 
 def register_quantizer(name):
@@ -858,18 +826,14 @@ def register_quantizer(name):
         return quantizer
     return _wrapper
 
+
 class Quantizer:
     def quantize(self, oprec, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `quantize` function defined in Quantizer")
 
-    def scale(self, prec, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `scale` function defined in Quantizer")
-
-    def rescale(self, iscale, oscale):
+    def _get_buf(self, prec, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `scale` function defined in Quantizer")
@@ -882,11 +846,54 @@ class Quantizer:
             "function defined in Quantizer")
 
 
+@register_quantizer("usq")
 class UniformSymmetricQuantizer(Quantizer):
-    def quantize(self, oprec, **kwargs):
+    """ Uniform symmetric quantizer
+    """
+    def quantize(self, sym, oprec, **kwargs):
         pass
 
-    def scale(self, oprec, **kwargs):
+    def _get_buf(self, oprec, **kwargs):
+        return 
+
+    @staticmethod
+    def list_supported_features():
+        return ["absmax"]
+
+
+@register_quantizer("uaq")
+class UniformAffineQuantizer(Quantizer):
+    """ Uniform affine quantizer
+    """
+    def quantize(self, symbol, oprec, **kwargs):
+        pass
+
+    def _get_buf(self, symbol, oprec, **kwargs):
+        ft_dict = kwargs["ft_dict"]
+
+    @staticmethod
+    def list_supported_features():
+        return ["minmax"]
+
+
+@register_quantizer("usgq")
+class UniformSymmetricGroupQuantizer(UniformSymmetricQuantizer):
+    """ Uniform symmetric group quantizer
+    """
+    def quantize(self, symbol, oprec, **kwargs):
+        oscale = self._get_buf(symbol, oprec, **kwargs)
+        xs, xprecs, xscales = [], [], []
+        for sym in sutils.sym_iter(symbol)
+            if sutils.is_params(sym, kwargs["params"]):
+
+                X, xprec, xscale = \
+                    quantize_weight(sym, oprec, buf, **kwargs)
+            else:
+                X, xprec, Xscale = \
+                    quantize_operator(sym, oprec, buf, **kwargs)
+
+    def _get_buf(self, symbol, oprec, **kwargs):
+
         pass
 
     @staticmethod
@@ -895,8 +902,6 @@ class UniformSymmetricQuantizer(Quantizer):
 
 
 class AbsmaxLayerQuantizer(Quantizer):
-    """ Uniform symmetric layerwise quantizer.
-    """
     def quantize(self, sym, prec, scale=None, **kwargs):
         params = kwargs["params"]
         scales = kwargs["scales"]
@@ -917,23 +922,14 @@ class AbsmaxLayerQuantizer(Quantizer):
         pass
 
 
-class UniformAffineQuantizer(Quantizer):
-    pass
-
 #----------------------------
 # Module quantize interfaces
 #----------------------------
 
-def quantize_sym(sym, oprec, oscale, **kwargs):
-    params = kwargs["params"]
-    if is_params(sym, params):
-        return quantize_wt(sym, oprec, **kwargs)
-    return quantize_nwt(sym, oprec, **kwargs)
-
-def quantize_wt(sym, oprec, oscale, **kwargs):
+def quantize_parameter(symbol, oprec, oscale, **kwargs):
     logger = logging.getLogger("log.mrt.quantize")
     params = kwargs["params"]
 
-def quantize_nwt(sym, oprec, oscale, **kwargs):
+def quantize_oprerator(symbol, oprec, oscale, **kwargs):
     pass
 
