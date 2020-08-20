@@ -2,23 +2,30 @@
 
 [TOC]
 
-### Quantization
+### Quantizer
 
-#### Quantized Buffer Definition
+#### Uniform Symmetric Quantizer
 
 $$
 sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}
-\tag{Symmetric Quantization Scale}
+\tag{Scale}
 $$
 
 $$
-sc_{xi} = \frac{2^{PREC-1}-1}{\max_{i \in [0, C)} \max{Xri}}
-\tag{Multiple Symmetric Quantization Scale}
+Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe
+\tag{Input Quantization}
 $$
+
+$$
+Wq = \text{round}\Big(sc_{w} \cdot Wr\Big)
+\tag{Weight Quantization}
+$$
+
+#### Uniform Affine Quantizer
 
 $$
 sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}
-\tag{Zero-point Quantization Scale}
+\tag{Scale}
 $$
 
 $$
@@ -26,29 +33,34 @@ zp_{x} = \lceil sc_{x} \cdot \min{Xr} \rceil
 \tag{Zero Point}
 $$
 
-#### Quantization Process
-
-$$
-Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe
-\tag{Symmetric Operator Quantization}
-$$
-
 $$
 Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe - zp_{x}
-\tag{Zero-point Operator Quantization}
+\tag{Input Quantization}
 $$
 
 $$
-Wq = \text{round}(sc_{w} \cdot We)
-\tag{Symmetric Weight Quantization}
+Wq = \text{round}\Big(sc_{w} \cdot Wr\Big) - zp_{w}
+\tag{Weight Quantization}
+$$
+
+#### Uniform Symmetric Group Quantizer
+
+$$
+sc_{xi} = \frac{2^{PREC-1}-1}{\max_{i \in [0, C)} \max{Xri}}
+\tag{Scale}
 $$
 
 $$
-Wq = \text{round}\Bigg(sc_{w} \cdot We\Bigg) - zp_{w}
-\tag{Zero-point Weight Quantization}
+Xqi = \text{round}\Bigg( \frac{sc_{xi}}{sc_{xei}} \Bigg) \cdot Xei
+\tag{Input Quantization}
 $$
 
-#### Re-quantization Process
+$$
+Wqi = \text{round}\Big(sc_{wi} \cdot Wri\Big)
+\tag{Weight Quantization}
+$$
+
+### Re-quantization
 
 $$
 Xr = \frac{Xq}{sc_{x}}
@@ -59,6 +71,10 @@ $$
 Xr = \frac{Xq + zp_{x}}{sc_{x}}
 \tag{Zero-point Re-quantization}
 $$
+
+### Granularity
+
+MRT Support both layer-wise and channel-wise quantization. Channel wise quantization is implemented by graph-level channel split and channel merge. 
 
 #### Channel Split
 
@@ -195,7 +211,6 @@ infer_prec = max(infer_prec1, infer_prec2, infer_prec3, infer_prec4) + 2
 
 
 $$
-
 iprec = \max \Big\{, \\
 \text{get_bit_cnt}(|zp_{w}| \cdot zp_x
 \Big\}

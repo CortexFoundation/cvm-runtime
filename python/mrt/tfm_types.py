@@ -8,7 +8,7 @@ from mxnet import ndarray as nd
 import numpy as np
 import json
 
-from .sym_utils import topo_visit_transformer, topo_sort
+from .sym_utils import topo_visit_transformer, topo_sort, is_params
 
 #----------------------------
 # Feature Types Definition
@@ -859,12 +859,12 @@ def register_quantizer(name):
     return _wrapper
 
 class Quantizer:
-    def quantize(self):
+    def quantize(self, oprec, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `quantize` function defined in Quantizer")
 
-    def scale(self, ft, prec):
+    def scale(self, prec, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `scale` function defined in Quantizer")
@@ -880,6 +880,18 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `list_supported_features` " + \
             "function defined in Quantizer")
+
+
+class UniformSymmetricQuantizer(Quantizer):
+    def quantize(self, oprec, **kwargs):
+        pass
+
+    def scale(self, oprec, **kwargs):
+        pass
+
+    @staticmethod
+    def list_supported_features():
+        return ["absmax"]
 
 
 class AbsmaxLayerQuantizer(Quantizer):
@@ -911,3 +923,17 @@ class UniformAffineQuantizer(Quantizer):
 #----------------------------
 # Module quantize interfaces
 #----------------------------
+
+def quantize_sym(sym, oprec, oscale, **kwargs):
+    params = kwargs["params"]
+    if is_params(sym, params):
+        return quantize_wt(sym, oprec, **kwargs)
+    return quantize_nwt(sym, oprec, **kwargs)
+
+def quantize_wt(sym, oprec, oscale, **kwargs):
+    logger = logging.getLogger("log.mrt.quantize")
+    params = kwargs["params"]
+
+def quantize_nwt(sym, oprec, oscale, **kwargs):
+    pass
+
