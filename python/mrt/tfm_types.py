@@ -23,19 +23,19 @@ _NONETYPE_NAME = "_NoneType"
 # Feature Types Definition
 #----------------------------
 
-FT_REG = {
-    # "absmax": AbsmaxFeature,
-    # "minmax": MinMaxFeature,
+INFO_REG = {
+    # "us": UniformSymmetricInfo,
+    # "ua": UniformAffineInfo,
 }
 
-def register_feature(name):
-    def _wrapper(feature):
-        feature.name = name
-        if name in FT_REG:
+def register_info(name):
+    def _wrapper(info):
+        info.name = name
+        if name in INFO_REG:
             raise NameError(
-                "Feature" + name + " has been registered")
-        FT_REG[name] = feature
-        return feature
+                "QuantInfo" + name + " has been registered")
+        INFO_REG[name] = info
+        return info
     return _wrapper
 
 
@@ -88,6 +88,8 @@ class QuantInfo:
             " base `get_feature` function defined in QuantInfo")
 
     def set_buf(self, p, sc=None):
+        """ Set scale or zero point for symbol before quantization
+        """
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `set_buf` function defined in QuantInfo")
@@ -118,21 +120,25 @@ class QuantInfo:
     def sample(out):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `sample` function defined in Feature")
+            " base `sample` function defined in QuantInfo")
 
 
-@register_featrue("uniform_symmetric_quant")
+@register_featrue("us")
 class UniformSymmetricInfo(QuantInfo):
     """ Information data type for uniform symmetric quantizaton
     """
     def __init__(self, absmax):
         self.absmax = None
+        self.sc = 1
 
     def set_feature(self, *args):
         self.absmax = args[0]
 
     def get_feature(self):
         return self.absmax
+
+    def get_range(self):
+        return get_feature()
 
     def set_buf(self, p, sc=None):
         self.sc = (2**(p-1)-1) / self.absmax \
@@ -144,7 +150,7 @@ class UniformSymmetricInfo(QuantInfo):
     def _quantize_parameter(self, sym, p, sc=None, **kwargs):
         return W, wp, wsc
 
-    def _quantize_operator(self, sym, p, **kwargs):
+    def _quantize_operator(self, sym, p, sc=None, **kwargs):
         return X, xp, xsc
 
     @staticmethod
@@ -152,7 +158,7 @@ class UniformSymmetricInfo(QuantInfo):
         return [out.abs().max().asscalar()]
 
 
-@register_feature("uniform affine info")
+@register_feature("ua")
 class UniformAffineInfo(QuantInfo):
     """ Information data type for uniform affine quantizaton
     """
@@ -168,8 +174,12 @@ class UniformAffineInfo(QuantInfo):
     def get_feature(self):
         return self.minv, self.maxv
 
+    def get_range(self):
+        return self.maxv - self.minv
+
     def set_buf(self, p):
-        self.sc = (2**p-1) / (self.maxv-self.minv)
+        self.sc = (2**p-1) / (self.maxv-self.minv) \
+            if sc is None else sc
         self.zp = math.ceil(self.sc * self.minv)
 
     def get_buf(self):
@@ -466,63 +476,6 @@ class KLDOptimizor(Optimizor):
 @register_optimizor("or")
 class OROptimizor(Optimizor):
     pass
-
-#----------------------------
-# Quantizer Types Definition
-#----------------------------
-
-QUANT_REG = {
-    # "usq": UniformSymmetricQuantizer,
-    # "uaq": UniformAffineQuantizer,
-    # "usgq": UniformSymmetricGroupQuantizer,
-}
-
-DEFAULT_QUANT_TYPE = "usq"
-
-DEFAULT_QUANTIZER = UniformSymmetricQuantizer()
-
-QUANT_INSTANCES = {
-    DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
-    # "uaq": UniformAffineQuantizer(),
-    # "usgq": UniformSymmetricGroupQuantizer(),
-}
-
-def register_quantizer(name):
-    def _wrapper(quantizer):
-        quantizer.name = name
-        if name in QUANT_REG:
-            raise NameError(
-                "Quantizer" + name + " has been registered")
-        QUANT_REG[name] = quantizer
-        return quantizer
-    return _wrapper
-
-
-class Quantizer:
-
-    def _quantize_symbol(self, sym, p, bf, **kwargs):
-        if sutils.is_params(sym, kwargs["params"]):
-            return self._quantize_parameter(sym, p, bf, **kwargs)
-        return self._quantize_operator(sym, p, bf, **kwargs)
-
-    def _quantize_parameter(self, sym, p, bf, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_parameter` function " + \
-            "defined in Quantizer")
-
-    def _quantize_operator(self, sym, p, bf, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_opoerator` function " + \
-            "defined in Quantizer")
-
-    @staticmethod
-    def list_supported_features():
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `list_supported_features` " + \
-            "function defined in Quantizer")
 
 #----------------------------
 # Module main2 interfaces
