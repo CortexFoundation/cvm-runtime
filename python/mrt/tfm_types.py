@@ -13,15 +13,18 @@ import json
 
 from mrt import sym_utils as sutils
 
+_NULL_NAME = "_NULL_NAME_"
+_RES_NAME = "_RES_"
+_NONETYPE = type(None)
+_NONETYPE_NAME = "_NoneType"
+
 #----------------------------
 # Feature Types Definition
 #----------------------------
 
 FT_REG = {
-    # "absmax": AbsmaxLayerFeature,
-    # "absmax_ch": AbsmaxChannelFeature,
-    # "minmax": MinMaxLayerFeature,
-    # "minmax_ch": MinMaxChannelFeature,
+    # "absmax": AbsmaxFeature,
+    # "minmax": MinMaxFeature,
 }
 
 def register_feature(name):
@@ -78,9 +81,15 @@ class Feature:
             "Derived " + self.name + " feature not override the" + \
             " base `get_feature` function defined in Feature")
 
+    @staticmethod
+    def sample(out):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `sample` function defined in Feature")
+
 
 @register_featrue("absmax")
-class AbsmaxLayerFeature(Feature):
+class AbsmaxFeature(Feature):
     """ Feature for symmetric layer-wise granularity
     """
     def __init__(self, absmax):
@@ -89,20 +98,13 @@ class AbsmaxLayerFeature(Feature):
     def get_feature(self):
         return self.absmax
 
-
-@register_feature("absmax_ch")
-class AbsmaxChannelFeature(Feature):
-    """ Feature for symmetric channel-wise granularity
-    """
-    def __init__(self, absmax):
-        self.absmax = absmax
-
-    def get_feature(self):
-        return self.absmax
+    @staticmethod
+    def sample(out):
+        return [out.abs().max().asscalar()]
 
 
 @register_feature("minmax")
-class MinMaxLayerFeature(Feature):
+class MinMaxFeature(Feature):
     """ Feature for zero point layer-wise granularity
     """
     def __init__(self, minv, maxv):
@@ -112,22 +114,13 @@ class MinMaxLayerFeature(Feature):
     def get_feature(self):
         return self.minv, self.maxv
 
-@register_feature("minmax_ch")
-class MinMaxChannelFeature(Feature):
-    """ Feature for zero point channel-wise granularity
-    """
-    def __init__(self, minv, maxv):
-        self.minv = maxv
-        self.maxv = maxv
-
-    def get_feature(self):
-        return self.minv, self.maxv
+    @staticmethod
+    def sample(out):
+        return [out.max().asscalar(), out.min().asscalar()]
 
 #----------------------------
 # Optimizor Registration
 #----------------------------
-
-_NoneType = type(None)
 
 OPT_REG = {
     # "hv": AbsmaxLayerOptimizor,
@@ -249,7 +242,7 @@ class HVOptimizor(Optimizor):
 
     @staticmethod
     def list_attr_types():
-        return {"lambd": [_NoneType, float]}
+        return {"lambd": [_NONETYPE, float]}
 
 
 @register_optimizor("ma")
@@ -291,11 +284,12 @@ class MAOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_features():
-        return ["absmax", "absmax_ch", "minmax", "minmax_ch"]
+        return ["absmax", "minmax"]
 
     @staticmethod
     def list_attr_types():
         return {"c": [float]}
+
 
 @register_optimizor("kld")
 class KLDOptimizor(Optimizor):
@@ -407,135 +401,17 @@ class OROptimizor(Optimizor):
     pass
 
 #----------------------------
-# Sampler Registration
-#----------------------------
-
-SMP_REG = {
-    # "absmax": AbsmaxLayerSampler,
-    # "absmax_ch": AbsmaxChannelSampler,
-    # "minmax": MinMaxLayerSampler,
-    # "minmax_ch": MinMaxChannelSampler,
-}
-
-DEFAULT_SMP_INFO = ("absmax")
-
-DEFAULT_SAMPLER = AbsmaxLayerSampler()
-
-SMP_INSTANCES = {
-    DEFAULT_SMP_INFO: DEFAULT_SAMPLER,
-    # ("absmax"): AbsmaxLayerSampler(),
-    # ("absmax_ch", "ich", 1): AbsmaxChannelSampler(),
-    # ("absmax_ch", "ich", 2): AbsmaxChannelSampler(ich=2),
-}
-
-def register_sampler(name):
-    def _wrapper(sampler):
-        sampler.name = name
-        if name in FT_REG:
-            raise NameError(
-                "Sampler" + name + " has been registered")
-        SMP_REG[name] = sampler
-        return sampler
-    return _wrapper
-
-
-class Sampler:
-    name = None
-
-    def __init__(self, **attrs):
-        for attr, value in attrs.items():
-            setattr(self, attr, value)
-
-    def sample(self, out):
-        raise NotImplementedError(
-            "Derived " + self.name + " sampler not override the" + \
-            " base `sample` function defined in Sampler")
-
-    @staticmethod
-    def list_supported_features():
-        raise NotImplementedError(
-            "Derived " + self.name + " sampler not override the" + \
-            " base `list_supported_features` function defined in Sampler")
-
-    @staticmethod
-    def list_attr_types():
-        return {}
-
-
-@register_sampler("absmax")
-class AbsmaxLayerSampler(Sampler):
-    """ Sampler for symmetric layer-wise granularity
-    """
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-
-    def sample(self, out):
-        return out.abs().max().asscalar()
-
-
-@register_sampler("absmax_ch")
-class AbsmaxChannelSampler(Sampler):
-    """ Sampler for symmetric channel-wise granularity
-    """
-    ich = 1 # Optimizor parameter, the axis id of channel
-
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-
-    def sample(self, out):
-        return out.abs().max(axis=self.ich).asscalar()
-
-    @staticmethod
-    def list_attr_types():
-        return {"ich": [int]}
-
-
-@register_sampler("minmax")
-class MinMaxLayerSampler(Sampler):
-    """ Sampler for zero_point channel-wise granularity
-    """
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-
-    def sample(self, out):
-        return out.max().asscalar(), out.min().asscalar()
-
-
-@register_sampler("minmax_ch")
-class MinMaxChannelSampler(Sampler):
-    """ Sampler for zero_point channel-wise granularity
-    """
-    ich = 1 # Optimizor parameter, the axis id of channel
-
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-
-    def sample(self, out):
-        return out.max(axis=self.ich).asscalar(), \
-            out.min(axis=self.ich).asscalar()
-
-    @staticmethod
-    def list_attr_types():
-        return {"ich": [int]}
-
-#----------------------------
 # Module calbrate interfaces
 #----------------------------
 
-def sample(out, cfg_info={}, name="not specified", **kwargs):
+def sample(out, ft_type, opt_info, **kwargs):
     """ Interface for MRT calibration Sampling
     """
-    ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
-    smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
-    opt_info = cfg_info.get("opt_info", DEFAULT_OPT_INFO)
     if not isinstance(out, nd.NDArray):
-        raise TypeError(
-            "Unsupported data type: %s" % \
-            (type(out), name))
-    sample = SMP_INSTANCES[smp_type].sample(out)
-    ft = FT_REG[ft_type](**sample)
-    opt = OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
-    return opt
+        raise TypeError("Unsupported data type: %s" % type(out))
+    smp = FT_REG[ft_type].sample(out)
+    ft = FT_REG[ft_type](**smp)
+    return OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
 
 def sym_calibrate_gen(symbol, params, data, **kwargs):
     """ Customized graph-level topo pass definition.
@@ -579,9 +455,9 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
         out = [out] if len(op) == 1 else out
         out_cache[name] = [o.as_in_context(ctx) for o in out]
         hft = ft_dict[name] if name in ft_dict else None
-        ft_dict[name] = sample(
-            out[0], cfg_info=kwargs["cfg_dict"][name],
-            name=name, hft=hft)
+        ft_type = cfg_dict[name].get("ft_type")
+        opt_info = cfg_dict[name].get("opt_info")
+        ft_dict[name] = sample(out[0], ft_type, opt_info, hft=hft)
 
     sutils.topo_visit_transformer(
         symbol, nparams, _impl, logger=logger,
@@ -593,8 +469,6 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
 #----------------------------
 # Module main2 interfaces
 #----------------------------
-
-_RES_NAME = "_RES_"
 
 def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     """ Customized graph-level topo pass definition.
@@ -631,11 +505,6 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
         for name in [n for n in names if n not in keys]:
             cfg_dict[name] = cfg_info
 
-    def _extract_attr(info):
-        if not info:
-            return {}
-        return {v[i]: v[i+1] for i in range(0, len(info), 2)}
-
     def _sym_config_infos(sym, params, **kwargs):
         name = sym.attr("name")
         cfg_info = cfg_dict.get(name, {})
@@ -644,22 +513,16 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
         # feature
         ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
 
-        # sampler
-        smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
-        smp_type = smp_info[0]
-        if smp_info not in SMP_INSTANCES:
-            smp_attrs = _extract_attr(smp_info[1:])
-            SMP_INSTANCES[smp_info] = SMP_REG[smp_type](**smp_attrs)
-
         # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
         opt_type = opt_info[0]
         if opt_info not in OPT_INSTANCES:
-            opt_attrs = _extract_attr(opt_info[1:])
+            opt_attrs = {} if len(opt_info) == 1 else \
+                {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
             OPT_INSTANCES[opt_info] = OPT_REG[opt_type](**opt_attrs)
 
         cfg_dict[name] = cfg_info if cfg_info else \
-            {"ft_type": ft_type, "smp_info": smp_info, "opt_info", opt_info}
+            {"ft_type": ft_type, "smp_type": smp_type, "opt_info", opt_info}
 
     sutils.topo_visit_transformer(
         symbol, params, _sym_config_infos, **kwargs)
@@ -670,11 +533,6 @@ def deserialize(val_dict):
 
         Check the validity and compatibility of feature, sampler and optimizor configurations.
     """
-
-    def _extract_attr(info):
-        if not info:
-            return {}
-        return {v[i]: v[i+1] for i in range(0, len(info), 2)}
 
     cfg_dict = {}
     for val, names in val_dict.items():
@@ -688,39 +546,6 @@ def deserialize(val_dict):
                 "Unsupported feature type: %s, names: %s" % \
                 (ft_type, names))
 
-        # sampler
-        smp_info = cfg_info.get("smp_info", DEFAULT_SMP_INFO)
-        smp_type = smp_info[0]
-        if smp_type not in SMP_REG:
-            raise TypeError(
-                "Unsupported sampler type: %s, names: %s" % \
-                (smp_type, names))
-        if ft_type not in SMP_REG[smp_type].list_supported_features():
-            raise ValueError(
-                "Feature type: (%s) is not supported by " + \
-                "sampler type: (%s), names: %s" % \
-                (ft_type, smp_type, names))
-        smp_attrs = _extract_attr(smp_info[1:])
-        smp_attr_types = SMP_REG[smp_type].list_attr_types()
-        for k, v in smp_attr.items():
-            if k not in smp_attr_types:
-                raise ValueError(
-                    "Attribute: (%s) is not found in " + \
-                    "sampler type: (%s), names: %s" % \
-                    (k, smp_type, names))
-            dtypes = smp_attr_types[k]
-            if isinstance(v, int) and float in dtypes and int not in dtypes:
-                v = float(v)
-            elif v == "_NoneType":
-                v = None
-            for dtype in [k]:
-            if not any([isinstance(v, dtype) for dtype in dtypes]):
-                raise TypeError(
-                    "Attribute: (%s) dtype: (%s) is not compatible " + \
-                    "with any of supported dtypes: (%s), names: %s, " + \
-                    "sampler type: %s" % \
-                    (k, type(v), dtypes, names, smp_type))
-
         # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
         opt_type = opt_info[0]
@@ -733,7 +558,8 @@ def deserialize(val_dict):
                 "Feature type: (%s) is not supported by " + \
                 "optimizor type: (%s), names: %s" % \
                 (ft_type, opt_type, names))
-        opt_attrs = _extract_attr(opt_info[1:])
+        opt_attrs = {} if len(opt_info) == 1 else \
+            {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
         for k, v in opt_attr.items():
             if k not in opt_attr_types:
@@ -744,7 +570,7 @@ def deserialize(val_dict):
             dtypes = opt_attr_types[k]
             if isinstance(v, int) and float in dtypes and int not in dtypes:
                 v = float(v)
-            elif v == "_NoneType":
+            elif v == _NONETYPE_NAME:
                 v = None
             for dtype in [k]:
             if not any([isinstance(v, dtype) for dtype in dtypes]):
@@ -937,9 +763,7 @@ class UniformSymmetricGroupQuantizer(UniformSymmetricQuantizer):
 # Module quantize interfaces
 #----------------------------
 
-def quantize_symbol(symbol, oprec, **kwargs):
-    quant_type = \
-        kwargs["cfg_dict"][symbol.attr("name")].get_attr("quant_type")
+def quantize_symbol(symbol, oprec, quant_type, **kwargs):
     return QUANT_INSTANCES[quant_type].quantize(
         symbol, oprec, **kwargs)
 
