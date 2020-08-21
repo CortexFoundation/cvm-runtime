@@ -20,26 +20,26 @@ _NONETYPE = type(None)
 _NONETYPE_NAME = "_NoneType"
 
 #----------------------------
-# Feature Types Definition
+# Quant Info Types Definition
 #----------------------------
 
-INFO_REG = {
-    # "us": UniformSymmetricInfo,
-    # "ua": UniformAffineInfo,
+QUANT_REG = {
+    # "UniformSymmetric": UniformSymmetricQuantizer,
+    # "UniformAffine": UniformAffineQuantizer,
 }
 
-def register_info(name):
-    def _wrapper(info):
-        info.name = name
-        if name in INFO_REG:
+def register_quant(name):
+    def _wrapper(quantizer):
+        quantizer.name = name
+        if name in QUANT_REG:
             raise NameError(
                 "QuantInfo" + name + " has been registered")
-        INFO_REG[name] = info
-        return info
+        QUANT_REG[name] = quantizer
+        return quantizer
     return _wrapper
 
 
-class QuantInfo:
+class Quantizer:
     """
         out -> features
 
@@ -79,25 +79,30 @@ class QuantInfo:
 
     def set_feature(self, *args):
         raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `set_feature` function defined in QuantInfo")
+            "Derived " + self.name + " not override the" + \
+            " base `set_feature` function defined in Quant")
 
     def get_feature(self):
         raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `get_feature` function defined in QuantInfo")
+            "Derived " + self.name + " not override the" + \
+            " base `get_feature` function defined in Quant")
+
+    def get_range_length(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " not override the" + \
+            " base `get_range_length` function defined in Quant")
 
     def set_buf(self, p, sc=None):
         """ Set scale or zero point for symbol before quantization
         """
         raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `set_buf` function defined in QuantInfo")
+            "Derived " + self.name + " not override the" + \
+            " base `set_buf` function defined in Quant")
 
     def get_buf(self):
         raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `get_buf` function defined in QuantInfo")
+            "Derived " + self.name + " not override the" + \
+            " base `get_buf` function defined in Quant")
 
     def quantize(self, sym, p, sc=None, **kwargs):
         if sutils.is_params(sym, kwargs["params"]):
@@ -106,25 +111,25 @@ class QuantInfo:
 
     def _quantize_parameter(self, sym, p, sc=None, **kwargs):
         raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
+            "Derived " + self.name + " not override the" + \
             " base `_quantize_parameter` function " + \
-            "defined in QuantInfo")
+            "defined in Quant")
 
     def _quantize_operator(self, sym, p, sc=None, **kwargs):
         raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
+            "Derived " + self.name + " not override the" + \
             " base `_quantize_opoerator` function " + \
-            "defined in QuantInfo")
+            "defined in Quant")
 
     @staticmethod
     def sample(out):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `sample` function defined in QuantInfo")
+            " base `sample` function defined in Quant")
 
 
-@register_featrue("us")
-class UniformSymmetricInfo(QuantInfo):
+@register_quant("UniformSymmetric")
+class UniformSymmetricInfo(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
     def __init__(self, absmax):
@@ -137,11 +142,11 @@ class UniformSymmetricInfo(QuantInfo):
     def get_feature(self):
         return self.absmax
 
-    def get_range(self):
-        return get_feature()
+    def get_range_length(self):
+        return self.get_feature()
 
     def set_buf(self, p, sc=None):
-        self.sc = (2**(p-1)-1) / self.absmax \
+        self.sc = (2**(p-1)-1) / self.get_range_length() \
             if sc is None else sc
 
     def get_buf(self):
@@ -158,8 +163,8 @@ class UniformSymmetricInfo(QuantInfo):
         return [out.abs().max().asscalar()]
 
 
-@register_feature("ua")
-class UniformAffineInfo(QuantInfo):
+@register_quant("UniformAffine")
+class UniformAffineInfo(Quantizer):
     """ Information data type for uniform affine quantizaton
     """
     def __init__(self):
@@ -174,11 +179,11 @@ class UniformAffineInfo(QuantInfo):
     def get_feature(self):
         return self.minv, self.maxv
 
-    def get_range(self):
+    def get_range_length(self):
         return self.maxv - self.minv
 
     def set_buf(self, p):
-        self.sc = (2**p-1) / (self.maxv-self.minv) \
+        self.sc = (2**p-1) / self.get_range_length() \
             if sc is None else sc
         self.zp = math.ceil(self.sc * self.minv)
 
@@ -195,26 +200,24 @@ class UniformAffineInfo(QuantInfo):
     def sample(out):
         return [out.max().asscalar(), out.min().asscalar()]
 
+DEFAULT_QUANT_TYPE = "UniformSymmetic"
+
 #----------------------------
 # Optimizor Registration
 #----------------------------
 
 OPT_REG = {
-    # "hv": AbsmaxLayerOptimizor,
-    # "ma": MovingAverageOptimizor,
-    # "kld": KLDivergenceOptimizor,
-    # "or": OutlierRemovalOptimizor,
+    # "HistoricalValue": HistoricalValueOptimizor,
+    # "MovingAverage": MovingAverageOptimizor,
+    # "KLDivergence": KLDivergenceOptimizor,
+    # "OutlierRemoval": OutlierRemovalOptimizor,
 }
-
-DEFAULT_OPT_INFO = ("hv", "lambd", None)
-
-DEFAULT_OPTIMIZOR = HVOptimizor()
 
 OPT_INSTANCES = {
     DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
-    # ("hv", "lambd", 25): HVOptimizor(lambd=25),
-    # ("ma","c", 0.01): MAOptimizor(),
-    # ("kld", "eps", 0.05)
+    # ("HistoricalValue", "lambd", 25): HVOptimizor(lambd=25),
+    # ("MovingAverage","c", 0.01): MAOptimizor(),
+    # ("KLDivergence", "eps", 0.05)
 }
 
 def register_optimizor(name):
@@ -253,18 +256,18 @@ class Optimizor:
             " base `get_opt` function defined in Optimizor")
 
     @staticmethod
-    def list_supported_features():
+    def list_supported():
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
-            " base `list_supported_features` function defined in Optimizor")
+            " base `list_supported` function defined in Optimizor")
 
     @staticmethod
     def list_attr_types():
         return {}
 
 
-@register_optimizor("hv")
-class HVOptimizor(Optimizor):
+@register_optimizor("HistoricalValue")
+class HistoricalValueOptimizor(Optimizor):
     """ Generalized historical value optimizor
     """
     lambd = None # hyperparameter for fine tuning
@@ -314,16 +317,16 @@ class HVOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_features():
-        return ["absmax", "absmax_ch", "minmax", "minmax_ch"]
+    def list_supported():
+        return ["UniformSymmetric", "UniformAffine"]
 
     @staticmethod
     def list_attr_types():
         return {"lambd": [_NONETYPE, float]}
 
 
-@register_optimizor("ma")
-class MAOptimizor(Optimizor):
+@register_optimizor("MovingAverage")
+class MovingAverageOptimizor(Optimizor):
     """ Generalized moving average optimizor
     """
     c = 0.01 # hyperparameter for moving average
@@ -360,7 +363,7 @@ class MAOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_features():
+    def list_supported():
         return ["absmax", "minmax"]
 
     @staticmethod
@@ -368,8 +371,8 @@ class MAOptimizor(Optimizor):
         return {"c": [float]}
 
 
-@register_optimizor("kld")
-class KLDOptimizor(Optimizor):
+@register_optimizor("KLDivergence")
+class KLDivergenceOptimizor(Optimizor):
     """ KL divergence optimizor for AbsmaxLayerFeature
     """
     # Optimizor parameter for kl divergence
@@ -465,7 +468,7 @@ class KLDOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_features():
+    def list_supported():
         return ["absmax"]
 
     @staticmethod
@@ -473,9 +476,12 @@ class KLDOptimizor(Optimizor):
         return {"bucket_bit": [int], "quant_bit": [int], "eps": [float]}
 
 
-@register_optimizor("or")
-class OROptimizor(Optimizor):
+@register_optimizor("OutlierRemoval")
+class OutlierRemovalOptimizor(Optimizor):
     pass
+
+DEFAULT_OPT_INFO = ("HistoricalValue", "lambd", None)
+DEFAULT_OPTIMIZOR = HistooricalValueOptimizor()
 
 #----------------------------
 # Module main2 interfaces
@@ -549,12 +555,12 @@ def deserialize(val_dict):
         val = val if val else "{}"
         cfg_info = json.loads(val)
 
-        # feature
-        ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
-        if ft_type not in FT_REG:
+        # quantization type
+        quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
+        if quant_type not in QUANT_REG:
             raise TypeError(
                 "Unsupported feature type: %s, names: %s" % \
-                (ft_type, names))
+                (quant_type, names))
 
         # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
@@ -563,11 +569,11 @@ def deserialize(val_dict):
             raise TypeError(
                 "Unsupported optimizor type: %s, names: %s" % \
                 (opt_type, names))
-        if ft_type not in OPT_REG[opt_type].list_supported_features():
+        if quant_type not in OPT_REG[opt_type].list_supported():
             raise ValueError(
-                "Feature type: (%s) is not supported by " + \
+                "Quant type: (%s) is not supported by " + \
                 "optimizor type: (%s), names: %s" % \
-                (ft_type, opt_type, names))
+                (quant_type, opt_type, names))
         opt_attrs = {} if len(opt_info) == 1 else \
             {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
@@ -596,13 +602,14 @@ def deserialize(val_dict):
 # Module calibrate interfaces
 #----------------------------
 
-def sample(out, ft_type, opt_info, **kwargs):
+def sample(out, quant, opt_info, **kwargs):
     """ Interface for MRT generalized calibration Sampling
     """
     if not isinstance(out, nd.NDArray):
         raise TypeError("Unsupported data type: %s" % type(out))
-    smp = FT_REG[ft_type].sample(out)
-    ft = FT_REG[ft_type](**smp)
+    smp = QUANT_REG[quant.type].sample(out)
+    quant.set_feature(**smp)
+    quant = QUANT_REG[quant_type](**smp)
     return OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
 
 def sym_calibrate_gen(symbol, params, data, **kwargs):
