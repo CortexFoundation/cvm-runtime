@@ -12,6 +12,7 @@ import numpy as np
 import json
 
 from mrt import sym_utils as sutils
+from mrt.tfm_base import N
 
 _NULL_NAME = "_NULL_NAME_"
 _RES_NAME = "_RES_"
@@ -38,7 +39,7 @@ def register_feature(name):
     return _wrapper
 
 
-class Feature:
+class QuantInfo:
     """
         out -> features
 
@@ -76,10 +77,42 @@ class Feature:
     """
     name = None
 
+    def set_feature(self, *args):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `set_feature` function defined in QuantInfo")
+
     def get_feature(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `get_feature` function defined in Feature")
+            " base `get_feature` function defined in QuantInfo")
+
+    def set_buf(self, p, sc=None):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `set_buf` function defined in QuantInfo")
+
+    def get_buf(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `get_buf` function defined in QuantInfo")
+
+    def quantize(self, sym, p, sc=None, **kwargs):
+        if sutils.is_params(sym, kwargs["params"]):
+            return self._quantize_parameter(sym, p, sc=sc, **kwargs)
+        return self._quantize_operator(sym, p, sc=sc, **kwargs)
+
+    def _quantize_parameter(self, sym, p, sc=None, **kwargs):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_parameter` function " + \
+            "defined in QuantInfo")
+
+    def _quantize_operator(self, sym, p, sc=None, **kwargs):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_opoerator` function " + \
+            "defined in QuantInfo")
 
     @staticmethod
     def sample(out):
@@ -88,31 +121,65 @@ class Feature:
             " base `sample` function defined in Feature")
 
 
-@register_featrue("absmax")
-class AbsmaxFeature(Feature):
-    """ Feature for symmetric layer-wise granularity
+@register_featrue("uniform_symmetric_quant")
+class UniformSymmetricInfo(QuantInfo):
+    """ Information data type for uniform symmetric quantizaton
     """
     def __init__(self, absmax):
-        self.absmax = absmax
+        self.absmax = None
+
+    def set_feature(self, *args):
+        self.absmax = args[0]
 
     def get_feature(self):
         return self.absmax
+
+    def set_buf(self, p, sc=None):
+        self.sc = (2**(p-1)-1) / self.absmax \
+            if sc is None else sc
+
+    def get_buf(self):
+        return self.sc
+
+    def _quantize_parameter(self, sym, p, sc=None, **kwargs):
+        return W, wp, wsc
+
+    def _quantize_operator(self, sym, p, **kwargs):
+        return X, xp, xsc
 
     @staticmethod
     def sample(out):
         return [out.abs().max().asscalar()]
 
 
-@register_feature("minmax")
-class MinMaxFeature(Feature):
-    """ Feature for zero point layer-wise granularity
+@register_feature("uniform affine info")
+class UniformAffineInfo(QuantInfo):
+    """ Information data type for uniform affine quantizaton
     """
-    def __init__(self, minv, maxv):
-        self.minv = maxv
-        self.maxv = maxv
+    def __init__(self):
+        self.minv = None
+        self.maxv = None
+        self.sc = 1
+        self.zp = 0
+
+    def set_feature(self, *args):
+        self.minv, self.maxv = args[0], args[1]
 
     def get_feature(self):
         return self.minv, self.maxv
+
+    def set_buf(self, p):
+        self.sc = (2**p-1) / (self.maxv-self.minv)
+        self.zp = math.ceil(self.sc * self.minv)
+
+    def get_buf(self):
+        return self.sc, self.zp
+
+    def _quantize_parameter(self, sym, p, **kwargs):
+        return W, wp, wsc
+
+    def _quantize_operator(self, sym, p, **kwargs):
+        return X, xp, xsc
 
     @staticmethod
     def sample(out):
@@ -401,70 +468,61 @@ class OROptimizor(Optimizor):
     pass
 
 #----------------------------
-# Module calbrate interfaces
+# Quantizer Types Definition
 #----------------------------
 
-def sample(out, ft_type, opt_info, **kwargs):
-    """ Interface for MRT calibration Sampling
-    """
-    if not isinstance(out, nd.NDArray):
-        raise TypeError("Unsupported data type: %s" % type(out))
-    smp = FT_REG[ft_type].sample(out)
-    ft = FT_REG[ft_type](**smp)
-    return OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
+QUANT_REG = {
+    # "usq": UniformSymmetricQuantizer,
+    # "uaq": UniformAffineQuantizer,
+    # "usgq": UniformSymmetricGroupQuantizer,
+}
 
-def sym_calibrate_gen(symbol, params, data, **kwargs):
-    """ Customized graph-level topo pass definition.
+DEFAULT_QUANT_TYPE = "usq"
 
-        Generalized MRT calibration framework pass.
-    """
-    # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
-    logger = logging.getLogger('log.mrt')
-    _, deps = sutils.topo_sort(
-        symbol, logger=logger, with_deps=True)
-    ft_dict, out_cache = {}, {}
-    ctx = kwargs.get('ctx', mx.cpu())
-    logger.info("calibrate model outputs")
-    nparams = convert_params_dtype(
-        params, src_dtypes="float64", dest_dtype="float32")
+DEFAULT_QUANTIZER = UniformSymmetricQuantizer()
 
-    def _impl(op, params, graph, **kwargs):
-        deps, old_ths = kwargs['deps'], kwargs['old_ths']
-        logger = logging.getLogger('log.mrt.calibrate')
-        name, op_name = op.attr('name'), op.attr('op_name')
-        childs, attr = sutils.sym_iter(
-            op.get_children()), op.list_attr()
-        if op_name == 'null':
-            out = data if is_inputs(op, params) else params[name]
-        elif childs is None:
-            out = get_nd_op(op_name)(**attr)
-        else:
-            cinfos = [(c.attr('name'), get_entry_id(c)) for c in childs]
-            nd_inputs = [out_cache[n[0]][n[1]] for n in cinfos]
-            out = get_nd_op(op_name)(*nd_inputs, **attr)
-            for n, _ in cinfos:
-                assert n in deps
-                if name not in deps[n]:
-                    # for op like: op = broadcast_mul(X, X)
-                    # `cinfos` will have duplicate entries
-                    # avoid removing more than once
-                    continue
-                deps[n].remove(name)
-                if len(deps[n]) == 0:
-                    del out_cache[n]
-        out = [out] if len(op) == 1 else out
-        out_cache[name] = [o.as_in_context(ctx) for o in out]
-        hft = ft_dict[name] if name in ft_dict else None
-        ft_type = cfg_dict[name].get("ft_type")
-        opt_info = cfg_dict[name].get("opt_info")
-        ft_dict[name] = sample(out[0], ft_type, opt_info, hft=hft)
+QUANT_INSTANCES = {
+    DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
+    # "uaq": UniformAffineQuantizer(),
+    # "usgq": UniformSymmetricGroupQuantizer(),
+}
 
-    sutils.topo_visit_transformer(
-        symbol, nparams, _impl, logger=logger,
-        deps=deps, data=data, **kwargs)
-    out_cache.clear()
+def register_quantizer(name):
+    def _wrapper(quantizer):
+        quantizer.name = name
+        if name in QUANT_REG:
+            raise NameError(
+                "Quantizer" + name + " has been registered")
+        QUANT_REG[name] = quantizer
+        return quantizer
+    return _wrapper
 
-    return ft_dict
+
+class Quantizer:
+
+    def _quantize_symbol(self, sym, p, bf, **kwargs):
+        if sutils.is_params(sym, kwargs["params"]):
+            return self._quantize_parameter(sym, p, bf, **kwargs)
+        return self._quantize_operator(sym, p, bf, **kwargs)
+
+    def _quantize_parameter(self, sym, p, bf, **kwargs):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_parameter` function " + \
+            "defined in Quantizer")
+
+    def _quantize_operator(self, sym, p, bf, **kwargs):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_opoerator` function " + \
+            "defined in Quantizer")
+
+    @staticmethod
+    def list_supported_features():
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `list_supported_features` " + \
+            "function defined in Quantizer")
 
 #----------------------------
 # Module main2 interfaces
@@ -478,7 +536,6 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
 
         Use it just before calibration.
     """
-
     names = set()
 
     def _collect_names(symbol, params):
@@ -580,190 +637,165 @@ def deserialize(val_dict):
                     "optimizor type: %s" % \
                     (k, type(v), dtypes, names, opt_type))
 
-        for name in names:
-            if name in cfg_dict:
-                raise ValueError(
-                    "Duplicate name: %s, parsed value: %s" % \
-                    (name, val))
-            cfg_dict[name] = cfg_info
-
     return cfg_dict
 
 #----------------------------
-# Quantized Buffer Definition
+# Module calibrate interfaces
 #----------------------------
 
-BUF_REG = {
-    # "symmetric": SymmetricBuf,
-    # "affine": AffineBuf,
-}
-
-def register_buf(name):
-    def _wrapper(buf):
-        buf.name = name
-        if name in BUF_REG:
-            raise NameError(
-                "Buf" + name + " has been registered")
-        BUF_REG[name] = buf
-        return buf
-    return _wrapper
-
-
-class Buf:
-    name = None
-
-    def get_buf(self):
-        raise NotImplementedError(
-            "Derived " + self.name + " buf not override the" + \
-            " base `get_buf` function defined in Buf")
-
-
-@register_buf("symmetric")
-class SymmetricBuf(Buf):
-    def __init__(self, sc):
-        self.sc = sc
-
-    def get_buf(self):
-        return self.sc
-
-
-@register_buf("affine")
-class AffineBuf(Buf):
-    def __init__(self, sc, zp):
-        self.sc, self.zp = sc, zp
-
-    def get_buf(self):
-        return self.sc, self.zp
-
-#----------------------------
-# Quantizer Types Definition
-#----------------------------
-
-QUANT_REG = {
-    # "usq": UniformSymmetricQuantizer,
-    # "uaq": UniformAffineQuantizer,
-    # "usgq": UniformSymmetricGroupQuantizer,
-}
-
-DEFAULT_QUANT_TYPE = "usq"
-
-DEFAULT_QUANTIZER = UniformSymmetricQuantizer()
-
-QUANT_INSTANCES = {
-    DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
-    # "uaq": UniformAffineQuantizer(),
-    # "usgq": UniformSymmetricGroupQuantizer(),
-}
-
-def register_quantizer(name):
-    def _wrapper(quantizer):
-        quantizer.name = name
-        if name in QUANT_REG:
-            raise NameError(
-                "Quantizer" + name + " has been registered")
-        QUANT_REG[name] = quantizer
-        return quantizer
-    return _wrapper
-
-
-class Quantizer:
-    def quantize(self, oprec, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `quantize` function defined in Quantizer")
-
-    def _quantize_symbol(self, symbol, oprec, buf, **kwargs):
-        if sutils.is_params(symbol, kwargs["params"]):
-            return self._quantize_parameter(symbol, oprec, buf, **kwargs)
-        return self._quantize_operator(symbol, oprec, buf, **kwargs)
-
-    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_parameter` function " + \
-            "defined in Quantizer")
-
-    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_opoerator` function " + \
-            "defined in Quantizer")
-
-    @staticmethod
-    def list_supported_features():
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `list_supported_features` " + \
-            "function defined in Quantizer")
-
-
-@register_quantizer("usq")
-class UniformSymmetricQuantizer(Quantizer):
-    """ Uniform symmetric quantizer
+def sample(out, ft_type, opt_info, **kwargs):
+    """ Interface for MRT generalized calibration Sampling
     """
-    def quantize(self, symbol, oprec, **kwargs):
-        absmax = kwargs["ft_dict"][symbol.attr("name")].get_feature()
-        sc = (2**(oprec-1)-1) / absmax
-        buf = SymmetricBuf(sc)
-        return self._quantize_symbol(symbol, oprec, buf, **kwargs)
+    if not isinstance(out, nd.NDArray):
+        raise TypeError("Unsupported data type: %s" % type(out))
+    smp = FT_REG[ft_type].sample(out)
+    ft = FT_REG[ft_type](**smp)
+    return OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
 
-    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
-        return W, wprec, wscale
+def sym_calibrate_gen(symbol, params, data, **kwargs):
+    """ Customized graph-level topo pass definition.
 
-    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
-        return X, xprec, xscale
-
-    @staticmethod
-    def list_supported_features():
-        return ["absmax"]
-
-
-@register_quantizer("uaq")
-class UniformAffineQuantizer(Quantizer):
-    """ Uniform affine quantizer
+        Generalized MRT calibration framework pass.
     """
-    def quantize(self, symbol, oprec, **kwargs):
-        minv, maxv = \
-            kwargs["ft_dict"][symbol.attr("name")].get_feature()
-        sc, zp = (2**oprec-1) / (maxv-minv), math.ceil(sc*minv)
-        buf = AffineBuf(sc, zp)
-        return self._quantize_symbol(symbol, oprec, buf, **kwargs)
+    # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
+    logger = logging.getLogger('log.mrt')
+    _, deps = sutils.topo_sort(
+        symbol, logger=logger, with_deps=True)
+    features, out_cache = {}, {}
+    ctx = kwargs.get('ctx', mx.cpu())
+    logger.info("calibrate model outputs")
+    nparams = convert_params_dtype(
+        params, src_dtypes="float64", dest_dtype="float32")
 
-    def _quantize_parameter(self, symbol, oprec, buf, **kwargs):
-        return W, wprec, wscale
+    def _impl(op, params, graph, **kwargs):
+        deps, old_ths = kwargs['deps'], kwargs['old_ths']
+        logger = logging.getLogger('log.mrt.calibrate')
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sutils.sym_iter(
+            op.get_children()), op.list_attr()
+        if op_name == 'null':
+            out = data if is_inputs(op, params) else params[name]
+        elif childs is None:
+            out = get_nd_op(op_name)(**attr)
+        else:
+            cinfos = [(c.attr('name'), get_entry_id(c)) for c in childs]
+            nd_inputs = [out_cache[n[0]][n[1]] for n in cinfos]
+            out = get_nd_op(op_name)(*nd_inputs, **attr)
+            for n, _ in cinfos:
+                assert n in deps
+                if name not in deps[n]:
+                    # for op like: op = broadcast_mul(X, X)
+                    # `cinfos` will have duplicate entries
+                    # avoid removing more than once
+                    continue
+                deps[n].remove(name)
+                if len(deps[n]) == 0:
+                    del out_cache[n]
+        out = [out] if len(op) == 1 else out
+        out_cache[name] = [o.as_in_context(ctx) for o in out]
+        hft = features[name] if name in features else None
+        ft_type = cfg_dict[name].get("ft_type")
+        opt_info = cfg_dict[name].get("opt_info")
+        features[name] = sample(out[0], ft_type, opt_info, hft=hft)
 
-    def _quantize_operator(self, symbol, oprec, buf, **kwargs):
-        return X, xprec, xscale
+    sutils.topo_visit_transformer(
+        symbol, nparams, _impl, logger=logger,
+        deps=deps, data=data, **kwargs)
+    out_cache.clear()
 
-    @staticmethod
-    def list_supported_features():
-        return ["minmax"]
-
-
-@register_quantizer("usgq")
-class UniformSymmetricGroupQuantizer(UniformSymmetricQuantizer):
-    """ Uniform symmetric group quantizer
-    """
-    def quantize(self, symbol, oprec, **kwargs):
-        absmax = max([kwargs["ft_dict"[sym.attr("name")].get_feature() \
-            for sym in sutils.sym_iter(symbol)])
-        sc = (2**(oprec-1)-1) / absmax
-        buf = SymmetricBuf(sc)
-
-        Xs, xprecs, xscales = [], [], []
-        for sym in sutils.sym_iter(symbol):
-            X, xprec, xscale = \
-                self._quantize_symbol(sym, oprec, buf, **kwargs)
-            Xs.append(X)
-            xprecs.append(xprec)
-            xscales.append(xscale)
-        return Xs, xprecs, xscales
+    return features
 
 #----------------------------
 # Module quantize interfaces
 #----------------------------
 
-def quantize_symbol(symbol, oprec, quant_type, **kwargs):
-    return QUANT_INSTANCES[quant_type].quantize(
-        symbol, oprec, **kwargs)
+@N.register_nm("quantize")
+def sym_quantize_gen(
+    symbol, params, features, precs, buffers, op_input_precs,
+    restore_names, shift_bits, softmax_lambd):
+    """ Customized graph-level topo pass definition.
 
+        Generalized MRT quantization framework pass.
+    """
+    infer_shapes = infer_shape(symbol, params)
+
+    def restore(op, **kwargs):
+        features, precs, buffers = \
+            kwargs['features'], kwargs['precs'], kwargs['buffers']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+
+        childs = [] if childs is None else childs
+
+        buffers[c.attr("name")].get_scale()
+        new_childs = [c / scales[c.attr('name')] \
+            if scales.get(c.attr('name'), 1) != 1 else c \
+                     for c in childs]
+
+        out = get_mxnet_op(op_name)(*new_childs, **attr, name=name)
+        precs[name][OUT_KEY] = get_bit(th_dict[name])
+        scales[name] = 1
+
+        return out
+
+    def _quant(op, **kwargs):
+        op = apply_pass("quantize",
+            infer_shapes=kwargs['infer_shapes'],
+            th_dict=kwargs['th_dict'],
+        )(op, **kwargs) if op.attr('name') not in restore_names \
+            else restore(op, **kwargs)
+
+        if is_var(op, kwargs['params']):
+            return op
+
+        name = op.attr('name')
+        th_dict, scales = kwargs['th_dict'], kwargs['scales']
+        precs = kwargs['precs']
+        th = th_dict[name]
+        scale = scales[name]
+        tight_prec = get_bit(th_dict[name] * scales[name])
+        if precs[name][OUT_KEY] > tight_prec:
+            op = mx.sym.Custom(op, precision=tight_prec,
+                    name=N.n('clip'), op_type='cvm_clip')
+            clip_name = op.attr('name')
+            infer_shapes[clip_name] = infer_shapes[name]
+            th_dict[clip_name] = th_dict[name]
+            precs[clip_name] = { OUT_KEY: tight_prec }
+            scales[clip_name] = scales[name]
+            if name in precs and name in precs[name]:
+                oprec = precs[name][name]
+                del precs[name][name]
+                precs[clip_name][clip_name] = oprec
+
+        return op
+
+    sym, params = topo_visit_transformer(symbol, params,
+            _quant,
+            infer_shapes=infer_shapes, th_dict=th_dict,
+            precs=precs, scales=scales,
+            op_input_precs=op_input_precs,
+            shift_bits=shift_bits,
+            softmax_lambd=softmax_lambd)
+
+    def quantize_output(op, **kwargs):
+        name = op.attr('name')
+        th_dict = kwargs['th_dict']
+        precs, scales = kwargs['precs'], kwargs['scales']
+
+        # Requantize output symbol
+        if name in precs and name in precs[name]:
+            oprec = precs[name][name]
+            os = scale(th_dict[name], oprec)
+            op, oprec, os = requant(op, oprec, os, oname=name, **kwargs)
+
+            oname = op.attr('name')
+            th_dict[oname] = th_dict[name]
+            precs[oname] = oprec
+            scales[oname] = os
+        return op
+
+    return topo_visit_transformer(sym, params,
+            quantize_output, th_dict=th_dict,
+            precs=precs, scales=scales,
+            shift_bits=shift_bits,
+            softmax_lambd=softmax_lambd)

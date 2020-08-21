@@ -72,6 +72,8 @@ Xr = \frac{Xq + zp_{x}}{sc_{x}}
 \tag{Zero-point Re-quantization}
 $$
 
+Re-quantization is elaborated in operator expansion, see [NN Operator Expansion](#nn-operator-expansion), [Broadcast Operator Expansion](#broadcast-operator-expansiono), [Elemwise Operator Expansion](#elemwise-operator-expansion), [Transform Operator Expansion](#transform-operator-expansion).
+
 ### Granularity
 
 MRT Support both layer-wise and channel-wise quantization. Channel wise quantization is implemented by graph-level channel split and channel merge. 
@@ -104,7 +106,7 @@ X = \text{concat}\Big( \big[Xi, \forall i \in [0, C) \big], \text{dim=ich} \Big)
 \tag{concat}
 $$
 
-### NN Operator Expansion Formalization
+### NN Operator Expansion
 
 #### Convolution
 
@@ -438,7 +440,7 @@ infer_prec = max(infer_prec1, infer_prec2, infer_prec3, infer_prec4) + 2
 
 use [Merge Quantize](#merge-quantize).
 
-### Broadcast Operator Expansion
+### Elemwise Operator Expansion
 
 #### elemwise_add
 
