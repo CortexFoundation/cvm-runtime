@@ -117,6 +117,10 @@ class MMFeature(Feature):
         return self.minv, self.maxv
 
 #----------------------------
+# Buffer Data Types
+#----------------------------
+
+#----------------------------
 # Quantizer Types Definition
 #----------------------------
 
@@ -158,32 +162,24 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_bit` function defined in Quantizer")
 
-    def quantize(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
-        if sutils.is_params(sym, params):
-            return self._quantize_parameter(
-                sym, params, oprec, features, oscale=oscale, logger=logger)
-        return self._quantize_operator(
-            sym, params, oprec, features, oscale=oscale, logger=logger)
+    def quantize(self, sym, oprec, oscale=None, **kwargs):
+        if sutils.is_params(sym, kwargs["params"]):
+            return self._quantize_parameter(sym, oprec, oscale=oscale, **kwargs)
+        return self._quantize_operator(sym, oprec, oscale=oscale, **kwargs)
 
-    def _quantize_parameter(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
+    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_parameter` function " + \
             "defined in Quantizer")
 
-    def _quantize_operator(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
+    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_opoerator` function " + \
             "defined in Quantizer")
 
-    def int_realize(self, data, prec, logger=logging):
+    def int_realize(self, data, prec, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `int_realize` function " + \
@@ -214,10 +210,9 @@ class USquantizer(Quantizer):
             data = data.abs().max().asscalar()
         return math.ceil(math.log2(math.fabs(data)+1)) + 1
 
-    def _quantize_parameter(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
-
+    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
+        logger = logging.getLogger("log.mrt.realize")
+        params, features = kwargs["params"], kwargs["features"]
         wn = sym.attr("name")
         wqn = N.n(wname)
 
@@ -238,13 +233,16 @@ class USquantizer(Quantizer):
         Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return Wq, oprec, oscale
 
-    def _quantize_operator(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
+    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
+        logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
+        params, features = kwargs["params"], kwargs["features"]
+        oscale = self.get_buffer(oprec, feature, oscale=oscale)
 
         return Xq, oprec, oscale
 
-    def int_realize(self, data, prec, logger=logging):
+    def int_realize(self, data, prec, **kwargs):
+        logger = kwargs.get("logger", logging)
+
         out = data.round()
         lower, upper = self.get_range(oprec)
         if out.abs().max() > upper:
@@ -281,10 +279,9 @@ class UAQuantizer(Quantizer):
         assert data > 0
         return math.ceil(math.log2(math.data+1))
 
-    def _quantize_parameter(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
-
+    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
+        logger = logging.getLogger("log.mrt.realize")
+        params, features = kwargs["params"], kwargs["features"]
         wn = sym.attr("name")
         wqn = N.n(wname)
 
@@ -302,13 +299,14 @@ class UAQuantizer(Quantizer):
         Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return Wq, oprec, oscale
 
-    def _quantize_operator(
-        self, sym, params, oprec, features, oscale=None,
-        logger=logging.getLogger("log.mrt.realize")):
-
+    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
+        logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
+        params, features = kwargs["params"], kwargs["features"]
         return Xq, oprec, oscale
 
-    def int_realize(self, data, prec, logger=logging):
+    def int_realize(self, data, prec, **kwargs):
+        logger = kwargs.get("logger", logging)
+
         out = data.round()
         lower, upper = self.ger_range(prec)
         if out.max() > upper and out.min() < lower:
