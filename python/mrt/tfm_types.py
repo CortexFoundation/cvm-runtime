@@ -12,6 +12,7 @@ import numpy as np
 import json
 
 from mrt import sym_utils as sutils
+from mrt import tfm_utils as tutils
 from mrt.tfm_base import N
 
 _NULL_NAME = "_NULL_NAME_"
@@ -20,26 +21,25 @@ _NONETYPE = type(None)
 _NONETYPE_NAME = "_NoneType"
 
 #----------------------------
-# Feature Types Definition
+# Feature Data Types
 #----------------------------
 
-INFO_REG = {
-    # "us": UniformSymmetricInfo,
-    # "ua": UniformAffineInfo,
+FT_REG = {
+    # "a": AFeature,
+    # "mm": MMFeature,
 }
 
-def register_info(name):
-    def _wrapper(info):
-        info.name = name
-        if name in INFO_REG:
-            raise NameError(
-                "QuantInfo" + name + " has been registered")
-        INFO_REG[name] = info
-        return info
+def register_feature(name):
+    def _wrapper(feature):
+        feature.name = name
+        if name in FT_REG:
+            raise NameError("Feature" + name + " has been registered")
+        FT_REG[name] = feature
+        return feature
     return _wrapper
 
 
-class QuantInfo:
+class Feature:
     """
         out -> features
 
@@ -77,59 +77,26 @@ class QuantInfo:
     """
     name = None
 
+    def __init__(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `__init__` function defined in Feature")
+
     def set_feature(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `set_feature` function defined in QuantInfo")
+            " base `set_feature` function defined in Feature")
 
     def get_feature(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `get_feature` function defined in QuantInfo")
-
-    def set_buf(self, p, sc=None):
-        """ Set scale or zero point for symbol before quantization
-        """
-        raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `set_buf` function defined in QuantInfo")
-
-    def get_buf(self):
-        raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `get_buf` function defined in QuantInfo")
-
-    def quantize(self, sym, p, sc=None, **kwargs):
-        if sutils.is_params(sym, kwargs["params"]):
-            return self._quantize_parameter(sym, p, sc=sc, **kwargs)
-        return self._quantize_operator(sym, p, sc=sc, **kwargs)
-
-    def _quantize_parameter(self, sym, p, sc=None, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_parameter` function " + \
-            "defined in QuantInfo")
-
-    def _quantize_operator(self, sym, p, sc=None, **kwargs):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `_quantize_opoerator` function " + \
-            "defined in QuantInfo")
-
-    @staticmethod
-    def sample(out):
-        raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `sample` function defined in QuantInfo")
+            " base `get_feature` function defined in Feature")
 
 
-@register_featrue("us")
-class UniformSymmetricInfo(QuantInfo):
-    """ Information data type for uniform symmetric quantizaton
-    """
-    def __init__(self, absmax):
+@register_feature("a")
+class AFeature(Feature):
+    def __init__(self):
         self.absmax = None
-        self.sc = 1
 
     def set_feature(self, *args):
         self.absmax = args[0]
@@ -137,36 +104,11 @@ class UniformSymmetricInfo(QuantInfo):
     def get_feature(self):
         return self.absmax
 
-    def get_range(self):
-        return get_feature()
 
-    def set_buf(self, p, sc=None):
-        self.sc = (2**(p-1)-1) / self.absmax \
-            if sc is None else sc
-
-    def get_buf(self):
-        return self.sc
-
-    def _quantize_parameter(self, sym, p, sc=None, **kwargs):
-        return W, wp, wsc
-
-    def _quantize_operator(self, sym, p, sc=None, **kwargs):
-        return X, xp, xsc
-
-    @staticmethod
-    def sample(out):
-        return [out.abs().max().asscalar()]
-
-
-@register_feature("ua")
-class UniformAffineInfo(QuantInfo):
-    """ Information data type for uniform affine quantizaton
-    """
+@register_feature("mm")
+class MMFeature(Feature):
     def __init__(self):
-        self.minv = None
-        self.maxv = None
-        self.sc = 1
-        self.zp = 0
+        self.minv, self.maxv = None, None
 
     def set_feature(self, *args):
         self.minv, self.maxv = args[0], args[1]
@@ -174,26 +116,215 @@ class UniformAffineInfo(QuantInfo):
     def get_feature(self):
         return self.minv, self.maxv
 
-    def get_range(self):
-        return self.maxv - self.minv
+#----------------------------
+# Quantizer Types Definition
+#----------------------------
 
-    def set_buf(self, p):
-        self.sc = (2**p-1) / (self.maxv-self.minv) \
-            if sc is None else sc
-        self.zp = math.ceil(self.sc * self.minv)
+QUANT_REG = {
+    # "us": USQuantizer,
+    # "ua": UAQuantizer,
+}
 
-    def get_buf(self):
-        return self.sc, self.zp
+def register_quantizer(name):
+    def _wrapper(quantizer):
+        quantizer.name = name
+        if name in QUANT_REG:
+            raise NameError("Quantizer" + name + " has been registered")
+        QUANT_REG[name] = quantizer
+        return quantizer
+    return _wrapper
 
-    def _quantize_parameter(self, sym, p, **kwargs):
-        return W, wp, wsc
 
-    def _quantize_operator(self, sym, p, **kwargs):
-        return X, xp, xsc
+class Quantizer:
+    name = None
 
-    @staticmethod
-    def sample(out):
-        return [out.max().asscalar(), out.min().asscalar()]
+    def sample(self, data):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `sample` function defined in Quantizer")
+
+    def get_range(self, prec):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `get_range` function defined in Quantizer")
+
+    def get_buffer(self, oprec, feature, oscale=None):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `get_buffer` function defined in Quantizer")
+
+    def get_prec(self, data):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `get_bit` function defined in Quantizer")
+
+    def quantize(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+        if sutils.is_params(sym, params):
+            return self._quantize_parameter(
+                sym, params, oprec, features, oscale=oscale, logger=logger)
+        return self._quantize_operator(
+            sym, params, oprec, features, oscale=oscale, logger=logger)
+
+    def _quantize_parameter(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_parameter` function " + \
+            "defined in Quantizer")
+
+    def _quantize_operator(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `_quantize_opoerator` function " + \
+            "defined in Quantizer")
+
+    def int_realize(self, data, prec, logger=logging):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `int_realize` function " + \
+            "defined in Quantizer")
+
+
+@register_quantizer("us")
+class USquantizer(Quantizer):
+    """ Information data type for uniform symmetric quantizaton
+    """
+    def sample(self, data):
+        return data.abs().max().asscalar()
+
+    def get_range(self, prec):
+        mrange = 2**(prec-1) - 1
+        return -mrange, mrange
+
+    def get_buffer(self, oprec, feature, oscale=None):
+        assert isinstance(feature, AFeature)
+        absmax = feature.get_feature()
+        assert absmax > 0
+        oscale = oscale if oscale is None \
+            self.get_range(oprec)[1] / absmax
+        return oscale
+
+    def get_prec(self, data):
+        if isinstance(data, nd.NDArray):
+            data = data.abs().max().asscalar()
+        return math.ceil(math.log2(math.fabs(data)+1)) + 1
+
+    def _quantize_parameter(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+
+        wn = sym.attr("name")
+        wqn = N.n(wname)
+
+        assert wn in features
+        feature = features[wn]
+        assert isinstance(feature, AFeature)
+        absmax = feature.get_feature()
+        if absmax == 0:
+            oprec, oscale = 1, 1 if oscale is None else oscale
+            params[wqn] = sutils.nd_zeros(params[wn].shape)
+        else:
+            oscale = self.get_buffer(oprec, feature, oscale=oscale)
+            params[wqn], oprec = self.int_realize(
+                params[wn]*oscale, oprec, logger=logger)
+        attr = {"precision": str(oprec)}
+        # TODO: CVM precision update
+        # attr = {"precision": "int"+str(oprec)}
+        Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
+        return Wq, oprec, oscale
+
+    def _quantize_operator(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+
+        return Xq, oprec, oscale
+
+    def int_realize(self, data, prec, logger=logging):
+        out = data.round()
+        lower, upper = self.get_range(oprec)
+        if out.abs().max() > upper:
+            logger.warn(
+                "quant out of range int%d with data=<%s,%s>",
+                prec, out.max().asnumpy(), out.min().asnumpy())
+        out = out.clip(a_min=lower, a_max=upper)
+        return out, self.get_prec(out)
+
+
+@register_quantizer("ua")
+class UAQuantizer(Quantizer):
+    """ Information data type for uniform affine quantizaton
+    """
+    def sample(self, data):
+        return data.min().asscalar(), data.max().asscalar()
+
+    def get_range(self, prec):
+        mrange = 2**prec - 1
+        return 0, mrange
+
+    def get_buffer(self, oprec, feature, oscale=None):
+        assert isinstance(feature, MMFeature)
+        minv, maxv = feature.get_feature()
+        assert minv < maxv
+        oscale = oscale if oscale is None else \
+            self.ger_range(oprec)[1] / (maxv - minv)
+        zpoint = math.ceil(oscale*minv)
+        return oscale, zpoint
+
+    def get_prec(self, data):
+        if isinstance(data, nd.NDArray):
+            data = data.max().asscalar()
+        assert data > 0
+        return math.ceil(math.log2(math.data+1))
+
+    def _quantize_parameter(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+
+        wn = sym.attr("name")
+        wqn = N.n(wname)
+
+        assert wn in features
+        feature = features[wn]
+        assert isinstance(feature, MMFeature)
+        minv, maxv = feature.ger_feature()
+        assert maxv > minv
+        oscale, zpoint = self.get_buffer(oprec, feature)
+        params[wqn], oprec = self.int_realize(
+            params[wn]*oscale, oprec, logger=logger) - zpoint
+        attr = {"precision": str(oprec)}
+        # TODO: CVM precision update
+        # attr = {"precision": "uint"+str(oprec)}
+        Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
+        return Wq, oprec, oscale
+
+    def _quantize_operator(
+        self, sym, params, oprec, features, oscale=None,
+        logger=logging.getLogger("log.mrt.realize")):
+
+        return Xq, oprec, oscale
+
+    def int_realize(self, data, prec, logger=logging):
+        out = data.round()
+        lower, upper = self.ger_range(prec)
+        if out.max() > upper and out.min() < lower:
+            logger.warn(
+                "quant out of range int%d with data=<%s,%s>",
+                prec, out.max().asnumpy(), out.min().asnumpy())
+        out = out.clip(a_min=lower, a_max=upper)
+        return out, self.get_prec(out)
+
+DEFAULT_QUANT_TYPE = "us"
+DEFAULT_QUANTIZER = USQuantizer()
+
+OPT_INSTANCES = {
+    DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
+    # "ua": UAQuantizer(),
+}
 
 #----------------------------
 # Optimizor Registration
@@ -204,17 +335,6 @@ OPT_REG = {
     # "ma": MovingAverageOptimizor,
     # "kld": KLDivergenceOptimizor,
     # "or": OutlierRemovalOptimizor,
-}
-
-DEFAULT_OPT_INFO = ("hv", "lambd", None)
-
-DEFAULT_OPTIMIZOR = HVOptimizor()
-
-OPT_INSTANCES = {
-    DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
-    # ("hv", "lambd", 25): HVOptimizor(lambd=25),
-    # ("ma","c", 0.01): MAOptimizor(),
-    # ("kld", "eps", 0.05)
 }
 
 def register_optimizor(name):
@@ -476,6 +596,16 @@ class KLDOptimizor(Optimizor):
 @register_optimizor("or")
 class OROptimizor(Optimizor):
     pass
+
+DEFAULT_OPT_INFO = ("hv", "lambd", None)
+DEFAULT_OPTIMIZOR = HVOptimizor()
+
+OPT_INSTANCES = {
+    DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
+    # ("hv", "lambd", 25): HVOptimizor(lambd=25),
+    # ("ma","c", 0.01): MAOptimizor(),
+    # ("kld", "eps", 0.05)
+}
 
 #----------------------------
 # Module main2 interfaces
