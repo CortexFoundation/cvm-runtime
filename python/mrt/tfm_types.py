@@ -13,7 +13,8 @@ import json
 
 from mrt import sym_utils as sutils
 from mrt import tfm_utils as tutils
-from mrt.tfm_base import N
+from mrt import sim_quant_helper as sim
+from mrt.tfm_base import N, MAX_BIT
 
 _NULL_NAME = "_NULL_NAME_"
 _RES_NAME = "_RES_"
@@ -21,7 +22,7 @@ _NONETYPE = type(None)
 _NONETYPE_NAME = "_NoneType"
 
 #----------------------------
-# Feature Data Types
+# Feature Types Definition
 #----------------------------
 
 FT_REG = {
@@ -30,12 +31,12 @@ FT_REG = {
 }
 
 def register_feature(name):
-    def _wrapper(feature):
-        feature.name = name
+    def _wrapper(ft):
+        ft.name = name
         if name in FT_REG:
             raise NameError("Feature" + name + " has been registered")
-        FT_REG[name] = feature
-        return feature
+        FT_REG[name] = ft
+        return ft
     return _wrapper
 
 
@@ -82,12 +83,12 @@ class Feature:
             "Derived " + self.name + " feature not override the" + \
             " base `__init__` function defined in Feature")
 
-    def set_feature(self, *args):
+    def set(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `set_feature` function defined in Feature")
 
-    def get_feature(self):
+    def get(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `get_feature` function defined in Feature")
@@ -95,30 +96,112 @@ class Feature:
 
 @register_feature("a")
 class AFeature(Feature):
+    """ Absmax Feature
+    """
     def __init__(self):
         self.absmax = None
 
-    def set_feature(self, *args):
+    def set(self, *args):
+        assert len(args) == 1
         self.absmax = args[0]
 
-    def get_feature(self):
+    def get(self):
         return self.absmax
 
 
 @register_feature("mm")
 class MMFeature(Feature):
+    """ Min and Max Feature
+    """
     def __init__(self):
         self.minv, self.maxv = None, None
 
-    def set_feature(self, *args):
+    def set(self, *args):
+        assert len(args) == 2
         self.minv, self.maxv = args[0], args[1]
 
-    def get_feature(self):
+    def get(self):
         return self.minv, self.maxv
 
 #----------------------------
-# Buffer Data Types
+# Buffer Types Definition
 #----------------------------
+
+BUF_REG = {
+    # "s": SBuffer,
+    # "sz": SZBuffer,
+}
+
+def register_buffer(name):
+    def _wrapper(buf):
+        buf.name = name
+        if name in BUF_REG:
+            raise NameError("Buffer" + name + " has been registered")
+        BUF_REG[name] = buf
+        return buf
+    return _wrapper
+
+
+class Buffer:
+    name = None
+
+    def __init__(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " buffer not override the" + \
+            " base `__init__` function defined in Buffer")
+
+    def set(self, *args):
+        raise NotImplementedError(
+            "Derived " + self.name + " buffer not override the" + \
+            " base `set_buffer` function defined in Buffer")
+
+    def get(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " buffer not override the" + \
+            " base `get_buffer` function defined in Buffer")
+
+
+@register_buffer("s")
+class SBuffer(Buffer):
+    """ Scale Point Buffer
+    """
+    def __init__(self):
+        self.scale = None
+
+    def set(self, *args):\
+        assert len(args) == 1
+        self.scale = args[0]
+
+    def get(self):
+        return self.scale
+
+
+@register_buffer("sz")
+class SZBuffer(Buffer):
+    """ Scale and Zero Point Buffer
+    """
+    def __init__(self):
+        self.scale, self.zpoint = None, None
+
+    def set(self, *args):
+        assert len(args) == 2
+        self.scale, self.zpoint = args[0], args[1]
+
+    def get(self):
+        return self.scale, self.zpoint
+
+
+@register_buffer("s")
+class SBuffer(Buffer):
+    def __init__(self):
+        self.scale = None
+
+    def set(self, *args):
+        assert len(args) == 1
+        self.scale = args[0]
+
+    def get(self):
+        return self.scale
 
 #----------------------------
 # Quantizer Types Definition
@@ -152,7 +235,7 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_range` function defined in Quantizer")
 
-    def get_buffer(self, oprec, feature, oscale=None):
+    def get_buffer(self, oprec, ft):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_buffer` function defined in Quantizer")
@@ -167,13 +250,13 @@ class Quantizer:
             return self._quantize_parameter(sym, oprec, oscale=oscale, **kwargs)
         return self._quantize_operator(sym, oprec, oscale=oscale, **kwargs)
 
-    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_parameter` function " + \
             "defined in Quantizer")
 
-    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_opoerator` function " + \
@@ -197,12 +280,9 @@ class USquantizer(Quantizer):
         mrange = 2**(prec-1) - 1
         return -mrange, mrange
 
-    def get_buffer(self, oprec, feature, oscale=None):
-        assert isinstance(feature, AFeature)
-        absmax = feature.get_feature()
-        assert absmax > 0
-        oscale = oscale if oscale is None \
-            self.get_range(oprec)[1] / absmax
+    def get_buffer(self, oprec, ft):
+        absmax = ft.get()
+        oscale = self.get_range(oprec)[1] / absmax
         return oscale
 
     def get_prec(self, data):
@@ -210,21 +290,22 @@ class USquantizer(Quantizer):
             data = data.abs().max().asscalar()
         return math.ceil(math.log2(math.fabs(data)+1)) + 1
 
-    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
+        """ Symmetric Quantization of weight (real value)
+        """
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
-        wn = sym.attr("name")
-        wqn = N.n(wname)
+        wn = W.attr("name")
+        wqn = N.n(wn)
 
-        assert wn in features
-        feature = features[wn]
-        assert isinstance(feature, AFeature)
-        absmax = feature.get_feature()
+        ft = features[wn]
+        absmax = ft.get()
+
         if absmax == 0:
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self.get_buffer(oprec, feature, oscale=oscale)
+            oscale = self.get_buffer(oprec, ft) if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
         attr = {"precision": str(oprec)}
@@ -233,10 +314,57 @@ class USquantizer(Quantizer):
         Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return Wq, oprec, oscale
 
-    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
+        """ Symmetric Quantization of symbol expansion (int value)
+        """
         logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
         params, features = kwargs["params"], kwargs["features"]
-        oscale = self.get_buffer(oprec, feature, oscale=oscale)
+        precs, buffers = kwargs["precs"], kwargs["buffers"]
+        graph, shift_bits = kwargs["graph"], kwargs["shift_bits"]
+        xn, xopn = X.attr("name"), X.attr("op_name")
+        xqn = N.n(xn)
+
+        iscale, iprec = buffers[xn].get(), precs[xn]
+        ft = features[wn]
+        absmax = ft.get()
+        if absmax == 0:
+            return X, 1, 1 if oscale is None else oscale
+        oscale = self.get_buffer(oprec, ft) if oscale is None else oscale
+
+        sb = iprec - oprec
+        if sb > shift_bits:
+            iprec -= sb
+            Xq = tutils.realize(X, sb, iprec)
+            iscale = iscale / (2**sb)
+
+        if oscale is not None or iprec > oprec:
+            rescale = oscale / iscale
+            bits = MAX_BIT - iprec
+            frac, exp = sim.cvm_float(rescale, bits)
+            sim_scale = frac * (2**exp)
+            scale_err = abs((sim_scale - rescale) / rescale)
+            if scale_err > 0.001:
+                logger.warn(
+                    "Operator  %-20s name=%-40s quantize with sb=%s" +
+                    " scale=%s, error=%s",
+                    xopn, xn, sb, iscale, scale_err)
+            oscale = iscale * frac * (2**exp)
+            if frac > 1:
+                var = sutils.nd_const(frac, graph, params)
+                Xq = mx.sym.broadcast_mul(
+                    Xq, var, name=N.n("mrt_quantize_scale"))
+            oprec = self.get_prec(oscale*absmax)
+            Xq = tutils.realize(Xq, -exp, oprec)
+            logger.debug(
+                "Operator  %-20s name=%-40s requantize" +
+                " with scale=%-16.8f<%d, %d>" +
+                " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
+                xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
+        else:
+            oprec, oscale = iprec, iscale
+            logger.debug(
+                "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
+                xopn, xn, iprec, oprec)
 
         return Xq, oprec, oscale
 
@@ -264,13 +392,14 @@ class UAQuantizer(Quantizer):
         mrange = 2**prec - 1
         return 0, mrange
 
-    def get_buffer(self, oprec, feature, oscale=None):
-        assert isinstance(feature, MMFeature)
-        minv, maxv = feature.get_feature()
-        assert minv < maxv
-        oscale = oscale if oscale is None else \
-            self.ger_range(oprec)[1] / (maxv - minv)
-        zpoint = math.ceil(oscale*minv)
+    def _get_zpoint(self, scale, ft):
+        minv, _ = ft.get()
+        return math.ceil(scale*minv)
+
+    def get_buffer(self, oprec, ft):
+        minv, maxv = ft.get()
+        oscale = self.ger_range(oprec)[1] / (maxv - minv)
+        zpoint = self._get_zpoint(oscale, ft)
         return oscale, zpoint
 
     def get_prec(self, data):
@@ -279,18 +408,16 @@ class UAQuantizer(Quantizer):
         assert data > 0
         return math.ceil(math.log2(math.data+1))
 
-    def _quantize_parameter(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
-        wn = sym.attr("name")
-        wqn = N.n(wname)
+        wn = W.attr("name")
+        wqn = N.n(wn)
 
-        assert wn in features
-        feature = features[wn]
-        assert isinstance(feature, MMFeature)
-        minv, maxv = feature.ger_feature()
-        assert maxv > minv
-        oscale, zpoint = self.get_buffer(oprec, feature)
+        ft = features[wn]
+        minv, maxv = ft.get()
+        oscale, zpoint = self.get_buffer(oprec, ft) if oscale is None \
+            else oscale, self._get_zpoint(oscale, ft)
         params[wqn], oprec = self.int_realize(
             params[wn]*oscale, oprec, logger=logger) - zpoint
         attr = {"precision": str(oprec)}
@@ -299,9 +426,52 @@ class UAQuantizer(Quantizer):
         Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return Wq, oprec, oscale
 
-    def _quantize_operator(self, sym, oprec, oscale=None, **kwargs):
+    def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
         params, features = kwargs["params"], kwargs["features"]
+        precs, buffers = kwargs["precs"], kwargs["buffers"]
+        graph, shift_bits = kwargs["graph"], kwargs["shift_bits"]
+        xn, xopn = X.attr("name"), X.attr("op_name")
+        xqn = N.n(xn)
+
+        iscale, iprec = buffers[xn].get(), precs[xn]
+        ft = features[wn]
+        oprec = oprec if oprec < iprec else iprec
+        oscale, zpoint = self.get_buffer(oprec, ft) if oscale is None \
+            else oscale, self._get_zpoint(oscale, ft)
+
+        sb = iprec - oprec
+        if sb > shift_bits:
+            iprec -= sb
+            Xq = tutils.realize(X, sb, iprec)
+            iscale = iscale / (2**sb)
+
+        rescale = oscale / iscale
+        bits = MAX_BIT - iprec
+        frac, exp = sim.cvm_float(rescale, bits)
+        sim_scale = frac * (2**exp)
+        scale_err = abs((sim_scale - rescale) / rescale)
+        if scale_err > 0.001:
+            logger.warn(
+                "Operator  %-20s name=%-40s quantize with sb=%s" +
+                " scale=%s, error=%s",
+                xopn, xn, sb, iscale, scale_err)
+        oscale = iscale * frac * (2**exp)
+        if frac > 1:
+            var = sutils.nd_const(frac, graph, params)
+            Xq = mx.sym.broadcast_mul(
+                Xq, var, name=N.n("mrt_quantize_scale"))
+        Zp = sutils.nd_const(zpoint, graph, params)
+        minv, maxv = ft.get()
+        Xq = tutils.realize(
+            Xq, -exp, USQuantizer().get_prec(oscale*(maxv-minv))) - Zp
+        oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
+        logger.debug(
+            "Operator  %-20s name=%-40s requantize" +
+            " with scale=%-16.8f<%d, %d>" +
+            " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
+            xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
+
         return Xq, oprec, oscale
 
     def int_realize(self, data, prec, **kwargs):
@@ -398,8 +568,8 @@ class HVOptimizor(Optimizor):
             return ft
         if isinstance(ft, AbsmaxLayerFeature):
             # hyperparameter 'lambd' for fine tuning
-            absmax = ft.get_feature()
-            habsmax = hft.get_feature()
+            absmax = ft.get()
+            habsmax = hft.get()
             if self.lambd is not None:
                 mean = nd.mean(out).asscalar()
                 sqrt_n = math.sqrt(np.product(out.shape))
@@ -413,16 +583,16 @@ class HVOptimizor(Optimizor):
               name, out.shape, opt_absmax)
             opt = AbsmaxLayerFeature(opt_absmax)
         elif isinstance(ft, AbsmaxChannelSampler):
-            absmax = ft.get_feature()
-            habsmax = ft.get_feature()
+            absmax = ft.get()
+            habsmax = ft.get()
             opt = AbsmaxChannelFeature(nd.broadcast_maximum(absmax, habsmax))
         elif isinstance(ft, MinMaxLayerFeature):
-            minv, maxv = ft.get_feature()
-            hminv, hmaxv = hft.get_feature()
+            minv, maxv = ft.get()
+            hminv, hmaxv = hft.get()
             opt = MinMaxLayerFeature(min(minv, hminv), max(maxv, hmaxv))
         elif isinstance(ft, MinMaxChannelFeature):
-            minv, maxv = ft.get_feature()
-            hminv, hmaxv = hft.get_feature()
+            minv, maxv = ft.get()
+            hminv, hmaxv = hft.get()
             opt = MinMaxChannelFeature(
                 nd.broadcast_minimum(minv, hminv),
                 nd.broadcast_maximum(maxv, hmaxv))
@@ -453,22 +623,22 @@ class MAOptimizor(Optimizor):
         if hf is None:
             return f
         if isinstance(ft, AbsmaxLayerFeature):
-            absmax = f.get_feature()
-            habsmax = ft.get_feature()
+            absmax = f.get()
+            habsmax = ft.get()
             opt = AbsmaxLayerFeature((1-self.c)*habsmax + self.c*absmax)
         elif isinstance(ft, MinMaxLayerFeature):
-            absmax = ft.get_feature()
-            habsmax = ft.get_feature()
+            absmax = ft.get()
+            habsmax = ft.get()
             opt = AbsmaxChannelFeature((1-self.c)*habsmax + self.c*absmax)
         elif isinstance(ft, MinMaxLayerFeature):
-            minv, maxv = ft.get_feature()
-            hminv, hmaxv = hft.get_feature()
+            minv, maxv = ft.get()
+            hminv, hmaxv = hft.get()
             opt = MinMaxLayerFeature(
                 (1-self.c)*hminv + self.c*minv,
                 (1-self.c)*hmaxv + self.c*maxv)
         elif isinstance(ft, MinMaxChannelFeature):
-            minv, maxv = ft.get_feature()
-            hminv, hmaxv = hft.get_feature()
+            minv, maxv = ft.get()
+            hminv, hmaxv = hft.get()
             opt = MinMaxChannelFeature(
                 (1-self.c)*hminv + self.c*minv,
                 (1-self.c)*hmaxv + self.c*maxv)
@@ -577,9 +747,9 @@ class KLDOptimizor(Optimizor):
                 "KLDOptimizor do not support feature type: %s, " + \
                 "only AbsmaxLayerFeature is supported" % type(f))
 
-        absmax = ft.get_feature()
+        absmax = ft.get()
         kval = self._kldiverge(absmax, out)
-        opt = kval if hft is None else max(kval, hft.get_feature())
+        opt = kval if hft is None else max(kval, hft.get())
         return opt
 
     @staticmethod
