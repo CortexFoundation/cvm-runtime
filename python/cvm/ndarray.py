@@ -13,6 +13,11 @@ class NDArray(NDArrayBase):
         return tuple(self.handle.contents.shape[i] for i in range(self.handle.contents.ndim))
 
     @property
+    def ndim(self):
+        "ndim of this array"
+        return self.handle.contents.ndim
+
+    @property
     def dtype(self):
         """Type of this array"""
         return str(self.handle.contents.dtype)
@@ -53,19 +58,45 @@ class NDArray(NDArrayBase):
             return False
         return self.__hash__() == other.__hash__()
 
-    def __setitem__(self, in_slice, value):
-        """Set ndarray value"""
-        if (not isinstance(in_slice, slice) or
-                in_slice.start is not None
-                or in_slice.stop is not None):
-            raise ValueError('Array only support set from numpy array')
-        if isinstance(value, NDArrayBase):
-            if value.handle is not self.handle:
-                value.copyto(self)
-        elif isinstance(value, (np.ndarray, np.generic)):
-            self.copyfrom(value)
-        else:
-            raise TypeError('type %s not supported' % str(type(value)))
+    def __setitem__(self, key, value):
+        """Set ndarray value
+        Previous: deep copy from value to self.
+        shape of self and value must be the same.
+        
+        Present: set ``self[key] = value``
+        Advanced indexing (like operator ``take``) is supported.
+
+        Parameters
+        ----------
+        key: int, np.array or tuple of ints and np.array-es
+            The length of a tuple must be no longer than self.ndim
+            An array index is used for advanced indexing.
+        value: int or an ndarray like object
+            Shape of ``value`` must match the shape of selected indices.
+        return: self
+        """
+        # if (not isinstance(in_slice, slice) or
+        #         in_slice.start is not None
+        #        or in_slice.stop is not None):
+        #     raise ValueError('Array only support set from numpy array')
+        # if isinstance(value, NDArrayBase):
+        #    if value.handle is not self.handle:
+        #         value.copyto(self)
+        # elif isinstance(value, (np.ndarray, np.generic)):
+        #     self.copyfrom(value)
+        # else:
+        #     raise TypeError('type %s not supported' % str(type(value)))
+        key = indexing_key_expand_implicit_axes(key, self.shape)
+        lk = len(key)
+        if lk != self.ndim:
+            raise RuntimeError(
+                'too {} indices after normalization: expected `ndim` ({}) '
+                'but got {}.'.format('few' if lk < self.ndim else 'many',
+                self.ndim, lk)
+            )
+        use_advanced = use_advanced_indexing(key)
+
+        
 
     def copyfrom(self, source_array):
         """Peform an synchronize copy from the array.
@@ -289,7 +320,6 @@ def indexing_key_expand_implicit_axes(key, shape):
     # `count()` use `==` internally, which doesn't play well with fancy
     # indexing.
     ell_idx = None
-    num_none = 0
     nonell_key = []
 
     axis = 0
@@ -302,7 +332,7 @@ def indexing_key_expand_implicit_axes(key, shape):
             ell_idx = i
         else:
             if idx is None:
-                num_none += 1
+                continue
             elif isinstance(idx, np.ndarray) and idx.dtype == np.bool_:
                 # Necessary size check before using `nonzero`
                 check_boolean_array_dimension(shape, axis, idx.shape)
@@ -321,9 +351,29 @@ def indexing_key_expand_implicit_axes(key, shape):
         # where the ellipsis is implicitly after the last entry.
         ell_idx = len(nonell_key)
 
-    ell_ndim = len(shape) + num_none - len(nonell_key)
+    ell_ndim = len(shape) - len(nonell_key)
     expanded_key = (nonell_key[:ell_idx] +
                     (slice(None),) * ell_ndim +
                     nonell_key[ell_idx:])
 
-    return expanded_key, prepend
+    return expanded_key
+
+def check_boolean_array_dimension(array_shape, axis, bool_shape):
+    """
+    Advanced boolean indexing is implemented through the use of `nonzero`.
+    Size check is necessary to make sure that the boolean array
+    has exactly as many dimensions as it is supposed to work with before the conversion
+    """
+    for i, val in enumerate(bool_shape):
+        if array_shape[axis + i] != val:
+            raise IndexError('boolean index did not match indexed array along axis {};'
+                             ' size is {} but corresponding boolean size is {}'
+                             .format(axis + i, array_shape[axis + i], val))
+
+def use_advanced_indexing(key):
+    for k in key:
+        if isinstance(k, (NDArray, tuple, list, np.array, range)):
+            return True
+        elif not (isinstance(k, (int, np.int, slice)) or np.issubdtype(k, np.integer)):
+            raise ValueError('NDArray doesnot support indexing with type {}'.format(k))
+    return False
