@@ -31,10 +31,10 @@ using cvm::runtime::NDArray;
 typedef std::map<string, NDArray> ParamDict;
 
 CVMByteArray test_save_param_dict(const std::map<string, NDArray>& data) {
-  vector<void*> passed;
+  vector<const void*> passed;
   for (auto it = data.begin(); it != data.end(); ++it) {
-    passed.push_back(const_cast<char*>(it->first.c_str()));
-    passed.push_back(const_cast<DLTensor*>(it->second.operator->()));
+    passed.push_back(it->first.c_str());
+    passed.push_back(it->second.operator->());
   }
   CVMByteArray ret;
   CHECK(CVMSaveParamsDict(&(passed[0]), passed.size(), &ret) == 0)

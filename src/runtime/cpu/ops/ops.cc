@@ -749,7 +749,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.cpu.transpose")
     auto &param = cvm::get<cvm::top::TransposeParam>(attr->parsed);
 
     TShape axes = param.axes;
-    for(uint32_t i = 0; i < axes.ndim(); i++){
+    for(int32_t i = 0; i < axes.ndim(); i++){
         if(axes[i] < 0) axes[i] += x->ndim;
     }
     int32_t *x_data = static_cast<int32_t*>(x->data);
