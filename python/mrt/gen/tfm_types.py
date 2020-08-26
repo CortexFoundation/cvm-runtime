@@ -270,7 +270,7 @@ class Quantizer:
 
 
 @register_quantizer("us")
-class USquantizer(Quantizer):
+class USQuantizer(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
     def sample(self, data):
@@ -462,7 +462,6 @@ class UAQuantizer(Quantizer):
             Xq = mx.sym.broadcast_mul(
                 Xq, var, name=N.n("mrt_quantize_scale"))
         Zp = sutils.nd_const(zpoint, graph, params)
-        minv, maxv = ft.get()
         Xq = tutils.realize(
             Xq, -exp, USQuantizer().get_prec(oscale*(maxv-minv))) - Zp
         oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
