@@ -89,6 +89,8 @@ def get_model(name, ctx=mx.gpu(), **kwargs):
             Name of the model.
         classes : int
             Number of classes for the output layer.
+        ctx : mxnet.context()
+            Devices to get model.
 
         Returns
         -------
