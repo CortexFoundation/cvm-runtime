@@ -26,8 +26,8 @@ _NONETYPE_NAME = "_NoneType"
 #----------------------------
 
 FT_REG = {
-    # "a": AFeature,
-    # "mm": MMFeature,
+    # "absmax": AFeature,
+    # "minmax": MMFeature,
 }
 
 def register_feature(name):
@@ -86,15 +86,15 @@ class Feature:
     def set(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `set_feature` function defined in Feature")
+            " base `set` function defined in Feature")
 
     def get(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
-            " base `get_feature` function defined in Feature")
+            " base `get` function defined in Feature")
 
 
-@register_feature("a")
+@register_feature("absmax")
 class AFeature(Feature):
     """ Absmax Feature
     """
@@ -109,7 +109,7 @@ class AFeature(Feature):
         return self.absmax
 
 
-@register_feature("mm")
+@register_feature("minmax")
 class MMFeature(Feature):
     """ Min and Max Feature
     """
@@ -128,8 +128,8 @@ class MMFeature(Feature):
 #----------------------------
 
 BUF_REG = {
-    # "s": SBuffer,
-    # "sz": SZBuffer,
+    # "scale": SBuffer,
+    # "scale_zpoint": SZBuffer,
 }
 
 def register_buffer(name):
@@ -153,15 +153,15 @@ class Buffer:
     def set(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
-            " base `set_buffer` function defined in Buffer")
+            " base `set` function defined in Buffer")
 
     def get(self):
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
-            " base `get_buffer` function defined in Buffer")
+            " base `get` function defined in Buffer")
 
 
-@register_buffer("s")
+@register_buffer("scale")
 class SBuffer(Buffer):
     """ Scale Point Buffer
     """
@@ -176,7 +176,7 @@ class SBuffer(Buffer):
         return self.scale
 
 
-@register_buffer("sz")
+@register_buffer("scale_zpoint")
 class SZBuffer(Buffer):
     """ Scale and Zero Point Buffer
     """
@@ -190,26 +190,13 @@ class SZBuffer(Buffer):
     def get(self):
         return self.scale, self.zpoint
 
-
-@register_buffer("s")
-class SBuffer(Buffer):
-    def __init__(self):
-        self.scale = None
-
-    def set(self, *args):
-        assert len(args) == 1
-        self.scale = args[0]
-
-    def get(self):
-        return self.scale
-
 #----------------------------
 # Quantizer Types Definition
 #----------------------------
 
 QUANT_REG = {
-    # "us": USQuantizer,
-    # "ua": UAQuantizer,
+    # "uniform_symmetric": USQuantizer,
+    # "uniform_affine": UAQuantizer,
 }
 
 def register_quantizer(name):
@@ -243,7 +230,7 @@ class Quantizer:
     def get_prec(self, data):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
-            " base `get_bit` function defined in Quantizer")
+            " base `get_prec` function defined in Quantizer")
 
     def quantize(self, sym, oprec, oscale=None, **kwargs):
         if sutils.is_params(sym, kwargs["params"]):
@@ -269,12 +256,14 @@ class Quantizer:
             "defined in Quantizer")
 
 
-@register_quantizer("us")
+@register_quantizer("uniform_symmetric")
 class USQuantizer(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
     def sample(self, data):
-        return data.abs().max().asscalar()
+        ft = AFeature()
+        ft.set(data.abs().max().asscalar())
+        return ft
 
     def get_range(self, prec):
         mrange = 2**(prec-1) - 1
@@ -381,12 +370,14 @@ class USQuantizer(Quantizer):
         return out, self.get_prec(out)
 
 
-@register_quantizer("ua")
+@register_quantizer("uniform_affine")
 class UAQuantizer(Quantizer):
     """ Information data type for uniform affine quantizaton
     """
     def sample(self, data):
-        return data.min().asscalar(), data.max().asscalar()
+        ft = MMFeature()
+        ft.set(data.min().asscalar(), data.max().asscalar())
+        return ft
 
     def get_range(self, prec):
         mrange = 2**prec - 1
@@ -485,12 +476,12 @@ class UAQuantizer(Quantizer):
         out = out.clip(a_min=lower, a_max=upper)
         return out, self.get_prec(out)
 
-DEFAULT_QUANT_TYPE = "us"
+DEFAULT_QUANT_TYPE = "uniform_symmetric"
 DEFAULT_QUANTIZER = USQuantizer()
 
-OPT_INSTANCES = {
+QUANT_INSTANCES = {
     DEFAULT_QUANT_TYPE: DEFAULT_QUANTIZER,
-    # "ua": UAQuantizer(),
+    # "uniform_affine": UAQuantizer(),
 }
 
 #----------------------------
@@ -498,10 +489,10 @@ OPT_INSTANCES = {
 #----------------------------
 
 OPT_REG = {
-    # "hv": AbsmaxLayerOptimizor,
-    # "ma": MovingAverageOptimizor,
-    # "kld": KLDivergenceOptimizor,
-    # "or": OutlierRemovalOptimizor,
+    # "historical_value": AbsmaxLayerOptimizor,
+    # "moving_average": MovingAverageOptimizor,
+    # "kl_divergence": KLDivergenceOptimizor,
+    # "outlier_removal": OutlierRemovalOptimizor,
 }
 
 def register_optimizor(name):
@@ -534,7 +525,7 @@ class Optimizor:
         for attr, value in attrs.items():
             setattr(self, attr, value)
 
-    def get_opt(self, ft, out, **kwargs):
+    def get_opt(self, raw_ft, out, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
             " base `get_opt` function defined in Optimizor")
@@ -550,7 +541,7 @@ class Optimizor:
         return {}
 
 
-@register_optimizor("hv")
+@register_optimizor("historical_value")
 class HVOptimizor(Optimizor):
     """ Generalized historical value optimizor
     """
@@ -559,16 +550,17 @@ class HVOptimizor(Optimizor):
     def __init__(self, **attrs):
         super().__init__(**attrs)
 
-    def get_opt(self, ft, out, hft=None, name="[not specified]", **kwargs):
-        logger = kwargs.get(
-            "logger", logging.getLogger("mrt.calibrate.optimize"))
+    def get_opt(self, raw_ft, out, **kwargs):
+        logger = kwargs.get("logger", logging.getLogger("optimize"))
+        hist_ft = kwargs.get("hist_ft", None)
+        name = kwargs.get("name", _NULL_NAME)
 
-        if hft is None:
-            return ft
-        if isinstance(ft, AbsmaxLayerFeature):
+        if hist_ft is None:
+            return raw_ft
+        if isinstance(raw_ft, AbsmaxLayerFeature):
             # hyperparameter 'lambd' for fine tuning
-            absmax = ft.get()
-            habsmax = hft.get()
+            absmax = raw_ft.get()
+            habsmax = hist_ft.get()
             if self.lambd is not None:
                 mean = nd.mean(out).asscalar()
                 sqrt_n = math.sqrt(np.product(out.shape))
@@ -581,17 +573,17 @@ class HVOptimizor(Optimizor):
             p("collect symbol %-40s, out_shape=%-20s, opt: (%s)",
               name, out.shape, opt_absmax)
             opt = AbsmaxLayerFeature(opt_absmax)
-        elif isinstance(ft, AbsmaxChannelSampler):
-            absmax = ft.get()
-            habsmax = ft.get()
+        elif isinstance(raw_ft, AbsmaxChannelSampler):
+            absmax = raw_ft.get()
+            habsmax = raw_ft.get()
             opt = AbsmaxChannelFeature(nd.broadcast_maximum(absmax, habsmax))
-        elif isinstance(ft, MinMaxLayerFeature):
-            minv, maxv = ft.get()
-            hminv, hmaxv = hft.get()
+        elif isinstance(raw_ft, MinMaxLayerFeature):
+            minv, maxv = raw_ft.get()
+            hminv, hmaxv = hist_ft.get()
             opt = MinMaxLayerFeature(min(minv, hminv), max(maxv, hmaxv))
-        elif isinstance(ft, MinMaxChannelFeature):
-            minv, maxv = ft.get()
-            hminv, hmaxv = hft.get()
+        elif isinstance(raw_ft, MinMaxChannelFeature):
+            minv, maxv = raw_ft.get()
+            hminv, hmaxv = hist_ft.get()
             opt = MinMaxChannelFeature(
                 nd.broadcast_minimum(minv, hminv),
                 nd.broadcast_maximum(maxv, hmaxv))
@@ -602,14 +594,14 @@ class HVOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_features():
-        return ["absmax", "absmax_ch", "minmax", "minmax_ch"]
+        return ["uniform_symmetric", "uniform_affine"]
 
     @staticmethod
     def list_attr_types():
         return {"lambd": [_NONETYPE, float]}
 
 
-@register_optimizor("ma")
+@register_optimizor("moving_average")
 class MAOptimizor(Optimizor):
     """ Generalized moving average optimizor
     """
@@ -618,26 +610,27 @@ class MAOptimizor(Optimizor):
     def __init__(self, **attrs):
         super().__init__(**attrs)
 
-    def get_opt(self, ft, out, hft=None):
+    def get_opt(self, raw_ft, out, **kwargs):
+        hist_ft = kwargs.get("hist_ft", None)
         if hf is None:
             return f
-        if isinstance(ft, AbsmaxLayerFeature):
+        if isinstance(raw_ft, AbsmaxLayerFeature):
             absmax = f.get()
-            habsmax = ft.get()
+            habsmax = raw_ft.get()
             opt = AbsmaxLayerFeature((1-self.c)*habsmax + self.c*absmax)
-        elif isinstance(ft, MinMaxLayerFeature):
-            absmax = ft.get()
-            habsmax = ft.get()
+        elif isinstance(raw_ft, MinMaxLayerFeature):
+            absmax = raw_ft.get()
+            habsmax = raw_ft.get()
             opt = AbsmaxChannelFeature((1-self.c)*habsmax + self.c*absmax)
-        elif isinstance(ft, MinMaxLayerFeature):
-            minv, maxv = ft.get()
-            hminv, hmaxv = hft.get()
+        elif isinstance(raw_ft, MinMaxLayerFeature):
+            minv, maxv = raw_ft.get()
+            hminv, hmaxv = hist_ft.get()
             opt = MinMaxLayerFeature(
                 (1-self.c)*hminv + self.c*minv,
                 (1-self.c)*hmaxv + self.c*maxv)
-        elif isinstance(ft, MinMaxChannelFeature):
-            minv, maxv = ft.get()
-            hminv, hmaxv = hft.get()
+        elif isinstance(raw_ft, MinMaxChannelFeature):
+            minv, maxv = raw_ft.get()
+            hminv, hmaxv = hist_ft.get()
             opt = MinMaxChannelFeature(
                 (1-self.c)*hminv + self.c*minv,
                 (1-self.c)*hmaxv + self.c*maxv)
@@ -648,14 +641,14 @@ class MAOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_features():
-        return ["absmax", "minmax"]
+        return ["uniform_symmetric", "uniform_affine"]
 
     @staticmethod
     def list_attr_types():
         return {"c": [float]}
 
 
-@register_optimizor("kld")
+@register_optimizor("kl_divergence")
 class KLDOptimizor(Optimizor):
     """ KL divergence optimizor for AbsmaxLayerFeature
     """
@@ -740,38 +733,39 @@ class KLDOptimizor(Optimizor):
         opt_th = thresholds[min_divergence_idx]
         return opt_th
 
-    def get_opt(self, ft, out, hft=None):
-        if not isinstance(ft, AbsmaxLayerFeature):
+    def get_opt(self, raw_ft, out, **kwargs):
+        hist_ft = kwargs.get("hist_ft", None)
+        if not isinstance(raw_ft, AbsmaxLayerFeature):
             raise TypeError(
                 "KLDOptimizor do not support feature type: %s, " + \
                 "only AbsmaxLayerFeature is supported" % type(f))
 
-        absmax = ft.get()
+        absmax = raw_ft.get()
         kval = self._kldiverge(absmax, out)
-        opt = kval if hft is None else max(kval, hft.get())
+        opt = kval if hist_ft is None else max(kval, hist_ft.get())
         return opt
 
     @staticmethod
     def list_supported_features():
-        return ["absmax"]
+        return ["uniform_symmetric"]
 
     @staticmethod
     def list_attr_types():
         return {"bucket_bit": [int], "quant_bit": [int], "eps": [float]}
 
 
-@register_optimizor("or")
+@register_optimizor("outlier_removal")
 class OROptimizor(Optimizor):
     pass
 
-DEFAULT_OPT_INFO = ("hv", "lambd", None)
+DEFAULT_OPT_INFO = ("historical_value", "lambd", None)
 DEFAULT_OPTIMIZOR = HVOptimizor()
 
 OPT_INSTANCES = {
     DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
-    # ("hv", "lambd", 25): HVOptimizor(lambd=25),
-    # ("ma","c", 0.01): MAOptimizor(),
-    # ("kld", "eps", 0.05)
+    # ("hstorical_value", "lambd", 25): HVOptimizor(lambd=25),
+    # ("moving_average","c", 0.01): MAOptimizor(),
+    # ("kl_divergence", "eps", 0.05): KLDOptimizor(eps=0.05),
 }
 
 #----------------------------
@@ -804,8 +798,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     if noncfgs:
         logger.warn(
             "Symbols (names: %s) not found in graph." + \
-            "Please double check config file (.ini)." % \
-            noncfgs)
+            "Please double check config file (.ini)." % noncfgs)
     if _RES_NAME in cfg_dict:
         cfg_info = cfg_dict.pop(_RES_NAME)
         keys = cfg_dict.keys()
@@ -818,7 +811,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
         syms_set.add(name)
 
         # feature
-        ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
+        quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
 
         # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
@@ -829,7 +822,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
             OPT_INSTANCES[opt_info] = OPT_REG[opt_type](**opt_attrs)
 
         cfg_dict[name] = cfg_info if cfg_info else \
-            {"ft_type": ft_type, "smp_type": smp_type, "opt_info", opt_info}
+            {"quant_type": quant_type, "opt_info", opt_info}
 
     sutils.topo_visit_transformer(
         symbol, params, _sym_config_infos, **kwargs)
@@ -839,32 +832,36 @@ def deserialize(val_dict):
     """ Interface for MRT main2 configuration
 
         Check the validity and compatibility of feature, sampler and optimizor configurations.
-    """
 
+        Parameters
+        ----------
+        val_dict : dict
+            configuration information (quantizer type, optimizor information) maps to node names (before calibration).
+    """
     cfg_dict = {}
     for val, names in val_dict.items():
         val = val if val else "{}"
         cfg_info = json.loads(val)
 
-        # feature
-        ft_type = cfg_info.get("ft_type", DEFAULT_FT_TYPE)
-        if ft_type not in FT_REG:
+        # quantizer 
+        quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
+        if quant_type not in QUANT_REG:
             raise TypeError(
-                "Unsupported feature type: %s, names: %s" % \
-                (ft_type, names))
+                "Unsupported quantizer type: %s, names: %s" % \
+                (quant_type, names))
 
         # optimizor
-        opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
+        opt_info = cfg_info.get("opt_info", DEFAULT_OPT_INFO)
         opt_type = opt_info[0]
         if opt_type not in OPT_REG:
             raise TypeError(
                 "Unsupported optimizor type: %s, names: %s" % \
                 (opt_type, names))
-        if ft_type not in OPT_REG[opt_type].list_supported_features():
+        if quant_type not in OPT_REG[opt_type].list_supported_features():
             raise ValueError(
-                "Feature type: (%s) is not supported by " + \
+                "quantizer type: (%s) is not supported by " + \
                 "optimizor type: (%s), names: %s" % \
-                (ft_type, opt_type, names))
+                (quant_type, opt_type, names))
         opt_attrs = {} if len(opt_info) == 1 else \
             {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
@@ -879,7 +876,6 @@ def deserialize(val_dict):
                 v = float(v)
             elif v == _NONETYPE_NAME:
                 v = None
-            for dtype in [k]:
             if not any([isinstance(v, dtype) for dtype in dtypes]):
                 raise TypeError(
                     "Attribute: (%s) dtype: (%s) is not compatible " + \
@@ -887,20 +883,17 @@ def deserialize(val_dict):
                     "optimizor type: %s" % \
                     (k, type(v), dtypes, names, opt_type))
 
+        for name in names:
+            if name in cfg_dict:
+                raise ValueError(
+                    "Duplicate name: %s, parsed value: %s" % (name, val))
+            cfg_dict[name] = cfg_info
+
     return cfg_dict
 
 #----------------------------
 # Module calibrate interfaces
 #----------------------------
-
-def sample(out, ft_type, opt_info, **kwargs):
-    """ Interface for MRT generalized calibration Sampling
-    """
-    if not isinstance(out, nd.NDArray):
-        raise TypeError("Unsupported data type: %s" % type(out))
-    smp = FT_REG[ft_type].sample(out)
-    ft = FT_REG[ft_type](**smp)
-    return OPT_INSTANCES[opt_info].get_opt(ft, out, **kwargs)
 
 def sym_calibrate_gen(symbol, params, data, **kwargs):
     """ Customized graph-level topo pass definition.
@@ -916,6 +909,7 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
     logger.info("calibrate model outputs")
     nparams = convert_params_dtype(
         params, src_dtypes="float64", dest_dtype="float32")
+    cfg_dict = kwargs["cfg_dict"]
 
     def _impl(op, params, graph, **kwargs):
         deps, old_ths = kwargs['deps'], kwargs['old_ths']
@@ -923,6 +917,11 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
         name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = sutils.sym_iter(
             op.get_children()), op.list_attr()
+        quant_type, opt_info = \
+            cfg_dict[name]["quant_type"], cfg_dict[name]["opt_info"]
+        quantizer, optimizor = \
+            QUANT_INSTANCES[quant_type], OPT_INSTANCES[opt_type]
+
         if op_name == 'null':
             out = data if is_inputs(op, params) else params[name]
         elif childs is None:
@@ -941,12 +940,13 @@ def sym_calibrate_gen(symbol, params, data, **kwargs):
                 deps[n].remove(name)
                 if len(deps[n]) == 0:
                     del out_cache[n]
+
         out = [out] if len(op) == 1 else out
         out_cache[name] = [o.as_in_context(ctx) for o in out]
-        hft = features[name] if name in features else None
-        ft_type = cfg_dict[name].get("ft_type")
-        opt_info = cfg_dict[name].get("opt_info")
-        features[name] = sample(out[0], ft_type, opt_info, hft=hft)
+        raw_ft = quantizer.sample(out)
+        hist_ft = features[name] if name in features else None
+        features[name] = optimizor.get_opt(
+            raw_ft, out[0], hist_ft=hist_ft, logger=logger, name=name)
 
     sutils.topo_visit_transformer(
         symbol, nparams, _impl, logger=logger,
