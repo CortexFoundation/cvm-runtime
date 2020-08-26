@@ -255,3 +255,75 @@ def load_param_dict(bytes_arr):
         print (name, value)
         ret[name] = value
     return ret
+
+
+def indexing_key_expand_implicit_axes(key, shape):
+    """
+    Make implicit axes explicit by adding ``slice(None)``
+    and convert boolean array to integer array through `nonzero`.
+
+    Examples
+    --------
+    >>> shape = (3, 4, 5)
+    >>> indexing_key_expand_implicit_axes(np.s_[2, 1, 1], shape)
+    (2, 1, 1)
+    >>> indexing_key_expand_implicit_axes(np.s_[0], shape)
+    (0, slice(None, None, None), slice(None, None, None))
+    >>> indexing_key_expand_implicit_axes(np.s_[0, ...], shape)  # equivalent
+    (0, slice(None, None, None), slice(None, None, None))
+    >>> indexing_key_expand_implicit_axes(np.s_[:2, None, 0, ...], shape)
+    (slice(None, 2, None), None, 0, slice(None, None, None))
+    >>> bool_array = np.array([[True, False, True, False],
+                               [False, True, False, True],
+                               [True, False, True, False]], dtype=np.bool)
+    >>> indexing_key_expand_implicit_axes(np.s_[bool_array, None, 0:2], shape)
+    (array([0, 0, 1, 1, 2, 2], dtype=int64), array([0, 2, 1, 3, 0, 2], dtype=int64), None, slice(None, 2, None))
+
+    Acknowledgement
+    ---------------
+    Thanks for insperiation from mxnet
+    """
+    if not isinstance(key, tuple):
+        key = (key,)
+    # We need to loop explicitly since tuple functions like `index()` or
+    # `count()` use `==` internally, which doesn't play well with fancy
+    # indexing.
+    ell_idx = None
+    num_none = 0
+    nonell_key = []
+
+    axis = 0
+    for i, idx in enumerate(key):
+        if idx is Ellipsis:
+            if ell_idx is not None:
+                raise IndexError(
+                    'Cannot use more than one ellipsis (`...`) for indexing'
+                )
+            ell_idx = i
+        else:
+            if idx is None:
+                num_none += 1
+            elif isinstance(idx, np.ndarray) and idx.dtype == np.bool_:
+                # Necessary size check before using `nonzero`
+                check_boolean_array_dimension(shape, axis, idx.shape)
+
+                # Add the arrays from the nonzero result to the index
+                nonell_key.extend(idx.nonzero())
+                axis += idx.ndim
+            else:
+                nonell_key.append(idx)
+                axis += 1
+
+    nonell_key = tuple(nonell_key)
+
+    if ell_idx is None:
+        # This handles the case of "too few" indices, e.g., `nd.zeros((2, 3))[0]`,
+        # where the ellipsis is implicitly after the last entry.
+        ell_idx = len(nonell_key)
+
+    ell_ndim = len(shape) + num_none - len(nonell_key)
+    expanded_key = (nonell_key[:ell_idx] +
+                    (slice(None),) * ell_ndim +
+                    nonell_key[ell_idx:])
+
+    return expanded_key, prepend
