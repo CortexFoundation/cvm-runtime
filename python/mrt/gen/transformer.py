@@ -9,9 +9,10 @@ from mrt.gen import tfm_ops  # pylint: disable=unused-import
 from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort
+from mrt.tfm_pass import OUT_KEY
+from mrt.gen.tfm_types import get_feature, get_buffer
 from mrt.gen.tfm_pass import quantize, sym_calibrate, \
                              rewrite, sym_config_infos
-from mrt.tfm_pass import OUT_KEY
 
 from mrt import transformer as tfm
 from mrt import utils
@@ -142,5 +143,25 @@ class MRT(tfm.MRT):
         features = self._serialize(self.features)
         buffers = self._serialize(self.buffers)
         sim.save_ext(
-            ext_file, self.old_names, features, self.precs, buffers)
+            ext_file, self.old_names, features, self.precs, buffers, self.cfg_dict)
         self.current_model.save(sym_file, params_file)
+
+    @staticmethod
+    def _deserialize_feature(features):
+        return {k: get_feature(v[0], *v[1:]) for k, v in features.items()}
+
+    @staticmethod
+    def _deserialize_buffer(buffers):
+        return {k: get_buffer(v[0], *v[1:]) for k, v in buffers.items()}
+
+    @staticmethod
+    def load(model_name, datadir="./data"):
+        # pylint: disable=unbalanced-tuple-unpacking
+        sym_file, params_file, ext_file = \
+            utils.extend_fname(path.join(datadir, model_name), True)
+        mrt = MRT(Model.load(sym_file, params_file))
+        mrt.old_names, features, mrt.precs, buffers, mrt.cfg_dict = \
+            sim.load_ext(ext_file)
+        mrt.features = MRT._deserialize_feature(features)
+        mrt.buffers = MRT._deserialize_buffer(buffers)
+        return mrt

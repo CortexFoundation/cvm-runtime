@@ -250,19 +250,23 @@ def quantize(
             return op
 
         name = op.attr('name')
-        th_dict, scales = kwargs['th_dict'], kwargs['scales']
+        features, buffers = kwargs['features'], kwargs['buffers']
         precs = kwargs['precs']
-        th = th_dict[name]
-        scale = scales[name]
+        ft = features[name]
+        assert ft.name == "Absmax"
+        th = ft.get()
+        buf = buffers[name]
+        assert buf.name == "Scale"
+        scale = buf.get()
         tight_prec = get_bit(th_dict[name] * scales[name])
         if precs[name][OUT_KEY] > tight_prec:
             op = mx.sym.Custom(op, precision=tight_prec,
                     name=N.n('clip'), op_type='cvm_clip')
             clip_name = op.attr('name')
             infer_shapes[clip_name] = infer_shapes[name]
-            th_dict[clip_name] = th_dict[name]
+            features[clip_name] = ft
             precs[clip_name] = { OUT_KEY: tight_prec }
-            scales[clip_name] = scales[name]
+            buffers[clip_name] = buf
             if name in precs and name in precs[name]:
                 oprec = precs[name][name]
                 del precs[name][name]

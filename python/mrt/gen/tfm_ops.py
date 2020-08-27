@@ -106,6 +106,17 @@ class Convolution(tops.Convolution):
     def quantize(self, op, **kwargs):
         pass
 
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_transformer('Pad')
+class Pad(Transformer):
+    pass
+
 def separate_bias(op, **kwargs):
     name, op_name = op.attr('name'), op.attr('op_name')
     attrs, childs = op.list_attr(), sym_iter(op.get_children())
@@ -113,7 +124,6 @@ def separate_bias(op, **kwargs):
     if len(childs) < 3 or op_name not in \
         [Convolution.op_name, FullyConnected.op_name]:
         return op
-
 
     attrs['no_bias'] = True
     op = get_mxnet_op(op_name)(

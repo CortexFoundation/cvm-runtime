@@ -106,7 +106,7 @@ class AFeature(Feature):
         return self.absmax
 
     def serialize(self):
-        return [self.absmax]
+        return [self.name, self.absmax]
 
 
 @register_feature("MinMax")
@@ -121,7 +121,12 @@ class MMFeature(Feature):
         return self.minv, self.maxv
 
     def serialize(self):
-        return [self.minv, self.maxv]
+        return [self.name, self.minv, self.maxv]
+
+def get_feature(ft_type, *args):
+    if ft_type not in FT_REG:
+        raise TypeError("Unknown feature type: %20s", ft_type)
+    return FT_REG[ft_type](*args)
 
 #----------------------------
 # Buffer Types Definition
@@ -173,7 +178,7 @@ class SBuffer(Buffer):
         return self.scale
 
     def serialize(self):
-        return [self.scale]
+        return [self.name, self.scale]
 
 
 @register_buffer("ScaleZpoint")
@@ -188,8 +193,12 @@ class SZBuffer(Buffer):
         return self.scale, self.zpoint
 
     def serialize(self):
-        return [self.scale, self.zpoint]
+        return [self.name, self.scale, self.zpoint]
 
+def get_buffer(buf_type, *args):
+    if buf_type not in BUF_REG:
+        raise TypeError("Unknown buffer type: %20s", buf_type)
+    return BUF_REG[buf_type](*args)
 
 #----------------------------
 # Quantizer Types Definition
@@ -271,7 +280,7 @@ class USQuantizer(Quantizer):
 
     def get_buffer(self, oprec, ft):
         absmax = ft.get()
-        SBuffer(self.get_range(oprec)[1] / absmax)
+        return SBuffer(self.get_range(oprec)[1] / absmax)
 
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):

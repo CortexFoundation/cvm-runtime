@@ -1,6 +1,9 @@
+import logging
+
 import mxnet as mx
 
 from mrt.sym_utils import sym_iter
+from mrt.tfm_pass import OUT_KEY
 
 from mrt import tfm_base as tbase
 
@@ -20,7 +23,8 @@ class Transformer(tbase.Transformer):
 
         logger = logging.getLogger('log.mrt.realize')
         logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
-               op_name, name, buffers[name].toJSON(), buffers[cname].toJSON())
+               op_name, name, buffers[name].serialize(),
+               buffers[cname].serialize())
         return op
 
 _tfm_manager = {}
