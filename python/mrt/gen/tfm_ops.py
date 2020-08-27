@@ -14,17 +14,14 @@ from mxnet import ndarray as nd
 import mxnet as mx
 import cvm
 
-from .tfm_utils import get_bit, get_range, scale, get_bit_cnt, \
-                      requant, requant_operator, requant_parameter, \
-                      realize
-from .sym_utils import get_attr, sym_iter, is_params, is_inputs, \
-                      nd_array, get_mxnet_op, get_nnvm_op, nd_const, \
-                      get_entry_id
-from . import sym_utils as sutils
-from .tfm_base import register_pass, register_transformer, Transformer, \
-                     N, OUT_KEY, MAX_BIT
-from .tfm_base_gen import Transformer
-from . import sim_quant_helper as sim
+from mrt.sym_utils import get_attr, sym_iter, is_params, is_inputs, \
+                          nd_array, get_mxnet_op, get_nnvm_op, nd_const, \
+                          get_entry_id
+from mrt import sym_utils as sutils
+from mrt.gen.tfm_base import register_pass, register_transformer
+from mrt.gen.tfm_base import Transformer
+from mrt.tfm_base import N, MAX_BIT
+from mrt import sim_quant_helper as sim
 
 
 @register_pass("validate")

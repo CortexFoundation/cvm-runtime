@@ -11,7 +11,8 @@ import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
 from mrt import conf
-from mrt.transformer import Model, reduce_graph, MRT
+from mrt.transformer import reduce_graph
+from mrt.gen.transformer import MRT, Model
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
@@ -419,7 +420,7 @@ if __name__ == "__main__":
         restore_names = _get_val(
             cfg, sec, 'Restore_name', dtype=ARRAY(str_t), dval=[])
         name_to_op = {}
-        from sym_utils import topo_sort
+        from mrt.sym_utils import topo_sort
         for sym in topo_sort(mrt.current_model.symbol):
             name, op_name = sym.attr('name'), sym.attr('op_name')
             if op_name not in name_to_op:
@@ -434,8 +435,8 @@ if __name__ == "__main__":
                 new_names.append(name)
         restore_names = set(new_names)
         if '_ALL_EXCEPT_' in restore_names:
-            from tfm_base import _pass_manager
-            from tfm_ops import disabled_restore_ops
+            from mrt.gen.tfm_base import _pass_manager
+            from mrt.gen.tfm_ops import disabled_restore_ops
 
             quantize_ops = [op_name for op_name in _pass_manager["quantize"] \
                             if op_name not in disabled_restore_ops]
