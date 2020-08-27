@@ -11,7 +11,8 @@ from mrt.sym_utils import get_attr, sym_iter, is_params, is_inputs, \
                           nd_const, get_entry_id
 from mrt.tfm_base import N, MAX_BIT
 from mrt.tfm_pass import OUT_KEY
-from mrt.gen.tfm_base import register_pass, register_transformer
+from mrt.gen.tfm_base import register_pass, register_transformer, \
+                             Transformer
 from mrt.gen.tfm_types import get_quantizer
 
 from mrt import sim_quant_helper as sim
@@ -37,31 +38,28 @@ class Flatten(tops.Flatten):
 @register_transformer("null")
 class Null(tops.Null):
     def quantize(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
-
-            Transform the input data.
-        """
         if is_inputs(op, kwargs['params']):
             name, attr = op.attr('name'), op.list_attr()
             prec = kwargs['precs'][name][OUT_KEY]
             quantizer = get_quantizer("UniformSymmetric")
             ft = kwargs['features'][name]
             kwargs['buffers'][name] = quantizer.get_buffer(prec, ft)
-            # else:
-                # raise NotImplementedError(
-                    # "Quantization type not implementated," + \
-                    # " op: %20s, quantizer: %20s" % (op_name, ))
+            # raise NotImplementedError(
+                # "Quantization type not implementated," + \
+                # " op: %20s, quantizer: %20s" % (op_name, ))
             extra_attr = {'precision': str(prec)}
             return mx.sym.var(name, **attr, attr=extra_attr)
         return op
 
 
 @register_pass("fuse_transpose")
-@register_pass("quantize")
+@register_pass("rewrite")
 @register_pass("prepare_for_compile")
 @register_transformer("Pooling")
 class Pooling(tops.Pooling):
-    pass
+    def quantize(self, op, **kwargs):
+        op = Transformer().quantize(op, **kwargs)
+        return op
 
 
 @register_pass("validate")
@@ -74,6 +72,7 @@ class Dropout(tops.Dropout):
     pass
 
 
+@register_pass("rewrite")
 @register_pass("quantize")
 @register_transformer("Activation")
 class Activation(tops.Activation):
@@ -85,63 +84,64 @@ class Activation(tops.Activation):
 @register_pass("prepare_for_compile")
 @register_transformer("FullyConnected")
 class FullyConnected(tops.FullyConnected):
-    def quantize(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
+    def rewrite(self, op, **kwargs):
+        op = super().rewrite(op, **kwargs)
+        op = separate_bias(op, **kwargs)
+        return op
 
-            See :func:`mrt.tfm_ops._quantize_xwb <._quantize_xwb>` for reference
-        """
-        return _quantize_xwb(op, **kwargs)
+    def quantize(self, op, **kwargs):
+        pass
 
 
 @register_pass("fuse_transpose")
 @register_pass("prepare_for_compile")
 @register_transformer("Convolution")
 class Convolution(tops.Convolution):
+    def rewrite(self, op, **kwargs):
+        op = super().rewrite(op, **kwargs)
+        op = separate_pad(op, **kwargs)
+        op = separate_bias(op, **kwargs)
+        return op
+
     def quantize(self, op, **kwargs):
-        """ Customized quantize pass Introduction.
+        pass
 
-            See :func:`mrt.tfm_ops._quantize_xwb <._quantize_xwb>` for reference
-        """
-        return _quantize_xwb(op, **kwargs)
-
-def _quantize_xwb(op, **kwargs):
-    """ quantization function with the inputs form of:
-
-        .. math::
-            Y = X*W + B
-
-        The input and weight are quantized into the same precision level. 
-        Bias is quantized with respect to the product of input and weight.
-
-        the infer precision equals to the sum of quantized input precision, 
-        quantized weight precision and the product precision.
-    """
-    features, buffers = kwargs['features'], kwargs['buffers']
+def separate_bias(op, **kwargs):
     name, op_name = op.attr('name'), op.attr('op_name')
-    childs, attr = sym_iter(op.get_children()), op.list_attr()
-    cns = [c.attr('name') for c in childs] if childs else []
+    attrs, childs = op.list_attr(), sym_iter(op.get_children())
 
-    oprec = kwargs['op_input_precs'][op_name]
-    X, xprec, xs = requant_operator(childs[0], oprec, oname=name, **kwargs)
-    W, wprec, ws = requant_parameter(cns[1], oprec, oname=name, **kwargs)
-    B, bprec = None, None
-    if not get_attr(attr, 'no_bias', False):
-        bs = ws * xs
-        bias_prec = get_bit(th_dict[cns[2]] * bs)
-        B, bprec, _ = requant_parameter(
-            cns[2], bias_prec, bs, oname=name, **kwargs)
-    scales[name] = ws * xs
-    op = get_mxnet_op(op_name)(X, W, B, **attr, name=name)
+    if len(childs) < 3 or op_name not in \
+        [Convolution.op_name, FullyConnected.op_name]:
+        return op
 
-    shp = kwargs['params'][childs[1].attr('name')].shape
-    k = int(nd.prod(nd_array(shp[1:])).asscalar())
-    kprec = get_bit_cnt(k)
-    infer_prec = kprec + xprec + wprec
-    if not get_attr(attr, 'no_bias', False):
-        infer_prec = max(infer_prec, bprec) + 1
-    kwargs['precs'][name][OUT_KEY] = infer_prec
 
-    logger = logging.getLogger('log.mrt.realize')
-    logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
-                 op_name, name, scales[name], cns)
+    attrs['no_bias'] = True
+    op = get_mxnet_op(op_name)(
+        childs[0], childs[1], **attrs, name=N.n(name))
+    B = mx.sym.expand_dims(childs[2], axis=0)
+    if op_name == Convolution.op_name:
+        assert 'layout' in attrs and attrs['layout'] == 'NCHW'
+        B = mx.sym.expand_dims(B, axis=-1)
+        B = mx.sym.expand_dims(B, axis=-1)
+    op = mx.sym.broadcast_add(op, B, name=name)
     return op
+
+def separate_pad(op, **kwargs):
+    name, op_name = op.attr('name'), op.attr('op_name')
+    attrs, childs = op.list_attr(), sym_iter(op.get_children())
+
+    if op_name not in [Convolution.op_name]:
+        return op
+
+    assert 'layout' in attrs and attrs['layout'] == 'NCHW'
+    PH, PW = get_attr(attrs, 'pad', (0,0))
+    if PH == 0 and PW == 0:
+        return op
+    del attrs['pad']
+
+    childs[0] = mx.sym.pad(
+        childs[0], pad_width=(0,0,0,0,PH,PH,PW,PW),
+        mode='constant', constant_value=0, name=N.n(name))
+    op = get_mxnet_op(op_name)(*childs, **attrs, name=name)
+    return op
+

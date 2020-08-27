@@ -1,10 +1,4 @@
-""" MRT Interface API
-
-    Refractor of source code, using the registry pattern.
-    Rules of coding with pylint.
-    Collection of hyper-parameters controller.
-    Simplification of public API.
-"""
+import logging
 
 import mxnet as mx
 from mxnet import ndarray as nd
@@ -15,13 +9,14 @@ from mrt.gen import tfm_ops  # pylint: disable=unused-import
 from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort
-from mrt.gen.tfm_pass import sym_quantize, sym_calibrate, \
-                             sym_config_infos
+from mrt.gen.tfm_pass import quantize, sym_calibrate, \
+                             rewrite, sym_config_infos
 from mrt.tfm_pass import OUT_KEY
 
 from mrt import transformer as tfm
 from mrt import utils
 from mrt import sim_quant_helper as sim
+from mrt import tfm_pass as tpass
 
 # TODO: collect hyper-parameters
 
@@ -35,8 +30,39 @@ class Model(tfm.Model):
         params = nd.load(params_file)
         return Model(symbol, params)
 
+    def prepare(self, input_shape=None):
+        model = init(self, input_shape)
+        self.symbol, self.params = model.symbol, model.params
+
     def get_mrt(self):
         return MRT(self)
+
+def init(model, input_shape=None):
+    logger = logging.getLogger("mrt.prepare")
+    logger.info("Model initializing...")
+
+    _sym, _prm = model.symbol, model.params
+    tpass.name_duplicate_check(_sym, _prm)
+
+    if isinstance(input_shape, dict):
+        _sym, _prm = tpass.attach_input_shape(_sym, _prm, input_shape)
+        _sym, _prm = tpass.fuse_multiple_inputs(_sym, _prm)
+    elif input_shape is not None:
+        model_inputs = tpass.model_inputs(_sym, _prm)
+        assert model_inputs == 1, "Multiple inputs non-known shape"
+        _sym, _prm = tpass.input_name_replace(_sym, _prm)
+        _sym, _prm = tpass.attach_input_shape(_sym, _prm,
+                                              {"data": input_shape})
+    tpass.infer_shape(_sym, _prm) # check infer_shape is correct
+
+    _sym, _prm = tpass.fuse_multiple_outputs(_sym, _prm)
+    _sym, _prm = tpass.fuse_constant(_sym, _prm)
+    _sym, _prm = tpass.fuse_transpose(_sym, _prm)
+    _sym, _prm = rewrite(_sym, _prm)
+    _sym, _prm = tpass.fuse_constant(_sym, _prm)
+    _sym, _prm = tpass.params_unique(_sym, _prm)
+
+    return Model(_sym, _prm)
 
 
 class MRT(tfm.MRT):
@@ -96,7 +122,7 @@ class MRT(tfm.MRT):
             qmodel : Model
                 The quantized model.
         """
-        _sym, _prm = sym_quantize(
+        _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.features, self.precs, self.buffers, self.cfg_dict,
             self.op_input_precs, self.restore_names,

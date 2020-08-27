@@ -1,5 +1,3 @@
-import warnings
-
 import mxnet as mx
 
 from mrt.sym_utils import sym_iter

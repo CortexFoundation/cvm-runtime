@@ -199,8 +199,18 @@ def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
 # Module quantize interfaces
 #----------------------------
 
+@N.register_nm("rewrite")
+def rewrite(symbol, params):
+    infer_shapes = infer_shape(symbol, params)
+    return topo_visit_transformer(symbol, params,
+            apply_pass("rewrite", infer_shapes=infer_shapes))
+
+#----------------------------
+# Module quantize interfaces
+#----------------------------
+
 @N.register_nm("quantize")
-def sym_quantize(
+def quantize(
     symbol, params, features, precs, buffers, cfg_dict,
     op_input_precs, restore_names, shift_bits, softmax_lambd):
     """ Customized graph-level topo pass definition.
