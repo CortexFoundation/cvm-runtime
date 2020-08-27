@@ -137,7 +137,6 @@ if __name__ == "__main__":
             _checkpoint_exist(sec, sym_top_file, prm_top_file)
             top = Model.load(sym_top_file, prm_top_file)
         logger.info("`%s` stage checkd" % sec)
-    exit()
 
     # quantization
     sec = 'QUANTIZATION'

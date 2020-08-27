@@ -6,6 +6,7 @@
 
 import math
 import logging
+import json
 
 import mxnet as mx
 from mxnet import ndarray as nd
@@ -92,6 +93,11 @@ class Feature:
             "Derived " + self.name + " feature not override the" + \
             " base `get` function defined in Feature")
 
+    def toJSON(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `toJSON` function defined in Feature")
+
 
 @register_feature("absmax")
 class AFeature(Feature):
@@ -107,6 +113,9 @@ class AFeature(Feature):
     def get(self):
         return self.absmax
 
+    def toJSON(self):
+        return json.dumps([self.absmax])
+
 
 @register_feature("minmax")
 class MMFeature(Feature):
@@ -121,6 +130,9 @@ class MMFeature(Feature):
 
     def get(self):
         return self.minv, self.maxv
+
+    def toJSON(self):
+        return json.dumps([self.minv, self.maxv])
 
 #----------------------------
 # Buffer Types Definition
@@ -261,7 +273,8 @@ class USQuantizer(Quantizer):
     """
     def sample(self, data):
         ft = AFeature()
-        ft.set(data.abs().max().asscalar())
+        absmax = float(data.abs().max().asscalar())
+        ft.set(absmax)
         return ft
 
     def get_range(self, prec):
@@ -375,7 +388,9 @@ class UAQuantizer(Quantizer):
     """
     def sample(self, data):
         ft = MMFeature()
-        ft.set(data.min().asscalar(), data.max().asscalar())
+        minv = float(data.min().asscalar())
+        maxv = float(data.max().asscalar())
+        ft.set(minv, maxv)
         return ft
 
     def get_range(self, prec):

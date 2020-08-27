@@ -8,6 +8,7 @@
 
 import mxnet as mx
 from mxnet import ndarray as nd
+from os import path
 
 # import as registry pattern
 from mrt.gen import tfm_ops  # pylint: disable=unused-import
@@ -18,6 +19,8 @@ from mrt.gen.tfm_pass import sym_quantize, sym_calibrate, \
                              sym_config_infos
 
 from mrt import transformer as tfm
+from mrt import utils
+from mrt import sim_quant_helper as sim
 
 # TODO: collect hyper-parameters
 
@@ -98,3 +101,18 @@ class MRT(tfm.MRT):
             self.restore_names, self.shift_bits, self.softmax_lambd)
         self.current_model = Model(_sym, _prm)
         return self.current_model
+
+    def _serialize(self, dct):
+        return {k: v.toJSON() for k, v in dct.items()}
+
+    def save(self, model_name, datadir="./data"):
+        """ Save the current mrt instance into disk.
+        """
+        # pylint: disable=unbalanced-tuple-unpacking
+        sym_file, params_file, ext_file = \
+            utils.extend_fname(path.join(datadir, model_name), True)
+        features = self._serialize(self.features)
+        buffers = self._serialize(self.buffers)
+        sim.save_ext(
+            ext_file, self.old_names, features, self.precs, buffers)
+        self.current_model.save(sym_file, params_file)
