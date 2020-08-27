@@ -17,6 +17,7 @@ from mrt import cvm_op   # pylint: disable=unused-import
 from mrt.sym_utils import topo_sort
 from mrt.gen.tfm_pass import sym_quantize, sym_calibrate, \
                              sym_config_infos
+from mrt.tfm_pass import OUT_KEY
 
 from mrt import transformer as tfm
 from mrt import utils
@@ -50,11 +51,11 @@ class MRT(tfm.MRT):
         self.restore_names = set()
 
         self._op_default_input_precs()
-        self.precs = {}
-        if 'data' not in \
-            {sym.attr('name') for sym in topo_sort(self.current_model)}:
+        self.precs = {s.attr('name'):{} \
+            for s in topo_sort(self.current_model)}
+        if 'data' not in self.precs:
             raise RuntimeError("please invoke `init` function first")
-        self.precs['data'] = input_prec
+        self.precs['data'][OUT_KEY] = input_prec
 
         self.softmax_lambd = 10
         self.shift_bits = 5
@@ -84,7 +85,7 @@ class MRT(tfm.MRT):
             cfg_dict=self.cfg_dict)
         self.features = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
-            self._data, ctx=ctx, cfg_dict=self.cfg_dict)
+            self._data, self.cfg_dict, ctx=ctx)
         return self.features
 
     def quantize(self):
@@ -97,13 +98,14 @@ class MRT(tfm.MRT):
         """
         _sym, _prm = sym_quantize(
             self.current_model.symbol, self.current_model.params,
-            self.th_dict, self.precs, self.scales, self.op_input_precs,
-            self.restore_names, self.shift_bits, self.softmax_lambd)
+            self.features, self.precs, self.buffers, self.cfg_dict,
+            self.op_input_precs, self.restore_names,
+            self.shift_bits, self.softmax_lambd)
         self.current_model = Model(_sym, _prm)
         return self.current_model
 
     def _serialize(self, dct):
-        return {k: v.toJSON() for k, v in dct.items()}
+        return {k: v.serialize() for k, v in dct.items()}
 
     def save(self, model_name, datadir="./data"):
         """ Save the current mrt instance into disk.

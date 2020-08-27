@@ -3,10 +3,12 @@ import logging
 import mxnet as mx
 
 from mrt.tfm_base import N
-from mrt.tfm_pass import convert_params_dtype
+from mrt.tfm_pass import convert_params_dtype, infer_shape
+from mrt.sym_utils import is_inputs, get_entry_id, is_var, \
+                          get_nd_op, topo_visit_transformer
 from mrt.gen.tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, \
                               get_optimizor, DEFAULT_OPT_INFO
-from mrt.sym_utils import is_inputs, get_entry_id, get_nd_op
+from mrt.gen.tfm_base import apply_pass
 
 from mrt import sym_utils as sutils
 
@@ -29,7 +31,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
     def _collect_names(symbol, params, **kwargs):
         names.add(symbol.attr("name"))
 
-    sutils.topo_visit_transformer(symbol, params, _collect_names)
+    topo_visit_transformer(symbol, params, _collect_names)
     cfg_dict, noncfgs = {} if cfg_dict is None else cfg_dict, set()
     keys = cfg_dict.keys()
     for name in keys:
@@ -61,7 +63,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
         cfg_dict[name] = cfg_info if cfg_info else \
             {"quant_type": quant_type, "opt_info": opt_info}
 
-    sutils.topo_visit_transformer(symbol, params, _sym_config_infos)
+    topo_visit_transformer(symbol, params, _sym_config_infos)
     return cfg_dict
 
 _NONETYPE_NAME = "_NoneType"
@@ -134,7 +136,7 @@ def deserialize(cfg_groups):
 # Module calibrate interfaces
 #----------------------------
 
-def sym_calibrate(symbol, params, data, **kwargs):
+def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
     """ Customized graph-level topo pass definition.
 
         Generalized MRT calibration framework pass.
@@ -148,7 +150,6 @@ def sym_calibrate(symbol, params, data, **kwargs):
     logger.info("calibrate model outputs")
     nparams = convert_params_dtype(
         params, src_dtypes="float64", dest_dtype="float32")
-    cfg_dict = kwargs["cfg_dict"]
 
     def _impl(op, params, graph, **kwargs):
         deps= kwargs['deps']
@@ -187,7 +188,7 @@ def sym_calibrate(symbol, params, data, **kwargs):
         features[name] = optimizor.get_opt(
             raw_ft, out[0], hist_ft=hist_ft, logger=logger, name=name)
 
-    sutils.topo_visit_transformer(
+    topo_visit_transformer(
         symbol, nparams, _impl, logger=logger,
         deps=deps, data=data, **kwargs)
     out_cache.clear()
@@ -200,8 +201,8 @@ def sym_calibrate(symbol, params, data, **kwargs):
 
 @N.register_nm("quantize")
 def sym_quantize(
-    symbol, params, features, precs, buffers, op_input_precs,
-    restore_names, shift_bits, softmax_lambd):
+    symbol, params, features, precs, buffers, cfg_dict,
+    op_input_precs, restore_names, shift_bits, softmax_lambd):
     """ Customized graph-level topo pass definition.
 
         Generalized MRT quantization framework pass.
@@ -230,7 +231,8 @@ def sym_quantize(
     def _quant(op, **kwargs):
         op = apply_pass("quantize",
             infer_shapes=kwargs['infer_shapes'],
-            th_dict=kwargs['th_dict'],
+            features=kwargs['features'],
+            cfg_dict=kwargs['cfg_dict'],
         )(op, **kwargs) if op.attr('name') not in restore_names \
             else restore(op, **kwargs)
 
@@ -260,8 +262,8 @@ def sym_quantize(
 
     sym, params = topo_visit_transformer(symbol, params,
             _quant,
-            infer_shapes=infer_shapes, th_dict=th_dict,
-            precs=precs, scales=scales,
+            infer_shapes=infer_shapes, features=features,
+            precs=precs, buffers=buffers, cfg_dict=cfg_dict,
             op_input_precs=op_input_precs,
             shift_bits=shift_bits,
             softmax_lambd=softmax_lambd)

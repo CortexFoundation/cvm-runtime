@@ -26,8 +26,8 @@ _NONETYPE = type(None)
 #----------------------------
 
 FT_REG = {
-    # "absmax": AFeature,
-    # "minmax": MMFeature,
+    # "Absmax": AFeature,
+    # "MinMax": MMFeature,
 }
 
 def register_feature(name):
@@ -78,69 +78,58 @@ class Feature:
     """
     name = None
 
-    def __init__(self):
+    def __init__(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `__init__` function defined in Feature")
-
-    def set(self, *args):
-        raise NotImplementedError(
-            "Derived " + self.name + " feature not override the" + \
-            " base `set` function defined in Feature")
 
     def get(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `get` function defined in Feature")
 
-    def toJSON(self):
+    def serialize(self):
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `toJSON` function defined in Feature")
 
 
-@register_feature("absmax")
+@register_feature("Absmax")
 class AFeature(Feature):
     """ Absmax Feature
     """
-    def __init__(self):
-        self.absmax = None
-
-    def set(self, *args):
+    def __init__(self, *args):
         assert len(args) == 1
         self.absmax = args[0]
 
     def get(self):
         return self.absmax
 
-    def toJSON(self):
-        return json.dumps([self.absmax])
+    def serialize(self):
+        return [self.absmax]
 
 
-@register_feature("minmax")
+@register_feature("MinMax")
 class MMFeature(Feature):
     """ Min and Max Feature
     """
-    def __init__(self):
-        self.minv, self.maxv = None, None
-
-    def set(self, *args):
+    def __init__(self, *args):
         assert len(args) == 2
         self.minv, self.maxv = args[0], args[1]
 
     def get(self):
         return self.minv, self.maxv
 
-    def toJSON(self):
-        return json.dumps([self.minv, self.maxv])
+    def serialize(self):
+        return [self.minv, self.maxv]
 
 #----------------------------
 # Buffer Types Definition
 #----------------------------
 
 BUF_REG = {
-    # "scale": SBuffer,
-    # "scale_zpoint": SZBuffer,
+    # "Scale": SBuffer,
+    # "ScaleZpoint": SZBuffer,
 }
 
 def register_buffer(name):
@@ -156,58 +145,59 @@ def register_buffer(name):
 class Buffer:
     name = None
 
-    def __init__(self):
+    def __init__(self, *args):
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
             " base `__init__` function defined in Buffer")
-
-    def set(self, *args):
-        raise NotImplementedError(
-            "Derived " + self.name + " buffer not override the" + \
-            " base `set` function defined in Buffer")
 
     def get(self):
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
             " base `get` function defined in Buffer")
 
+    def serialize(self):
+        raise NotImplementedError(
+            "Derived " + self.name + " buffer not override the" + \
+            " base `serialize` function defined in Buffer")
 
-@register_buffer("scale")
+
+@register_buffer("Scale")
 class SBuffer(Buffer):
     """ Scale Point Buffer
     """
-    def __init__(self):
-        self.scale = None
-
-    def set(self, *args):
+    def __init__(self, *args):
         assert len(args) == 1
         self.scale = args[0]
 
     def get(self):
         return self.scale
 
+    def serialize(self):
+        return [self.scale]
 
-@register_buffer("scale_zpoint")
+
+@register_buffer("ScaleZpoint")
 class SZBuffer(Buffer):
     """ Scale and Zero Point Buffer
     """
-    def __init__(self):
-        self.scale, self.zpoint = None, None
-
-    def set(self, *args):
+    def __init__(self, *args):
         assert len(args) == 2
         self.scale, self.zpoint = args[0], args[1]
 
     def get(self):
         return self.scale, self.zpoint
 
+    def serialize(self):
+        return [self.scale, self.zpoint]
+
+
 #----------------------------
 # Quantizer Types Definition
 #----------------------------
 
 QUANT_REG = {
-    # "uniform_symmetric": USQuantizer,
-    # "uniform_affine": UAQuantizer,
+    # "UniformSymmetric": USQuantizer,
+    # "UniformAffine": UAQuantizer,
 }
 
 def register_quantizer(name):
@@ -267,15 +257,13 @@ class Quantizer:
             "defined in Quantizer")
 
 
-@register_quantizer("uniform_symmetric")
+@register_quantizer("UniformSymmetric")
 class USQuantizer(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
     def sample(self, data):
-        ft = AFeature()
         absmax = float(data.abs().max().asscalar())
-        ft.set(absmax)
-        return ft
+        return AFeature(absmax)
 
     def get_range(self, prec):
         mrange = 2**(prec-1) - 1
@@ -283,8 +271,7 @@ class USQuantizer(Quantizer):
 
     def get_buffer(self, oprec, ft):
         absmax = ft.get()
-        oscale = self.get_range(oprec)[1] / absmax
-        return oscale
+        SBuffer(self.get_range(oprec)[1] / absmax)
 
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):
@@ -306,7 +293,8 @@ class USQuantizer(Quantizer):
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self.get_buffer(oprec, ft) if oscale is None else oscale
+            oscale = self.get_buffer(oprec, ft).get() \
+                if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
         attr = {"precision": str(oprec)}
@@ -330,7 +318,8 @@ class USQuantizer(Quantizer):
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
-        oscale = self.get_buffer(oprec, ft) if oscale is None else oscale
+        oscale = self.get_buffer(oprec, ft).get() \
+            if oscale is None else oscale
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -382,16 +371,14 @@ class USQuantizer(Quantizer):
         return out, self.get_prec(out)
 
 
-@register_quantizer("uniform_affine")
+@register_quantizer("UniformAffine")
 class UAQuantizer(Quantizer):
     """ Information data type for uniform affine quantizaton
     """
     def sample(self, data):
-        ft = MMFeature()
         minv = float(data.min().asscalar())
         maxv = float(data.max().asscalar())
-        ft.set(minv, maxv)
-        return ft
+        return MMFeature(minv, maxv)
 
     def get_range(self, prec):
         mrange = 2**prec - 1
@@ -405,7 +392,7 @@ class UAQuantizer(Quantizer):
         minv, maxv = ft.get()
         oscale = self.ger_range(oprec)[1] / (maxv - minv)
         zpoint = self._get_zpoint(oscale, ft)
-        return oscale, zpoint
+        return SZBuffer(oscale, zpoint)
 
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):
@@ -421,8 +408,8 @@ class UAQuantizer(Quantizer):
 
         ft = features[wn]
         minv, maxv = ft.get()
-        oscale, zpoint = self.get_buffer(oprec, ft) if oscale is None \
-            else oscale, self._get_zpoint(oscale, ft)
+        oscale, zpoint = self.get_buffer(oprec, ft).get() \
+            if oscale is None else oscale, self._get_zpoint(oscale, ft)
         params[wqn], oprec = self.int_realize(
             params[wn]*oscale, oprec, logger=logger) - zpoint
         attr = {"precision": str(oprec)}
@@ -442,8 +429,8 @@ class UAQuantizer(Quantizer):
         iscale, iprec = buffers[xn].get(), precs[xn]
         ft = features[wn]
         oprec = oprec if oprec < iprec else iprec
-        oscale, zpoint = self.get_buffer(oprec, ft) if oscale is None \
-            else oscale, self._get_zpoint(oscale, ft)
+        oscale, zpoint = self.get_buffer(oprec, ft).get() \
+            if oscale is None else oscale, self._get_zpoint(oscale, ft)
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -490,7 +477,7 @@ class UAQuantizer(Quantizer):
         out = out.clip(a_min=lower, a_max=upper)
         return out, self.get_prec(out)
 
-DEFAULT_QUANT_TYPE = "uniform_symmetric"
+DEFAULT_QUANT_TYPE = "UniformSymmetric"
 DEFAULT_QUANTIZER = USQuantizer()
 
 QUANT_INSTANCES = {
@@ -508,10 +495,10 @@ def get_quantizer(quant_type):
 #----------------------------
 
 OPT_REG = {
-    # "historical_value": HVOptimizor,
-    # "moving_average": MAOptimizor,
-    # "kl_divergence": KLDOptimizor,
-    # "outlier_removal": OROptimizor,
+    # "HistoricalValue": HVOptimizor,
+    # "MovingAverage": MAOptimizor,
+    # "KLDivergence": KLDOptimizor,
+    # "OutlierRemoval": OROptimizor,
 }
 
 def register_optimizor(name):
@@ -560,7 +547,7 @@ class Optimizor:
         return {}
 
 
-@register_optimizor("historical_value")
+@register_optimizor("HistoricalValue")
 class HVOptimizor(Optimizor):
     """ Generalized historical value optimizor
     """
@@ -583,22 +570,20 @@ class HVOptimizor(Optimizor):
                 std = nd.norm(out-mean).asscalar() / sqrt_n
                 alpha = abs(mean) + self.lambd*std
                 absmax = alpha if alpha < 0.95*absmax else absmax
-            opt = AFeature()
             if hist_ft is None:
                 p = logger.debug if absmax < 30 else logger.warn
                 p("collect symbol %-40s, out_shape=%-20s, opt: (%s)",
                   name, out.shape, absmax)
-                opt.set(absmax)
+                opt = AFeature(absmax)
             else:
-                opt.set(max(habsmax, hist_ft.get()))
+                opt = AFeature(max(habsmax, hist_ft.get()))
         elif isinstance(raw_ft, MMFeature):
             minv, maxv = raw_ft.get()
-            opt = MMFeature()
             if hist_ft is None:
-                opt.set(minv, maxv)
+                opt = MMFeature(minv, maxv)
             else:
                 hminv, hmaxv = hist_ft.get()
-                opt.set(min(minv, hminv), max(maxv, hmaxv))
+                opt = MMFeature(min(minv, hminv), max(maxv, hmaxv))
         else:
             raise TypeError(
                 "Unsupported feature type: %s for HVOptimizor" % \
@@ -607,14 +592,14 @@ class HVOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_quant_type():
-        return ["uniform_symmetric", "uniform_affine"]
+        return ["UniformSymmetric", "UniformAffine"]
 
     @staticmethod
     def list_attr_types():
         return {"lambd": [_NONETYPE, float]}
 
 
-@register_optimizor("moving_average")
+@register_optimizor("MovingAverage")
 class MAOptimizor(Optimizor):
     """ Generalized moving average optimizor
     """
@@ -627,19 +612,18 @@ class MAOptimizor(Optimizor):
         hist_ft = kwargs.get("hist_ft", None)
         if isinstance(raw_ft, AFeature):
             absmax = raw_ft.get()
-            opt = AFeature()
             if hist_ft is None:
-                opt.set(absmax)
+                opt = AFeature(absmax)
             else:
                 habsmax = hist_ft.get()
-                opt.set((1-self.c)*habsmax + self.c*absmax)
+                opt = AFeature((1-self.c)*habsmax + self.c*absmax)
         elif isinstance(raw_ft, MMFeature):
             minv, maxv = raw_ft.get()
             if hist_val is None:
-                opt.set(minv, maxv)
+                opt = MMFeature(minv, maxv)
             else:
                 hminv, hmaxv = hist_ft.get()
-                opt.set(
+                opt = MMFeature(
                     (1-self.c)*hminv + self.c*minv,
                     (1-self.c)*hmaxv + self.c*maxv)
         else:
@@ -650,14 +634,14 @@ class MAOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_quant_type():
-        return ["uniform_symmetric", "uniform_affine"]
+        return ["UniformSymmetric", "UniformAffine"]
 
     @staticmethod
     def list_attr_types():
         return {"c": [float]}
 
 
-@register_optimizor("kl_divergence")
+@register_optimizor("KLDivergence")
 class KLDOptimizor(Optimizor):
     """ KL divergence optimizor for AFeature
     """
@@ -753,32 +737,32 @@ class KLDOptimizor(Optimizor):
         kval = self._kldiverge(absmax, out)
         opt = AFeature()
         if hist_val is None:
-            opt.set(kval)
+            opt = AFeature(kval)
         else:
-            opt.set(max(kval, hist.ft.get()))
+            opt = AFeature(max(kval, hist.ft.get()))
         return opt
 
     @staticmethod
     def list_supported_quant_type():
-        return ["uniform_symmetric"]
+        return ["UniformSymmetric"]
 
     @staticmethod
     def list_attr_types():
         return {"bucket_bit": [int], "quant_bit": [int], "eps": [float]}
 
 
-@register_optimizor("outlier_removal")
+@register_optimizor("OutlierRemoval")
 class OROptimizor(Optimizor):
     pass
 
-DEFAULT_OPT_INFO = ("historical_value", "lambd", None)
+DEFAULT_OPT_INFO = ("HistoricalValue", "lambd", None)
 DEFAULT_OPTIMIZOR = HVOptimizor()
 
 OPT_INSTANCES = {
     DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
-    # ("hstorical_value", "lambd", 25): HVOptimizor(lambd=25),
-    # ("moving_average","c", 0.01): MAOptimizor(),
-    # ("kl_divergence", "eps", 0.05): KLDOptimizor(eps=0.05),
+    # ("HistoricalValue", "lambd", 25): HVOptimizor(lambd=25),
+    # ("MovingAverage","c", 0.01): MAOptimizor(),
+    # ("KLDivergence", "eps", 0.05): KLDOptimizor(eps=0.05),
 }
 
 def get_optimizor(opt_info):
