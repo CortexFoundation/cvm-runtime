@@ -223,13 +223,12 @@ $$
 **Limitations**
 
 1. Only support `constant` mode
-2. $\text{constant_value} = PV$
+2. $\text{constant_value} = 0$
 3. Only support pad of $H$ dimension and $W$ dimension
 
 **Inputs**
 
 1. Input data $X$, of shape $(N,C,H,W)$
-
 
 **Attributes**
 
@@ -249,7 +248,7 @@ $$
   Yr[n,c,h,w] =
     \begin{cases}
       Xr[n, c, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
-      PV & \text{otherwise}
+      0 & \text{otherwise}
     \end{cases}       
 \end{equation}
 $$
@@ -263,13 +262,13 @@ $$
   Ye[n,c,h,w] =
     \begin{cases}
       Xe[n, c, h-PH_1, w-PW_1] & PH_1 \leq h<H+PH_1 \wedge PW_1 \leq w < W+PW_1 \\
-      \text{round}\big(PV \cdot sc_{x}\big) & \text{otherwise}
+      0 & \text{otherwise}
     \end{cases}       
 \end{split} \end{equation}
 $$
 
 ```python
-Ye = pad(Xe, mode="constant", pad_width=pad_width, constant_value=round(PV*scx))
+Ye = pad(Xe, **attrs)
 ```
 
 #### relu
