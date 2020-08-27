@@ -51,7 +51,7 @@ class MRT(tfm.MRT):
             th_dict : dict
                 Threshold dict of node-level output.
         """
-        self.th_dict = sym_calibrate(
+        self.features = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
             self._data, ctx=ctx, lambd=lambd, old_ths=old_ths)
         return self.th_dict
