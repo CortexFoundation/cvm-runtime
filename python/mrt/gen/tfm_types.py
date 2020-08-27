@@ -18,9 +18,7 @@ from mrt import sim_quant_helper as sim
 from mrt.tfm_base import MAX_BIT
 
 _NULL_NAME = "_NULL_NAME_"
-_RES_NAME = "_RES_"
 _NONETYPE = type(None)
-_NONETYPE_NAME = "_NoneType"
 
 #----------------------------
 # Feature Types Definition
@@ -485,15 +483,20 @@ QUANT_INSTANCES = {
     # "uniform_affine": UAQuantizer(),
 }
 
+def get_quantizer(quant_type):
+    if quant_type not in QUANT_INSTANCES:
+        QUANT_INSTANCES[quant_type] = QUANT_REG[quant_type]()
+    return QUANT_INSTANCES[quant_type]
+
 #----------------------------
 # Optimizor Registration
 #----------------------------
 
 OPT_REG = {
-    # "historical_value": AbsmaxLayerOptimizor,
-    # "moving_average": MovingAverageOptimizor,
-    # "kl_divergence": KLDivergenceOptimizor,
-    # "outlier_removal": OutlierRemovalOptimizor,
+    # "historical_value": HVOptimizor,
+    # "moving_average": MAOptimizor,
+    # "kl_divergence": KLDOptimizor,
+    # "outlier_removal": OROptimizor,
 }
 
 def register_optimizor(name):
@@ -532,10 +535,10 @@ class Optimizor:
             " base `get_opt` function defined in Optimizor")
 
     @staticmethod
-    def list_supported_features():
+    def list_supported_quant_type():
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
-            " base `list_supported_features` function defined in Optimizor")
+            " base `list_supported_quant_type` function defined in Optimizor")
 
     @staticmethod
     def list_attr_types():
@@ -556,45 +559,39 @@ class HVOptimizor(Optimizor):
         hist_ft = kwargs.get("hist_ft", None)
         name = kwargs.get("name", _NULL_NAME)
 
-        if hist_ft is None:
-            return raw_ft
-        if isinstance(raw_ft, AbsmaxLayerFeature):
+        if isinstance(raw_ft, AFeature):
             # hyperparameter 'lambd' for fine tuning
             absmax = raw_ft.get()
-            habsmax = hist_ft.get()
             if self.lambd is not None:
                 mean = nd.mean(out).asscalar()
                 sqrt_n = math.sqrt(np.product(out.shape))
                 std = nd.norm(out-mean).asscalar() / sqrt_n
-                alpha = abs(mean) + lambd*std
-                nabsmax = alpha if alpha < 0.95*absmax else absmax
-            # historical feature update
-            opt_absmax = max(habsmax, absmax)
-            p = logger.debug if opt_absmax < 30 else logger.warn
-            p("collect symbol %-40s, out_shape=%-20s, opt: (%s)",
-              name, out.shape, opt_absmax)
-            opt = AbsmaxLayerFeature(opt_absmax)
-        elif isinstance(raw_ft, AbsmaxChannelSampler):
-            absmax = raw_ft.get()
-            habsmax = raw_ft.get()
-            opt = AbsmaxChannelFeature(nd.broadcast_maximum(absmax, habsmax))
-        elif isinstance(raw_ft, MinMaxLayerFeature):
+                alpha = abs(mean) + self.lambd*std
+                absmax = alpha if alpha < 0.95*absmax else absmax
+            opt = AFeature()
+            if hist_ft is None:
+                p = logger.debug if absmax < 30 else logger.warn
+                p("collect symbol %-40s, out_shape=%-20s, opt: (%s)",
+                  name, out.shape, absmax)
+                opt.set(absmax)
+            else:
+                opt.set(max(habsmax, hist_ft.get()))
+        elif isinstance(raw_ft, MMFeature):
             minv, maxv = raw_ft.get()
-            hminv, hmaxv = hist_ft.get()
-            opt = MinMaxLayerFeature(min(minv, hminv), max(maxv, hmaxv))
-        elif isinstance(raw_ft, MinMaxChannelFeature):
-            minv, maxv = raw_ft.get()
-            hminv, hmaxv = hist_ft.get()
-            opt = MinMaxChannelFeature(
-                nd.broadcast_minimum(minv, hminv),
-                nd.broadcast_maximum(maxv, hmaxv))
+            opt = MMFeature()
+            if hist_ft is None:
+                opt.set(minv, maxv)
+            else:
+                hminv, hmaxv = hist_ft.get()
+                opt.set(min(minv, hminv), max(maxv, hmaxv))
         else:
             raise TypeError(
-                "Unsupported feature type: %s for HVOptimizor" % type(f))
+                "Unsupported feature type: %s for HVOptimizor" % \
+                type(raw_ft))
         return opt
 
     @staticmethod
-    def list_supported_features():
+    def list_supported_quant_type():
         return ["uniform_symmetric", "uniform_affine"]
 
     @staticmethod
@@ -613,35 +610,31 @@ class MAOptimizor(Optimizor):
 
     def get_opt(self, raw_ft, out, **kwargs):
         hist_ft = kwargs.get("hist_ft", None)
-        if hf is None:
-            return f
-        if isinstance(raw_ft, AbsmaxLayerFeature):
-            absmax = f.get()
-            habsmax = raw_ft.get()
-            opt = AbsmaxLayerFeature((1-self.c)*habsmax + self.c*absmax)
-        elif isinstance(raw_ft, MinMaxLayerFeature):
+        if isinstance(raw_ft, AFeature):
             absmax = raw_ft.get()
-            habsmax = raw_ft.get()
-            opt = AbsmaxChannelFeature((1-self.c)*habsmax + self.c*absmax)
-        elif isinstance(raw_ft, MinMaxLayerFeature):
+            opt = AFeature()
+            if hist_ft is None:
+                opt.set(absmax)
+            else:
+                habsmax = hist_ft.get()
+                opt.set((1-self.c)*habsmax + self.c*absmax)
+        elif isinstance(raw_ft, MMFeature):
             minv, maxv = raw_ft.get()
-            hminv, hmaxv = hist_ft.get()
-            opt = MinMaxLayerFeature(
-                (1-self.c)*hminv + self.c*minv,
-                (1-self.c)*hmaxv + self.c*maxv)
-        elif isinstance(raw_ft, MinMaxChannelFeature):
-            minv, maxv = raw_ft.get()
-            hminv, hmaxv = hist_ft.get()
-            opt = MinMaxChannelFeature(
-                (1-self.c)*hminv + self.c*minv,
-                (1-self.c)*hmaxv + self.c*maxv)
+            if hist_val is None:
+                opt.set(minv, maxv)
+            else:
+                hminv, hmaxv = hist_ft.get()
+                opt.set(
+                    (1-self.c)*hminv + self.c*minv,
+                    (1-self.c)*hmaxv + self.c*maxv)
         else:
             raise TypeError(
-                "Unsupported feature type: %s for MAOptimizor" % type(f))
+                "Unsupported feature type: %s for MAOptimizor" % \
+                type(raw_ft))
         return opt
 
     @staticmethod
-    def list_supported_features():
+    def list_supported_quant_type():
         return ["uniform_symmetric", "uniform_affine"]
 
     @staticmethod
@@ -651,7 +644,7 @@ class MAOptimizor(Optimizor):
 
 @register_optimizor("kl_divergence")
 class KLDOptimizor(Optimizor):
-    """ KL divergence optimizor for AbsmaxLayerFeature
+    """ KL divergence optimizor for AFeature
     """
     # Optimizor parameter for kl divergence
     bucket_bit = 12
@@ -736,18 +729,22 @@ class KLDOptimizor(Optimizor):
 
     def get_opt(self, raw_ft, out, **kwargs):
         hist_ft = kwargs.get("hist_ft", None)
-        if not isinstance(raw_ft, AbsmaxLayerFeature):
+        if not isinstance(raw_ft, AFeature):
             raise TypeError(
                 "KLDOptimizor do not support feature type: %s, " + \
-                "only AbsmaxLayerFeature is supported" % type(f))
+                "only AFeature is supported" % type(raw_ft))
 
         absmax = raw_ft.get()
         kval = self._kldiverge(absmax, out)
-        opt = kval if hist_ft is None else max(kval, hist_ft.get())
+        opt = AFeature()
+        if hist_val is None:
+            opt.set(kval)
+        else:
+            opt.set(max(kval, hist.ft.get()))
         return opt
 
     @staticmethod
-    def list_supported_features():
+    def list_supported_quant_type():
         return ["uniform_symmetric"]
 
     @staticmethod
@@ -768,4 +765,12 @@ OPT_INSTANCES = {
     # ("moving_average","c", 0.01): MAOptimizor(),
     # ("kl_divergence", "eps", 0.05): KLDOptimizor(eps=0.05),
 }
+
+def get_optimizor(opt_info):
+    opt_type = opt_info[0]
+    if opt_info not in OPT_INSTANCES:
+        opt_attrs = {} if len(opt_info) == 1 else \
+            {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
+        OPT_INSTANCES[opt_info] = OPT_REG[opt_type](**opt_attrs)
+    return OPT_INSTANCES[opt_info]
 

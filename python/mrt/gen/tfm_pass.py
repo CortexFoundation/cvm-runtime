@@ -4,6 +4,9 @@ import mxnet as mx
 
 from mrt.tfm_base import N
 from mrt.tfm_pass import convert_params_dtype
+from mrt.gen.tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, \
+                              get_optimizor, DEFAULT_OPT_INFO
+from mrt.sym_utils import is_inputs, get_entry_id, get_nd_op
 
 from mrt import sym_utils as sutils
 
@@ -11,7 +14,9 @@ from mrt import sym_utils as sutils
 # Module main interfaces
 #----------------------------
 
-def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
+_RES_NAME = "_RES_"
+
+def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
     """ Customized graph-level topo pass definition.
 
         Interface for MRT main2 configuration
@@ -21,11 +26,10 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     """
     names = set()
 
-    def _collect_names(symbol, params):
+    def _collect_names(symbol, params, **kwargs):
         names.add(symbol.attr("name"))
 
-    sutils.topo_visit_transformer(
-        symbol, params, _collect_names, **kwargs)
+    sutils.topo_visit_transformer(symbol, params, _collect_names)
     cfg_dict, noncfgs = {} if cfg_dict is None else cfg_dict, set()
     keys = cfg_dict.keys()
     for name in keys:
@@ -47,40 +51,36 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging, **kwargs):
     def _sym_config_infos(sym, params, **kwargs):
         name = sym.attr("name")
         cfg_info = cfg_dict.get(name, {})
-        syms_set.add(name)
 
-        # feature
         quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
+        get_quantizer(quant_type)
 
-        # optimizor
         opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
-        opt_type = opt_info[0]
-        if opt_info not in OPT_INSTANCES:
-            opt_attrs = {} if len(opt_info) == 1 else \
-                {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
-            OPT_INSTANCES[opt_info] = OPT_REG[opt_type](**opt_attrs)
+        get_optimizor(opt_info)
 
         cfg_dict[name] = cfg_info if cfg_info else \
             {"quant_type": quant_type, "opt_info": opt_info}
 
-    sutils.topo_visit_transformer(
-        symbol, params, _sym_config_infos, **kwargs)
+    sutils.topo_visit_transformer(symbol, params, _sym_config_infos)
     return cfg_dict
 
-def deserialize(val_dict):
+_NONETYPE_NAME = "_NoneType"
+
+def deserialize(cfg_groups):
     """ Interface for MRT main2 configuration
 
         Check the validity and compatibility of feature, sampler and optimizor configurations.
 
         Parameters
         ----------
-        val_dict : dict
+        cfg_groups : dict
             configuration information (quantizer type, optimizor information) maps to node names (before calibration).
     """
     cfg_dict = {}
-    for val, names in val_dict.items():
-        val = val if val else "{}"
-        cfg_info = json.loads(val)
+    for key, val in cfg_groups.items():
+        key = key if key else "{}"
+        cfg_info = json.loads(key)
+        names = json.loads(val)
 
         # quantizer 
         quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
@@ -151,7 +151,7 @@ def sym_calibrate(symbol, params, data, **kwargs):
     cfg_dict = kwargs["cfg_dict"]
 
     def _impl(op, params, graph, **kwargs):
-        deps, old_ths = kwargs['deps'], kwargs['old_ths']
+        deps= kwargs['deps']
         logger = logging.getLogger('log.mrt.calibrate')
         name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = sutils.sym_iter(
@@ -159,7 +159,7 @@ def sym_calibrate(symbol, params, data, **kwargs):
         quant_type, opt_info = \
             cfg_dict[name]["quant_type"], cfg_dict[name]["opt_info"]
         quantizer, optimizor = \
-            QUANT_INSTANCES[quant_type], OPT_INSTANCES[opt_type]
+            get_quantizer(quant_type), get_optimizor(opt_info)
 
         if op_name == 'null':
             out = data if is_inputs(op, params) else params[name]
@@ -182,7 +182,7 @@ def sym_calibrate(symbol, params, data, **kwargs):
 
         out = [out] if len(op) == 1 else out
         out_cache[name] = [o.as_in_context(ctx) for o in out]
-        raw_ft = quantizer.sample(out)
+        raw_ft = quantizer.sample(out[0])
         hist_ft = features[name] if name in features else None
         features[name] = optimizor.get_opt(
             raw_ft, out[0], hist_ft=hist_ft, logger=logger, name=name)

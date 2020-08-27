@@ -9,13 +9,14 @@ from mxnet import gluon, ndarray as nd
 
 from mrt import conf
 from mrt.transformer import reduce_graph
-from mrt.gen.transformer import MRT, Model
 from mrt.gluon_zoo import save_model
 from mrt.main2 import set_batch, batch_axis, _check, \
                       _get_path, _get_ctx, str_t, int_t, \
                       bool_t, tuple_t, float_t, ARRAY, \
                       PAIR, _get_val, _cast_val, \
                       _load_fname, _checkpoint_exist
+from mrt.gen.transformer import MRT, Model
+from mrt.gen.tfm_pass import deserialize
 
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
@@ -110,7 +111,11 @@ if __name__ == "__main__":
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
-        lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
+        cfg_groups = _get_val(
+            cfg, sec, 'Cfg_groups',
+            dtype=PAIR(str_t, str_t), dval={})
+        cfg_dict = deserialize(cfg_groups)
+        mrt.set_cfg_dict(cfg_dict)
         shp = set_batch(input_shape, batch)
         dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
         data_iter_func = dataset.iter_func()
@@ -118,7 +123,7 @@ if __name__ == "__main__":
         for i in range(calibrate_num):
             data, _ = data_iter_func()
             mrt.set_data(data)
-            mrt.calibrate(lambd=lambd, ctx=ctx)
+            mrt.calibrate(ctx=ctx)
         dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
         if dump:
             mrt.save(model_name_calib, datadir=model_dir)
@@ -132,6 +137,7 @@ if __name__ == "__main__":
             _checkpoint_exist(sec, sym_top_file, prm_top_file)
             top = Model.load(sym_top_file, prm_top_file)
         logger.info("`%s` stage checkd" % sec)
+    exit()
 
     # quantization
     sec = 'QUANTIZATION'

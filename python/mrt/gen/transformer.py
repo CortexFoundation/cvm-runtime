@@ -13,7 +13,9 @@ from mxnet import ndarray as nd
 from mrt.gen import tfm_ops  # pylint: disable=unused-import
 from mrt import cvm_op   # pylint: disable=unused-import
 
-from mrt.gen.tfm_pass import sym_calibrate
+from mrt.sym_utils import topo_sort
+from mrt.gen.tfm_pass import sym_quantize, sym_calibrate, \
+                             sym_config_infos
 
 from mrt import transformer as tfm
 
@@ -34,6 +36,29 @@ class Model(tfm.Model):
 
 
 class MRT(tfm.MRT):
+    def __init__(self, model, input_prec=8):
+        self.old_names = model.output_names()
+        self.current_model = model
+
+        self._data = None
+        self.cfg_dict = {}
+        self.features = {}
+        self.buffers = {}
+        self.restore_names = set()
+
+        self._op_default_input_precs()
+        self.precs = {}
+        if 'data' not in \
+            {sym.attr('name') for sym in topo_sort(self.current_model)}:
+            raise RuntimeError("please invoke `init` function first")
+        self.precs['data'] = input_prec
+
+        self.softmax_lambd = 10
+        self.shift_bits = 5
+
+    def set_cfg_dict(self, cfg_dict):
+        self.cfg_dict = cfg_dict
+
     def calibrate(self, ctx=mx.cpu(), lambd=None, old_ths=None):
         """ Calibrate the current model after setting mrt data.
 
@@ -51,10 +76,13 @@ class MRT(tfm.MRT):
             th_dict : dict
                 Threshold dict of node-level output.
         """
+        self.cfg_dict = sym_config_infos(
+            self.current_model.symbol, self.current_model.params,
+            cfg_dict=self.cfg_dict)
         self.features = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
-            self._data, ctx=ctx, lambd=lambd, old_ths=old_ths)
-        return self.th_dict
+            self._data, ctx=ctx, cfg_dict=self.cfg_dict)
+        return self.features
 
     def quantize(self):
         """ Quantize the current model after calibration.
@@ -64,7 +92,7 @@ class MRT(tfm.MRT):
             qmodel : Model
                 The quantized model.
         """
-        _sym, _prm = quantize(
+        _sym, _prm = sym_quantize(
             self.current_model.symbol, self.current_model.params,
             self.th_dict, self.precs, self.scales, self.op_input_precs,
             self.restore_names, self.shift_bits, self.softmax_lambd)
