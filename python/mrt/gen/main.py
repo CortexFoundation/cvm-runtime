@@ -1,6 +1,3 @@
-""" This is a user API that is used to parse model configurations.
-"""
-
 import sys
 from os import path
 import configparser
@@ -11,295 +8,20 @@ import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
 from mrt import conf
-from mrt.transformer import Model, reduce_graph, MRT
+from mrt.transformer import reduce_graph
 from mrt.gluon_zoo import save_model
+from mrt.main2 import set_batch, batch_axis, _check, \
+                      _get_path, _get_ctx, str_t, int_t, \
+                      bool_t, tuple_t, float_t, ARRAY, \
+                      PAIR, _get_val, _cast_val, \
+                      _load_fname, _checkpoint_exist
+from mrt.gen.transformer import MRT, Model
+from mrt.gen.tfm_pass import deserialize
+
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
 from mrt import utils
 from mrt import sym_utils as sutils
-from mrt import cvm_op
-
-def set_batch(input_shape, batch):
-    """Get the input shape with respect to a specified batch value and an original input shape.
-
-    Parameters
-    ----------
-    input_shape : tuple
-        The input shape with batch axis unset.
-    batch : int
-        The batch value.
-
-    Returns
-    -------
-    ishape : tuple
-        The input shape with the value of batch axis equal to batch.
-    """
-    return [batch if s == -1 else s for s in input_shape]
-
-def batch_axis(input_shape):
-    """Get the batch axis entry of an input shape.
-
-    Parameters
-    ----------
-    input_shape : tuple
-        The data shape related to dataset.
-
-    Returns
-    -------
-    axis : int
-        The batch axis entry of an input shape.
-    """
-    idx = [i for i, s in enumerate(input_shape) if s == -1]
-    assert len(idx) == 1
-    return idx[0]
-
-def _check(expression, section, option, message='Not a valid value'):
-    """check whether an operation of main2 if valid and report error message if invalid.
-
-    Parameters
-    ----------
-    expression : bool
-        The judgement conditions in main2.
-    section : string
-        The section of configuration file.
-    option : string
-        The option of the section.
-    message : string
-        The error message to be reported.
-    """
-    assert expression, message + '.\noption `%s` in section `%s`' \
-        % (option, section)
-
-NoneType = object()
-
-def _get_path(config, section, option, is_dir=False, dpath=NoneType):
-    """Get and validate the path specified in configuration file.
-
-    Parameters
-    ----------
-    config: configparser.ConfigParser
-        The initialized config parser.
-    section : string
-        The section of configuration file.
-    option : string
-        The option of the section.
-    is_dir : bool
-        Whether the path is a directory.
-    dpath : string
-        The default path.
-
-    Returns
-    -------
-    path : string
-        The verified absolute path specified in the option.
-    """
-    pth_ = _get_val(config, section, option, dval=dpath)
-    pth = path.abspath(path.expanduser(pth_))
-    if is_dir:
-        _check(path.isdir(pth), section, option,
-               message='Not a valid dir `%s`' % pth_)
-        if not path.exists(pth):
-            path.makedirs(pth)
-    else:
-        _check(path.exists(pth), section, option,
-               message='File `%s` not found' % pth_)
-    return pth
-
-def _get_ctx(config, section, dctx=mx.cpu()):
-    """Get the context specified in configuration file.
-
-    Parameters
-    ----------
-    config: configparser.ConfigParser
-        The initialized config parser.
-    section : string
-        The section of configuration file.
-    dctx: mxnet.context
-        The default context.
-
-    Returns
-    -------
-    path : mxnet.context
-        The context specified in the option.
-    """
-    contex = dctx
-    device_type = _get_val(config, section, 'Device_type', dval='cpu')
-    _check(device_type in ['', 'gpu', 'cpu'], section, 'Device_type',
-           message='Only support `gpu`, `cpu` and null value')
-    if device_type == 'gpu':
-        device_ids = _get_val(
-            config, section, 'Device_ids', dtype=ARRAY(int_t))
-        contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
-              else [mx.gpu(i) for i in device_ids]
-        if section == 'CALIBRATION':
-            _check(type(contex).__name__ != 'list', section, 'Device_ids',
-                   message='`Device_ids` should be an integer in Calibration')
-    else:
-        device_ids = _get_val(config, section, 'Device_ids', dval='')
-        # _check(device_ids == '', section, 'Device_ids',
-               # message='`Device_ids` should be null given `cpu` device type')
-    return contex
-
-str_t = '_str_'
-int_t = '_int_'
-bool_t = '_bool_'
-tuple_t = '_tuple_'
-float_t = '_float_'
-
-def ARRAY(dtype):
-    """Array wrapper of the uniform data type.
-
-    Parameters
-    ----------
-    dtype : string
-        The data type to be uniformly wrapped into an array.
-
-    Returns
-    -------
-    ret : string
-        The wrapped data type name.
-    """
-    return '[' + dtype + ']'
-
-def PAIR(*dtypes):
-    """Multi-level map wrapper of the uniform data types.
-
-    Parameters
-    ----------
-    dtypes : list of string
-        The data types to be uniformly wrapped into an multi-level map.
-
-    Returns
-    -------
-    ret : string
-        The wrapped data type name.
-    """
-    return '{' + ':'.join(list(dtypes)) + '}'
-
-def _get_val(config, section, option, dtype=str_t, dval=NoneType):
-    """Get the value of the option in the section, with data type and default value specified.
-
-    Parameters
-    ----------
-    config: configparser.ConfigParser
-        The initialized config parser.
-    section : string
-        The section of configuration file.
-    option : string
-        The option of the section.
-    dtype : string
-        The data type to be recognised by the parser.
-    dval : string, int, etc
-        The default value.
-    message : string
-        The error message to be reported.
-
-    Returns
-    -------
-    val : string, int, etc
-        The parsed value.
-    """
-    val_ = config[section][option]
-    if val_ == '':
-        _check(dval != NoneType, section, option,
-               message="Please specify the value")
-        val = dval
-    elif dtype in [str_t, int_t, tuple_t, float_t, bool_t]:
-        val = _cast_val(section, option, val_, dtype=dtype)
-    elif dtype.startswith('['):
-        etype=dtype.replace('[', '').replace(']', '')
-        val = [_cast_val(section, option, x.strip(), dtype=etype) \
-               for x in val_.split(',')]
-    elif dtype.startswith('{'):
-        etypes = dtype.replace('{', '').replace('}', '').split(':')
-        items = val_.split(',')
-        val = {}
-        for item in items:
-            entries_ = [it.strip() for it in item.split(':')]
-            _check(len(entries_) == len(etypes), section, option,
-                   message="Dict level not consistent")
-            entries = [_cast_val(section, option, entry_, dtype=etypes[level]) \
-                for level, entry_ in enumerate(entries_)]
-            cur = val
-            for level, entry in enumerate(entries[:-2]):
-                cur[entry] = {} if entry not in cur else cur[entry]
-                cur = cur[entry]
-            _check(entries[-2] not in cur, section, option,
-                   message="Duplicate key `%s`" % entries[:-1])
-            cur[entries[-2]] = entries[-1]
-    return val
-
-def _cast_val(section, option, val_, dtype=str_t):
-    """Get the value of the option in the section, with data type and default value specified.
-
-    Parameters
-    ----------
-    config: configparser.ConfigParser
-        The initialized config parser.
-    section : string
-        The section of configuration file.
-    option : string
-        The option of the section.
-    dtype : string
-        The data type to be recognised by the parser.
-    dval : string, int, etc
-        The default value.
-    message : string
-        The error message to be reported.
-
-    Returns
-    -------
-    val : string, int, etc
-        The parsed value.
-    """
-    if dtype == str_t:
-        val = val_
-    elif dtype in [int_t, tuple_t, float_t, bool_t]:
-        try:
-            val = float(eval(val_)) if dtype == float_t else eval(val_)
-        except SyntaxError:
-            print("Not a valid value, " + \
-                  "option `%s` in section `%s`" % (option, section))
-            sys.exit(0)
-        if dtype == int_t:
-            _check(type(val).__name__ == 'int', section, option,
-                   message="Only support integer value")
-    return val
-
-def _load_fname(prefix, suffix=None, with_ext=False):
-    """Get the model files at a given stage.
-
-    Parameters
-    ----------
-    prefix : string
-        The file path without and extension.
-    suffix : string
-        The file suffix with respect to a given stage of MRT.
-    with_ext: bool
-        Whether to include ext file.
-
-    Returns
-    -------
-    files : tuple of string
-        The loaded file names.
-    """
-    suffix = "."+suffix if suffix is not None else ""
-    return utils.extend_fname(prefix+suffix, with_ext)
-
-def _checkpoint_exist(sec, *flist):
-    """Check whether the given file satisfy the check point of the MRT Stage.
-
-    Parameters
-    ----------
-    sec : string
-        The MRT stage to be checked.
-    flist : list of string
-        The checkpoint file to be checked.
-    """
-    for fname in flist:
-        _check(path.exists(fname), 'DEFAULT', 'Start',
-               message="Check point of `%s` not found, " % sec + \
-               "please move the start point earlier")
 
 if __name__ == "__main__":
     assert len(sys.argv) == 2, "Please enter 2 python arguments."
@@ -338,7 +60,7 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, data_dir=model_dir, ctx=model_ctx)
+        save_model(model_name, data_dir=model_dir)
         # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
@@ -389,7 +111,11 @@ if __name__ == "__main__":
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
-        lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
+        cfg_groups = _get_val(
+            cfg, sec, 'Cfg_groups',
+            dtype=PAIR(str_t, str_t), dval={})
+        cfg_dict = deserialize(cfg_groups)
+        mrt.set_cfg_dict(cfg_dict)
         shp = set_batch(input_shape, batch)
         dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
         data_iter_func = dataset.iter_func()
@@ -397,7 +123,7 @@ if __name__ == "__main__":
         for i in range(calibrate_num):
             data, _ = data_iter_func()
             mrt.set_data(data)
-            mrt.calibrate(lambd=lambd, ctx=ctx)
+            mrt.calibrate(ctx=ctx)
         dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
         if dump:
             mrt.save(model_name_calib, datadir=model_dir)
@@ -419,7 +145,7 @@ if __name__ == "__main__":
         restore_names = _get_val(
             cfg, sec, 'Restore_name', dtype=ARRAY(str_t), dval=[])
         name_to_op = {}
-        from sym_utils import topo_sort
+        from mrt.sym_utils import topo_sort
         for sym in topo_sort(mrt.current_model.symbol):
             name, op_name = sym.attr('name'), sym.attr('op_name')
             if op_name not in name_to_op:
@@ -434,8 +160,8 @@ if __name__ == "__main__":
                 new_names.append(name)
         restore_names = set(new_names)
         if '_ALL_EXCEPT_' in restore_names:
-            from tfm_base import _pass_manager
-            from tfm_ops import disabled_restore_ops
+            from mrt.gen.tfm_base import _pass_manager
+            from mrt.gen.tfm_ops import disabled_restore_ops
 
             quantize_ops = [op_name for op_name in _pass_manager["quantize"] \
                             if op_name not in disabled_restore_ops]

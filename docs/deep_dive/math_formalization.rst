@@ -1,223 +1,4 @@
 
-.. _design-and-arch:
-
-***********************
-Design and Architecture
-***********************
-
-This document is intended for developers who want to understand the architecture of cvm-runtime and/or actively develop on the project. This page is organized as follows:
-
-- The `System Architecture`_ introduces all the important details
-  of system design. To get started, please read this section first.
-
-- The `Example Inference Flow`_ gives an overview of the steps
-  that CVM takes to load a hard-disk model into CPU/GPU memory
-  for running the deterministic result.
-
-- The `Operator Math Formalization`_ section describes the ideal
-  process logic for specific input data with strict mathematical
-  description, guiding the source code.
-
-.. contents::
-  :depth: 3
-
-System Architecture
-===================
-
-Integer Data Flow
------------------
-
-Assertion
----------
-
-- source code: `include/utils/logging.h`.
-
-The assertion do runtime checks and may generate two exceptions,
-which respectively stands for runtime error inherited from
-`std::runtime_error` and logic error inherited from `std::logic_error`.
-The corresponding exception classes declared refer to
-:cpp:class:`utils::LogMessageFatal` and
-:cpp:class:`utils::ValueVerifyFatal` for more details.
-
-Developer need to assert conditions with pre-defined macros,
-such as :c:func:`CHECK` and :c:func:`VERIFY`. :c:func:`CHECK`
-macro will throw runtime exception and :c:func:`VERIFY` will
-throw logic error. A example usage likes this:
-
-.. code-block:: C
-
-  CHECK(condition) << "error information";
-  VERIFY(condition) << "error information";
-
-Now it's important to understand the difference between the two
-exceptions. One should know the cvm-runtime project is intergral
-to the CVM in Cortex Foundation's full-node: CortexTheasus. A
-inference call in the cortex blockchain will cost the Endophin,
-A calculation unit for model inference takes up, including
-memory, time-spending, etc. And then according to the Endophin
-cost, the logic error will consume the invoker's CTXC token
-even if the inference fails, whereas the runtime error won't.
-
-**Briefly, a logic error is caused by model supplier or invoker
-usually, so it's user's responsibility to take the failure.
-And the generic situation that a runtime error occurs is out of
-source code bug.**
-
-And one another noticable thing is that cvm-runtime uses exception
-to record errors, and it's a big offense to segement fault or dump.
-Try your best to avoid core dump and use CHECK macro to check if
-you are uncertain to some conditions.
-
-NDArray Module
---------------
-
-Precision Schema
-----------------
-
-Shape Inference
----------------
-
-Operator Gas Table
-------------------
-
-.. toctree::
-  :maxdepth: 2
-
-  OPs Table <../cvm/ops.md>
-
-Example Inference Flow
-======================
-
-This section will guide the developer to walk the codebase of an
-inference flow, from C library API.
-
-Library API
------------
-
-**cvm-runtime** defines the inference interface as below:
-
-#. :cpp:func:`CVMAPILoadModel`: load model of network handle
-
-#. :cpp:func:`CVMAPIInference`: inference via network handle
-
-#. :cpp:func:`CVMFreeModel`: free model space by handle
-
-- declaration: `include/cvm/c_api.h`
-- definition: `src/core/c_api.cc`
-
-And the relative NDArray data API functions are:
-
-#. :cpp:func:`CVMArrayAlloc`: allocate the NDArray space
-#. :cpp:func:`CVMArrayFree`: free the NDArray space
-
-- declaration: ``include/cvm/runtime/c_runtime_api.h``
-- definition: ``src/runtime/ndarray.cc``
-
-A simple inference code blocks refer to:
-
-.. code-block:: CPP
-
-  void *handle;
-  CVMAPILoadModel(..., &net, ...);
-
-  CVMArrayHandle data;
-  CVMArrayAlloc(..., &data);
-
-  CVMArrayHandle output;
-  CVMArrayAlloc(..., &output);
-
-  CVMAPIInference(handle,
-                  data->data, data_len,
-                  &output->data, output_len);
-
-  ... // process output data
-
-  CVMAPIFreeModel(handle);
-  CVMArrayFree(data);
-  CVMArrayFree(output);
-
-CVM Model
----------
-
-- declaration: ``inclulde/cvm/model.h``
-- definition: ``src/core/model.cc``
-
-The API above invokes the lower level
-:cpp:class:`cvm::runtime::CVMModel` class, which exposes the
-mainly inference interface.
-
-And the :cpp:class:`cvm::runtime::CVMModel` wrappered a pure
-on-device graph runtime, and set extra post-process logic on
-output Tensor.
-More details refer to source code please.
-
-Graph Runtime
--------------
-
-- declaration: ``src/runtime/graph_runtime.h``
-- definition: ``src/runtime/graph_runtime.cc``
-
-The :cpp:class:`cvm::runtime::CVMRuntime` manages all the
-resources allocated via CPU, CUDA, OPENCL, ..., etc.
-It will pre-allocate the model memory space on device and
-recognize the right order that operators execute.
-
-:cpp:func:`cvm::runtime::CvmRuntime::Init()` initialize the
-model network and do some neccessary checks such as shape infer,
-precision check, ..., etc.
-
-:cpp:func:`cvm::runtime::CvmRuntime::Setup()` will prepare
-all the resources the model needs. Set up procedure has three
-steps:
-
-1. Plan Storage
-
-  Using optimizor to pre-calculate the operator memory size.
-
-2. Setup Storage
-
-  Allocate needed memory space and create NDArray node.
-
-3. Setup Op Execs
-
-  Connect all the NDArray node via operators and return the
-  lambda function to execute. The operators are registered
-  in some other places.
-
-The :cpp:func:`cvm::runtime::CvmRuntime::Run()` will trigger
-the execution for model inference.
-
-Operators
----------
-
-Operators are some abstract mathematical process logic set.
-Currently cvm-runtime has supportted all 33 operators, grouped
-by similar properties. Specific operators name refer to
-:ref:`the op list <op_list>`.
-
-All operators are the instance for class :cpp:class:`cvm::Op`,
-with different attribites, inputs, parameters, outputs.
-
-Generally, we register an new opertors using the pre-defined
-macro :c:func:`CVM_REGISTER_OP`. And all the operators
-registry are located at directory ``src/top``.
-
-Besides, all the above registry function won't set the specific
-operators' inference logic. It's a device-relative code
-implementation, so we put the forward function code in the
-``src/runtime/{device_type}/ops`` directory according to the
-device type. Currently we have achieved three on-device version:
-
-- CPU
-- CUDA
-- FORMAL
-
-The OPENCL is still in progress and not the latest version.
-Please refer to the source code for more detail process logic
-and the next section will abstract the mathematical logic in
-the formalization format.
-
-
 .. _operator-math-formalization:
 
 Operator Math Formalization
@@ -242,7 +23,7 @@ All the operators' formalization obeys the unify format:
 
   \forall \text{given range}, \\
 
-  \text{where } \text{condition}_1 \text{ and } \text{condition}_2 \text{ and }
+  \text{where } \text{condition}_1 \text{ and} \text{condition}_2 \text{ and}
   \cdots \text{condition}_n
 
 which means that for given value range, the forluma in the first
@@ -502,7 +283,7 @@ where :math:`\text{kernel}` function does the 2D image convolution calculation, 
   \text{kernel}(n, j, p, q, o, i) = \sum_{k_i=0}^{\text{KH}} \sum_{k_j = 0}^{\text{KW}} \text{pad}(p'+k_i*\text{DH},q'+k_j*\text{DW}) \cdot W[o, i, k_i, k_j], \\
 
   \text{where } p' = p \cdot \text{SH} -\text{PH} \text{ and }
-  q' = q \cdot \text{SW}-\text{PW} \text{ and } \\
+  q' = q \cdot \text{SW}-\text{PW} \text{ and} \\
   \text{pad}(p, q) = \begin{cases}
   X[n, j, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
   0, & \text{otherwise}
@@ -577,7 +358,7 @@ Max_pool2d performs max pooling over every plane for each batch and channel.
   \text{where } \text{ceil_func(val)} = \begin{cases}
   \lceil \text{val} \rceil, & \text{if ceil_mode is true} \\
   \lfloor \text{val} \rfloor, & \text{otherwise}
-  \end{cases} \text{ and } \\
+  \end{cases} \text{ and} \\
   \text{pad}(n, i, p, q) = \begin{cases}
   X[n, i, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
   INT32_MIN, & \text{otherwise}
@@ -815,11 +596,11 @@ This operator tiles the input data serveral times on serveral dimensions. Differ
   X[k_{K-N+0} \text{ mod } n_0, k_{K-N+1} \text{ mod } n_1, \cdots, k_{K-N+N-1} \text{ mod } n_{N-1}], \\
   \forall k_0 \in [0, S_0) \wedge \cdots \wedge k_{K-1} \in [0, S_{K-1}), \\
 
-  \text{where } K = \max\{M, N\} \text{ and } S_i = SX_i \cdot SR_i \text{ and } \\
+  \text{where } K = \max\{M, N\} \text{ and } S_i = SX_i \cdot SR_i \text{ and} \\
   SX_p = \begin{cases}
   n_{p-K+N}, & p \in [K-N, K-1) \\
   1, & p \in [0, K-N)
-  \end{cases} \text{ and } \\
+  \end{cases} \text{ and} \\
   SR_q = \begin{cases}
   m_{q-K+M}, & q \in [K-M, K-1) \\
   1, & q \in [0, K-M)
@@ -895,7 +676,7 @@ This operator transposes the input data with a certain sequence.
   \text{axes}_i, & M = N \wedge \text{axes}_i \geqslant 0 \\
   \text{axes}_i + N, & M = N \wedge \text{axes}_i < 0 \\
   N-1-i, & M = 0
-  \end{cases} \text{ and } \\
+  \end{cases} \text{ and} \\
   card \; \{\text{real_axes}_i \mid i \in [0, N) \} = N
 
 slice
@@ -922,45 +703,60 @@ This operator slices an input array with given attribute. For each dimension, st
   0, & b \in [0, N) \wedge b \geqslant B
   \end{cases}, b \in [0, N) \\
 
+.. math::
   \text{e_arr}[e] = \begin{cases}
   \text{end}[e] + n_i, & e \in [0, N) \wedge e < E \wedge end[e] < 0\\
   \text{end}[e], & e \in [0, N) \wedge e < E \wedge end[e] \geqslant 0\\
   n_{e}, & e \in [0, N) \wedge e \geqslant E
   \end{cases}, e \in [0, N) \\
 
+.. math::
   \text{s_arr}[s] = \begin{cases}
   \text{stride}[s], & s \in [0, N) \wedge s < S \\
   1, & s \in [0, N) \wedge s \geqslant S
   \end{cases}, s \in [0, N) \\
 
+.. math::
   \forall \{i \mid i \in [0, N)\}: \text{s_arr}[i] \ne 0 \\
+
+.. math::
   \text{b_range}(i) = \begin{cases}
   -1, & \text{s_arr}[i] < 0 \\
   0, & \text{s_arr}[i] \geqslant 0
   \end{cases} \\
+
+.. math::
   \text{e_range}(i) = \begin{cases}
   n_i - 1, & \text{s_arr}[i] < 0 \\
   n_i, & \text{s_arr}[i] \geqslant 0
   \end{cases} \\
 
+.. math::
   \text{b_vec}[b] =
   clip(\text{b_arr}[b], \text{a_min}=\text{b_range}(b), \text{a_max}=\text{e_range}(b)-1), b \in [0, N) \\
+
+.. math::
   \text{e_vec}[e] =
   clip(\text{e_arr}[e], \text{a_min}=\text{b_range}(e), \text{a_max}=\text{e_range}(e)-1), e \in [0, N) \\
+
+.. math::
   \forall \{i \mid i \in [0, N) \}:
   \begin{cases}
   \text{b_vec}[i] < \text{e_vec}[i], & \text{s_arr}[i] > 0 \\
   \text{e_vec}[i] < \text{b_vec}[i], & \text{s_arr}[i] < 0
   \end{cases} \\
 
-  Y[d_0, d_1, \cdots, d_{N-1}] = \\
-  X[\text{b_vec}[0] + \text{s_arr}[0] * d_0,
-  \text{b_vec}[1] + \text{s_arr}[1] * d_1,
-  \cdots, \text{b_vec}[N-1] + \text{s_arr}[N-1] * d_{N-1}] \\
+.. math::
+  Y[d_0, d_1, \cdots, d_{N-1}] = 
+    X[K[0], K[1], \cdots, K[N-1]], \\
 
-  \forall d_j \in [0, \left\lceil{\text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j]}\right\rceil),
+  \forall d_j \in [0, \left\lceil{
+    \text{e_vec}[j] - \text{b_vec}[j] \over \text{s_arr}[j] 
+  }\right\rceil ) \wedge
+  j \in [0, N),
 
-  \text{where } j \in [0, N)
+  \text{where }
+  K[i] = \text{b_vec}[i] + \text{s_arr}[i] * d_i
 
 
 slice_like
@@ -1141,7 +937,7 @@ This operator removes dimensions of length 1.
   \forall d_0 \in [0, n_0) \wedge d_1 \in [0, n_1)
   \wedge \cdots \wedge d_{N-1} \in [0, n_{N-1}), \\
 
-  \text{where } K = card \; \text{\{real_axes\}} \text{ and } \\
+  \text{where } K = card \; \text{\{real_axes\}} \text{ and} \\
 
   I: \{i \mid i \in [0, N-K) \} \to
   \{i \mid i \in [0, N) \wedge i \notin \text{real_axes} \}, \\
@@ -1253,7 +1049,7 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \forall b \in [0, B) \wedge i \in [0, T) \wedge k \in [0, K), \\
 
   \text{where } T = \text{max}\{
-  \text{min}(N, \text{valid_count}[b]), 0\} \text{ and } \\
+  \text{min}(N, \text{valid_count}[b]), 0\} \text{ and} \\
   I: \{ i \mid i \in [0, T) \} \to \{ i \mid i \in [0, T) \}, \\
   \text {s.t. } X[b, I(i), 1] > X[b, I(j), 1] \vee \\
   (X[b, I(i), 1] = X[b, I(j), 1] \wedge I(i) < I(j)),
@@ -1268,31 +1064,32 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \text{where } \text{TK} = \begin{cases}
     +\infty, & \text{if top_k < 0} \\[1ex]
     \text{top_k}, & \text{otherwise}
-  \end{cases} \text{ and } \\
+  \end{cases} \text{ and} \\
   \text{MOS} =
   \begin{cases}
     +\infty, & \text{if max_output_size < 0} \\[1ex]
     \text{max_output_size}, & \text{otherwise}
-  \end{cases} \text{ and } \\
+  \end{cases} \text{ and} \\
   \text{iou}(p, q) = \begin{cases}
-    \text{overlap_ratio}(R[b, p, :], R[b, q, :]), &
+    \text{OLR}(R[b, p, :], R[b, q, :]), &
     \begin{array}{}
     \text{force_suppress is true}\\
     \vee R[b, p, 0] = R[b, q, 0]
     \end{array} \\[1ex]
     0, & \text{otherwise}
-  \end{cases} \\
-  \text{ and } \\
+  \end{cases} \text{ and} \\
   \text{U} = \{p \mid p \in [0, min\{TK, T\}) \wedge
-  R[b,p,0] >= 0 \wedge \text{iou}(p, q) < \text{iou_threshold}, \\
-  \forall q \in U \wedge q < p\}
-   \text{ and } \\
-  \text{IDX}: \{i \mid i \in [0, card\{U\})\} \to U, \text{s.t. }
-  \text{IDX}(i) < \text{IDX}(j), \forall  i < j
+    R[b,p,0] >= 0 \wedge \\
+    \text{iou}(p, q) < \text{iou_threshold},
+    \forall q \in U \wedge q < p\} \text{ and} \\
+  \text{IDX}: \{i \mid i \in [0, card\{U\})\} \to U,
+    \text{s.t. } \text{IDX}(i) < \text{IDX}(j), \forall i < j
 
 .. math::
   Y[b, n, k] = -1, \\
   \forall b \in [0, B) \wedge k \in [0, K) \wedge
   n \in [min\{T, \text{MOS},card\{U\}\}, N)
 
-:math:`\text{overlap_ratio}` calculates the overlap ratio of two rectangles: area of their intersection over the area of their union.
+.. note::
+
+  :math:`\text{OLR}`, which means overlap ratio, calculates the overlap ratio of two rectangles: area of their intersection over the area of their union.
