@@ -7,9 +7,10 @@ from mrt.tfm_pass import convert_params_dtype, infer_shape
 from mrt.sym_utils import is_inputs, get_entry_id, is_var, \
                           get_nd_op, topo_visit_transformer
 from mrt.tfm_pass import OUT_KEY
-from .tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, \
-                       get_optimizor, DEFAULT_OPT_INFO
-from .tfm_utils import get_buffer_exp, get_bit_exp
+from .tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, get_optimizor, \
+                       DEFAULT_OPT_INFO, BUF_TYPE_EXP, FT_TYPE_EXP
+from .tfm_utils import get_buffer_exp, get_bit_exp, scale_exp, \
+                       get_quantizer_exp
 from .tfm_base import apply_pass
 
 from mrt import sym_utils as sutils
@@ -257,10 +258,10 @@ def quantize(
         features, buffers = kwargs['features'], kwargs['buffers']
         precs = kwargs['precs']
         ft = features[name]
-        assert ft.name == "Absmax"
+        assert ft.name == FT_TYPE_EXP
         absmax = ft.get()
         buf = buffers[name]
-        assert buf.name == "Scale"
+        assert buf.name == BUF_TYPE_EXP
         scale = buf.get()
         tight_prec = get_bit_exp(absmax*scale)
         if precs[name][OUT_KEY] > tight_prec:
@@ -290,23 +291,28 @@ def quantize(
 
     def quantize_output(op, **kwargs):
         name = op.attr('name')
-        th_dict = kwargs['th_dict']
-        precs, scales = kwargs['precs'], kwargs['scales']
+        features = kwargs['features']
+        precs, buffers = kwargs['precs'], kwargs['buffers']
 
         # Requantize output symbol
         if name in precs and name in precs[name]:
             oprec = precs[name][name]
-            os = scale(th_dict[name], oprec)
-            op, oprec, os = requant(op, oprec, os, oname=name, **kwargs)
+            ft = features[name]
+            assert ft.name == FT_TYPE_EXP
+            oscale = scale_exp(ft.get(), oprec)
+            quant = get_quantizer_exp()
+            op, oprec, oscale = quant.quantize(
+                op, oprec, oscale=oscale, oname=name, **kwargs)
 
             oname = op.attr('name')
-            th_dict[oname] = th_dict[name]
+            features[oname] = features[name]
             precs[oname] = oprec
-            scales[oname] = os
+            buffers[oname] = get_buffer_exp(oscale)
         return op
 
     return topo_visit_transformer(sym, params,
-            quantize_output, th_dict=th_dict,
-            precs=precs, scales=scales,
+            quantize_output, features=features,
+            precs=precs, buffers=buffers,
+            cfg_dict=cfg_dict,
             shift_bits=shift_bits,
             softmax_lambd=softmax_lambd)

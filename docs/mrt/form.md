@@ -485,7 +485,7 @@ Ye = flatten(Xe)
 
 ### Generalized Expansion Function
 
-#### Merge Quantize
+#### Quantize Scale
 
 **Limitations**
 

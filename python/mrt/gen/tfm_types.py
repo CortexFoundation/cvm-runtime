@@ -794,5 +794,6 @@ def get_optimizor(opt_info):
 #----------------------------
 
 FT_TYPE_EXP = AFeature.name
-SC_TYPE_EXP = SBuffer.name
+BUF_TYPE_EXP = SBuffer.name
+QUANT_TYPE_EXP = USQuantizer.name
 
