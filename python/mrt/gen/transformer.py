@@ -10,9 +10,9 @@ from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort
 from mrt.tfm_pass import OUT_KEY
-from mrt.gen.tfm_types import get_feature, get_buffer
-from mrt.gen.tfm_pass import quantize, sym_calibrate, \
-                             rewrite, sym_config_infos
+from .tfm_types import get_feature, get_buffer
+from .tfm_pass import quantize, sym_calibrate, \
+                      rewrite, sym_config_infos
 
 from mrt import transformer as tfm
 from mrt import utils

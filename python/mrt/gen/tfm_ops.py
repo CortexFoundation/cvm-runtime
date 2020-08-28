@@ -11,9 +11,10 @@ from mrt.sym_utils import get_attr, sym_iter, is_params, is_inputs, \
                           nd_const, get_entry_id
 from mrt.tfm_base import N, MAX_BIT
 from mrt.tfm_pass import OUT_KEY
-from mrt.gen.tfm_base import register_pass, register_transformer, \
-                             Transformer
-from mrt.gen.tfm_types import get_quantizer
+from .tfm_base import register_pass, register_transformer, Transformer
+from .tfm_types import get_quantizer, USQuantizer, \
+                       UAQuantizer, FT_TYPE_EXP
+from .tfm_utils import scale_exp, get_buffer_exp
 
 from mrt import sim_quant_helper as sim
 from mrt import sym_utils as sutils
@@ -41,12 +42,10 @@ class Null(tops.Null):
         if is_inputs(op, kwargs['params']):
             name, attr = op.attr('name'), op.list_attr()
             prec = kwargs['precs'][name][OUT_KEY]
-            quantizer = get_quantizer("UniformSymmetric")
             ft = kwargs['features'][name]
-            kwargs['buffers'][name] = quantizer.get_buffer(prec, ft)
-            # raise NotImplementedError(
-                # "Quantization type not implementated," + \
-                # " op: %20s, quantizer: %20s" % (op_name, ))
+            assert ft.name == FT_TYPE_EXP
+            kwargs['buffers'][name] = get_buffer_exp(
+                scale_exp(ft.get(), prec))
             extra_attr = {'precision': str(prec)}
             return mx.sym.var(name, **attr, attr=extra_attr)
         return op
@@ -90,7 +89,7 @@ class FullyConnected(tops.FullyConnected):
         return op
 
     def quantize(self, op, **kwargs):
-        pass
+        assert False
 
 
 @register_pass("fuse_transpose")
@@ -104,7 +103,31 @@ class Convolution(tops.Convolution):
         return op
 
     def quantize(self, op, **kwargs):
-        pass
+        features, buffers = kwargs['features'], kwargs['buffers']
+        cfg_dict = kwargs['cfg_dict']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attrs = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
+
+        assert len(childs) == 2 and 'pad' not in attrs
+        X, W = childs
+        Xquant = get_quantizer(cfg_dict[cns[0]]['quant_type'])
+        Wquant = get_quantizer(cfg_dict[cns[1]]['quant_type'])
+        oprec = kwargs['op_input_precs'][op_name]
+
+        if isinstance(Xquant, USQuantizer) and \
+            isinstance(Wquant, USQuantizer):
+            Xq, xprec, xscale = Xquant.quantize(
+                X, oprec, oname=name, **kwargs)
+            Wq, wprec, wscale = Wquant.quantize(
+                W, oprec, oname=name, **kwargs)
+            buffers[name] = get_buffer_exp(xscale*wscale)
+        else:
+            raise NotImplementedError(
+                "Quantization type not implementated," + \
+                " op: %20s, Xquant: %20s, Wquant: %20s" % \
+                (op_name, [Xquant.name, Wquant.name]))
+        assert False
 
 
 @register_pass("validate")
@@ -128,11 +151,14 @@ def separate_bias(op, **kwargs):
     attrs['no_bias'] = True
     op = get_mxnet_op(op_name)(
         childs[0], childs[1], **attrs, name=N.n(name))
-    B = mx.sym.expand_dims(childs[2], axis=0)
+    bn = childs[2].attr('name')
     if op_name == Convolution.op_name:
         assert 'layout' in attrs and attrs['layout'] == 'NCHW'
-        B = mx.sym.expand_dims(B, axis=-1)
-        B = mx.sym.expand_dims(B, axis=-1)
+        B = mx.sym.expand_dims(childs[2], axis=0, name=N.n('expand_dims'))
+        B = mx.sym.expand_dims(B, axis=-1, name=N.n('expand_dims'))
+        B = mx.sym.expand_dims(B, axis=-1, name=N.n(bn))
+    else:
+        B = mx.sym.expand_dims(childs[2], axis=0, name=N.n(bn))
     op = mx.sym.broadcast_add(op, B, name=name)
     return op
 
@@ -151,7 +177,7 @@ def separate_pad(op, **kwargs):
 
     childs[0] = mx.sym.pad(
         childs[0], pad_width=(0,0,0,0,PH,PH,PW,PW),
-        mode='constant', constant_value=0, name=N.n(name))
+        mode='constant', constant_value=0, name=N.n('pad'))
     op = get_mxnet_op(op_name)(*childs, **attrs, name=name)
     return op
 

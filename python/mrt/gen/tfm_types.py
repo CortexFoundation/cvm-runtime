@@ -13,10 +13,12 @@ from mxnet import ndarray as nd
 import numpy as np
 import json
 
+from mrt.tfm_base import MAX_BIT, N
+from mrt.tfm_pass import OUT_KEY
+
 from mrt import sym_utils as sutils
 from mrt import tfm_utils as tutils
 from mrt import sim_quant_helper as sim
-from mrt.tfm_base import MAX_BIT
 
 _NULL_NAME = "_NULL_NAME_"
 _NONETYPE = type(None)
@@ -283,18 +285,18 @@ class USQuantizer(Quantizer):
         return SBuffer(self.get_range(oprec)[1] / absmax)
 
     def get_prec(self, data):
-        if isinstance(data, nd.NDArray):
-            data = data.abs().max().asscalar()
-        return math.ceil(math.log2(math.fabs(data)+1)) + 1
+        return tutils.get_bit(data)
 
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         """ Symmetric Quantization of weight (real value)
         """
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
+        precs = kwargs['precs']
         wn = W.attr("name")
         wqn = N.n(wn)
 
+        oprec = precs[wn].get(kwargs['oname'], oprec)
         ft = features[wn]
         absmax = ft.get()
 
@@ -309,8 +311,8 @@ class USQuantizer(Quantizer):
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "int"+str(oprec)}
-        Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
-        return Wq, oprec, oscale
+        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
+        return W, oprec, oscale
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         """ Symmetric Quantization of symbol expansion (int value)
@@ -322,8 +324,9 @@ class USQuantizer(Quantizer):
         xn, xopn = X.attr("name"), X.attr("op_name")
         xqn = N.n(xn)
 
-        iscale, iprec = buffers[xn].get(), precs[xn]
-        ft = features[wn]
+        oprec = precs[xn].get(kwargs['oname'], oprec)
+        iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
+        ft = features[xn]
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
@@ -333,7 +336,7 @@ class USQuantizer(Quantizer):
         sb = iprec - oprec
         if sb > shift_bits:
             iprec -= sb
-            Xq = tutils.realize(X, sb, iprec)
+            X = tutils.realize(X, sb, iprec)
             iscale = iscale / (2**sb)
 
         if oscale is not None or iprec > oprec:
@@ -350,10 +353,10 @@ class USQuantizer(Quantizer):
             oscale = iscale * frac * (2**exp)
             if frac > 1:
                 var = sutils.nd_const(frac, graph, params)
-                Xq = mx.sym.broadcast_mul(
-                    Xq, var, name=N.n("mrt_quantize_scale"))
+                X = mx.sym.broadcast_mul(
+                    X, var, name=N.n("mrt_quantize_scale"))
             oprec = self.get_prec(oscale*absmax)
-            Xq = tutils.realize(Xq, -exp, oprec)
+            X = tutils.realize(X, -exp, oprec)
             logger.debug(
                 "Operator  %-20s name=%-40s requantize" +
                 " with scale=%-16.8f<%d, %d>" +
@@ -365,13 +368,13 @@ class USQuantizer(Quantizer):
                 "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
                 xopn, xn, iprec, oprec)
 
-        return Xq, oprec, oscale
+        return X, oprec, oscale
 
     def int_realize(self, data, prec, **kwargs):
         logger = kwargs.get("logger", logging)
 
         out = data.round()
-        lower, upper = self.get_range(oprec)
+        lower, upper = self.get_range(prec)
         if out.abs().max() > upper:
             logger.warn(
                 "quant out of range int%d with data=<%s,%s>",
@@ -412,9 +415,11 @@ class UAQuantizer(Quantizer):
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
+        precs = kwargs['precs']
         wn = W.attr("name")
         wqn = N.n(wn)
 
+        oprec = precs[wn].get(kwargs['oname'], oprec)
         ft = features[wn]
         minv, maxv = ft.get()
         oscale, zpoint = self.get_buffer(oprec, ft).get() \
@@ -424,8 +429,8 @@ class UAQuantizer(Quantizer):
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
-        Wq = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
-        return Wq, oprec, oscale
+        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
+        return W, oprec, oscale
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
@@ -435,7 +440,8 @@ class UAQuantizer(Quantizer):
         xn, xopn = X.attr("name"), X.attr("op_name")
         xqn = N.n(xn)
 
-        iscale, iprec = buffers[xn].get(), precs[xn]
+        oprec = precs[xn].get(kwargs['oname'], oprec)
+        iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
         ft = features[wn]
         oprec = oprec if oprec < iprec else iprec
         oscale, zpoint = self.get_buffer(oprec, ft).get() \
@@ -444,7 +450,7 @@ class UAQuantizer(Quantizer):
         sb = iprec - oprec
         if sb > shift_bits:
             iprec -= sb
-            Xq = tutils.realize(X, sb, iprec)
+            X = tutils.realize(X, sb, iprec)
             iscale = iscale / (2**sb)
 
         rescale = oscale / iscale
@@ -460,11 +466,11 @@ class UAQuantizer(Quantizer):
         oscale = iscale * frac * (2**exp)
         if frac > 1:
             var = sutils.nd_const(frac, graph, params)
-            Xq = mx.sym.broadcast_mul(
-                Xq, var, name=N.n("mrt_quantize_scale"))
+            X = mx.sym.broadcast_mul(
+                X, var, name=N.n("mrt_quantize_scale"))
         Zp = sutils.nd_const(zpoint, graph, params)
-        Xq = tutils.realize(
-            Xq, -exp, USQuantizer().get_prec(oscale*(maxv-minv))) - Zp
+        X = tutils.realize(
+            X, -exp, USQuantizer().get_prec(oscale*(maxv-minv))) - Zp
         oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
         logger.debug(
             "Operator  %-20s name=%-40s requantize" +
@@ -472,7 +478,7 @@ class UAQuantizer(Quantizer):
             " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
             xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
 
-        return Xq, oprec, oscale
+        return X, oprec, oscale
 
     def int_realize(self, data, prec, **kwargs):
         logger = kwargs.get("logger", logging)
@@ -781,4 +787,12 @@ def get_optimizor(opt_info):
             {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
         OPT_INSTANCES[opt_info] = OPT_REG[opt_type](**opt_attrs)
     return OPT_INSTANCES[opt_info]
+
+
+#----------------------------
+# Expand Types Definition
+#----------------------------
+
+FT_TYPE_EXP = AFeature.name
+SC_TYPE_EXP = SBuffer.name
 

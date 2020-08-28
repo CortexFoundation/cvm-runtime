@@ -6,9 +6,11 @@ from mrt.tfm_base import N
 from mrt.tfm_pass import convert_params_dtype, infer_shape
 from mrt.sym_utils import is_inputs, get_entry_id, is_var, \
                           get_nd_op, topo_visit_transformer
-from mrt.gen.tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, \
-                              get_optimizor, DEFAULT_OPT_INFO
-from mrt.gen.tfm_base import apply_pass
+from mrt.tfm_pass import OUT_KEY
+from .tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, \
+                       get_optimizor, DEFAULT_OPT_INFO
+from .tfm_utils import get_buffer_exp, get_bit_exp
+from .tfm_base import apply_pass
 
 from mrt import sym_utils as sutils
 
@@ -233,9 +235,11 @@ def quantize(
                      for c in childs]
 
         out = get_mxnet_op(op_name)(*new_childs, **attr, name=name)
-        precs[name][OUT_KEY] = get_bit(th_dict[name])
-        scales[name] = 1
-
+        ft = features[name]
+        assert ft.name == FT_TYPE_EXP
+        absmax = features[name].get()
+        precs[name][OUT_KEY] = get_bit_exp(absmax)
+        buffers[name] = get_buffer_exp(1)
         return out
 
     def _quant(op, **kwargs):
@@ -254,23 +258,25 @@ def quantize(
         precs = kwargs['precs']
         ft = features[name]
         assert ft.name == "Absmax"
-        th = ft.get()
+        absmax = ft.get()
         buf = buffers[name]
         assert buf.name == "Scale"
         scale = buf.get()
-        tight_prec = get_bit(th_dict[name] * scales[name])
+        tight_prec = get_bit_exp(absmax*scale)
         if precs[name][OUT_KEY] > tight_prec:
-            op = mx.sym.Custom(op, precision=tight_prec,
-                    name=N.n('clip'), op_type='cvm_clip')
+            op = mx.sym.Custom(
+                op, precision=tight_prec,
+                name=N.n('clip'), op_type='cvm_clip')
             clip_name = op.attr('name')
             infer_shapes[clip_name] = infer_shapes[name]
             features[clip_name] = ft
-            precs[clip_name] = { OUT_KEY: tight_prec }
-            buffers[clip_name] = buf
+            precs[clip_name] = {OUT_KEY: tight_prec}
             if name in precs and name in precs[name]:
                 oprec = precs[name][name]
                 del precs[name][name]
                 precs[clip_name][clip_name] = oprec
+            buffers[clip_name] = buf
+            cfg_dict[clip_name] = cfg_dict[name]
 
         return op
 
