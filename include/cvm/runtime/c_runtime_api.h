@@ -409,6 +409,12 @@ CVM_DLL int CVMLoadParamsDict(
     void*** retNames,
     void*** retValues);
 
+CVM_DLL int CVMAssignNDScalar(
+    CVMArrayHandle target,
+    int* indices,
+    int value
+);
+
 #ifdef __cplusplus
 }  // CVM_EXTERN_C
 #endif

@@ -245,3 +245,20 @@ int CVMArrayCopyToBytes(CVMArrayHandle handle,
       nbytes, handle->ctx, cpu_ctx, handle->dtype, nullptr);
   API_END();
 }
+
+int CVMAssignNDScalar(CVMArrayHandle target, int* indices, int value) {
+  API_BEGIN();
+  auto container =
+      reinterpret_cast<cvm::runtime::NDArray::Container*>(target);
+  int ndim = target->ndim;
+  int* starts = indices;
+  int* ends = indices + ndim;
+  int* steps = indices + ndim * 2;
+  int* sizes = indices + ndim * 3;
+  std::cout << "assigning data to:" << std::endl;
+  for (int i = 0; i < ndim; i++) {
+    std::cout << starts[i] << ' ' << ends[i] << " " << steps[i] << " "
+              << sizes[i] << std::endl;
+  }
+  API_END();
+}

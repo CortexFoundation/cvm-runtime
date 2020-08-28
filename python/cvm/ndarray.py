@@ -94,9 +94,21 @@ class NDArray(NDArrayBase):
                 'but got {}.'.format('few' if lk < self.ndim else 'many',
                 self.ndim, lk)
             )
-        use_advanced = use_advanced_indexing(key)
+        use_advanced = use_advanced_indexing(key)   # some dim of the key is an array.
+        if use_advanced:
+            print('using advanced indexing setitem')
+            pass
+        else:
+            print('using basic indexing setitem')
+            starts, ends, steps, sizes = expand_keys2_slice(key, self.shape)
+            if sizes == self.shape and all(stp > 0 for stp in steps):   # overwrite all
+                print('overwriting all')
+            elif isinstance(value, (int, np.integer)):
+                idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes) 
+                _LIB.CVMAssignNDScalar(self.handle, idxs, ctypes.c_int(value))
+            else:
+                print('writing one by one')
 
-        
 
     def copyfrom(self, source_array):
         """Peform an synchronize copy from the array.
@@ -372,8 +384,46 @@ def check_boolean_array_dimension(array_shape, axis, bool_shape):
 
 def use_advanced_indexing(key):
     for k in key:
-        if isinstance(k, (NDArray, tuple, list, np.array, range)):
+        if isinstance(k, (NDArray, tuple, list, np.ndarray, range)):
             return True
-        elif not (isinstance(k, (int, np.int, slice)) or np.issubdtype(k, np.integer)):
+        elif not (isinstance(k, (int, np.integer, slice)) or np.issubdtype(k, np.integer)):
             raise ValueError('NDArray doesnot support indexing with type {}'.format(k))
     return False
+
+def _get_dim_size(start, stop, step):
+    """Given start, stop, and step, calculate the number of elements
+    of this slice.
+    """
+    assert step != 0
+    if stop == start:
+        return 0
+    if step > 0:
+        assert start < stop
+        dim_size = (stop - start - 1) // step + 1
+    else:
+        assert stop < start
+        dim_size = (start - stop - 1) // (-step) + 1
+    return dim_size
+
+def expand_keys2_slice(keys, shape):
+    ret_key = []
+    ret_size = []
+    for i, idx in enumerate(keys):
+        if isinstance(idx, slice):
+            ranged_idx = idx.indices(shape[i])
+            ret_key.append(ranged_idx)
+            ret_size.append(_get_dim_size(*ranged_idx))
+        elif isinstance(idx, (np.int, int)):
+            if idx < -shape[i] or idx >= shape[i]:
+                raise IndexError('expecting index of the {}th dim in '
+                    'range [-{}, {}), but got {}'.format(i,
+                    shape[i], shape[i], idx))
+            if idx < 0:
+                idx += shape[i]
+            ret_key.append((idx, idx + 1, 1))
+            ret_size.append(1)
+        else:
+            raise TypeError('type of a component in an index'
+                            ' can only be int, np.int or slice')
+    ses = tuple(zip(*ret_key))
+    return ses[0], ses[1], ses[2], ret_size
