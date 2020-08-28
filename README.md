@@ -1,23 +1,52 @@
 # Test the cvm-runtime under QEMU with RISC-V support
 
 ## Config The QEMU Environment
-You will need to refer to this [documentation](https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html) to download and install the following：
+1. mkdir riscv64-linux
+2. cd riscv64-linux
+
+### riscv-gnu-toolchain
 ```
-1. https://github.com/riscv/riscv-gnu-toolchain : master
-2. https://github.com/qemu/qemu : v3.0.0
-3. https://github.com/torvalds/linux : v4.19
-4. https://github.com/riscv/riscv-pk : master
-5. https://github.com/michaeljclark/busybear-linux : master
+1. git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
+2. cd riscv-gnu-toolchain && ./configure --prefix=/opt/riscv
+3. make linux
+4. export RISCV=/opt/riscv
+5. export PATH=$PATH:$RISCV/bin
 ```
-## Testing
+### qemu
+```
+1. git clone https://github.com/qemu/qemu
+2. cd qemu && git checkout v3.0.0
+3. ./configure --target-list=riscv64-softmmu
+4. make -j $(nproc)
+5. sudo make install
+```
+### linux kernel
+```
+1. git clone https://github.com/torvalds/linux.git
+2. cd linux && git checkout v4.19-rc3
+3. make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- defconfig
+4. make ARCH=riscv CROSS_COMPILE=riscv64-unknown-linux-gnu- -j $(nproc)
+```
+
+### busybear-linux
+```
+1. git clone https://github.com/michaeljclark/busybear-linux.git
+2. cd busybear-linux && git submodule init && git submodule update
+3. cd src/riscv-pk && git checkout master
+2. cd ../../ && CROSS_COMPILE=riscv{{bits}}-unknown-linux-gnu- make -j $(nproc)
+```
+
+## Deploy CVM-Runtime to QEMU
+
 1. git clone git@github.com:CortexFoundation/cvm-runtime.git
-2. git checkout riscv
-3. cp cmake/config . (in cvm-runtime directory)
+2. cd cvm-runtime && git checkout riscv
+3. cp cmake/config . 
 4. make lib && make test_model_riscv
-5. cd ${busybear-linux directory}
+5. cd ../riscv64-linux/busybear-linux 
 6. mkdir etc/tests
-7. cp ~/cvm-runtime/build/libcvm.so ~/cvm-runtime/build/tests/test_model_riscv etc/tests/ 
-8. modify scripts/start-qemu.sh:
+7. cp ../../cvm-runtime/build/libcvm.so ../../cvm-runtime/build/tests/test_model_riscv etc/tests/ 
+8. cp model data: cp -r /data/std_out/resnet50_v2 etc/tests/
+9. modify the scripts/start-qemu.sh:
 ```
  32 # construct command
  33 cmd="${QEMU_SYSTEM_BIN} -nographic -machine virt \
@@ -33,4 +62,6 @@ You will need to refer to this [documentation](https://risc-v-getting-started-gu
 10. login as root, and password is busybear
 11. cd /etc/tests
 12. export LD_LIBRARY_PATH=/etc/tests
-13. ./test_model_riscv
+13. mkdir -p /data/std_out/
+14. mv /etc/tests/resnet50_v2 /data/std_out/
+15. cd /etc/tests && ./test_model_riscv
