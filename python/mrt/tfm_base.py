@@ -63,7 +63,6 @@ class Transformer(object):
 
             Do nothing by default.
         """
-        print(op.attr('name'), op.attr('op_name'))
         precs, scales = kwargs['precs'], kwargs['scales']
         name, op_name = op.attr('name'), op.attr('op_name')
         childs = sym_iter(op.get_children())
