@@ -65,3 +65,21 @@
 13. mkdir -p /data/std_out/
 14. mv /etc/tests/resnet50_v2 /data/std_out/
 15. cd /etc/tests && ./test_model_riscv
+16. output:
+```
+0 DDDDDD
+load /data/std_out/resnet50_v2/symbol
+load /data/std_out/resnet50_v2/params
+ntpd: bad address '1.pool.ntp.org'
+model loaded
+GetOps: memory cost=711M percentage=0.0542804 ops=12396M percentage=0.94572
+ops 12500
+4
+1 3 224 224
+ntpd: bad address '0.pool.ntp.org'
+output size = 1000
+9 11 -6 -4 -7 -5 -19 7 -5 -13 -15 6 -15 -17 -4 -21 -14 -17 -11 -18 -23 -26 -18 -6 -21 -8 -16 -10 -13 5 -16 -4 -1 1 1 1 5 8 -13 -12 -18 -5 -2 -10 -15 -12 -13 -13 -10 -1
+2 -22 20 4 -4 -16 0 -3 -9 -10 3
+7 4 1 -7 3 -4 0 -12 8 -9 9 9 -11 6 16 0 -4 -1 0 -11 -15 -5 0 -11 -13 -1 2 -11 7 -1 4 4 8 3 -10 8 -8 -6 12 4 4 0 12 0 2 0 -10 5 -3 -18 -11 -9 -10 -26 -8 -8 3 -10 5 9
+compare result: success
+```
