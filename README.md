@@ -7,10 +7,11 @@
 ### riscv-gnu-toolchain
 ```
 1. git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
-2. cd riscv-gnu-toolchain && ./configure --prefix=/opt/riscv
-3. make linux
-4. export RISCV=/opt/riscv
-5. export PATH=$PATH:$RISCV/bin
+2. sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
+3. cd riscv-gnu-toolchain && ./configure --prefix=/opt/riscv
+4. make linux
+5. export RISCV=/opt/riscv
+6. export PATH=$PATH:$RISCV/bin
 ```
 ### qemu
 ```
