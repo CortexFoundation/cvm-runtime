@@ -14,8 +14,7 @@ from .tfm_utils import get_buffer_exp, get_bit_exp, scale_exp, \
                        get_quantizer_exp
 from .tfm_base import apply_pass
 from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, \
-                       DEFAULT_GN_INFO, GN_REG, QUANT_REG, \
-                       OPT_REG, make_key_opt
+                       DEFAULT_GN_INFO, QUANT_REG, OPT_REG, make_key_opt
 
 from mrt import sym_utils as sutils
 
@@ -34,9 +33,10 @@ def sym_slice_channel(symbol, params, cfg_dict={}):
     def _slice_channel(op, **kwargs):
         name, op_name = op.attr("name"), op.attr("op_name")
         gn_info = cfg_dict[name].get("gn_info", DEFAULT_GN_INFO)
-        gtype = gn_info["gn_type"]
-        if gtype == CHANNEL_WISE_TYPE:
-            op = apply_pass("slice_channel", cfg_dict=cfg_dict)
+        gn_type = gn_info["gn_type"]
+        if gn_type == CHANNEL_WISE_TYPE:
+            op = apply_pass(
+                "slice_channel", cfg_dict=cfg_dict)(op, **kwargs)
         return op
 
     return topo_visit_transformer(symbol, params, _slice_channel)
@@ -140,12 +140,8 @@ def deserialize(cfg_groups):
                 "Please specify the opt_type, names: %s, " + \
                 "opt_info: %s" % (names, opt_info))
         gn_type = gn_info["gn_type"]
-        if gn_type not in GN_REG:
-            raise TypeError(
-                "Unsupported granulari type: %s, names: %s" % \
-                (gn_type, names))
         if gn_type == CHANNEL_WISE_TYPE:
-            if "ichannel" not in granularity:
+            if "ichannel" not in gn_info:
                 raise ValueError(
                     "Please specify the axis number of channel " + \
                     "(ichannel), names: %s" % names)
@@ -155,7 +151,7 @@ def deserialize(cfg_groups):
                     "Please specify the correct axis number of channel " + \
                     "(ichannel), names: %s, ichannel: %s" % \
                     (names, ichannel))
-            if "step" not in granularity:
+            if "step" not in gn_info:
                 raise ValueError(
                     "Please specify the step size of channel " + \
                     "(step), names: %s" % names)
@@ -164,6 +160,14 @@ def deserialize(cfg_groups):
                 raise ValueError(
                     "Please specify the correct step of channel " + \
                     "(step), names: %s, step: %s" % (names, step))
+        elif gn_type == LAYER_WISE_TYPE:
+            if len(gn_info) > 1:
+                raise ValueError(
+                    "Redundant values in gn_info: %s" % gn_info)
+        else:
+            raise TypeError(
+                "Unsupported granulari type: %s, names: %s" % \
+                (gn_type, names))
         cfg_info["gn_info"] = gn_info
 
         # Quantizer Settings Validate
