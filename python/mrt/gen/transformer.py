@@ -10,7 +10,7 @@ from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort
 from mrt.tfm_pass import OUT_KEY
-from .tfm_types import get_feature, get_buffer
+from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP
 from .tfm_pass import quantize, sym_calibrate, \
                       rewrite, sym_config_infos
 
@@ -130,6 +130,20 @@ class MRT(tfm.MRT):
             self.shift_bits, self.softmax_lambd)
         self.current_model = Model(_sym, _prm)
         return self.current_model
+
+    def get_output_scales(self):
+        assert all([self.buffers[s.attr('name')].name == \
+            BUF_TYPE_EXP for s in self.current_model])
+        return [self.buffers[s.attr("name")].get() \
+            for s in self.current_model]
+
+    def get_inputs_ext(self):
+        buf = self.buffers['data']
+        assert buf.name == BUF_TYPE_EXP
+        inputs_ext = {'data': {
+            'scale': buf.get(),
+            'target_bit': self.precs['data'][OUT_KEY]}}
+        return inputs_ext
 
     def _serialize(self, dct):
         return {k: v.serialize() for k, v in dct.items()}
