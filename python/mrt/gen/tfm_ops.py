@@ -300,7 +300,7 @@ def _quantize_xw(op, **kwargs):
     Xq, xprec, xscale = Xquant.quantize(X, oprec, oname=name, **kwargs)
     Wq, wprec, wscale = Wquant.quantize(W, oprec, oname=name, **kwargs)
     buffers[name] = get_buffer_exp(xscale*wscale)
-    op = get_mxnet_op(op_name)(X, W, **attr, name=name)
+    op = get_mxnet_op(op_name)(Xq, Wq, **attr, name=name)
 
     shp = params[cns[1]].shape
     k = int(nd.prod(nd_array(shp[1:])).asscalar())
