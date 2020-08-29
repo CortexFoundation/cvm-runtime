@@ -1,4 +1,5 @@
 import logging
+import json
 
 import mxnet as mx
 
@@ -12,8 +13,33 @@ from .tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, get_optimizor, \
 from .tfm_utils import get_buffer_exp, get_bit_exp, scale_exp, \
                        get_quantizer_exp
 from .tfm_base import apply_pass
+from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, \
+                       DEFAULT_GN_INFO, GN_REG, QUANT_REG, \
+                       OPT_REG, make_key_opt
 
 from mrt import sym_utils as sutils
+
+#----------------------------
+# Channel Slice interfaces
+#----------------------------
+
+def sym_slice_channel(symbol, params, cfg_dict={}):
+    """ Customized graph-level topo pass definition.
+
+        Interface for granularity control.
+        While layer-wise feature is by default,
+        MRT support channel-wise features specified in cfg_dict.
+    """
+
+    def _slice_channel(op, **kwargs):
+        name, op_name = op.attr("name"), op.attr("op_name")
+        gn_info = cfg_dict[name].get("gn_info", DEFAULT_GN_INFO)
+        gtype = gn_info["gn_type"]
+        if gtype == CHANNEL_WISE_TYPE:
+            op = apply_pass("slice_channel", cfg_dict=cfg_dict)
+        return op
+
+    return topo_visit_transformer(symbol, params, _slice_channel)
 
 #----------------------------
 # Module main interfaces
@@ -21,7 +47,7 @@ from mrt import sym_utils as sutils
 
 _RES_NAME = "_RES_"
 
-def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
+def sym_config_infos(symbol, params, cfg_dict={}, logger=logging):
     """ Customized graph-level topo pass definition.
 
         Interface for MRT main2 configuration
@@ -35,7 +61,7 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
         names.add(symbol.attr("name"))
 
     topo_visit_transformer(symbol, params, _collect_names)
-    cfg_dict, noncfgs = {} if cfg_dict is None else cfg_dict, set()
+    noncfgs = set()
     keys = cfg_dict.keys()
     for name in keys:
         if name == _RES_NAME:
@@ -57,14 +83,18 @@ def sym_config_infos(symbol, params, cfg_dict=None, logger=logging):
         name = sym.attr("name")
         cfg_info = cfg_dict.get(name, {})
 
+        gn_info = cfg_info.get("gn_info", DEFAULT_GN_INFO)
+
         quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
         get_quantizer(quant_type)
 
-        opt_info = cfg_info.get("opt_type", DEFAULT_OPT_INFO)
+        opt_info = cfg_info.get(
+            "opt_type", make_key_opt(DEFAULT_OPT_INFO))
         get_optimizor(opt_info)
 
         cfg_dict[name] = cfg_info if cfg_info else \
-            {"quant_type": quant_type, "opt_info": opt_info}
+            {"gn_info": gn_info, "quant_type": quant_type,
+            "opt_info": opt_info}
 
     topo_visit_transformer(symbol, params, _sym_config_infos)
     return cfg_dict
@@ -82,34 +112,88 @@ def deserialize(cfg_groups):
             configuration information (quantizer type, optimizor information) maps to node names (before calibration).
     """
     cfg_dict = {}
-    for key, val in cfg_groups.items():
-        key = key if key else "{}"
-        cfg_info = json.loads(key)
-        names = json.loads(val)
+    for names, val_dict in cfg_groups.items():
+        try:
+            names = json.loads(names.replace(".", ","))
+        except:
+            raise ValueError("Invalid value, names: %s" % names)
 
-        # quantizer 
+        # Deserialize
+        cfg_info = {}
+        for attr, val in val_dict.items():
+            if attr not in ["gn_info", "opt_info"]:
+                cfg_info[attr] = val
+                continue
+            try:
+                val = json.loads(
+                    val.replace(".", ",").replace(";", ":"))
+            except:
+                raise ValueError(
+                    "Invalid value, names: %s, attr: %s, val: %s" % \
+                    (names, attr, val))
+            cfg_info[attr] = val
+
+        # Granularity Settings Validate
+        gn_info = cfg_info.get("gn_info", DEFAULT_GN_INFO)
+        if "gn_type" not in gn_info:
+            raise ValueError(
+                "Please specify the opt_type, names: %s, " + \
+                "opt_info: %s" % (names, opt_info))
+        gn_type = gn_info["gn_type"]
+        if gn_type not in GN_REG:
+            raise TypeError(
+                "Unsupported granulari type: %s, names: %s" % \
+                (gn_type, names))
+        if gn_type == CHANNEL_WISE_TYPE:
+            if "ichannel" not in granularity:
+                raise ValueError(
+                    "Please specify the axis number of channel " + \
+                    "(ichannel), names: %s" % names)
+            ichannel = gn_info["ichannel"]
+            if not isinstance(ichannel, int):
+                raise ValueError(
+                    "Please specify the correct axis number of channel " + \
+                    "(ichannel), names: %s, ichannel: %s" % \
+                    (names, ichannel))
+            if "step" not in granularity:
+                raise ValueError(
+                    "Please specify the step size of channel " + \
+                    "(step), names: %s" % names)
+            step = gn_info["step"]
+            if not isinstance(step, int):
+                raise ValueError(
+                    "Please specify the correct step of channel " + \
+                    "(step), names: %s, step: %s" % (names, step))
+        cfg_info["gn_info"] = gn_info
+
+        # Quantizer Settings Validate
         quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
         if quant_type not in QUANT_REG:
             raise TypeError(
                 "Unsupported quantizer type: %s, names: %s" % \
                 (quant_type, names))
+        cfg_info["quant_type"] = quant_type
 
-        # optimizor
+        # Optimizor Settings Validate
         opt_info = cfg_info.get("opt_info", DEFAULT_OPT_INFO)
-        opt_type = opt_info[0]
+        if "opt_type" not in opt_info:
+            raise ValueError(
+                "Please specify the opt_type, names: %s, " + \
+                "opt_info: %s" % (names, opt_info))
+        opt_type = opt_info["opt_type"]
         if opt_type not in OPT_REG:
             raise TypeError(
                 "Unsupported optimizor type: %s, names: %s" % \
                 (opt_type, names))
-        if quant_type not in OPT_REG[opt_type].list_supported_features():
+        if quant_type not in OPT_REG[opt_type].list_supported_quant_types():
             raise ValueError(
                 "quantizer type: (%s) is not supported by " + \
                 "optimizor type: (%s), names: %s" % \
                 (quant_type, opt_type, names))
-        opt_attrs = {} if len(opt_info) == 1 else \
-            {v[i]: v[i+1] for i in range(1, len(opt_info), 2)}
+        opt_attrs = opt_info.copy()
+        opt_attrs.pop("opt_type")
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
-        for k, v in opt_attr.items():
+        for k, v in opt_attrs.items():
             if k not in opt_attr_types:
                 raise ValueError(
                     "Attribute: (%s) is not found in " + \
@@ -126,12 +210,11 @@ def deserialize(cfg_groups):
                     "with any of supported dtypes: (%s), names: %s, " + \
                     "optimizor type: %s" % \
                     (k, type(v), dtypes, names, opt_type))
+        cfg_info["opt_info"] = make_key_opt(opt_info)
 
         for name in names:
-            if name in cfg_dict:
-                raise ValueError(
-                    "Duplicate name: %s, parsed value: %s" % (name, val))
-            cfg_dict[name] = cfg_info
+            assert name not in cfg_dict
+            cfg_dict[name] = cfg_info.copy()
 
     return cfg_dict
 
@@ -140,10 +223,6 @@ def deserialize(cfg_groups):
 #----------------------------
 
 def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
-    """ Customized graph-level topo pass definition.
-
-        Generalized MRT calibration framework pass.
-    """
     # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
     logger = logging.getLogger('log.mrt')
     _, deps = sutils.topo_sort(
@@ -216,10 +295,7 @@ def rewrite(symbol, params):
 def quantize(
     symbol, params, features, precs, buffers, cfg_dict,
     op_input_precs, restore_names, shift_bits, softmax_lambd):
-    """ Customized graph-level topo pass definition.
 
-        Generalized MRT quantization framework pass.
-    """
     infer_shapes = infer_shape(symbol, params)
 
     def restore(op, **kwargs):

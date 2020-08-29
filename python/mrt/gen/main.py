@@ -96,7 +96,8 @@ if __name__ == "__main__":
         logger.info("`%s` stage finished" % sec)
     elif start_point == 2:
         _checkpoint_exist(
-            sec, *[sym_top_file, prm_top_file, sym_base_file, prm_base_file])
+            sec, *[sym_top_file, prm_top_file,
+            sym_base_file, prm_base_file])
         top = Model.load(sym_top_file, prm_top_file)
         base = Model.load(sym_base_file, prm_base_file)
         logger.info("`%s` stage checked" % sec)
@@ -113,7 +114,7 @@ if __name__ == "__main__":
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         cfg_groups = _get_val(
             cfg, sec, 'Cfg_groups',
-            dtype=PAIR(str_t, str_t), dval={})
+            dtype=PAIR(str_t, str_t, str_t), dval={})
         cfg_dict = deserialize(cfg_groups)
         mrt.set_cfg_dict(cfg_dict)
         shp = set_batch(input_shape, batch)

@@ -8,11 +8,14 @@ from mrt.tfm_pass import OUT_KEY
 from mrt import tfm_base as tbase
 
 class Transformer(tbase.Transformer):
-    def quantize(self, op, **kwargs):
-        """ Main procedure for quantization.
+    def slice_channel(self, op, **kwargs):
+        """ Operators will be split into multiple channels for intended for quantization of channel-wise granularity.
 
             Do nothing by default.
         """
+        return op
+
+    def quantize(self, op, **kwargs):
         precs, buffers = kwargs['precs'], kwargs['buffers']
         name, op_name = op.attr('name'), op.attr('op_name')
         childs = sym_iter(op.get_children())

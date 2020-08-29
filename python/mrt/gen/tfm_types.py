@@ -1,7 +1,8 @@
-""" Optimizor and Sampler definition for MRT calibration.
-    Quantizer definition for MRT calibration.
-    Feature Types Definition For MRT calibration and quantization.
-    Quant Types Definition For MRT quantization.
+""" Optimizor definition for MRT calibration.
+    Quantizer definition for MRT calibration and quantization.
+    Feature Types Definition for MRT calibration and quantization.
+    Buffers Types Definition for MRT quantization.
+    Granularity constant vars definition.
 """
 
 import math
@@ -48,13 +49,13 @@ class Feature:
 
         Parameters & Inputs
         -> Quantize()
-            : Weight -> Int8
+        : Weight -> Int8
 
         QuantizeExtraInfo()
         f = Feature(out)
-                                S, P
+
         S2, P2, info = f.Quantize(S1, P1, info=default,
-                target_precision, target_scale)
+        target_precision, target_scale)
 
         S, P = f.Quantize(S, P, scale, target_precision)
 
@@ -552,10 +553,10 @@ class Optimizor:
             " base `get_opt` function defined in Optimizor")
 
     @staticmethod
-    def list_supported_quant_type():
+    def list_supported_quant_types():
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
-            " base `list_supported_quant_type` function defined in Optimizor")
+            " base `list_supported_quant_types` function defined in Optimizor")
 
     @staticmethod
     def list_attr_types():
@@ -606,7 +607,7 @@ class HVOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_quant_type():
+    def list_supported_quant_types():
         return ["UniformSymmetric", "UniformAffine"]
 
     @staticmethod
@@ -648,7 +649,7 @@ class MAOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_quant_type():
+    def list_supported_quant_types():
         return ["UniformSymmetric", "UniformAffine"]
 
     @staticmethod
@@ -758,7 +759,7 @@ class KLDOptimizor(Optimizor):
         return opt
 
     @staticmethod
-    def list_supported_quant_type():
+    def list_supported_quant_types():
         return ["UniformSymmetric"]
 
     @staticmethod
@@ -770,11 +771,23 @@ class KLDOptimizor(Optimizor):
 class OROptimizor(Optimizor):
     pass
 
-DEFAULT_OPT_INFO = ("HistoricalValue", "lambd", None)
+DEFAULT_OPT_INFO = {
+    "opt_type": "HistoricalValue",
+    "lambd": None,
+}
 DEFAULT_OPTIMIZOR = HVOptimizor()
 
+def make_key_opt(opt_info):
+    infos = [opt_info["opt_type"]]
+    for k, v in opt_info.items():
+        if k == "opt_type":
+            continue
+        infos.append(k)
+        infos.append(v)
+    return tuple(infos)
+
 OPT_INSTANCES = {
-    DEFAULT_OPT_INFO: DEFAULT_OPTIMIZOR,
+    make_key_opt(DEFAULT_OPT_INFO): DEFAULT_OPTIMIZOR,
     # ("HistoricalValue", "lambd", 25): HVOptimizor(lambd=25),
     # ("MovingAverage","c", 0.01): MAOptimizor(),
     # ("KLDivergence", "eps", 0.05): KLDOptimizor(eps=0.05),
@@ -796,4 +809,17 @@ def get_optimizor(opt_info):
 FT_TYPE_EXP = AFeature.name
 BUF_TYPE_EXP = SBuffer.name
 QUANT_TYPE_EXP = USQuantizer.name
+
+#----------------------------
+# Granularity Types
+#----------------------------
+
+LAYER_WISE_TYPE = "layer-wise"
+CHANNEL_WISE_TYPE = "channel-wise"
+DEFAULT_GN_INFO = {"gn_type": LAYER_WISE_TYPE}
+
+GN_REG = {
+    LAYER_WISE_TYPE,
+    CHANNEL_WISE_TYPE,
+}
 

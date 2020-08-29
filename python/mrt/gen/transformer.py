@@ -11,8 +11,8 @@ from mrt import cvm_op   # pylint: disable=unused-import
 from mrt.sym_utils import topo_sort
 from mrt.tfm_pass import OUT_KEY
 from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP
-from .tfm_pass import quantize, sym_calibrate, \
-                      rewrite, sym_config_infos
+from .tfm_pass import quantize, sym_calibrate, rewrite, \
+                      sym_config_infos, sym_slice_channel
 
 from mrt import transformer as tfm
 from mrt import utils
@@ -88,41 +88,29 @@ class MRT(tfm.MRT):
         self.shift_bits = 5
 
     def set_cfg_dict(self, cfg_dict):
+        """ Set up configuration dict for the mrt instance
+        """
         self.cfg_dict = cfg_dict
 
     def calibrate(self, ctx=mx.cpu(), lambd=None, old_ths=None):
-        """ Calibrate the current model after setting mrt data.
-
-            Parameters
-            __________
-            ctx : mxnet.context
-                Context on which intermediate result would be stored,
-            lambd : double
-                Hyperparameter
-            old_ths : dict
-                Reference threshold dict could also be specified.
-
-            Returns
-            _______
-            th_dict : dict
-                Threshold dict of node-level output.
-        """
+        # Configure by cfg_dict
         self.cfg_dict = sym_config_infos(
             self.current_model.symbol, self.current_model.params,
             cfg_dict=self.cfg_dict)
+
+        # Slice Channel for granularity customization
+        sym, params = sym_slice_channel(
+            self.current_model.symbol, self.current_model.params,
+            cfg_dict=self.cfg_dict)
+        self.current_model = Model(sym, params)
+
+        # Perform Calibration
         self.features = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
             self._data, self.cfg_dict, ctx=ctx)
         return self.features
 
     def quantize(self):
-        """ Quantize the current model after calibration.
-
-            Returns
-            _______
-            qmodel : Model
-                The quantized model.
-        """
         _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.features, self.precs, self.buffers, self.cfg_dict,
@@ -149,8 +137,6 @@ class MRT(tfm.MRT):
         return {k: v.serialize() for k, v in dct.items()}
 
     def save(self, model_name, datadir="./data"):
-        """ Save the current mrt instance into disk.
-        """
         # pylint: disable=unbalanced-tuple-unpacking
         sym_file, params_file, ext_file = \
             utils.extend_fname(path.join(datadir, model_name), True)

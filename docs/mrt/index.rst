@@ -36,3 +36,4 @@ For other detailed classes and methods, please refer to the API links.
   MRT Graph API <api/graph>
   MRT Dataset API <api/dataset>
   MRT Utils API <api/utils>
+  MRT Generalized Quantization API <api/gen>

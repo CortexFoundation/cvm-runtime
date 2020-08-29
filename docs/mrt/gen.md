@@ -86,7 +86,7 @@ $$
 $$
 
 $$
-Xi = \text{slice}\Big(X, \text{begin=(None,)*i+(i,)+(None,)*(ndims-i-1)}, \text{end=(None,)*i+(i+1,)+(None,)*(ndims-i-1)}\Big)
+Xi = \text{slice}\Big(X, \text{begin=(None,)*i+(i,)+(None,)*(ndims-i-1)}, \text{end=(None,)*i+(i+1,)+(None,)*(ndims-i-1)}, \text{step=step}\Big)
 $$
 
 If $X$ is of channel feature and $W$ is of layer feature or vice versa, $W$ (or $X$) will also be split to be compatible with $X$ (or $W$).
@@ -151,7 +151,7 @@ $$
 Xe = pad(Xe, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=0)
 ```
 
-**Expansion Formalization 1: Symmetric Quantized $X$ and $W$**
+**Expansion Formalization 1: Symmetric Quantized X and W**
 $$
 Ye[n,o,p,q] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj]
 $$
@@ -161,7 +161,7 @@ Ye = Convoltion(Xq, Wq, **attrs)
 infer_prec = get_bit_cnt(C*KH*KW) + xprec + wprec
 ```
 
-**Expansion Formalization 2: Zero Point Quantized $X$ and Symmetric Quantized $W$**
+**Expansion Formalization 2: Zero Point Quantized X and Symmetric Quantized W**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] = 
@@ -176,7 +176,7 @@ infer_prec2 = get_bit_cnt(abs(C))
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
-**Expansion Formalization 3: Symmetric Quantized $X$ and Zero Point Quantized $W$**
+**Expansion Formalization 3: Symmetric Quantized X and Zero Point Quantized W**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] =  
@@ -191,7 +191,7 @@ infer_prec2 = get_bit_cnt(abs(C)*C*KH*KW) + xprec
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
-**Expansion Formalization 4: Zero Point Quantized $X$ and $W$**
+**Expansion Formalization 4: Zero Point Quantized X and W**
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q]
@@ -380,7 +380,7 @@ $$
 $$
 sc_{ye} = sc_{x} \cdot sc_{w}
 $$
-**Expansion Formalization 1: Symmetric Quantized $X$ and $W$**
+**Expansion Formalization 1: Symmetric Quantized X and W**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i]
 $$
@@ -390,7 +390,7 @@ Ye = FullyConnected(Xq, Wq)
 infer_prec = get_bit_cnt(K) + xprec + wprec
 ```
 
-**Expansion Formalization 2: Zero Point Quantized $X$ and Symmetric Quantized $W$**
+**Expansion Formalization 2: Zero Point Quantized X​ and Symmetric Quantized W**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i] 
 + zp_x \sum_{i=0}^{K-1} Wq[m,i]
@@ -403,7 +403,7 @@ infer_prec2 = get_bit_cnt(abs(C))
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
-**Expansion Formalization 3: Symmetric Quantized $X$ and Zero Point Quantized $W$**
+**Expansion Formalization 3: Symmetric Quantized X​ and Zero Point Quantized W**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i] +
 zp_{w} \sum_{i=0}^{K-1} Xq[n,i]
@@ -416,7 +416,7 @@ infer_prec2 = get_bit_cnt(abs(C)*K) + xprec
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
-**Expansion Formalization 4: Zero Point Quantized $X$ and $W$**
+**Expansion Formalization 4: Zero Point Quantized X​ and W**
 $$
 Ye[n,m] = \sum_{i=0}^{K-1} Xq[n,i] \cdot Wq[m,i]
 + zp_{w} \sum_{i=0}^{K-1} Xq[n,i]
@@ -437,23 +437,23 @@ infer_prec = max(infer_prec1, infer_prec2, infer_prec3, infer_prec4) + 2
 
 #### broadcast_add
 
-use [Merge Quantize](#merge-quantize).
+use [Quantize Scale](#quantize-scale).
 
 ### Elemwise Operator Expansion
 
 #### elemwise_add
 
-use [Merge Quantize](#merge-quantize).
+use [Quantize Scale](#quantize-scale).
 
 #### add_n
 
-use [Merge Quantize](#merge-quantize).
+use [Quantize Scale](#quantize-scale).
 
 ### Transform Operator Expansion
 
 #### concat
 
-use [Merge Quantize](#merge-quantize).
+use [Quantize Scale](#quantize-scale).
 
 #### flatten
 

@@ -212,6 +212,8 @@ class Concat(tops.Concat):
         return _quantize_scale(op, **kwargs)
 
 def separate_bias(op, **kwargs):
+    """ Separate bias attribute as an independent symbol in rewrite stage.
+    """
     name, op_name = op.attr('name'), op.attr('op_name')
     attr, childs = op.list_attr(), sym_iter(op.get_children())
 
@@ -234,6 +236,8 @@ def separate_bias(op, **kwargs):
     return op
 
 def separate_pad(op, **kwargs):
+    """ Separate pad attribute as an independent symbol in rewrite stage.
+    """
     name, op_name = op.attr('name'), op.attr('op_name')
     attr, childs = op.list_attr(), sym_iter(op.get_children())
 
