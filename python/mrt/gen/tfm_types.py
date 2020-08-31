@@ -268,8 +268,10 @@ class Quantizer:
             " base `int_realize` function " + \
             "defined in Quantizer")
 
+US_QUANT_TYPE = "UniformSymmetric"
 
-@register_quantizer("UniformSymmetric")
+
+@register_quantizer(US_QUANT_TYPE)
 class USQuantizer(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
@@ -493,7 +495,7 @@ class UAQuantizer(Quantizer):
         out = out.clip(a_min=lower, a_max=upper)
         return out, self.get_prec(out)
 
-DEFAULT_QUANT_TYPE = "UniformSymmetric"
+DEFAULT_QUANT_TYPE = US_QUANT_TYPE
 DEFAULT_QUANTIZER = USQuantizer()
 
 QUANT_INSTANCES = {

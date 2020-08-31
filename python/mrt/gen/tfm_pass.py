@@ -19,29 +19,6 @@ from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, \
 from mrt import sym_utils as sutils
 
 #----------------------------
-# Channel Slice interfaces
-#----------------------------
-
-def sym_slice_channel(symbol, params, cfg_dict={}):
-    """ Customized graph-level topo pass definition.
-
-        Interface for granularity control.
-        While layer-wise feature is by default,
-        MRT support channel-wise features specified in cfg_dict.
-    """
-
-    def _slice_channel(op, **kwargs):
-        name, op_name = op.attr("name"), op.attr("op_name")
-        gn_info = cfg_dict[name].get("gn_info", DEFAULT_GN_INFO)
-        gn_type = gn_info["gn_type"]
-        if gn_type == CHANNEL_WISE_TYPE:
-            op = apply_pass(
-                "slice_channel", cfg_dict=cfg_dict)(op, **kwargs)
-        return op
-
-    return topo_visit_transformer(symbol, params, _slice_channel)
-
-#----------------------------
 # Module main interfaces
 #----------------------------
 
@@ -290,6 +267,32 @@ def rewrite(symbol, params):
     infer_shapes = infer_shape(symbol, params)
     return topo_visit_transformer(symbol, params,
             apply_pass("rewrite", infer_shapes=infer_shapes))
+
+#----------------------------
+# Channel Slice interfaces
+#----------------------------
+
+@N.register_nm("slice_channel")
+def sym_slice_channel(symbol, params, cfg_dict={}):
+    """ Customized graph-level topo pass definition.
+
+        Interface for granularity control.
+        While layer-wise feature is by default,
+        MRT support channel-wise features specified in cfg_dict.
+    """
+    infer_shapes = infer_shape(symbol, params)
+
+    def _slice_channel(op, **kwargs):
+        name, op_name = op.attr("name"), op.attr("op_name")
+        gn_info = cfg_dict[name].get("gn_info", DEFAULT_GN_INFO)
+        gn_type = gn_info["gn_type"]
+        if gn_type == CHANNEL_WISE_TYPE:
+            op = apply_pass(
+                "slice_channel", cfg_dict=cfg_dict,
+                infer_shapes=infer_shapes)(op, **kwargs)
+        return op
+
+    return topo_visit_transformer(symbol, params, _slice_channel)
 
 #----------------------------
 # Module quantize interfaces
