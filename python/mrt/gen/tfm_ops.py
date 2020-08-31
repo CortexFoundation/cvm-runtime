@@ -119,7 +119,7 @@ class FullyConnected(tops.FullyConnected, Transformer):
 @register_pass("fuse_transpose")
 @register_pass("prepare_for_compile")
 @register_transformer("Convolution")
-class Convolution(tops.Convolution):
+class Convolution(tops.Convolution, Transformer):
     def slice_channel(self, op, **kwargs):
         name, op_name = op.attr('name'), op.attr('op_name')
         attr, childs = op.list_attr(), sym_iter(op.get_children())
@@ -214,7 +214,7 @@ class Pad(tops.Pad, Transformer):
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("broadcast_add")
-class BroadcastAdd(tops.BroadcastAdd):
+class BroadcastAdd(tops.BroadcastAdd, Transformer):
     def quantize(self, op, **kwargs):
         params = kwargs['params']
         features = kwargs['features']
@@ -251,7 +251,25 @@ class BroadcastAdd(tops.BroadcastAdd):
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("Concat")
-class Concat(tops.Concat):
+class Concat(tops.Concat, Transformer):
+    def quantize(self, op, **kwargs):
+        return _quantize_scale(op, **kwargs)
+
+
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("slice")
+class Slice(tops.Slice, Transformer):
+    pass
+
+
+@register_transformer("add_n")
+class AddN(Transformer):
     def quantize(self, op, **kwargs):
         return _quantize_scale(op, **kwargs)
 
@@ -312,7 +330,7 @@ def _quantize_scale(op, **kwargs):
     oprec = kwargs['op_input_precs'][op_name]
     oscale = scale_exp(absmax, oprec)
     buffers[name] = SBuffer(oscale)
-    new_childs, cprecs = [], []
+    nodes, cprecs = [], []
 
     assert all([cfg_dict[cn]['quant_type'] == \
         USQuantizer.name for cn in cns])
@@ -322,9 +340,25 @@ def _quantize_scale(op, **kwargs):
         c, cprec, _ = quant.quantize(
             c, oprec, oscale=oscale, oname=name, **kwargs)
         cprecs.append(cprec)
-        new_childs.append(c)
-    op = get_mxnet_op(op_name)(*new_childs, **attr, name=name)
-    infer_prec = max(cprec) if op_name == Concat.op_name else max(cprecs)+1
+        nodes.append(c)
+
+    if op_name in [Concat.op_name, BroadcastAdd.op_name]:
+        op = get_mxnet_op(op_name)(*nodes, **attr, name=name)
+        infer_prec = max(cprec) if op_name == Concat.op_name \
+            else max(cprecs)+1
+    elif op_name == AddN.op_name:
+        while len(nodes) > 1:
+            tname = N.n('elemwise_add') if len(nodes) > 2 else name
+            a, b = nodes.pop(0), nodes.pop(0)
+            tmp = mx.sym.elemwise_add(a, b, name=tname)
+            nodes.append(tmp)
+        kprec = get_bit_cnt(len(nodes))
+        infer_prec = max(cprecs) + kprec
+        op = nodes[0]
+    else:
+        raise NotADirectoryError(
+            "symbol merge function of op_name: %s has not been " + \
+            "implemented, name: %s" % (op_name, name))
     precs[name][OUT_KEY] = infer_prec
 
     logger = logging.getLogger('log.mrt.realize')
@@ -372,4 +406,9 @@ def sym_slice(op, ichannel, step, **kwargs):
             name=N.n(name+suffix))
         nodes.append(opi)
     return nodes
+
+def sym_merge(op, nodes, **kwargs):
+    name, op_name = op.attr('name'), op.attr('op_name')
+    attr = op.list_attr()
+    return op
 

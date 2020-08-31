@@ -89,7 +89,7 @@ $$
 Xi = \text{slice}\Big(X, \\
 \text{begin=(None,)*ichannel+(i,)+(None,)*(ndims-ichannel-1)}, \\
 \text{end=(None,)*ichannel+(i+step,)+(None,)*(ndims-ichannel-1)}, \\
-\text{step=(-1,)*ichannel+(step_size,)+(-1,)*(ndims-ichannel-1)}\Big)
+\text{step=(-1,)*ichannel+(step,)+(-1,)*(ndims-ichannel-1)}\Big)
 $$
 
 If $X$ is of channel feature and $W$ is of layer feature or vice versa, $W$ (or $X$) will also be split to be compatible with $X$ (or $W$).

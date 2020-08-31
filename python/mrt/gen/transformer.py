@@ -67,7 +67,7 @@ def init(model, input_shape=None):
 
 
 class MRT(tfm.MRT):
-    def __init__(self, model, input_prec=8):
+    def __init__(self, model):
         self.old_names = model.output_names()
         self.current_model = model
 
@@ -78,11 +78,7 @@ class MRT(tfm.MRT):
         self.restore_names = set()
 
         self._op_default_input_precs()
-        self.precs = {s.attr('name'):{} \
-            for s in topo_sort(self.current_model)}
-        if 'data' not in self.precs:
-            raise RuntimeError("please invoke `init` function first")
-        self.precs['data'][OUT_KEY] = input_prec
+        self.precs = {}
 
         self.softmax_lambd = 10
         self.shift_bits = 5
@@ -104,11 +100,34 @@ class MRT(tfm.MRT):
             cfg_dict=self.cfg_dict)
         self.current_model = Model(sym, params)
 
+        self.precs = {s.attr('name'):{} \
+            for s in topo_sort(self.current_model)}
+        if 'data' not in self.precs:
+            raise RuntimeError("please invoke `init` function first")
+        self.precs['data'][OUT_KEY] = 8
+
         # Perform Calibration
         self.features = sym_calibrate(
             self.current_model.symbol, self.current_model.params,
             self._data, self.cfg_dict, ctx=ctx)
         return self.features
+
+    def _op_default_input_precs(self):
+        op_precs = self.op_input_precs = {}
+        for name in ['Convolution', 'FullyConnected',
+                     'sigmoid', 'exp', 'softmax']:
+            op_precs[name] = 8
+        op_precs['sum'] = 8
+        for name in ['broadcast_add', 'broadcast_sub',
+                     'elemwise_add', 'elemwise_sub', 'slice_like']:
+            op_precs[name] = 16
+        op_precs['broadcast_mul'] = 16
+        op_precs['L2Normalization'] = 8
+        op_precs['Concat'] = 16
+        op_precs['Embedding'] = 16
+        op_precs['slice_like'] = 30
+        op_precs['batch_dot'] = 8
+        op_precs['add_n'] = 16
 
     def quantize(self):
         _sym, _prm = quantize(

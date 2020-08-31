@@ -4,7 +4,8 @@ import json
 import mxnet as mx
 
 from mrt.tfm_base import N
-from mrt.tfm_pass import convert_params_dtype, infer_shape
+from mrt.tfm_pass import convert_params_dtype, infer_shape, \
+                         fuse_constant
 from mrt.sym_utils import is_inputs, get_entry_id, is_var, \
                           get_nd_op, topo_visit_transformer
 from mrt.tfm_pass import OUT_KEY
@@ -292,7 +293,9 @@ def sym_slice_channel(symbol, params, cfg_dict={}):
                 infer_shapes=infer_shapes)(op, **kwargs)
         return op
 
-    return topo_visit_transformer(symbol, params, _slice_channel)
+    sym, params = topo_visit_transformer(symbol, params, _slice_channel)
+    sym, params = fuse_constant(sym, params)
+    return sym, params
 
 #----------------------------
 # Module quantize interfaces
