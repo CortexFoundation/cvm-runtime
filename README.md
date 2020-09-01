@@ -18,6 +18,7 @@
 1. git clone https://github.com/qemu/qemu
 2. cd qemu && git checkout v3.0.0
 3. ./configure --target-list=riscv64-softmmu
+(sudo apt-get install libpixman-1-dev)
 4. make -j $(nproc)
 5. sudo make install
 ```
