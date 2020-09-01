@@ -47,7 +47,7 @@
 5. cd ../riscv64-linux/busybear-linux 
 6. mkdir etc/tests
 7. cp ../../cvm-runtime/build/libcvm.so ../../cvm-runtime/build/tests/test_model_riscv etc/tests/ 
-8. cp model data: cp -r /data/std_out/resnet50_v2 etc/tests/
+8. cp model data: cp -r /data/std_out/resnet50_v2 etc/tests/ etc/tests
 9. modify the scripts/start-qemu.sh:
 ```
  32 # construct command
