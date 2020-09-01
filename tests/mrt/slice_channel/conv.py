@@ -24,8 +24,7 @@ def sym_slice(op, ichannel, step):
     for i in range(0, shp[ichannel], step):
         opi = nd.slice(
             op, begin=(None,)*ichannel+(i,)+(None,)*rchannel,
-            end=(None,)*ichannel+(i+step,)+(None,)*rchannel,
-            step=(-1,)*ichannel+(step,)+(-1,)*rchannel)
+            end=(None,)*ichannel+(i+step,)+(None,)*rchannel)
         nodes.append(opi)
     return nodes
 
