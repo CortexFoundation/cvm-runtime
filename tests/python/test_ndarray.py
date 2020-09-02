@@ -19,9 +19,10 @@ import time
 
 
 npc = np.array(range(60)).reshape((3, 4, 5))
-ndc = nd.array(npc, ctx=cvm.cpu())
+ndc = nd.array(npc, ctx=cvm.cpu())  # npc.dtype is int64 by default
 print('testing ndarray setter')
 ndc[0] = 1
+print('ndc after setitem:', ndc.asnumpy())
 ndc[[0, 1], 1] = [2]
 ndc[0:2, 3, 4] = [3]
 bool_array = np.array([[True, False, True, False],

@@ -8,6 +8,9 @@
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/device_api.h>
+#include <cvm/runtime/forward.h>
+#include <cvm/tuple.h>
+#include <cvm/runtime/base.h>
 
 // deleter for arrays used by DLPack exporter
 extern "C" void NDArrayDLPackDeleter(DLManagedTensor* tensor);
@@ -255,10 +258,27 @@ int CVMAssignNDScalar(CVMArrayHandle target, int* indices, int value) {
   int* ends = indices + ndim;
   int* steps = indices + ndim * 2;
   int* sizes = indices + ndim * 3;
+  cvm::TShape targetShape(target->shape, target->shape + ndim);
   //std::cout << "assigning data to:" << std::endl;
   //for (int i = 0; i < ndim; i++) {
   //  std::cout << starts[i] << ' ' << ends[i] << " " << steps[i] << " "
   //            << sizes[i] << std::endl;
   //}
+  Indices assignIdx(cvm::Tuple<cvm::dim_t>(sizes, sizes + ndim));
+  Indices targetIdx(targetShape);
+  targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, starts + ndim));
+
+  CVM_TYPE_SWITCH(target->dtype.code, target->dtype.bits, DType, {
+    for (; !assignIdx.End(); ++assignIdx) {
+      Indices tmpIdx(targetIdx);
+      for (int i = 0; i < ndim; i++) {
+        tmpIdx.Ref(i) += assignIdx[i] * steps[i];
+      }
+      //std::cout << "assigning " << tmpIdx.to_string() << std::endl;
+      static_cast<DType*>(target->data)[tmpIdx.Index()] = value;
+    }
+  });
+
+
   API_END();
 }
