@@ -1240,6 +1240,17 @@ class BroadcastAdd(Transformer):
 
 
 @register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_div")
+class BroadcastDiv(Transformer):
+    pass
+
+
+@register_pass("calculate_ops")
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("broadcast_sub")

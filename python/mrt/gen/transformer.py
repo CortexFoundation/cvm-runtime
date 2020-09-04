@@ -12,7 +12,8 @@ from mrt.sym_utils import topo_sort
 from mrt.tfm_pass import OUT_KEY
 from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP
 from .tfm_pass import quantize, sym_calibrate, rewrite, \
-                      sym_config_infos, sym_slice_channel
+                      sym_config_infos, sym_slice_channel, \
+                      sym_separate_pad, sym_separate_bias
 
 from mrt import transformer as tfm
 from mrt import utils
@@ -60,6 +61,8 @@ def init(model, input_shape=None):
     _sym, _prm = tpass.fuse_constant(_sym, _prm)
     _sym, _prm = tpass.fuse_transpose(_sym, _prm)
     _sym, _prm = rewrite(_sym, _prm)
+    _sym, _prm = sym_separate_pad(_sym, _prm)
+    _sym, _prm = sym_separate_bias(_sym, _prm)
     _sym, _prm = tpass.fuse_constant(_sym, _prm)
     _sym, _prm = tpass.params_unique(_sym, _prm)
 

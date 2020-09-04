@@ -16,6 +16,7 @@ from .tfm_utils import get_buffer_exp, get_bit_exp, scale_exp, \
 from .tfm_base import apply_pass
 from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, \
                        DEFAULT_GN_INFO, QUANT_REG, OPT_REG, make_key_opt
+from .tfm_ops import Convolution, FullyConnected
 
 from mrt import sym_utils as sutils
 
@@ -40,7 +41,7 @@ def sym_config_infos(symbol, params, cfg_dict={}, logger=logging):
 
     topo_visit_transformer(symbol, params, _collect_names)
     noncfgs = set()
-    keys = cfg_dict.keys()
+    keys = list(cfg_dict.keys())
     for name in keys:
         if name == _RES_NAME:
             continue
@@ -268,6 +269,59 @@ def rewrite(symbol, params):
     infer_shapes = infer_shape(symbol, params)
     return topo_visit_transformer(symbol, params,
             apply_pass("rewrite", infer_shapes=infer_shapes))
+
+@N.register_nm("sym_separate_pad")
+def sym_separate_pad(symbol, params):
+    """ Separate pad attribute as an independent symbol in rewrite stage.
+    """
+    def _separate_pad(op, **kwargs):
+        name, op_name = op.attr('name'), op.attr('op_name')
+        attr, childs = op.list_attr(), sutils.sym_iter(op.get_children())
+
+        if op_name not in [Convolution.op_name]:
+            return op
+
+        assert 'layout' in attr and attr['layout'] == 'NCHW'
+        PH, PW = sutils.get_attr(attr, 'pad', (0,0))
+        if PH == 0 and PW == 0:
+            return op
+        del attr['pad']
+
+        childs[0] = mx.sym.pad(
+            childs[0], pad_width=(0,0,0,0,PH,PH,PW,PW),
+            mode='constant', constant_value=0, name=N.n('pad'))
+        op = sutils.get_mxnet_op(op_name)(*childs, **attr, name=name)
+        return op
+
+    return topo_visit_transformer(symbol, params, _separate_pad)
+
+@N.register_nm("sym_separate_bias")
+def sym_separate_bias(symbol, params):
+    """ Separate bias attribute as an independent symbol in rewrite stage.
+    """
+    def _separate_bias(op, **kwargs):
+        name, op_name = op.attr('name'), op.attr('op_name')
+        attr, childs = op.list_attr(), sutils.sym_iter(op.get_children())
+
+        if childs and len(childs) < 3 or op_name not in \
+            [Convolution.op_name, FullyConnected.op_name]:
+            return op
+
+        attr['no_bias'] = True
+        op = sutils.get_mxnet_op(op_name)(
+            childs[0], childs[1], **attr, name=N.n(name))
+        bn = childs[2].attr('name')
+        if op_name == Convolution.op_name:
+            assert 'layout' in attr and attr['layout'] == 'NCHW'
+            B = mx.sym.expand_dims(childs[2], axis=0, name=N.n('expand_dims'))
+            B = mx.sym.expand_dims(B, axis=-1, name=N.n('expand_dims'))
+            B = mx.sym.expand_dims(B, axis=-1, name=N.n(bn))
+        else:
+            B = mx.sym.expand_dims(childs[2], axis=0, name=N.n(bn))
+        op = mx.sym.broadcast_add(op, B, name=name)
+        return op
+
+    return topo_visit_transformer(symbol, params, _separate_bias)
 
 #----------------------------
 # Channel Slice interfaces

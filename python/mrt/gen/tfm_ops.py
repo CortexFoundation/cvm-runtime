@@ -80,15 +80,11 @@ class Activation(tops.Activation, Transformer):
 
 
 @register_pass("validate")
+@register_pass("rewrite")
 @register_pass("fuse_transpose")
 @register_pass("prepare_for_compile")
 @register_transformer("FullyConnected")
 class FullyConnected(tops.FullyConnected, Transformer):
-    def rewrite(self, op, **kwargs):
-        op = super().rewrite(op, **kwargs)
-        op = separate_bias(op, **kwargs)
-        return op
-
     def quantize(self, op, **kwargs):
         features, buffers = kwargs['features'], kwargs['buffers']
         precs = kwargs['precs']
@@ -118,6 +114,7 @@ class FullyConnected(tops.FullyConnected, Transformer):
 
 @register_pass("fuse_transpose")
 @register_pass("prepare_for_compile")
+@register_pass("rewrite")
 @register_transformer("Convolution")
 class Convolution(tops.Convolution, Transformer):
     def slice_channel(self, op, **kwargs):
@@ -161,12 +158,6 @@ class Convolution(tops.Convolution, Transformer):
             nodes.append(Yi)
 
         op = mx.sym.add_n(*nodes, name=name)
-        return op
-
-    def rewrite(self, op, **kwargs):
-        op = super().rewrite(op, **kwargs)
-        op = separate_pad(op, **kwargs)
-        op = separate_bias(op, **kwargs)
         return op
 
     def quantize(self, op, **kwargs):
@@ -268,55 +259,20 @@ class Slice(tops.Slice, Transformer):
     pass
 
 
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_pass("calculate_ops")
+@register_transformer("BatchNorm")
+class BatchNorm(tops.Slice, Transformer):
+    pass
+
+
 @register_transformer("add_n")
 class AddN(Transformer):
     def quantize(self, op, **kwargs):
         return _quantize_scale(op, **kwargs)
-
-def separate_bias(op, **kwargs):
-    """ Separate bias attribute as an independent symbol in rewrite stage.
-    """
-    name, op_name = op.attr('name'), op.attr('op_name')
-    attr, childs = op.list_attr(), sym_iter(op.get_children())
-
-    if len(childs) < 3 or op_name not in \
-        [Convolution.op_name, FullyConnected.op_name]:
-        return op
-
-    attr['no_bias'] = True
-    op = get_mxnet_op(op_name)(
-        childs[0], childs[1], **attr, name=N.n(name))
-    bn = childs[2].attr('name')
-    if op_name == Convolution.op_name:
-        assert 'layout' in attr and attr['layout'] == 'NCHW'
-        B = mx.sym.expand_dims(childs[2], axis=0, name=N.n('expand_dims'))
-        B = mx.sym.expand_dims(B, axis=-1, name=N.n('expand_dims'))
-        B = mx.sym.expand_dims(B, axis=-1, name=N.n(bn))
-    else:
-        B = mx.sym.expand_dims(childs[2], axis=0, name=N.n(bn))
-    op = mx.sym.broadcast_add(op, B, name=name)
-    return op
-
-def separate_pad(op, **kwargs):
-    """ Separate pad attribute as an independent symbol in rewrite stage.
-    """
-    name, op_name = op.attr('name'), op.attr('op_name')
-    attr, childs = op.list_attr(), sym_iter(op.get_children())
-
-    if op_name not in [Convolution.op_name]:
-        return op
-
-    assert 'layout' in attr and attr['layout'] == 'NCHW'
-    PH, PW = get_attr(attr, 'pad', (0,0))
-    if PH == 0 and PW == 0:
-        return op
-    del attr['pad']
-
-    childs[0] = mx.sym.pad(
-        childs[0], pad_width=(0,0,0,0,PH,PH,PW,PW),
-        mode='constant', constant_value=0, name=N.n('pad'))
-    op = get_mxnet_op(op_name)(*childs, **attr, name=name)
-    return op
 
 def _quantize_scale(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
