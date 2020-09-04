@@ -9,14 +9,14 @@ import cvm
 from mrt.sym_utils import get_attr, sym_iter, is_params, is_inputs, \
                           nd_array, get_mxnet_op, get_nnvm_op, \
                           nd_const, get_entry_id
-from mrt.tfm_utils import get_bit_cnt
+from mrt.tfm_utils import get_bit_cnt, realize
 from mrt.tfm_base import N, MAX_BIT
 from mrt.tfm_pass import OUT_KEY
 from .tfm_base import register_pass, register_transformer, Transformer
 from .tfm_types import get_quantizer, USQuantizer, UAQuantizer, \
                        FT_TYPE_EXP, AFeature, SBuffer, LAYER_WISE_TYPE, \
                        US_QUANT_TYPE
-from .tfm_utils import scale_exp, get_buffer_exp
+from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp
 
 from mrt import sim_quant_helper as sim
 from mrt import sym_utils as sutils
@@ -168,6 +168,12 @@ class Convolution(tops.Convolution, Transformer):
         childs, attr = sym_iter(op.get_children()), op.list_attr()
         cns = [c.attr('name') for c in childs] if childs else []
 
+        if 'pad' in attr:
+            from os import path
+            with open(path.expanduser('~/test.json'), 'w') as f:
+                f.write(op.tojson())
+            print(name, op_name, cns, attr, len(childs))
+            exit()
         assert len(childs) == 2 and 'pad' not in attr
         xquant_type = cfg_dict[cns[0]]['quant_type']
         wquant_type = cfg_dict[cns[1]]['quant_type']
@@ -265,7 +271,7 @@ class Slice(tops.Slice, Transformer):
 @register_pass("prepare_for_compile")
 @register_pass("calculate_ops")
 @register_transformer("BatchNorm")
-class BatchNorm(tops.Slice, Transformer):
+class BatchNorm(tops.BatchNorm, Transformer):
     pass
 
 
@@ -273,6 +279,153 @@ class BatchNorm(tops.Slice, Transformer):
 class AddN(Transformer):
     def quantize(self, op, **kwargs):
         return _quantize_scale(op, **kwargs)
+
+
+@register_pass("rewrite")
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("calculate_ops")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("clip")
+class Clip(tops.Clip, Transformer):
+    def quantize(self, op, **kwargs):
+        precs, buffers = kwargs['precs'], kwargs['buffers']
+        features = kwargs['features']
+        X = op.get_children()[0]
+        name, X_name = op.attr('name'), X.attr('name')
+        attrs = op.list_attr()
+
+        # `a_max`, `a_min` and precision should be align with CVM-Runtime
+        iscale = buffers[X.attr('name')].get()
+        buffers[name] = SBuffer(iscale)
+        a_min = int(sutils.get_attr(attrs, "a_min") * iscale)
+        a_max = int(sutils.get_attr(attrs, "a_max") * iscale)
+        precs[name][OUT_KEY] = get_bit_exp(max(abs(a_min), a_max))
+        return mx.sym.clip(X, a_min=a_min, a_max=a_max, name=name)
+
+
+@register_pass("rewrite")
+@register_pass("validate")
+@register_pass("quantize")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("prepare_for_compile")
+@register_pass('compile')
+@register_transformer("transpose")
+class Transpose(tops.Transpose, Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("squeeze")
+class Squeeze(tops.Squeeze, Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("compile")
+@register_pass("prepare_for_compile")
+@register_transformer("Reshape")
+class Reshape(tops.Reshape, Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+# @register_pass("prepare_for_compile") # only for restore
+@register_transformer("softmax")
+class Softmax(tops.Softmax, Transformer):
+    def quantize(self, op, **kwargs):
+        params, graph = kwargs['params'], kwargs['graph']
+        buffers, precs = kwargs['buffers'], kwargs['precs']
+        features, cfg_dict = kwargs['features'], kwargs['cfg_dict']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
+
+        oprec = kwargs['op_input_precs'][op_name]
+        th = features[cns[0]].get()
+        xs = scale_exp(th, oprec)
+        print(cfg_dict[cns[0]])
+        quant_type = cfg_dict[cns[0]]['quant_type']
+        assert quant_type == USQuantizer.name
+        quant = get_quantizer(quant_type)
+        X, xprec, xs = quant.quantize(
+            childs[0], oprec, oscale=xs, oname=name, **kwargs)
+        axis = get_attr(attr, 'axis', -1)
+        lambd = kwargs['softmax_lambd']
+        alpha = int(lambd*xs)
+        var = nd_const(alpha, graph, params)
+        max_axis = mx.sym.max(X, axis=axis, keepdims=True)
+        offset = mx.sym.broadcast_sub(max_axis, var, name=N.n('softmax_offset'))
+        offset = realize(offset, 0, xprec)
+        norm = mx.sym.broadcast_sub(X, offset, name=N.n('softmax_normalize'))
+        norm = mx.sym.relu(norm, name=N.n('Softmax_filter'))
+        norm = realize(norm, 0, xprec)
+
+        data = sutils.nd_arange(0, alpha+1)
+        table = nd.exp(data/xs)
+
+        tprec = get_bit_exp(math.exp(lambd))
+        table = nd.clip(table, a_min=0, a_max=get_range(tprec))
+        W_name = N.n('cvm_lut_weight')
+        params[W_name] = weight = table.round().reshape(alpha+1, 1)
+        wattr = {'precision': str(tprec)}
+        W = graph[W_name] = mx.sym.var(W_name, shape=weight.shape, attr=wattr)
+        # lut = mx.sym.Custom(norm, W, in_dim=alpha+1,
+        #                     name=name, op_type='cvm_lut')
+        lut = mx.sym.Custom(norm, W, in_dim=alpha+1,
+                            name=N.n('softmax_lut'), op_type='cvm_lut')
+        sum_lut = mx.sym.sum(lut, axis=axis, keepdims=True,
+                             name=N.n("softmax_sum"))
+
+        oprec = min(15, 31 - tprec)
+        assert oprec > 8, "operator softmax(%s) lambda(%d) is too large" \
+                % (name, lambd)
+        oscale = get_range(oprec)
+        var_scale = nd_const(oscale, graph, params)
+        prob = mx.sym.broadcast_mul(lut, var_scale,
+                                    name=N.n("softmax_output_scale"))
+        half_lut = realize(sum_lut, 1, 31)
+        prob = mx.sym.broadcast_add(prob, half_lut, name=N.n("softmax_round"))
+        op = mx.sym.broadcast_div(prob, sum_lut, name=N.n("softmax_prob"))
+        op = op.astype('int32').astype('float32')
+        # op = mx.sym.floor(op) # simulate integer division
+        # op = realize(op, 0, oprec)
+        op = realize(op, 0, oprec, name=name)
+        # oname = op.attr('name')
+        precs[name][OUT_KEY] = oprec
+        # precs[oname] = {OUT_KEY: oprec}
+        # scales[oname] = scales[name] = oscale
+        buffers[name] = SBuffer(oscale)
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                     op_name, name, buffers[name].serialize(), cns)
+        return op
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_transformer("slice_axis")
+class SliceAxis(tops.SliceAxis, Transformer):
+    pass
+
 
 def _quantize_scale(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']

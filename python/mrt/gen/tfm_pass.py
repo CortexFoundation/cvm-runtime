@@ -283,9 +283,9 @@ def sym_separate_pad(symbol, params):
 
         assert 'layout' in attr and attr['layout'] == 'NCHW'
         PH, PW = sutils.get_attr(attr, 'pad', (0,0))
-        if PH == 0 and PW == 0:
-            return op
         del attr['pad']
+        if PH == 0 and PW == 0:
+            return sutils.get_mxnet_op(op_name)(*childs, **attr, name=name)
 
         childs[0] = mx.sym.pad(
             childs[0], pad_width=(0,0,0,0,PH,PH,PW,PW),
