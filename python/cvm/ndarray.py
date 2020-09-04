@@ -2,6 +2,8 @@ import ctypes
 from .common import context, cpu
 from ._ctypes.ndarray import *
 from ._ctypes.lib import _LIB
+from ._base import numeric_types
+from ._base import integer_types
 
 import numpy as np
 import sys
@@ -96,18 +98,32 @@ class NDArray(NDArrayBase):
             )
         use_advanced = use_advanced_indexing(key)   # some dim of the key is an array.
         if use_advanced:
-            print('using advanced indexing setitem')
+            print('TODO: using advanced indexing setitem')
             pass
         else:
             print('using basic indexing setitem')
             starts, ends, steps, sizes = expand_keys2_slice(key, self.shape)
             if sizes == self.shape and all(stp > 0 for stp in steps):   # overwrite all
-                print('overwriting all')
-            elif isinstance(value, (int, np.integer)):
+                print('TODO: overwriting all')
+                if isinstance(value, numeric_types):
+                    if(isinstance(value), bool):
+                        self.full(int(value))
+                    else:
+                        self.full(value);
+            elif isinstance(value, numeric_types):
                 idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes) 
-                _LIB.CVMAssignNDScalar(self.handle, idxs, ctypes.c_int(value))
+                _LIB.CVMAssignNDScalar(self.handle, idxs, ctypes.c_double(value))
             else:
-                print('writing one by one')
+                if type(value) == self.__class__:
+                    pass
+                else:
+                    try:
+                        assign_shape = tuple(filter(lambda x: x != 1, sizes))
+                        va = broad_cast2_shape(array(value, self.context), assign_shape)
+                    except:
+                        raise TypeError('cannot assign value {} of type {} to '
+                        'a slice of NDArray'.format(value, type(value)))
+                print('TODO: writing one by one')
 
 
     def copyfrom(self, source_array):
@@ -158,6 +174,9 @@ class NDArray(NDArrayBase):
     def __str__(self):
         return str(self.asnumpy())
 
+    def full(self, value):
+        _LIB.CVMFullND(self.handle, ctypes.c_double(value))
+
     def asnumpy(self):
         """Convert this array to numpy array
 
@@ -191,6 +210,11 @@ class NDArray(NDArrayBase):
         else:
             raise ValueError("Unsupported target type %s" % str(type(target)))
         return target
+
+    def broad_cast2shape(self, value, shape):
+        if isinstance(value, numeric_types):
+            ret = empty(shape, self.dtype, self.ccontext)
+            ret[:] = value
 
 
 def numpyasarray(np_data):
@@ -386,7 +410,7 @@ def use_advanced_indexing(key):
     for k in key:
         if isinstance(k, (NDArray, tuple, list, np.ndarray, range)):
             return True
-        elif not (isinstance(k, (int, np.integer, slice)) or np.issubdtype(k, np.integer)):
+        elif not (isinstance(k, slice) or isinstance(k, integer_types)):
             raise ValueError('NDArray doesnot support indexing with type {}'.format(k))
     return False
 
@@ -413,7 +437,7 @@ def expand_keys2_slice(keys, shape):
             ranged_idx = idx.indices(shape[i])
             ret_key.append(ranged_idx)
             ret_size.append(_get_dim_size(*ranged_idx))
-        elif isinstance(idx, (np.int, int)):
+        elif isinstance(idx, integer_types):
             if idx < -shape[i] or idx >= shape[i]:
                 raise IndexError('expecting index of the {}th dim in '
                     'range [-{}, {}), but got {}'.format(i,

@@ -11,6 +11,7 @@
 #include <cvm/runtime/forward.h>
 #include <cvm/tuple.h>
 #include <cvm/runtime/base.h>
+#include <cvm/dlpack.h>
 
 // deleter for arrays used by DLPack exporter
 extern "C" void NDArrayDLPackDeleter(DLManagedTensor* tensor);
@@ -249,8 +250,9 @@ int CVMArrayCopyToBytes(CVMArrayHandle handle,
   API_END();
 }
 
-int CVMAssignNDScalar(CVMArrayHandle target, int* indices, int value) {
+int CVMAssignNDScalar(CVMArrayHandle target, int* indices, double value) {
   API_BEGIN();
+  // TODO: is it ok to modify without checking reference count?
   auto container =
       reinterpret_cast<cvm::runtime::NDArray::Container*>(target);
   int ndim = target->ndim;
@@ -268,17 +270,38 @@ int CVMAssignNDScalar(CVMArrayHandle target, int* indices, int value) {
   Indices targetIdx(targetShape);
   targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, starts + ndim));
 
-  CVM_TYPE_SWITCH(target->dtype.code, target->dtype.bits, DType, {
+  CVM_TYPE_SWITCH(target->dtype, DType, {
+    DType typeValue = static_cast<DType>(value);
     for (; !assignIdx.End(); ++assignIdx) {
       Indices tmpIdx(targetIdx);
       for (int i = 0; i < ndim; i++) {
         tmpIdx.Ref(i) += assignIdx[i] * steps[i];
       }
-      //std::cout << "assigning " << tmpIdx.to_string() << std::endl;
-      static_cast<DType*>(target->data)[tmpIdx.Index()] = value;
+      DeviceAPI::Get(target->ctx)
+          ->CopyDataFromTo(&typeValue, 0, target->data,
+                           tmpIdx.Index() * sizeof(DType), sizeof(DType),
+                           DLContext{kDLCPU, 0}, target->ctx,
+                           CVMType{kDLFloat, 64, 1}, nullptr);
     }
-  });
+  })
+  API_END();
+}
 
+int CVMFullND(CVMArrayHandle target, double value) {
+  API_BEGIN();
+  
+  // TODO: if target is a CPU tensor, call CPUFill directly.
+  //if (target->ctx.device_id == kDLCPU) {
+  //  NDArray tmp(target);
+  //}
 
+  std::vector<int64_t> targetShape(target->shape, target->shape + target->ndim);
+  Indices idx(cvm::TShape(targetShape));
+  CVM_TYPE_SWITCH(target->dtype, DType, {
+    NDArray tmp = NDArray::Empty(targetShape, target->dtype, DLContext{kDLCPU, 0});
+    DType typeValue = static_cast<DType>(value);
+    tmp.CPUFill(typeValue);
+    NDArray::CopyFromTo(tmp.operator->(), target);
+  })
   API_END();
 }

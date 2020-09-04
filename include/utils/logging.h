@@ -139,9 +139,6 @@ DEFINE_CHECK_FUNC(_NE, !=)
   if (!(x))                                                 \
     utils::LogMessageFatal(__FILE__, __LINE__).stream()     \
       << "Check failed: " #x << ' '
-#define CHECK_FATAL() \
-  utils::LogMessageFatal(__FILE__, __LINE__).stream() \
-    << "Check failed: " << ' '
 
 #define CHECK_LT(x, y) CHECK_BINARY_OP(_LT, <, x, y)
 #define CHECK_GT(x, y) CHECK_BINARY_OP(_GT, >, x, y)

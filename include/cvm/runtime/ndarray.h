@@ -94,6 +94,7 @@ class NDArray {
   inline int use_count() const;
   /*! \return Pointer to content of DLTensor */
   inline const DLTensor* operator->() const;
+  inline DLTensor* operator->();
   /*!
    * \brief Copy data content from another array.
    * \param other The source array to be copied from.
@@ -116,6 +117,13 @@ class NDArray {
    * \return The array under another context.
    */
   inline NDArray CopyTo(const DLContext& ctx) const;
+  /*!
+   * \brief Can ONLY be called for a cpu tensor! Fill the tensor with 
+   *        a scalar value
+   * \param value The value to assign to the tensor
+  */
+  //template<typename T>
+  inline void CPUFill(double value);
   /*!
    * \brief Load NDArray from stream
    * \param stream The input data stream
@@ -372,6 +380,20 @@ inline NDArray NDArray::CopyTo(const DLContext& ctx) const {
   return ret;
 }
 
+//template <typename T>
+inline void NDArray::CPUFill(double value) {
+  VERIFY(operator->()->ctx.device_id == kDLCPU)
+      << "CPUFill() can only be called for a CPU tensor\n";
+  auto dt = this->operator->()->dtype;
+  //CVM_TYPE_SWITCH(dt, DType, {
+  //  int a;
+  //  /*DType* data = static_cast<DType>(operator->()->data);
+  //  for (Indices idx(shape_); !idx.End(); idx++) {
+  //    data[idx.Index()] = value;
+  //  }*/
+  //})
+}
+
 inline int NDArray::use_count() const {
   if (data_ == nullptr) return 0;
   return data_->ref_counter_.load(std::memory_order_relaxed);
@@ -380,6 +402,8 @@ inline int NDArray::use_count() const {
 inline const DLTensor* NDArray::operator->() const {
   return &(data_->dl_tensor);
 }
+
+inline DLTensor* NDArray::operator->() { return &(data_->dl_tensor); }
 
 inline void printDType(DLDataType dtype, std::string message) {
   std::cout << message << "code: " << (int)dtype.code
