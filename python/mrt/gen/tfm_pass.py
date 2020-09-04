@@ -51,7 +51,7 @@ def sym_config_infos(symbol, params, cfg_dict={}, logger=logging):
     if noncfgs:
         logger.warn(
             "Symbols (names: %s) not found in graph." + \
-            "Please double check config file (.ini)." % noncfgs)
+            "Please double check config file (.ini)." % list(noncfgs))
     if _RES_NAME in cfg_dict:
         cfg_info = cfg_dict.pop(_RES_NAME)
         keys = cfg_dict.keys()
