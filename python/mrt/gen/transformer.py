@@ -97,12 +97,29 @@ class MRT(tfm.MRT):
             self.current_model.symbol, self.current_model.params,
             cfg_dict=self.cfg_dict)
 
-        # Slice Channel for granularity customization
+        # Slice Channel for customized granularity
         sym, params = sym_slice_channel(
             self.current_model.symbol, self.current_model.params,
             cfg_dict=self.cfg_dict)
         self.current_model = Model(sym, params)
 
+        # sym, params = self.current_model.symbol, self.current_model.params
+        # infer_shapes = tpass.infer_shape(
+            # sym, params, input_shape=self._data.shape)
+        # from mrt import sym_utils as sutils
+        # for s in topo_sort(sym):
+            # op_name, name = s.attr('op_name'), s.attr('name')
+            # if op_name == 'Convolution':
+                # childs = sutils.sym_iter(s.get_children())
+                # cns = [c.attr('name') for c in childs]
+                # attr = s.list_attr()
+                # print(
+                    # cns[1], infer_shapes[cns[1]],
+                    # cns[0], infer_shapes[cns[0]], attr)
+        # with open(path.expanduser('~/test1.json'), 'w') as f:
+            # f.write(sym.tojson())
+
+        # initialize precs
         self.precs = {s.attr('name'):{} \
             for s in topo_sort(self.current_model)}
         if 'data' not in self.precs:

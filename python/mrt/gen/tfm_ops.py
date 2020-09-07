@@ -169,12 +169,6 @@ class Convolution(tops.Convolution, Transformer):
         childs, attr = sym_iter(op.get_children()), op.list_attr()
         cns = [c.attr('name') for c in childs] if childs else []
 
-        if 'pad' in attr:
-            from os import path
-            with open(path.expanduser('~/test.json'), 'w') as f:
-                f.write(op.tojson())
-            print(name, op_name, cns, attr, len(childs))
-            exit()
         assert len(childs) == 2 and 'pad' not in attr
         xquant_type = cfg_dict[cns[0]]['quant_type']
         wquant_type = cfg_dict[cns[1]]['quant_type']
@@ -360,7 +354,6 @@ class Softmax(tops.Softmax, Transformer):
         oprec = kwargs['op_input_precs'][op_name]
         th = features[cns[0]].get()
         xs = scale_exp(th, oprec)
-        print(cfg_dict[cns[0]])
         quant_type = cfg_dict[cns[0]]['quant_type']
         assert quant_type == USQuantizer.name
         quant = get_quantizer(quant_type)
