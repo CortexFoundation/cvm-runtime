@@ -147,16 +147,18 @@ class Convolution(tops.Convolution, Transformer):
         ws = sym_slice(W, ichannel, step, **kwargs)
 
         nodes = []
+        j = 0
         for i in range(0, xshp[1], step):
             suffix = '_' + str(i)+'-'+str(i+step)
-            xni = xs[i].attr('name')
+            xni = xs[j].attr('name')
             cfg_dict[xni] = xi_cfg_info
-            wni = ws[i].attr('name')
+            wni = ws[j].attr('name')
             cfg_dict[wni] = wi_cfg_info
             yni = N.n(name+suffix)
-            Yi = get_mxnet_op(op_name)(xs[i], ws[i], **attr, name=yni)
+            Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
             cfg_dict[yni] = yi_cfg_info
             nodes.append(Yi)
+            j += 1
 
         op = mx.sym.add_n(*nodes, name=name)
         return op
@@ -208,32 +210,19 @@ class Pad(tops.Pad, Transformer):
 @register_transformer("broadcast_add")
 class BroadcastAdd(tops.BroadcastAdd, Transformer):
     def quantize(self, op, **kwargs):
-        params = kwargs['params']
-        features = kwargs['features']
-        precs = kwargs['precs']
-        buffers = kwargs['buffers']
+        return quantize_dual(op, **kwargs)
 
-        name = op.attr('name')
-        childs = sym_iter(op.get_children())
-        cns = [c.attr('name') for c in childs]
-        assert all([features[cn].name == FT_TYPE_EXP for cn in cns])
-        cfts = [features[cn].get() for cn in cns]
 
-        if cfts[0] == 0 or cfts[1] == 0:
-            if cfts[0] == 0 and cfts[1] == 0:
-                features[name] = AFeature(0)
-                precs[name] = {OUT_KEY: 1}
-                buffers[name] = SBuffer(1)
-                return op
-            cn = cns[1] if cfts[0] == 0 else cns[0]
-            bit = get_bit_exp(params[cn]) if cn in params \
-                else precs[cn][OUT_KEY]
-            buffers[name] = SBuffer(1) if cn in params else buffers[cn]
-            precs[name] = {OUT_KEY: bit}
-            features[name] = features[cn]
-            return op
-
-        return _quantize_scale(op, **kwargs)
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_sub")
+class BroadcastSub(tops.BroadcastSub, Transformer):
+    def quantize(self, op, **kwargs):
+        return quantize_dual(op, **kwargs)
 
 
 @register_pass("rewrite")
@@ -421,6 +410,157 @@ class SliceAxis(tops.SliceAxis, Transformer):
     pass
 
 
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_pass("prepare_for_compile") # only for restore
+@register_transformer("_div_scalar")
+class DivScalar(tops.DivScalar, Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_mul")
+class BroadcastMul(tops.BroadcastMul, Transformer):
+    def quantize(self, op, **kwargs):
+        precs, buffers = kwargs['precs'], kwargs['buffers']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        cfg_dict = kwargs['cfg_dict']
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
+
+        oprec = kwargs['op_input_precs'][op_name]
+        xquant_type, bquant_type = cfg_dict[cns[0]], cfg_dict[cns[1]]
+        xquant, bquant = \
+            get_quantizer(xquant_type), get_quantizer(bquant_type)
+        if xquant_type == bquant_type == USQuantizer.name:
+            X, xprec, xs = xquant.quantize(
+                childs[0], oprec, oname=name, **kwargs)
+            B, bprec, bs = bquant.quantize(
+                childs[1], oprec, oname=name, **kwargs)
+
+            op = get_mxnet_op(op_name)(X, B, **attr, name=name)
+
+            if bprec == 1 and bs == 1:
+                # special case: childs[1] is 0
+                buffers[name] = SBuffer(1)
+                precs[name][OUT_KEY] = 1
+            else:
+                buffers[name] = SBuffer(xs * bs)
+                infer_prec = xprec + bprec
+                precs[name][OUT_KEY] = infer_prec
+        else:
+            raise NotImplementedError(
+                "Quantization type not implementated," + \
+                " op: %20s, Xquant: %20s, Wquant: %20s" % \
+                (op_name, [xquant_type, bquant_type]))
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug(
+            "operator  %-20s name=%-40s oscale=%s, iscale=%s",
+            op_name, name, buffers[name].serialize(), cns)
+        return op
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("Custom")
+class Custom(tops.Custom, Transformer):
+    pass
+
+
+
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("calculate_ops")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("max")
+class Max(tops.Max, Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_pass("calculate_ops")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("relu")
+class Relu(Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("prepare_for_compile")
+@register_pass("calculate_ops")
+@register_pass('compile')
+@register_pass("rewrite")
+@register_transformer("sum")
+class Sum(tops.Sum, Transformer):
+    def quantize(self, op, **kwargs):
+        infer_shapes = kwargs['infer_shapes']
+        buffers = kwargs['buffers']
+        cfg_dict = kwargs['cfg_dict']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
+        oshp = infer_shapes[name][get_entry_id(op)]
+
+        quant_type = cfg_dict[cns[0]]
+        assert quant_type == USQuantizer.name
+        quant = get_quantizer(quant_type)
+        oprec = kwargs['op_input_precs'][op_name]
+        X, xprec, xs = quant.quantize(
+            childs[0], oprec, oname=name, **kwargs)
+        buffers[name] = SBuffesr(xs)
+        op = get_mxnet_op(op_name)(X, **attr, name=name)
+
+        ishp = infer_shapes[cns[0]][get_entry_id(childs[0])]
+        k = int(nd.prod(nd_array(ishp)).asscalar() / \
+            nd.prod(nd_array(oshp)).asscalar())
+        kprec = get_bit_cnt(k)
+        infer_prec = kprec + xprec
+        kwargs['precs'][name][OUT_KEY] = infer_prec
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug(
+            "operator  %-20s name=%-40s oscale=%s, iscale=%s",
+            op_name, name, buffers[name].serialize(), cns)
+        return op
+
+
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_div")
+class BroadcastDiv(tops.BroadcastDiv, Transformer):
+    pass
+
+
+@register_pass("calculate_ops")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("Cast")
+class Cast(tops.Cast, Transformer):
+    pass
+
+
 def _quantize_scale(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
     buffers, cfg_dict = kwargs['buffers'], kwargs['cfg_dict']
@@ -513,4 +653,32 @@ def sym_merge(op, nodes, **kwargs):
     name, op_name = op.attr('name'), op.attr('op_name')
     attr = op.list_attr()
     return op
+
+def quantize_dual(op, **kwargs):
+    params = kwargs['params']
+    features = kwargs['features']
+    precs = kwargs['precs']
+    buffers = kwargs['buffers']
+
+    name = op.attr('name')
+    childs = sym_iter(op.get_children())
+    cns = [c.attr('name') for c in childs]
+    assert all([features[cn].name == FT_TYPE_EXP for cn in cns])
+    cfts = [features[cn].get() for cn in cns]
+
+    if cfts[0] == 0 or cfts[1] == 0:
+        if cfts[0] == 0 and cfts[1] == 0:
+            features[name] = AFeature(0)
+            precs[name] = {OUT_KEY: 1}
+            buffers[name] = SBuffer(1)
+            return op
+        cn = cns[1] if cfts[0] == 0 else cns[0]
+        bit = get_bit_exp(params[cn]) if cn in params \
+            else precs[cn][OUT_KEY]
+        buffers[name] = SBuffer(1) if cn in params else buffers[cn]
+        precs[name] = {OUT_KEY: bit}
+        features[name] = features[cn]
+        return op
+
+    return _quantize_scale(op, **kwargs)
 

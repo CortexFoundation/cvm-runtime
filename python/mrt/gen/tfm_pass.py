@@ -366,16 +366,18 @@ def quantize(
         features, precs, buffers = \
             kwargs['features'], kwargs['precs'], kwargs['buffers']
         name, op_name = op.attr('name'), op.attr('op_name')
-        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        childs, attr = sutils.sym_iter(op.get_children()), op.list_attr()
 
         childs = [] if childs is None else childs
 
-        buffers[c.attr("name")].get_scale()
-        new_childs = [c / scales[c.attr('name')] \
-            if scales.get(c.attr('name'), 1) != 1 else c \
-                     for c in childs]
+        new_childs = []
+        for c in childs:
+            cname = c.attr('name')
+            sc = buffers[c.attr('name')].get() \
+                if cname in buffers else 1
+            new_childs.append(c if sc == 1 else c / sc)
 
-        out = get_mxnet_op(op_name)(*new_childs, **attr, name=name)
+        out = sutils.get_mxnet_op(op_name)(*new_childs, **attr, name=name)
         ft = features[name]
         assert ft.name == FT_TYPE_EXP
         absmax = features[name].get()
@@ -456,3 +458,9 @@ def quantize(
             cfg_dict=cfg_dict,
             shift_bits=shift_bits,
             softmax_lambd=softmax_lambd)
+
+@N.register_nm("prepare_for_compile")
+def prepare_for_compile(symbol, params):
+    infer_shapes = infer_shape(symbol, params)
+    return topo_visit_transformer(symbol, params,
+            apply_pass("prepare_for_compile", infer_shapes=infer_shapes))

@@ -8,14 +8,13 @@ import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
 from mrt import conf
-from mrt.transformer import reduce_graph
 from mrt.gluon_zoo import save_model
 from mrt.main2 import set_batch, batch_axis, _check, \
                       _get_path, _get_ctx, str_t, int_t, \
                       bool_t, tuple_t, float_t, ARRAY, \
                       PAIR, _get_val, _cast_val, \
                       _load_fname, _checkpoint_exist
-from mrt.gen.transformer import MRT, Model
+from mrt.gen.transformer import MRT, Model, reduce_graph
 from mrt.gen.tfm_pass import deserialize
 
 from mrt import dataset as ds

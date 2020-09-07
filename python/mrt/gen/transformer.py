@@ -13,7 +13,8 @@ from mrt.tfm_pass import OUT_KEY
 from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP
 from .tfm_pass import quantize, sym_calibrate, rewrite, \
                       sym_config_infos, sym_slice_channel, \
-                      sym_separate_pad, sym_separate_bias
+                      sym_separate_pad, sym_separate_bias, \
+                      prepare_for_compile
 
 from mrt import transformer as tfm
 from mrt import utils
@@ -103,22 +104,6 @@ class MRT(tfm.MRT):
             cfg_dict=self.cfg_dict)
         self.current_model = Model(sym, params)
 
-        # sym, params = self.current_model.symbol, self.current_model.params
-        # infer_shapes = tpass.infer_shape(
-            # sym, params, input_shape=self._data.shape)
-        # from mrt import sym_utils as sutils
-        # for s in topo_sort(sym):
-            # op_name, name = s.attr('op_name'), s.attr('name')
-            # if op_name == 'Convolution':
-                # childs = sutils.sym_iter(s.get_children())
-                # cns = [c.attr('name') for c in childs]
-                # attr = s.list_attr()
-                # print(
-                    # cns[1], infer_shapes[cns[1]],
-                    # cns[0], infer_shapes[cns[0]], attr)
-        # with open(path.expanduser('~/test1.json'), 'w') as f:
-            # f.write(sym.tojson())
-
         # initialize precs
         self.precs = {s.attr('name'):{} \
             for s in topo_sort(self.current_model)}
@@ -204,3 +189,12 @@ class MRT(tfm.MRT):
         mrt.features = MRT._deserialize_feature(features)
         mrt.buffers = MRT._deserialize_buffer(buffers)
         return mrt
+
+def reduce_graph(model, input_shapes):
+    _sym, _prm = model.symbol, model.params
+    _sym, _prm = tpass.attach_input_shape(
+        _sym, _prm, input_shapes)
+
+    _sym, _prm = prepare_for_compile(_sym, _prm)
+    _sym, _prm = tpass.fuse_constant(_sym, _prm)
+    return Model(_sym, _prm)
