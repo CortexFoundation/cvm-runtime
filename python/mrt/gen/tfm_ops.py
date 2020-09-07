@@ -174,9 +174,20 @@ class Convolution(tops.Convolution, Transformer):
         assert len(childs) == 2 and 'pad' not in attr
         xquant_type = cfg_dict[cns[0]]['quant_type']
         wquant_type = cfg_dict[cns[1]]['quant_type']
+        X, W = childs
+        xquant, wquant = \
+            get_quantizer(xquant_type), get_quantizer(wquant_type)
+        oprec = kwargs['op_input_precs'][op_name]
 
         if xquant_type == wquant_type == USQuantizer.name:
             op = _quantize_xw(op, **kwargs)
+        elif xquant_type == USQuantizer.name and \
+            wquant_type == UAQuantizer.name:
+            Xq, xprec, xscale = xquant.quantize(
+                X, oprec, oname=name, **kwargs)
+            Wq, wprec, wscale, wzp = wquant.quantize(
+                W, oprec, oname=name, **kwargs)
+            assert False
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \

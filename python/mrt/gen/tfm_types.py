@@ -429,11 +429,12 @@ class UAQuantizer(Quantizer):
             if oscale is None else oscale, self._get_zpoint(oscale, ft)
         params[wqn], oprec = self.int_realize(
             params[wn]*oscale, oprec, logger=logger) - zpoint
+        Zp = sutils.nd_const(zpoint, graph, params)
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
         W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
-        return W, oprec, oscale
+        return W, oprec, oscale, Zp
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
@@ -481,7 +482,7 @@ class UAQuantizer(Quantizer):
             " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
             xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
 
-        return X, oprec, oscale
+        return X, oprec, oscale, Zp
 
     def int_realize(self, data, prec, **kwargs):
         logger = kwargs.get("logger", logging)
