@@ -15,3 +15,6 @@ def get_buffer_exp(scale):
 def get_quantizer_exp():
     return get_quantizer(QUANT_TYPE_EXP)
 
+def get_range_exp(prec):
+    return tutils.get_range(prec)
+

@@ -16,7 +16,8 @@ from .tfm_base import register_pass, register_transformer, Transformer
 from .tfm_types import get_quantizer, USQuantizer, UAQuantizer, \
                        FT_TYPE_EXP, AFeature, SBuffer, LAYER_WISE_TYPE, \
                        US_QUANT_TYPE
-from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp
+from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp, \
+                       get_range_exp
 
 from mrt import sim_quant_helper as sim
 from mrt import sym_utils as sutils
@@ -380,7 +381,7 @@ class Softmax(tops.Softmax, Transformer):
         table = nd.exp(data/xs)
 
         tprec = get_bit_exp(math.exp(lambd))
-        table = nd.clip(table, a_min=0, a_max=get_range(tprec))
+        table = nd.clip(table, a_min=0, a_max=get_range_exp(tprec))
         W_name = N.n('cvm_lut_weight')
         params[W_name] = weight = table.round().reshape(alpha+1, 1)
         wattr = {'precision': str(tprec)}
@@ -395,7 +396,7 @@ class Softmax(tops.Softmax, Transformer):
         oprec = min(15, 31 - tprec)
         assert oprec > 8, "operator softmax(%s) lambda(%d) is too large" \
                 % (name, lambd)
-        oscale = get_range(oprec)
+        oscale = get_range_exp(oprec)
         var_scale = nd_const(oscale, graph, params)
         prob = mx.sym.broadcast_mul(lut, var_scale,
                                     name=N.n("softmax_output_scale"))
