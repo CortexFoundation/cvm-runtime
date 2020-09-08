@@ -171,8 +171,9 @@ void NDArray::CopyFromTo(DLTensor* from,
 
 template <typename T>
 void NDArray::CPUFill(T value) {
-  VERIFY(operator->()->ctx.device_id == kDLCPU)
-      << "CPUFill() can only be called for a CPU tensor\n";
+  VERIFY(operator->()->ctx.device_type == kDLCPU)
+      << "CPUFill() can only be called for a CPU tensor, but got "
+      << operator->()->ctx.device_id << "\n";
   T* data = static_cast<T*>(operator->()->data);
   for (Indices idx(TShape(data_->shape_)); !idx.End(); idx++) {
     data[idx.Index()] = value;

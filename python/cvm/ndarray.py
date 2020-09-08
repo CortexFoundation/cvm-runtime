@@ -101,12 +101,12 @@ class NDArray(NDArrayBase):
             print('TODO: using advanced indexing setitem')
             pass
         else:
-            print('using basic indexing setitem')
+            print('using basic indexing setitem.')
             starts, ends, steps, sizes = expand_keys2_slice(key, self.shape)
             if sizes == self.shape and all(stp > 0 for stp in steps):   # overwrite all
-                print('TODO: overwriting all')
                 if isinstance(value, numeric_types):
-                    if(isinstance(value), bool):
+                    print('filling with a scalar')
+                    if(isinstance(value, bool)):
                         self.full(int(value))
                     else:
                         self.full(value);
@@ -450,4 +450,4 @@ def expand_keys2_slice(keys, shape):
             raise TypeError('type of a component in an index'
                             ' can only be int, np.int or slice')
     ses = tuple(zip(*ret_key))
-    return ses[0], ses[1], ses[2], ret_size
+    return ses[0], ses[1], ses[2], tuple(ret_size)
