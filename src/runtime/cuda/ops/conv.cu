@@ -417,6 +417,7 @@ const char* cuda_conv2d(
  // const int NB = 2;
   //const int NUMA = 8;
   //const int NUMB = 8;
+  dim3 bDim1(BS, BS, 1);
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;
   int gw = TN / 64;
@@ -447,7 +448,6 @@ const char* cuda_conv2d(
     //cudaEventRecord(start, 0);
     if(dev_b == NULL){
 #ifdef NANO
-      dim3 bDim1(BS, BS, 1);
       //kernel_gemm_nano<BS, 2, 2, false><<<gDim, bDim1>>>((char4*)d_f, (char4*)d_col, (dev_o + i * o_c * o_h * o_w), M, K, N, dev_b, TM, TK, TN);
       kernel_gemm_nano2<8, 8, BS, false><<<gDim, bDim1>>>(d_f, d_col, dev_o+i*o_c*o_h*o_w, M, K, N, dev_b, TM, TK, TN);
 #else
