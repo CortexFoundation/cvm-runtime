@@ -75,6 +75,11 @@ class Dropout(tops.Dropout, Transformer):
 
 
 @register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_pass("calculate_ops")
+@register_pass("compile")
+@register_pass("fuse_transpose")
+@register_pass("validate")
 @register_pass("quantize")
 @register_transformer("Activation")
 class Activation(tops.Activation, Transformer):
@@ -655,6 +660,18 @@ class BroadcastDiv(tops.BroadcastDiv, Transformer):
 @register_transformer("Cast")
 class Cast(tops.Cast, Transformer):
     pass
+
+
+@register_pass("compile")
+@register_pass("fuse_transpose")
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_transformer("elemwise_add")
+class ElemwiseAdd(tops.ElemwiseAdd, Transformer):
+    def quantize(self, op, **kwargs):
+        return _quantize_scale(op, **kwargs)
 
 
 def _quantize_scale(op, **kwargs):
