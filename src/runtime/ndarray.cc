@@ -174,6 +174,10 @@ void NDArray::CPUFill(T value) {
   VERIFY(operator->()->ctx.device_type == kDLCPU)
       << "CPUFill() can only be called for a CPU tensor, but got "
       << operator->()->ctx.device_id << "\n";
+  VERIFY(8 * sizeof(T) == operator->()->dtype.bits)
+      << "Size of type doesn't match! Expecting data type of "
+      << (int)operator->()->dtype.bits << " bits but got data type of "
+      << 8 * sizeof(T) << " bits.";
   T* data = static_cast<T*>(operator->()->data);
   for (Indices idx(TShape(data_->shape_)); !idx.End(); idx++) {
     data[idx.Index()] = value;
@@ -261,7 +265,14 @@ int CVMArrayCopyToBytes(CVMArrayHandle handle,
   API_END();
 }
 
-int CVMAssignNDScalar(CVMArrayHandle target, int* indices, double value) {
+int CVMAssignSliceND(CVMArrayHandle target, int* indices,
+  CVMArrayHandle source) {
+  API_BEGIN();
+
+  API_END();
+}
+
+int CVMAssignSliceScalar(CVMArrayHandle target, int* indices, double value) {
   API_BEGIN();
   // TODO: is it ok to modify without checking reference count?
   auto container =
@@ -272,11 +283,6 @@ int CVMAssignNDScalar(CVMArrayHandle target, int* indices, double value) {
   int* steps = indices + ndim * 2;
   int* sizes = indices + ndim * 3;
   cvm::TShape targetShape(target->shape, target->shape + ndim);
-  //std::cout << "assigning data to:" << std::endl;
-  //for (int i = 0; i < ndim; i++) {
-  //  std::cout << starts[i] << ' ' << ends[i] << " " << steps[i] << " "
-  //            << sizes[i] << std::endl;
-  //}
   Indices assignIdx(cvm::Tuple<cvm::dim_t>(sizes, sizes + ndim));
   Indices targetIdx(targetShape);
   targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, starts + ndim));
@@ -298,14 +304,13 @@ int CVMAssignNDScalar(CVMArrayHandle target, int* indices, double value) {
   API_END();
 }
 
-int CVMFullND(CVMArrayHandle target, double value) {
+int CVMAssignAllScalar(CVMArrayHandle target, double value) {
   API_BEGIN();
   
   // TODO: if target is a CPU tensor, call CPUFill directly.
   //if (target->ctx.device_id == kDLCPU) {
   //  NDArray tmp(target);
   //}
-
   std::vector<int64_t> targetShape(target->shape, target->shape + target->ndim);
   Indices idx(cvm::TShape(targetShape));
   CVM_TYPE_SWITCH(target->dtype, DType, {
@@ -314,6 +319,17 @@ int CVMFullND(CVMArrayHandle target, double value) {
     tmp.CPUFill<DType>(typeValue);
     NDArray::CopyFromTo(tmp.operator->(), target);
   })
+  API_END();
+}
 
+int CVMAssignAllND(CVMArrayHandle target, CVMArrayHandle source) {
+  API_BEGIN();
+  VERIFY(target->dtype.code == source->dtype.code &&
+         target->dtype.bits == source->dtype.bits)
+      << "assigning an ndarray to another requires the type should be the same"
+      << "but target.(type, bits) vs source.(type, bits) is ("
+      << target->dtype.code << ", " << target->dtype.bits << ") vs ("
+      << source->dtype.code << ", " << source->dtype.bits << ")\n";
+  NDArray::CopyFromTo(source, target);
   API_END();
 }

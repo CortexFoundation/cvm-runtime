@@ -105,24 +105,31 @@ class NDArray(NDArrayBase):
             starts, ends, steps, sizes = expand_keys2_slice(key, self.shape)
             if sizes == self.shape and all(stp > 0 for stp in steps):   # overwrite all
                 if isinstance(value, numeric_types):
-                    print('filling with a scalar')
                     if(isinstance(value, bool)):
                         self.full(int(value))
                     else:
-                        self.full(value);
-            elif isinstance(value, numeric_types):
-                idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes) 
-                _LIB.CVMAssignNDScalar(self.handle, idxs, ctypes.c_double(value))
-            else:
-                if type(value) == self.__class__:
-                    pass
+                        self.full(value)
                 else:
+                    if not isinstance(value, self.__class__):
+                        try:
+                            value = array(value)
+                        except:
+                            raise TypeError('cannot assign value {} of type {} to '
+                            'a slice of NDArray'.format(value, type(value)))
+                    _LIB.CVMAssignAllND(self.handle, value.handle)
+            elif isinstance(value, numeric_types):
+                idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes)
+                _LIB.CVMAssignSliceScalar(self.handle, idxs, ctypes.c_double(value))
+            else:
+                if not isinstance(value, self.__class__):
                     try:
                         assign_shape = tuple(filter(lambda x: x != 1, sizes))
-                        va = broad_cast2_shape(array(value, self.context), assign_shape)
+                        value = self.broadcast2shape(array(value, self.context), assign_shape)
                     except:
                         raise TypeError('cannot assign value {} of type {} to '
                         'a slice of NDArray'.format(value, type(value)))
+                idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes)
+
                 print('TODO: writing one by one')
 
 
@@ -175,7 +182,7 @@ class NDArray(NDArrayBase):
         return str(self.asnumpy())
 
     def full(self, value):
-        _LIB.CVMFullND(self.handle, ctypes.c_double(value))
+        _LIB.CVMAssignAllScalar(self.handle, ctypes.c_double(value))
 
     def asnumpy(self):
         """Convert this array to numpy array
@@ -211,10 +218,52 @@ class NDArray(NDArrayBase):
             raise ValueError("Unsupported target type %s" % str(type(target)))
         return target
 
-    def broad_cast2shape(self, value, shape):
+    def broadcast2shape(self, value, bcast_shape):
+        """Return a broadcast ``NDArray`` of shape ``bcast_shape``
+        with same context and dtype as ``self``.
+        `value`: numeric types or array like.
+        `bcast_shape`: a shape tuple.
+        """
+        return None
         if isinstance(value, numeric_types):
-            ret = empty(shape, self.dtype, self.ccontext)
-            ret[:] = value
+            value_nd = full(bcast_shape, value, ctx=self.ctx, dtype=self.dtype)
+        elif type(value) == self.__class__:  # pylint: disable=unidiomatic-typecheck
+            value_nd = value.as_in_context(self.ctx)
+            if value_nd.dtype != self.dtype:
+                value_nd = value_nd.astype(self.dtype)
+        else:
+            try:
+                value_nd = array(value, ctx=self.ctx, dtype=self.dtype)
+            except:
+                raise TypeError('{} does not support assignment with non-array-like '
+                                'object {} of type {}'.format(self.__class__, value, type(value)))
+
+        # For setitem, if there is None in indices, we need to squeeze the assigned value_nd
+        # since None is also ignored in slicing the  original array.
+        if squeeze_axes and value_nd.ndim > len(bcast_shape):
+            squeeze_axes = tuple([ax for ax in squeeze_axes if ax < len(value_nd.shape)])
+            value_nd = value_nd.squeeze(axis=tuple(squeeze_axes))
+
+        # handle the cases like the following
+        # a = nd.zeros((3, 3)), b = nd.ones((1, 1, 1, 1, 3)), a[0] = b
+        # b cannot broadcast directly to a[0].shape unless its leading 1-size axes are trimmed
+        if value_nd.ndim > len(bcast_shape):
+            squeeze_axes = []
+            for i in range(value_nd.ndim - len(bcast_shape)):
+                if value_nd.shape[i] == 1:
+                    squeeze_axes.append(i)
+                else:
+                    break
+            if squeeze_axes:
+                value_nd = value_nd.squeeze(squeeze_axes)
+
+        if value_nd.shape != bcast_shape:
+            if value_nd.size == 0:
+                value_nd = value_nd.reshape(bcast_shape)
+            else:
+                value_nd = value_nd.broadcast_to(bcast_shape)
+        return value_nd
+
 
 
 def numpyasarray(np_data):
@@ -451,3 +500,4 @@ def expand_keys2_slice(keys, shape):
                             ' can only be int, np.int or slice')
     ses = tuple(zip(*ret_key))
     return ses[0], ses[1], ses[2], tuple(ret_size)
+
