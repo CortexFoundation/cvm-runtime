@@ -169,6 +169,16 @@ void NDArray::CopyFromTo(DLTensor* from,
     from_size, from->ctx, to->ctx, from->dtype, stream);
 }
 
+template <typename T>
+void NDArray::CPUFill(T value) {
+  VERIFY(operator->()->ctx.device_id == kDLCPU)
+      << "CPUFill() can only be called for a CPU tensor\n";
+  T* data = static_cast<T*>(operator->()->data);
+  for (Indices idx(TShape(data_->shape_)); !idx.End(); idx++) {
+    data[idx.Index()] = value;
+  }
+}
+
 }  // namespace runtime
 }  // namespace cvm
 
@@ -300,8 +310,9 @@ int CVMFullND(CVMArrayHandle target, double value) {
   CVM_TYPE_SWITCH(target->dtype, DType, {
     NDArray tmp = NDArray::Empty(targetShape, target->dtype, DLContext{kDLCPU, 0});
     DType typeValue = static_cast<DType>(value);
-    tmp.CPUFill(typeValue);
+    tmp.CPUFill<DType>(typeValue);
     NDArray::CopyFromTo(tmp.operator->(), target);
   })
+
   API_END();
 }

@@ -122,8 +122,8 @@ class NDArray {
    *        a scalar value
    * \param value The value to assign to the tensor
   */
-  //template<typename T>
-  inline void CPUFill(double value);
+  template<typename T>
+  void CPUFill(T value);
   /*!
    * \brief Load NDArray from stream
    * \param stream The input data stream
@@ -378,20 +378,6 @@ inline NDArray NDArray::CopyTo(const DLContext& ctx) const {
                       dptr->dtype, ctx);
   this->CopyTo(ret);
   return ret;
-}
-
-//template <typename T>
-inline void NDArray::CPUFill(double value) {
-  VERIFY(operator->()->ctx.device_id == kDLCPU)
-      << "CPUFill() can only be called for a CPU tensor\n";
-  auto dt = this->operator->()->dtype;
-  //CVM_TYPE_SWITCH(dt, DType, {
-  //  int a;
-  //  /*DType* data = static_cast<DType>(operator->()->data);
-  //  for (Indices idx(shape_); !idx.End(); idx++) {
-  //    data[idx.Index()] = value;
-  //  }*/
-  //})
 }
 
 inline int NDArray::use_count() const {
