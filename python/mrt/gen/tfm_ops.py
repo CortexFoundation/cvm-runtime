@@ -8,8 +8,8 @@ import cvm
 
 from mrt.sym_utils import get_attr, sym_iter, is_params, is_inputs, \
                           nd_array, get_mxnet_op, get_nnvm_op, \
-                          nd_const, get_entry_id
-from mrt.tfm_utils import get_bit_cnt, realize
+                          nd_const, get_entry_id, nd_full
+from mrt.tfm_utils import realize
 from mrt.tfm_base import N, MAX_BIT
 from mrt.tfm_pass import OUT_KEY
 from .tfm_base import register_pass, register_transformer, Transformer
@@ -17,7 +17,8 @@ from .tfm_types import get_quantizer, USQuantizer, UAQuantizer, \
                        FT_TYPE_EXP, AFeature, SBuffer, LAYER_WISE_TYPE, \
                        US_QUANT_TYPE
 from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp, \
-                       get_range_exp
+                       get_range_exp, get_bit_cnt_exp
+from .sym_utils import nd_full_const
 
 from mrt import sim_quant_helper as sim
 from mrt import sym_utils as sutils
@@ -165,7 +166,7 @@ class Convolution(tops.Convolution, Transformer):
 
     def quantize(self, op, **kwargs):
         features, buffers = kwargs['features'], kwargs['buffers']
-        precs = kwargs['precs']
+        precs, graph = kwargs['precs'], kwargs['graph']
         cfg_dict, params = kwargs['cfg_dict'], kwargs['params']
         name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = sym_iter(op.get_children()), op.list_attr()
@@ -185,9 +186,93 @@ class Convolution(tops.Convolution, Transformer):
             wquant_type == UAQuantizer.name:
             Xq, xprec, xscale = xquant.quantize(
                 X, oprec, oname=name, **kwargs)
-            Wq, wprec, wscale, wzp = wquant.quantize(
+            Wq, wprec, wscale, Wzp = wquant.quantize(
                 W, oprec, oname=name, **kwargs)
-            assert False
+            buffers[name] = get_buffer_exp(xscale*wscale)
+
+            Y1 = mx.sym.Convolution(Xq, Wq, **attr, name=N.n('Convolution'))
+            wshp = params[cns[1]].shape
+            pd = np.product(wshp[1:])
+            infer_prec1 = get_bit_cnt_exp(pd) + xprec + wprec + 1
+
+            W1 = nd_full_const(1, wshp, graph, params)
+            Y2 = mx.sym.Convolution(Xq, W1, **attr, name=N.n('Convolution'))
+            Y2 = mx.sym.broadcast_mul(Wzp, Y2, name.N.n('broadcast_mul'))
+            wzp = params[Wzp.attr('name')].asscalar()
+            infer_prec2 = get_bit_cnt_exp(abs(wzp)*pd) + xprec
+
+            op = mx.sym.elemwise_add(Y1, Y2, name=N.n('elemwise_add'))
+            infer_prec = max(infer_prec1, infer_prec2) + 1
+            precs[name][OUT_KEY] = infer_prec
+
+        elif xquant_type == UAQuantizer.name and \
+            wquant_type == USQuantizer.name:
+            Xq, xprec, xscale, Xzp = xquant.quantize(
+                X, oprec, oname=name, **kwargs)
+            Wq, wprec, wscale = wquant.quantize(
+                W, oprec, oname=name, **kwargs)
+            buffers[name] = get_buffer_exp(xscale*wscale)
+
+            Y1 = mx.sym.Convolution(Xq, Wq, **attr, name=N.n('Convolution'))
+            wshp = params[cns[1]].shape
+            pd = np.product(wshp[1:])
+            infer_prec1 = get_bit_cnt_exp(pd) + xprec + wprec + 1
+
+            xshp = params[cns[0]].shape
+            X1 = nd_full(1, xshp, graph, params)
+            Y2 = mx.sym.Convolution(X1, Wq, **attr, name=N.n('Convolution'))
+            xzp = params[Xzp.attr('name')].asscalar()
+            infer_prec2 = get_bit_cnt_exp(abs(xzp)*pd) + wprec
+
+            op = mx.sym.elemwise_add(Y1, Y2, name=N.n('elemwise_add'))
+            infer_prec = max(infer_prec1, infer_prec2) + 1
+            precs[name][OUT_KEY] = infer_prec
+        elif xquant_type == wquant_type == UAQuantizer.name:
+            Xq, xprec, xscale, Xzp = xquant.quantize(
+                X, oprec, oname=name, **kwargs)
+            Wq, wprec, wscale, Wzp = wquant.quantize(
+                W, oprec, oname=name, **kwargs)
+            buffers[name] = get_buffer_exp(xscale*wscale)
+
+            nodes, infer_precs = [], []
+
+            Y1 = mx.sym.Convolution(Xq, Wq, **attr, name=N.n('Convolution'))
+            nodes.append(Y1)
+            wshp = params[cns[1]].shape
+            pd = np.product(wshp[1:])
+            infer_prec1 = get_bit_cnt_exp(pd) + xprec + wprec + 2
+            infer_precs.append(infer_prec1)
+
+            W1 = nd_full_const(1, wshp, graph, params)
+            Y2 = mx.sym.Convolution(Xq, W1, **attr, name=N.n('Convolution'))
+            Y2 = mx.sym.broadcast_mul(Wzp, Y2, name=N.n('broadcast_mul'))
+            nodes.append(Y2)
+            wzp = params[Wzp.attr('name')].asscalar()
+            infer_prec2 = get_bit_cnt_exp(abs(wzp)*pd) + xprec + 1
+            infer_precs.append(infer_prec2)
+
+            xshp = params[cns[0]].shape
+            X1 = nd_full_const(1, xshp, graph, params)
+            Y3 = mx.sym.Convolution(X1, Wq, graph, params)
+            Y3 = mx.sym.broadcast_mul(Xzp, Y3, name=N.n('broadcast_mul'))
+            nodes.append(Y3)
+            xzp = params[Xzp.attr('name')].asscalar()
+            infer_prec3 = get_bit_cnt_exp(abs(xzp)*pd) + wprec + 1
+            infer_precs.append(infer_prec3)
+
+            val = pd*abs(xzp)*abs(wzp)
+            Y4 = nd_const(val, graph, params)
+            nodes.append(Y4)
+            infer_prec4 = get_bit_cnt_exp(val)
+            infer_precs.append(infer_prec4)
+
+            while len(nodes) > 1:
+                a, b = nodes.pop(), nodes.pop()
+                node = mx.sym.broadcast_add(a, b, name=N.n('broadcast_add'))
+                nodes.append(node)
+            op = nodes[0]
+            infer_prec = max(infer_precs) + 2
+            precs[name][OUT_KEY] = infer_prec
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
@@ -294,8 +379,8 @@ class Clip(tops.Clip, Transformer):
         # `a_max`, `a_min` and precision should be align with CVM-Runtime
         iscale = buffers[X.attr('name')].get()
         buffers[name] = SBuffer(iscale)
-        a_min = int(sutils.get_attr(attrs, "a_min") * iscale)
-        a_max = int(sutils.get_attr(attrs, "a_max") * iscale)
+        a_min = int(get_attr(attrs, "a_min") * iscale)
+        a_max = int(get_attr(attrs, "a_max") * iscale)
         precs[name][OUT_KEY] = get_bit_exp(max(abs(a_min), a_max))
         return mx.sym.clip(X, a_min=a_min, a_max=a_max, name=name)
 
@@ -542,7 +627,7 @@ class Sum(tops.Sum, Transformer):
         ishp = infer_shapes[cns[0]][get_entry_id(childs[0])]
         k = int(nd.prod(nd_array(ishp)).asscalar() / \
             nd.prod(nd_array(oshp)).asscalar())
-        kprec = get_bit_cnt(k)
+        kprec = get_bit_cnt_exp(k)
         infer_prec = kprec + xprec
         kwargs['precs'][name][OUT_KEY] = infer_prec
 
@@ -606,7 +691,7 @@ def _quantize_scale(op, **kwargs):
             a, b = nodes.pop(0), nodes.pop(0)
             tmp = mx.sym.elemwise_add(a, b, name=tname)
             nodes.append(tmp)
-        kprec = get_bit_cnt(len(nodes))
+        kprec = get_bit_cnt_exp(len(nodes))
         infer_prec = max(cprecs) + kprec
         op = nodes[0]
     else:
@@ -640,7 +725,7 @@ def _quantize_xw(op, **kwargs):
 
     shp = params[cns[1]].shape
     k = int(nd.prod(nd_array(shp[1:])).asscalar())
-    kprec = get_bit_cnt(k)
+    kprec = get_bit_cnt_exp(k)
     infer_prec = kprec + xprec + wprec
     precs[name][OUT_KEY] = infer_prec
     return op

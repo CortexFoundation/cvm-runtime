@@ -135,17 +135,6 @@ class MRT(tfm.MRT):
         op_precs['add_n'] = 16
 
     def quantize(self):
-        # sym, params = self.current_model.symbol, self.current_model.params
-        # from mrt import sym_utils as sutils
-        # from mrt import tfm_pass as tpass
-        # infer_shapes = tpass.infer_shape(sym, params, self._data.shape)
-        # for s in topo_sort(sym):
-            # name = s.attr('name')
-            # if name == "mrt_sym_separate_bias_mrt_rewrite_MobilenetV1/MobilenetV1/Conv2d_12_depthwise/BatchNorm/FusedBatchNorm_0_0":
-                # childs, attr = sutils.sym_iter(s.get_children()), s.list_attr()
-                # cns = [c.attr('name') for c in childs]
-                # print(infer_shapes[name], infer_shapes[cns[0]], infer_shapes[cns[1]], attr)
-                # exit()
         _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.features, self.precs, self.buffers, self.cfg_dict,

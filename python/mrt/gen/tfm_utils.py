@@ -6,6 +6,9 @@ from mrt import tfm_utils as tutils
 def get_bit_exp(opt):
     return tutils.get_bit(opt)
 
+def get_bit_cnt_exp(opt):
+    return tutils.get_bit_cnt(opt)
+
 def scale_exp(th, prec):
     return tutils.scale(th, prec)
 
@@ -17,4 +20,3 @@ def get_quantizer_exp():
 
 def get_range_exp(prec):
     return tutils.get_range(prec)
-
