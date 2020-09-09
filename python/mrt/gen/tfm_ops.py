@@ -668,17 +668,6 @@ class Sum(tops.Sum, Transformer):
 
 
 @register_pass("calculate_ops")
-@register_pass("fuse_transpose")
-@register_pass("rewrite")
-@register_pass("quantize")
-@register_pass("prepare_for_compile")
-@register_pass("compile")
-@register_transformer("broadcast_div")
-class BroadcastDiv(tops.BroadcastDiv, Transformer):
-    pass
-
-
-@register_pass("calculate_ops")
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer("Cast")
@@ -696,6 +685,17 @@ class Cast(tops.Cast, Transformer):
 class ElemwiseAdd(tops.ElemwiseAdd, Transformer):
     def quantize(self, op, **kwargs):
         return _quantize_scale(op, **kwargs)
+
+
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_div")
+class BroadcastDiv(Transformer):
+    pass
 
 
 def _quantize_scale(op, **kwargs):
