@@ -54,3 +54,11 @@ C++ API
   :maxdepth: 3
 
   All API <capi/index>
+
+Class Documentation
+===================
+
+.. toctree::
+  :maxdepth: 1
+
+  NDArray <ndarray>

@@ -1347,6 +1347,9 @@ class Concat(Transformer):
         return _quantize_scale(op, **kwargs)
 
     def compile(self, op, **kwargs):
+        attrs = kwargs['attr']
+        childs = kwargs['childs']
+        op_name = 'concatenate'
         new_attrs = {'axis': get_attr(attrs, 'dim', 1)}
         return get_nnvm_op(op_name)(*childs, name=N.n('concat'), **new_attrs)
 
