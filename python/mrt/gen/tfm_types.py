@@ -30,6 +30,7 @@ _NONETYPE = type(None)
 
 FT_REG = {
     # "Absmax": AFeature,
+    # "AbsmaxList": ALFeature,
     # "MinMax": MMFeature,
 }
 
@@ -112,6 +113,20 @@ class AFeature(Feature):
         return [self.name, self.absmax]
 
 
+@register_feature("AbsmaxList")
+class ALFeatrue(Feature):
+    """ Absmax Channel-wise Feature
+    """
+    def __init__(self, *args):
+        self.absmax_list = args
+
+    def get(self):
+        return self.absmax_list
+
+    def serialize(self):
+        return [self.name, self.absmax_list]
+
+
 @register_feature("MinMax")
 class MMFeature(Feature):
     """ Min and Max Feature
@@ -137,6 +152,7 @@ def get_feature(ft_type, *args):
 
 BUF_REG = {
     # "Scale": SBuffer,
+    # "ScaleList": SLBuffer,
     # "ScaleZpoint": SZBuffer,
 }
 
@@ -171,7 +187,7 @@ class Buffer:
 
 @register_buffer("Scale")
 class SBuffer(Buffer):
-    """ Scale Point Buffer
+    """ Scale Buffer
     """
     def __init__(self, *args):
         assert len(args) == 1
@@ -182,6 +198,20 @@ class SBuffer(Buffer):
 
     def serialize(self):
         return [self.name, self.scale]
+
+
+@register_buffer("ScaleList")
+class SLBuffer(Buffer):
+    """ Scale List Buffer
+    """
+    def __init__(self, *args):
+        self.scale_list = args
+
+    def get(self):
+        return self.scale_list
+
+    def serialize(self):
+        return [self.name, self.scale_list]
 
 
 @register_buffer("ScaleZpoint")
@@ -209,6 +239,7 @@ def get_buffer(buf_type, *args):
 
 QUANT_REG = {
     # "UniformSymmetric": USQuantizer,
+    # "UniformSymmetricChannelwise": USCQuantizer,
     # "UniformAffine": UAQuantizer,
 }
 
@@ -225,7 +256,7 @@ def register_quantizer(name):
 class Quantizer:
     name = None
 
-    def sample(self, data):
+    def sample(self, data, **kwargs):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `sample` function defined in Quantizer")
@@ -235,12 +266,7 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_range` function defined in Quantizer")
 
-    def get_buffer(self, oprec, ft):
-        raise NotImplementedError(
-            "Derived " + self.name + " quantizer not override the" + \
-            " base `get_buffer` function defined in Quantizer")
-
-    def get_prec(self, data):
+    def get_prec(self, val):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_prec` function defined in Quantizer")
@@ -275,7 +301,7 @@ US_QUANT_TYPE = "UniformSymmetric"
 class USQuantizer(Quantizer):
     """ Information data type for uniform symmetric quantizaton
     """
-    def sample(self, data):
+    def sample(self, data, **kwargs):
         absmax = float(data.abs().max().asscalar())
         return AFeature(absmax)
 
@@ -283,12 +309,11 @@ class USQuantizer(Quantizer):
         mrange = 2**(prec-1) - 1
         return -mrange, mrange
 
-    def get_buffer(self, oprec, ft):
-        absmax = ft.get()
-        return SBuffer(self.get_range(oprec)[1] / absmax)
+    def _get_buffer(self, oprec, absmax):
+        return self.get_range(oprec)[1] / absmax
 
-    def get_prec(self, data):
-        return tutils.get_bit(data)
+    def get_prec(self, val):
+        return tutils.get_bit(val)
 
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         """ Symmetric Quantization of weight (real value)
@@ -307,7 +332,7 @@ class USQuantizer(Quantizer):
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self.get_buffer(oprec, ft).get() \
+            oscale = self._get_buffer(oprec, ft).get() \
                 if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
@@ -333,7 +358,131 @@ class USQuantizer(Quantizer):
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
-        oscale = self.get_buffer(oprec, ft).get() \
+        oscale = self._get_buffer(oprec, absmax) \
+            if oscale is None else oscale
+
+        sb = iprec - oprec
+        if sb > shift_bits:
+            iprec -= sb
+            X = tutils.realize(X, sb, iprec)
+            iscale = iscale / (2**sb)
+
+        if oscale is not None or iprec > oprec:
+            rescale = oscale / iscale
+            bits = MAX_BIT - iprec
+            frac, exp = sim.cvm_float(rescale, bits)
+            sim_scale = frac * (2**exp)
+            scale_err = abs((sim_scale - rescale) / rescale)
+            if scale_err > 0.001:
+                logger.warn(
+                    "Operator  %-20s name=%-40s quantize with sb=%s" +
+                    " scale=%s, error=%s",
+                    xopn, xn, sb, iscale, scale_err)
+            oscale = iscale * frac * (2**exp)
+            if frac > 1:
+                var = sutils.nd_const(frac, graph, params)
+                X = mx.sym.broadcast_mul(
+                    X, var, name=N.n("mrt_quantize_scale"))
+            oprec = self.get_prec(oscale*absmax)
+            X = tutils.realize(X, -exp, oprec)
+            logger.debug(
+                "Operator  %-20s name=%-40s requantize" +
+                " with scale=%-16.8f<%d, %d>" +
+                " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
+                xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
+        else:
+            oprec, oscale = iprec, iscale
+            logger.debug(
+                "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
+                xopn, xn, iprec, oprec)
+
+        return X, oprec, oscale
+
+    def int_realize(self, data, prec, **kwargs):
+        logger = kwargs.get("logger", logging)
+
+        out = data.round()
+        lower, upper = self.get_range(prec)
+        if out.abs().max() > upper:
+            logger.warn(
+                "quant out of range int%d with data=<%s,%s>",
+                prec, out.max().asnumpy(), out.min().asnumpy())
+        out = out.clip(a_min=lower, a_max=upper)
+        return out, self.get_prec(out)
+
+
+@register_quantizer("USCQuantizer")
+class USCQuantizer(USQuantizer):
+    """ Information data type for uniform symmetric channel-wise quantizaton
+    """
+    def sample(self, data, **kwargs):
+        ichannel = kwargs['ichannel']
+        step = kwargs.get('step', 1)
+        C = data.shape[ichannel]
+        absmax = data.abs().max(axis=ichannel, keepdims=False).asnumpy().tolist()
+        absmax_list = [float(max(absmax[i:i+step])) for i in range(0, C, step)]
+        return ALFeature(absmax_list)
+
+    def get_range(self, prec):
+        mrange = 2**(prec-1) - 1
+        return -mrange, mrange
+
+    def get_prec(self, val):
+        return tutils.get_bit(val)
+
+    def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
+        """ Symmetric Quantization of weight (real value)
+        """
+        logger = logging.getLogger("log.mrt.realize")
+        params, features = kwargs["params"], kwargs["features"]
+        precs = kwargs['precs']
+        wn = W.attr("name")
+        wqn = N.n(wn)
+
+        oprec = precs[wn].get(kwargs['oname'], oprec)
+        ft = features[wn]
+        absmax_list = ft.get()
+        oscale_list, oprec_list = [], []
+
+        for absmax in absmax_list:
+            if absmax == 0:
+                oscale_list.append(0 if oscale is None else oscale)
+                oprec_list.append(1)
+            else:
+                oscale_list.append(
+                    self.get_buffer(oprec, absmax) if oscale is None else oscale)
+                oprec_list.append(oprec)
+
+        ichannel = kwargs['ichannel']
+        os_tensor = nd.array(oscale_list)
+        shp = params[wqn].shape
+        for i in range(len(shp)):
+            if i != ichannel:
+                os_tensor = nd.expand_dims(oscale_tensor, axis=i)
+        params[wqn] = nd.broadcast_mul(params[wn], os_tensor)
+        oscale_list = [1 if oscale == 0 else oscale for oscale in oscale_list]
+        attr = {"precision": str(oprec_list)}
+        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
+
+        return W, oprec_list, oscale_list
+
+    def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
+        """ Symmetric Quantization of symbol expansion (int value)
+        """
+        logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
+        params, features = kwargs["params"], kwargs["features"]
+        precs, buffers = kwargs["precs"], kwargs["buffers"]
+        graph, shift_bits = kwargs["graph"], kwargs["shift_bits"]
+        xn, xopn = X.attr("name"), X.attr("op_name")
+        xqn = N.n(xn)
+
+        oprec = precs[xn].get(kwargs['oname'], oprec)
+        iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
+        ft = features[xn]
+        absmax = ft.get()
+        if absmax == 0:
+            return X, 1, 1 if oscale is None else oscale
+        oscale = self._get_buffer(oprec, ft).get() \
             if oscale is None else oscale
 
         sb = iprec - oprec
@@ -403,7 +552,7 @@ class UAQuantizer(Quantizer):
         minv, _ = ft.get()
         return math.ceil(scale*minv)
 
-    def get_buffer(self, oprec, ft):
+    def _get_buffer(self, oprec, ft):
         minv, maxv = ft.get()
         oscale = self.ger_range(oprec)[1] / (maxv - minv)
         zpoint = self._get_zpoint(oscale, ft)
@@ -425,7 +574,7 @@ class UAQuantizer(Quantizer):
         oprec = precs[wn].get(kwargs['oname'], oprec)
         ft = features[wn]
         minv, maxv = ft.get()
-        oscale, zpoint = self.get_buffer(oprec, ft).get() \
+        oscale, zpoint = self._get_buffer(oprec, ft).get() \
             if oscale is None else oscale, self._get_zpoint(oscale, ft)
         params[wqn], oprec = self.int_realize(
             params[wn]*oscale, oprec, logger=logger) - zpoint
@@ -448,7 +597,7 @@ class UAQuantizer(Quantizer):
         iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
         ft = features[wn]
         oprec = oprec if oprec < iprec else iprec
-        oscale, zpoint = self.get_buffer(oprec, ft).get() \
+        oscale, zpoint = self._get_buffer(oprec, ft).get() \
             if oscale is None else oscale, self._get_zpoint(oscale, ft)
 
         sb = iprec - oprec
