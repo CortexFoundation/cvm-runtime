@@ -30,8 +30,16 @@ print('testing fill all with a nested-list/ndarray')
 ndc[:] = np.array(range(60, 120)).reshape((3, 4, 5))
 print('ndc after filling:', ndc)
 
+
+print('testing nd with proper shape')
+ndc[0] = np.array(range(20, 40)).reshape((4, 5))
+print('testing list with proper shape')
+ndc[1] = np.array(range(40, 60)).reshape((4, 5)).tolist()
+print('testing shape with need of broadcasting')
+ndc[2] = np.array(range(60, 65))
+print('ndc after filling:', ndc)
+
 ndc[[0, 1], 1] = [2]
-ndc[0:2, 3, 4] = [3]
 bool_array = np.array([[True, False, True, False],
                         [False, True, False, True],
                         [True, False, True, False]], dtype=np.bool)

@@ -123,15 +123,14 @@ class NDArray(NDArrayBase):
             else:
                 if not isinstance(value, self.__class__):
                     try:
-                        assign_shape = tuple(filter(lambda x: x != 1, sizes))
-                        value = self.broadcast2shape(array(value, self.context), assign_shape)
+                        value = array(value, self.context)
                     except:
                         raise TypeError('cannot assign value {} of type {} to '
                         'a slice of NDArray'.format(value, type(value)))
                 idxs = (ctypes.c_int * (4 * self.ndim))(*starts, *ends, *steps, *sizes)
-
-                print('TODO: writing one by one')
-
+                assign_shape = tuple(filter(lambda x: x != 1, sizes))
+                value = self.prepare_bcast_shape(value, assign_shape)
+                _LIB.CVMAssignSliceND(self.handle, idxs, value.handle)
 
     def copyfrom(self, source_array):
         """Peform an synchronize copy from the array.
@@ -183,6 +182,7 @@ class NDArray(NDArrayBase):
 
     def full(self, value):
         _LIB.CVMAssignAllScalar(self.handle, ctypes.c_double(value))
+        return self
 
     def asnumpy(self):
         """Convert this array to numpy array
@@ -218,51 +218,79 @@ class NDArray(NDArrayBase):
             raise ValueError("Unsupported target type %s" % str(type(target)))
         return target
 
-    def broadcast2shape(self, value, bcast_shape):
+    def prepare_bcast_shape(self, value, bcast_shape):
         """Return a broadcast ``NDArray`` of shape ``bcast_shape``
         with same context and dtype as ``self``.
         `value`: numeric types or array like.
         `bcast_shape`: a shape tuple.
         """
-        return None
+    
+        # TODO: after implementing calling ops in python, use squeeze, broadcast
+        # intead of using numpy.squeeze/broadcast
+
+        # create value_nd from value. value_nd is an np.ndarray
         if isinstance(value, numeric_types):
-            value_nd = full(bcast_shape, value, ctx=self.ctx, dtype=self.dtype)
-        elif type(value) == self.__class__:  # pylint: disable=unidiomatic-typecheck
-            value_nd = value.as_in_context(self.ctx)
-            if value_nd.dtype != self.dtype:
-                value_nd = value_nd.astype(self.dtype)
+            value_nd = np.full(bcast_shape, value, dtype=self.dtype)
+        elif isinstance(value, NDArray):
+            value_nd = value.asnumpy()
         else:
             try:
-                value_nd = array(value, ctx=self.ctx, dtype=self.dtype)
+                value_nd = np.asarray(value, dtype=self.dtype)
             except:
                 raise TypeError('{} does not support assignment with non-array-like '
-                                'object {} of type {}'.format(self.__class__, value, type(value)))
-
-        # For setitem, if there is None in indices, we need to squeeze the assigned value_nd
-        # since None is also ignored in slicing the  original array.
-        if squeeze_axes and value_nd.ndim > len(bcast_shape):
-            squeeze_axes = tuple([ax for ax in squeeze_axes if ax < len(value_nd.shape)])
-            value_nd = value_nd.squeeze(axis=tuple(squeeze_axes))
-
-        # handle the cases like the following
-        # a = nd.zeros((3, 3)), b = nd.ones((1, 1, 1, 1, 3)), a[0] = b
-        # b cannot broadcast directly to a[0].shape unless its leading 1-size axes are trimmed
+                          'object {} of type {}'.format(self.__class__, value, type(value)))
+        
+        # data type conversion
+        if not value_nd.dtype == self.dtype:
+            value_nd = value_nd.astype(self.dtype)
+        # squeeze leading length 1.
         if value_nd.ndim > len(bcast_shape):
             squeeze_axes = []
-            for i in range(value_nd.ndim - len(bcast_shape)):
+            for i in range(value_nd.nidm - len(bcast_shape)):
                 if value_nd.shape[i] == 1:
                     squeeze_axes.append(i)
                 else:
                     break
             if squeeze_axes:
                 value_nd = value_nd.squeeze(squeeze_axes)
+        if not value_nd.shape == bcast_shape:
+            value_nd = np.broadcast_to(value_nd, bcast_shape)
+        return array(value_nd, ctx=self.ctx)
+        # final version of ``prepare_bcast_shape`` should be like this:
+        # create value_nd from value. value_nd is an ndarray
+        # if isinstance(value, numeric_types):
+        #     value_nd = empty(bcast_shape, ctx=self.ctx, dtype=self.dtype).full(value)
+        # elif isinstance(value, NDArray):
+        #     if not value.ctx == self.ctx:
+        #         raise ValueError('the target to assign should be of the same as '
+        #         'the source ndarray in present version, but got target: {} '
+        #         'and source: {}'.format(value.ctx, self.ctx))
+        # else:
+        #     try:
+        #         value_nd = array(value, ctx=self.ctx, dtype=self.dtype)
+        #     except:
+        #         raise TypeError('{} does not support assignment with non-array-like '
+        #                         'object {} of type {}'.format(self.__class__, value, type(value)))
 
-        if value_nd.shape != bcast_shape:
-            if value_nd.size == 0:
-                value_nd = value_nd.reshape(bcast_shape)
-            else:
-                value_nd = value_nd.broadcast_to(bcast_shape)
-        return value_nd
+        # # handle the cases like the following
+        # # a = nd.zeros((3, 3)), b = nd.ones((1, 1, 1, 1, 3)), a[0] = b
+        # # b cannot broadcast directly to a[0].shape unless its leading 1-size axes are trimmed
+        # if value_nd.ndim > len(bcast_shape):
+        #     squeeze_axes = []
+        #     for i in range(value_nd.ndim - len(bcast_shape)):
+        #         if value_nd.shape[i] == 1:
+        #             squeeze_axes.append(i)
+        #         else:
+        #             break
+        #     if squeeze_axes:
+        #         value_nd = value_nd.squeeze(squeeze_axes)
+
+        # if value_nd.shape != bcast_shape:
+        #     if value_nd.size == 0:
+        #         value_nd = value_nd.reshape(bcast_shape)
+        #     else:
+        #         value_nd = value_nd.broadcast_to(bcast_shape)
+        # return value_nd
 
 
 

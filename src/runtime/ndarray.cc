@@ -268,6 +268,28 @@ int CVMArrayCopyToBytes(CVMArrayHandle handle,
 int CVMAssignSliceND(CVMArrayHandle target, int* indices,
   CVMArrayHandle source) {
   API_BEGIN();
+  auto ndim = target->ndim;
+  int* starts = indices;
+  int* ends = indices + ndim;
+  int* steps = indices + 2 * ndim;
+  int* sizes = indices + 3 * ndim;
+  cvm::Tuple<cvm::dim_t> targetShape(target->shape, target->shape + ndim);
+  Indices srcIdx(cvm::Tuple<cvm::dim_t>(sizes, sizes + ndim));
+  Indices targetIdx(targetShape);
+  targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, ends));
+
+  CVM_TYPE_SWITCH(source->dtype, SrcDType, {
+    CVM_TYPE_SWITCH(target->dtype, TgtDType, {
+      SrcDType* sdata = static_cast<SrcDType*>(source->data);
+      TgtDType* tdata = static_cast<TgtDType*>(target->data);
+      for (; !srcIdx.End(); srcIdx++) {
+        targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, ends));
+        for (int i = 0; i < ndim; i++) {
+          targetIdx.Ref(i) += steps[i] * srcIdx[i];
+        }
+        tdata[targetIdx.Index()] = sdata[srcIdx.Index()];
+      }
+    })});
 
   API_END();
 }
