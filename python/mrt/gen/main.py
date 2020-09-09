@@ -16,6 +16,7 @@ from mrt.main2 import set_batch, batch_axis, _check, \
                       _load_fname, _checkpoint_exist
 from mrt.gen.transformer import MRT, Model, reduce_graph
 from mrt.gen.tfm_pass import deserialize
+from mrt.gen import cvm_op
 
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim

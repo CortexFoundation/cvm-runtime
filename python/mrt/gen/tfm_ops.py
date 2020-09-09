@@ -124,6 +124,51 @@ class FullyConnected(tops.FullyConnected, Transformer):
 @register_pass("rewrite")
 @register_transformer("Convolution")
 class Convolution(tops.Convolution, Transformer):
+    # def slice_channel(self, op, **kwargs):
+        # name, op_name = op.attr('name'), op.attr('op_name')
+        # attr, childs = op.list_attr(), sym_iter(op.get_children())
+        # cns = [c.attr('name') for c in childs]
+        # cfg_dict = kwargs['cfg_dict']
+        # infer_shapes = kwargs['infer_shapes']
+
+        # gn_info = cfg_dict[name]['gn_info']
+        # ichannel, step = gn_info['ichannel'], gn_info['step']
+
+        # assert len(childs) == 2
+        # X, W = childs
+        # xshp = infer_shapes[cns[0]][get_entry_id(childs[0])]
+        # wshp = infer_shapes[cns[1]][get_entry_id(childs[1])]
+        # assert len(xshp) == len(wshp) == 4 and \
+            # xshp[1] == wshp[1] and xshp[1]%step == 0
+
+        # xi_cfg_info, wi_cfg_info = cfg_dict[cns[0]], cfg_dict[cns[1]]
+        # xi_cfg_info['gn_info'] = {'gn_type': LAYER_WISE_TYPE}
+        # wi_cfg_info['gn_info'] = {'gn_type': LAYER_WISE_TYPE}
+        # yi_cfg_info = {
+            # 'gn_info': {'gn_type': LAYER_WISE_TYPE},
+            # 'quant_type': US_QUANT_TYPE,
+            # 'opt_info': cfg_dict[name]['opt_info'],
+        # }
+        # xs = sym_slice(X, ichannel, step, **kwargs)
+        # ws = sym_slice(W, ichannel, step, **kwargs)
+
+        # nodes = []
+        # j = 0
+        # for i in range(0, xshp[1], step):
+            # suffix = '_' + str(i)+'-'+str(i+step)
+            # xni = xs[j].attr('name')
+            # cfg_dict[xni] = xi_cfg_info
+            # wni = ws[j].attr('name')
+            # cfg_dict[wni] = wi_cfg_info
+            # yni = N.n(name+suffix)
+            # Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
+            # cfg_dict[yni] = yi_cfg_info
+            # nodes.append(Yi)
+            # j += 1
+
+        # op = mx.sym.add_n(*nodes, name=name)
+        # return op
+
     def slice_channel(self, op, **kwargs):
         name, op_name = op.attr('name'), op.attr('op_name')
         attr, childs = op.list_attr(), sym_iter(op.get_children())
@@ -133,40 +178,17 @@ class Convolution(tops.Convolution, Transformer):
 
         gn_info = cfg_dict[name]['gn_info']
         ichannel, step = gn_info['ichannel'], gn_info['step']
+        assert ichannel == 1
+
+        attr = {
+            stride:  attr['stride'],
+            dilate: attr['dilate'],
+            num_group: attr['num_group'],
+            channel_step: step,
+        }
 
         assert len(childs) == 2
-        X, W = childs
-        xshp = infer_shapes[cns[0]][get_entry_id(childs[0])]
-        wshp = infer_shapes[cns[1]][get_entry_id(childs[1])]
-        assert len(xshp) == len(wshp) == 4 and \
-            xshp[1] == wshp[1] and xshp[1]%step == 0
-
-        xi_cfg_info, wi_cfg_info = cfg_dict[cns[0]], cfg_dict[cns[1]]
-        xi_cfg_info['gn_info'] = {'gn_type': LAYER_WISE_TYPE}
-        wi_cfg_info['gn_info'] = {'gn_type': LAYER_WISE_TYPE}
-        yi_cfg_info = {
-            'gn_info': {'gn_type': LAYER_WISE_TYPE},
-            'quant_type': US_QUANT_TYPE,
-            'opt_info': cfg_dict[name]['opt_info'],
-        }
-        xs = sym_slice(X, ichannel, step, **kwargs)
-        ws = sym_slice(W, ichannel, step, **kwargs)
-
-        nodes = []
-        j = 0
-        for i in range(0, xshp[1], step):
-            suffix = '_' + str(i)+'-'+str(i+step)
-            xni = xs[j].attr('name')
-            cfg_dict[xni] = xi_cfg_info
-            wni = ws[j].attr('name')
-            cfg_dict[wni] = wi_cfg_info
-            yni = N.n(name+suffix)
-            Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
-            cfg_dict[yni] = yi_cfg_info
-            nodes.append(Yi)
-            j += 1
-
-        op = mx.sym.add_n(*nodes, name=name)
+        op = mx.sym.Custom(X, W, **attr, op_type='cvm_channel_conv2d')
         return op
 
     def quantize(self, op, **kwargs):
@@ -360,6 +382,7 @@ class BatchNorm(tops.BatchNorm, Transformer):
     pass
 
 
+# @register_pass("prepare_for_compile") # only for restore
 @register_transformer("add_n")
 class AddN(Transformer):
     def quantize(self, op, **kwargs):
