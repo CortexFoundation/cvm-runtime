@@ -180,15 +180,16 @@ class Convolution(tops.Convolution, Transformer):
         ichannel, step = gn_info['ichannel'], gn_info['step']
         assert ichannel == 1
 
-        attr = {
-            stride:  attr['stride'],
-            dilate: attr['dilate'],
-            num_group: attr['num_group'],
-            channel_step: step,
+        nattr = {
+            'stride':  get_attr(attr, 'stride', '(1, 1)'),
+            'dilate': get_attr(attr, 'dilate', '1, 1)'),
+            'num_group': get_attr(attr, 'num_group', '1'),
+            'channel_step': step,
         }
 
         assert len(childs) == 2
-        op = mx.sym.Custom(X, W, **attr, op_type='cvm_channel_conv2d')
+        X, W = childs
+        op = mx.sym.Custom(X, W, **nattr, op_type='cvm_channel_conv2d')
         return op
 
     def quantize(self, op, **kwargs):
