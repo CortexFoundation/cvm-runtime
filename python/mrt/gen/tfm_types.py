@@ -495,6 +495,7 @@ class USCQuantizer(USQuantizer):
             rescale = oscale / iscale
             bits = MAX_BIT - iprec
             frac, exp = sim.cvm_float(rescale, bits)
+            # TODO: compare n times
             sim_scale = frac * (2**exp)
             scale_err = abs((sim_scale - rescale) / rescale)
             if scale_err > 0.001:
