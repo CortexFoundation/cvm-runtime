@@ -80,7 +80,7 @@ def load_resnet18_v1_yolo():
             pretrained=False, pretrained_base=True,
             ctx=mx.gpu())
 
-def get_model(name, **kwargs):
+def get_model(name, ctx=mx.gpu(), **kwargs):
     """ Returns a pre-defined model by name
 
         Parameters
@@ -89,6 +89,8 @@ def get_model(name, **kwargs):
             Name of the model.
         classes : int
             Number of classes for the output layer.
+        ctx : mxnet.context()
+            Devices to get model.
 
         Returns
         -------
@@ -96,9 +98,9 @@ def get_model(name, **kwargs):
             The model.
     """
     return cv.model_zoo.get_model(name, pretrained=True,
-            ctx=mx.gpu(), **kwargs)
+            ctx=ctx, **kwargs)
 
-def save_model(name, data_dir=None, **kwargs):
+def save_model(name, data_dir=None, ctx=mx.gpu(), **kwargs):
     """ Returns a pre-defined model by name
 
         Parameters
@@ -107,13 +109,15 @@ def save_model(name, data_dir=None, **kwargs):
             Name of the model.
         data_dir : str
             Directory to store the model.
+        ctx : mxnet.context()
+            Devices to get model.
 
         Returns
         -------
         ret : tuple
             The symbol path and the model path.
     """
-    net = get_model(name, **kwargs)
+    net = get_model(name, ctx=ctx, **kwargs)
     sym = net(mx.sym.var('data'))
     if isinstance(sym, tuple):
         sym = mx.sym.Group([*sym])

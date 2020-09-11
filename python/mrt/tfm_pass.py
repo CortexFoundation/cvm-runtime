@@ -692,6 +692,7 @@ def sym_calibrate(symbol, params, data, **kwargs):
     logger.info("calibrate model outputs")
     nparams = convert_params_dtype(params, src_dtypes="float64",
             dest_dtype="float32")
+    data = data.astype('float32')
 
     def _impl(op, params, graph, **kwargs):
         deps, old_ths = kwargs['deps'], kwargs['old_ths']

@@ -1,3 +1,4 @@
+.. _c-backend-api-label:
 
 C Backend API
 =============
