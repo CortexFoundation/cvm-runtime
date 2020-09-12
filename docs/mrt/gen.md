@@ -12,7 +12,10 @@ sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}
 $$
 
 $$
-Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe
+\begin{align}
+frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg)\\
+Xq = \text{realize} (X_{e}, frac, exp)
+\end{align}
 \tag{Input Quantization}
 $$
 
@@ -29,34 +32,25 @@ sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}
 $$
 
 $$
-zp_{x} = \lceil sc_{x} \cdot \min{Xr} \rceil
-\tag{Zero Point}
+zp_{xe} = \text{round} \Big(\min Xr \cdot sc_{xe}\Big)
+\tag{Zero Point of Input}
 $$
 
 $$
-Xq = \text{round}\Bigg( \frac{sc_{x}}{sc_{xe}} \Bigg) \cdot Xe - zp_{x}
+\begin{align}
+frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\
+Xq = \text{realize}(Xe - zp_{xe}, frac, exp)
+\end{align}
 \tag{Input Quantization}
 $$
 
 $$
-Wq = \text{round}\Big(sc_{w} \cdot Wr\Big) - zp_{w}
-\tag{Weight Quantization}
-$$
-
-#### Uniform Symmetric Group Quantizer
-
-$$
-sc_{xi} = \frac{2^{PREC-1}-1}{\max_{i \in [0, C)} \max{Xri}}
-\tag{Scale}
+zp_{wr} = \min Wr
+\tag{Zero Point of Weight}
 $$
 
 $$
-Xqi = \text{round}\Bigg( \frac{sc_{xi}}{sc_{xei}} \Bigg) \cdot Xei
-\tag{Input Quantization}
-$$
-
-$$
-Wqi = \text{round}\Big(sc_{wi} \cdot Wri\Big)
+W_{q} = \text{round} \Big[ (sc_{w} \left( W_{r} - zp_{wr} \right) \Big]
 \tag{Weight Quantization}
 $$
 
@@ -82,7 +76,7 @@ MRT Support both layer-wise and channel-wise quantization. Channel wise quantiza
 
 To compromise between precision and calculation operations, MRT support quantization with respect to channel features. Use `slice` to split the channels in MRT rewrite process:
 $$
-\forall i \in [0, C)
+\forall i \text{ in } [0, C, \text{step})
 $$
 
 $$
@@ -93,6 +87,32 @@ Xi = \text{slice}\Big(X, \\
 $$
 
 If $X$ is of channel feature and $W$ is of layer feature or vice versa, $W$ (or $X$) will also be split to be compatible with $X$ (or $W$).
+
+Take `Convolution` for instance (only uniform symmetric quantization is considered for simplicity), layer-wise Convolution can be rewritten as:
+$$
+\begin{align}
+
+Ye[n,o,p,q] 
+
+&= \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
+
+&= \sum_{i=0}^{C/step-1} \sum_{j=i*step}^{(i+1)*step-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, j, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,j,ki,kj] \\
+
+&= \sum_{i=0}^{C/step-1} Convolution(Xq[:,i*step:(i+1)*step,:,:], Wq[:,i*step:(i+1)*step,:,:]) \\
+
+&= \sum_{i=0}^{C/step-1} Yei[n,o,p,q]
+
+\end{align}
+$$
+
+Note, if `num_groups` is not 1, then slice channel is not possible.
+
+Specifically, suppose kernel weight $W$ is of shape $(O,IC,KH,KW)$ and input data $X$ is of shape $(N,C,H,W)$.
+$$
+Yr[n,o,p,q]
+
+= \sum_{i=0}^{IC-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr\Bigg[n, \bigg\lfloor \frac{o \cdot IC}{OPG} \bigg\rfloor + i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW\Bigg] \cdot Wr[o,i,ki,kj]
+$$
 
 #### Channel Merge
 
@@ -169,13 +189,13 @@ $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] = 
 \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
-+ zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
++ x_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
 \end{split} \end{equation}
 $$
 ```python
 Ye = Convoltion(Xq, Wq, **attrs) + C
 infer_prec1 = get_bit_cnt(C*KH*KW) + xprec + wprec + 1
-infer_prec2 = get_bit_cnt(abs(C))
+infer_prec2 = get_bit_cnt(abs(xzp)*C*KH*KW) + wprec
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
@@ -184,13 +204,13 @@ $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q] =  
 \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
-+ zp_w \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW]
++ w_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW]
 \end{split} \end{equation}
 $$
 ```python
 Ye = Convoltion(Xq, Wq, **attrs) + C * Convolution(Xq, W1, **attrs)
 infer_prec1 = get_bit_cnt(C*KH*KW) + xprec + wprec + 1
-infer_prec2 = get_bit_cnt(abs(C)*C*KH*KW) + xprec
+infer_prec2 = get_bit_cnt(abs(wzp)*C*KH*KW) + xprec
 infer_prec = max(infer_prec1, infer_prec2) + 1
 ```
 
@@ -199,27 +219,20 @@ $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q]
 = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
-+ zp_w \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \\
-+ zp_x \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
-+ C \cdot KH \cdot KW \cdot zp_x \cdot zp_w
++ w_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \\
++ x_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
++ C \cdot KH \cdot KW \cdot x_{zp} \cdot w_{zp}
 \end{split} \end{equation}
 $$
 
 ```python
-Ye = Convoltion(Xq, Wq, **attrs) + C1 * Convoltion(Xq, W1, **attrs) + C2 + C3
+Ye = Convoltion(Xq, Wq, **attrs) + wzp * Convoltion(Xq, W1, **attrs) + C2 + C3
 infer_prec1 = get_bit_cnt(C*KH*KW) + xprec + wprec + 2
-infer_prec2 = get_bit_cnt(abs(C1)*C*KH*KW) + xprec + 1
-infer_prec3 = get_bit_cnt(max(abs(C2)))
-infer_prec4 = get_bit_cnt(abs(C3))
+infer_prec2 = get_bit_cnt(abs(wzp)*C*KH*KW) + xprec + 1
+infer_prec3 = get_bit_cnt(abs(xzp)*C*KH*KW) + wprec + 1
+infer_prec4 = get_bit_cnt(abs(wzp)*abs(xzp)*C*KH*KW)
 infer_prec = max(infer_prec1, infer_prec2, infer_prec3, infer_prec4) + 2
 ```
-
-
-$$
-iprec = \max \Big\{, \\
-\text{get_bit_cnt}(|zp_{w}| \cdot zp_x
-\Big\}
-$$
 
 #### pad
 
