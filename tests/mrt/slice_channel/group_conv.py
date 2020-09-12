@@ -114,6 +114,23 @@ def test2():
     step = 2
     test(xshp, wshp, attr, ichannel, step, ctx=mx.gpu())
 
+def test3():
+    xshp = (1, 8, 114, 114)
+    wshp = (8, 1, 3, 3)
+    attr = {
+        'layout': 'NCHW',
+        'num_filter': '8',
+        'dilate': '(1, 1)',
+        'num_group': '8',
+        'stride': '(1, 1)',
+        'no_bias': 'True',
+        'kernel': '[3, 3]',
+    }
+    ichannel = 1
+    step = 2
+    test(xshp, wshp, attr, ichannel, step, ctx=mx.gpu())
+
 if __name__ == '__main__':
     # test1()
-    test2()
+    # test2()
+    test3()
