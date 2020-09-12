@@ -332,7 +332,7 @@ class USQuantizer(Quantizer):
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self._get_buffer(oprec, ft).get() \
+            oscale = self._get_buffer(oprec, absmax) \
                 if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
