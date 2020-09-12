@@ -133,13 +133,13 @@ class Convolution(tops.Convolution, Transformer):
 
         gn_info = cfg_dict[name]['gn_info']
         ichannel, step = gn_info['ichannel'], gn_info['step']
+        assert ichannel == 1
 
         assert len(childs) == 2
         X, W = childs
         xshp = infer_shapes[cns[0]][get_entry_id(childs[0])]
         wshp = infer_shapes[cns[1]][get_entry_id(childs[1])]
-        assert len(xshp) == len(wshp) == 4 and \
-            xshp[1] == wshp[1] and xshp[1]%step == 0
+        assert len(xshp) == len(wshp) == 4 and xshp[1]%step == 0
 
         xi_cfg_info, wi_cfg_info = cfg_dict[cns[0]], cfg_dict[cns[1]]
         xi_cfg_info['gn_info'] = {'gn_type': LAYER_WISE_TYPE}
@@ -149,24 +149,54 @@ class Convolution(tops.Convolution, Transformer):
             'quant_type': US_QUANT_TYPE,
             'opt_info': cfg_dict[name]['opt_info'],
         }
-        xs = sym_slice(X, ichannel, step, **kwargs)
-        ws = sym_slice(W, ichannel, step, **kwargs)
-
-        nodes = []
-        j = 0
-        for i in range(0, xshp[1], step):
-            suffix = '_' + str(i)+'-'+str(i+step)
-            xni = xs[j].attr('name')
-            cfg_dict[xni] = xi_cfg_info
-            wni = ws[j].attr('name')
-            cfg_dict[wni] = wi_cfg_info
-            yni = N.n(name+suffix)
-            Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
-            cfg_dict[yni] = yi_cfg_info
-            nodes.append(Yi)
-            j += 1
-
-        op = mx.sym.add_n(*nodes, name=name)
+        num_group = eval(attr['num_group'])
+        C, IC, OC = xshp[1], wshp[1], wshp[0]
+        assert num_group * IC == C and OC >= num_group and OC % num_group == 0
+        if num_group == 1:
+            xs = sym_slice(X, ichannel, step, **kwargs)
+            ws = sym_slice(W, ichannel, step, **kwargs)
+            nodes = []
+            j = 0
+            for i in range(0, C, step):
+                suffix = '_' + str(i)+'-'+str(i+step)
+                xni = xs[j].attr('name')
+                cfg_dict[xni] = xi_cfg_info
+                wni = ws[j].attr('name')
+                cfg_dict[wni] = wi_cfg_info
+                yni = N.n(name+suffix)
+                Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
+                cfg_dict[yni] = yi_cfg_info
+                nodes.append(Yi)
+                j += 1
+            op = mx.sym.add_n(*nodes, name=name)
+        else:
+            assert step == 1
+            xs = sym_slice(X, ichannel, step, **kwargs)
+            ws = kernel_slice_2d(W, **kwargs)
+            OPG = OC // num_group
+            nattr = attr.copy()
+            nattr['num_group'] = '1'
+            nattr['num_filter'] = '1'
+            nodes = []
+            for o in range(OC):
+                nnodes = []
+                j = int(o/OPG)*IC
+                for i in range(IC):
+                    suffix = '_' + str(o)+'-'+str(i)
+                    k = i+j
+                    xk, woi = xs[k], ws[o][i]
+                    xnk, wnoi = xk.attr('name'), woi.attr('name')
+                    cfg_dict[xnk] = xi_cfg_info
+                    cfg_dict[wnoi] = wi_cfg_info
+                    ynoi = N.n(name+suffix)
+                    yoi = mx.sym.Convolution(xk, woi, **nattr, name=ynoi)
+                    cfg_dict[ynoi] = yi_cfg_info
+                    nnodes.append(yoi)
+                zni = N.n(name+'_add_n_'+str(o))
+                zi = mx.sym.add_n(*nnodes, name=zni)
+                cfg_dict[zni] = yi_cfg_info
+                nodes.append(zi)
+            op = mx.sym.concat(*nodes, dim=1, name=name)
         return op
 
     def quantize(self, op, **kwargs):
@@ -748,19 +778,36 @@ def _quantize_xw(op, **kwargs):
     precs[name][OUT_KEY] = infer_prec
     return op
 
-def sym_slice(op, ichannel, step, **kwargs):
-    name = op.attr('name')
-    shp = kwargs['infer_shapes'][name][get_entry_id(op)]
+def sym_slice(X, ichannel, step, **kwargs):
+    name = X.attr('name')
+    shp = kwargs['infer_shapes'][name][get_entry_id(X)]
     ndims = len(shp)
     nodes = []
     rchannel = ndims-ichannel-1
     for i in range(0, shp[ichannel], step):
         suffix = '_' + str(i)+'-'+str(i+step)
-        opi = mx.sym.slice(
-            op, begin=(None,)*ichannel+(i,)+(None,)*rchannel,
+        Xi = mx.sym.slice(
+            X, begin=(None,)*ichannel+(i,)+(None,)*rchannel,
             end=(None,)*ichannel+(i+step,)+(None,)*rchannel,
             name=N.n(name+suffix))
-        nodes.append(opi)
+        nodes.append(Xi)
+    return nodes
+
+def kernel_slice_2d(W, **kwargs):
+    name = W.attr('name')
+    shp = kwargs['infer_shapes'][name][get_entry_id(W)]
+    OC, IC = shp[:2]
+    nodes = []
+    for o in range(OC):
+        Wo = mx.sym.slice(W, begin=(o,None,None,None), end=(o+1,None,None,None))
+        nnodes = []
+        for i in range(IC):
+            suffix = '_' + str(o)+'-'+str(i)
+            Woi = mx.sym.slice(
+                Wo, begin=(None,i,None,None), end=(None,i+1,None,None),
+                name=N.n(name+suffix))
+            nnodes.append(Woi)
+        nodes.append(nnodes[:])
     return nodes
 
 def sym_merge(op, nodes, **kwargs):

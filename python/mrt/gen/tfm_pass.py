@@ -402,6 +402,12 @@ def quantize(
         ft = features[name]
         assert ft.name == FT_TYPE_EXP
         absmax = ft.get()
+        name, op_name = op.attr('name'), op.attr('op_name')
+        #  if name == "mrt_quantize_realize_19":
+            #  childs = sutils.sym_iter(op.get_children())
+            #  for c in childs:
+                #  cname, cop_name = c.attr('name'), c.attr('op_name')
+                #  print(cname, cop_name)
         buf = buffers[name]
         assert buf.name == BUF_TYPE_EXP
         scale = buf.get()

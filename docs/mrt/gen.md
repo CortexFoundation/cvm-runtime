@@ -88,7 +88,7 @@ $$
 
 If $X$ is of channel feature and $W$ is of layer feature or vice versa, $W$ (or $X$) will also be split to be compatible with $X$ (or $W$).
 
-Take `Convolution` for instance (only uniform symmetric quantization is considered for simplicity), layer-wise Convolution can be rewritten as:
+Take `Convolution` (for simplicity, only point-wise convolution is considered here, i.e. `num_group=1`) for instance (only uniform symmetric quantization is considered for simplicity), layer-wise Convolution can be rewritten as:
 $$
 \begin{align}
 
@@ -105,14 +105,7 @@ Ye[n,o,p,q]
 \end{align}
 $$
 
-Note, if `num_groups` is not 1, then slice channel is not possible.
-
-Specifically, suppose kernel weight $W$ is of shape $(O,IC,KH,KW)$ and input data $X$ is of shape $(N,C,H,W)$.
-$$
-Yr[n,o,p,q]
-
-= \sum_{i=0}^{IC-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr\Bigg[n, \bigg\lfloor \frac{o \cdot IC}{OPG} \bigg\rfloor + i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW\Bigg] \cdot Wr[o,i,ki,kj]
-$$
+For **groupwise convolution**, the slice channel process will be performed in each the output channel, and **concat** along the output channel axis.
 
 #### Channel Merge
 
@@ -163,6 +156,16 @@ $$
 $$
 Yr[n,o,p,q] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wr[o,i,ki,kj]
 $$
+
+Note, if `num_groups` is not 1, then convolution is generalized as **Groupwise Convolution**.
+
+Specifically, suppose kernel weight $W$ is of shape $(O,IC,KH,KW)$ and input data $X$ is of shape $(N,C,H,W)$.
+$$
+Yr[n,o,p,q]
+
+= \sum_{i=0}^{IC-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr\Bigg[n, \bigg\lfloor\frac{o}{OPG}\bigg\rfloor IC + i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW\Bigg] \cdot Wr[o,i,ki,kj]
+$$
+For simplicity, here we will not inlcude the notation of groupwise convolution.
 
 **Expansion Scale**
 $$
