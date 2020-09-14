@@ -27,7 +27,10 @@ def sc(X, W, attr):
             xoi, woi = xs[i+j], ws[o][i]
             yoi = nd.Convolution(xoi, woi, **nattr)
             nnodes.append(yoi)
-        zi = nd.add_n(*nnodes)
+        if len(nnodes) > 1:
+            zi = nd.add_n(*nnodes)
+        else:
+            zi = nnodes[0]
         nodes.append(zi)
     return nd.concat(*nodes, dim=1)
 

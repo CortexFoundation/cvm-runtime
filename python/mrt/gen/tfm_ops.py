@@ -168,6 +168,7 @@ class Convolution(tops.Convolution, Transformer):
                 cfg_dict[yni] = yi_cfg_info
                 nodes.append(Yi)
                 j += 1
+            assert len(nodes) > 1
             op = mx.sym.add_n(*nodes, name=name)
         else:
             assert step == 1
@@ -192,10 +193,14 @@ class Convolution(tops.Convolution, Transformer):
                     yoi = mx.sym.Convolution(xk, woi, **nattr, name=ynoi)
                     cfg_dict[ynoi] = yi_cfg_info
                     nnodes.append(yoi)
-                zni = N.n(name+'_add_n_'+str(o))
-                zi = mx.sym.add_n(*nnodes, name=zni)
-                cfg_dict[zni] = yi_cfg_info
+                if len(nnodes) > 1:
+                    zni = N.n(name+'_add_n_'+str(o))
+                    zi = mx.sym.add_n(*nnodes, name=zni)
+                    cfg_dict[zni] = yi_cfg_info
+                else:
+                    zi = nnodes[0]
                 nodes.append(zi)
+            assert len(nodes) > 1
             op = mx.sym.concat(*nodes, dim=1, name=name)
         return op
 
@@ -731,7 +736,7 @@ def _quantize_scale(op, **kwargs):
 
     if op_name in [Concat.op_name, BroadcastAdd.op_name]:
         op = get_mxnet_op(op_name)(*nodes, **attr, name=name)
-        infer_prec = max(cprec) if op_name == Concat.op_name \
+        infer_prec = max(cprecs) if op_name == Concat.op_name \
             else max(cprecs)+1
     elif op_name == AddN.op_name:
         while len(nodes) > 1:
