@@ -230,20 +230,21 @@ class Convolution(tops.Convolution, Transformer):
                 W, oprec, oname=name, **kwargs)
             buffers[name] = get_buffer_exp(xscale*wscale)
 
-            Y1 = mx.sym.Convolution(Xq, Wq, **attr, name=N.n('Convolution'))
+            Ye1 = mx.sym.Convolution(Xq, Wq, **attr, name=N.n('Convolution'))
             wshp = params[cns[1]].shape
-            pd = np.product(wshp[1:])
+            pd = int(np.product(wshp[1:]))
             infer_prec1 = get_bit_cnt_exp(pd) + xprec + wprec + 1
 
             W1 = nd_full_const(1, wshp, graph, params)
-            Y2 = mx.sym.Convolution(Xq, W1, **attr, name=N.n('Convolution'))
-            Y2 = mx.sym.broadcast_mul(Wzp, Y2, name.N.n('broadcast_mul'))
+            Ye2 = mx.sym.Convolution(Xq, W1, **attr, name=N.n('Convolution'))
+            Ye2 = mx.sym.broadcast_mul(Wzp, Ye2, name=N.n('broadcast_mul'))
             wzp = params[Wzp.attr('name')].asscalar()
-            infer_prec2 = get_bit_cnt_exp(abs(wzp)*pd) + xprec
+            infer_prec2 = get_bit_cnt_exp(pd) + xprec + get_bit_exp(abs(wzp))
 
-            op = mx.sym.elemwise_add(Y1, Y2, name=N.n('elemwise_add'))
-            infer_prec = max(infer_prec1, infer_prec2) + 1
-            precs[name][OUT_KEY] = infer_prec
+            Ye = mx.sym.elemwise_add(Ye1, Ye2, name=N.n('elemwise_add'))
+            op = _quantize_scale(Ye, **kwargs)
+            print("hihiih")
+            exit()
 
         elif xquant_type == UAQuantizer.name and \
             wquant_type == USQuantizer.name:

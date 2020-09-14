@@ -553,12 +553,13 @@ class UAQuantizer(Quantizer):
         if isinstance(data, nd.NDArray):
             data = data.max().asscalar()
         assert data > 0
-        return math.ceil(math.log2(math.data+1))
+        return math.ceil(math.log2(math.fabs(data)+1))
 
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
         precs = kwargs['precs']
+        graph = kwargs['graph']
         wn = W.attr("name")
         wqn = N.n(wn)
 
@@ -627,7 +628,7 @@ class UAQuantizer(Quantizer):
         logger = kwargs.get("logger", logging)
 
         out = data.round()
-        lower, upper = self.ger_range(prec)
+        lower, upper = self.get_range(prec)
         if out.max() > upper and out.min() < lower:
             logger.warn(
                 "quant out of range int%d with data=<%s,%s>",

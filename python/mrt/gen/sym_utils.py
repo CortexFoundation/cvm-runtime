@@ -1,5 +1,6 @@
 import math
 
+import mxnet as mx
 from mrt.sym_utils import nd_full
 
 def nd_full_const(number, shape, graph, params):
