@@ -4,69 +4,16 @@
 
 ### Quantizer
 
-#### Uniform Symmetric Quantizer
+|                | Parameter <br> (Uniform Affine Quantizer)    | Input <br/> (Uniform Affine Quantizer)                       | Parameter <br/> (Uniform Symmetric Quantizer)                | Input <br/> (Uniform Symmetric Quantizer)                    |
+| -------------- | -------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Scale          | $sc_{w} = \frac{2^{PREC-1}-1}{\max{|Wr|}}$   | $sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}$                   | $sc_{w} = \frac{2^{PREC}-1}{\max{Wr} - \min{Wr}}$            | $sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}$      |
+| Zero Point     | -                                            | -                                                            | $zp_{wr} = \text{round}\Big(\min Wr\Big)$                    | $zp_{xe} = \text{round} \Big(\min Xr \cdot sc_{xe}\Big)$     |
+| Quantization   | $Wq = \text{round}\Big(sc_{w} \cdot Wr\Big)$ | $frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\ Xq = \text{realize} (X_{e}, frac, exp)$ | $W_{q} = \text{round} \Big[ (sc_{w} \left( W_{r} - zp_{wr} \right) \Big]$ | $frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\ Xq = \text{realize}(Xe - zp_{xe}, frac, exp)$ |
+| Requantization | $Wr = \frac{Wq}{sc_{w}}$                     | $Xr = \frac{Xq}{sc_{x}}$                                     | $Wr = \frac{Wq}{sc_{w}} + zp_{wr}$                           | $Xr = \frac{Xq}{sc_{x}} + zp_{xe}$                           |
 
-$$
-sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}
-\tag{Scale}
-$$
+The variable whose names ending up with '**q**' stand for int quantized operators,  '**r**' stand for floating point operators and '**e**' stand for int expanded operators.
 
-$$
-\begin{align}
-frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg)\\
-Xq = \text{realize} (X_{e}, frac, exp)
-\end{align}
-\tag{Input Quantization}
-$$
-
-$$
-Wq = \text{round}\Big(sc_{w} \cdot Wr\Big)
-\tag{Weight Quantization}
-$$
-
-#### Uniform Affine Quantizer
-
-$$
-sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}
-\tag{Scale}
-$$
-
-$$
-zp_{xe} = \text{round} \Big(\min Xr \cdot sc_{xe}\Big)
-\tag{Zero Point of Input}
-$$
-
-$$
-\begin{align}
-frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\
-Xq = \text{realize}(Xe - zp_{xe}, frac, exp)
-\end{align}
-\tag{Input Quantization}
-$$
-
-$$
-zp_{wr} = \min Wr
-\tag{Zero Point of Weight}
-$$
-
-$$
-W_{q} = \text{round} \Big[ (sc_{w} \left( W_{r} - zp_{wr} \right) \Big]
-\tag{Weight Quantization}
-$$
-
-### Re-quantization
-
-$$
-Xr = \frac{Xq}{sc_{x}}
-\tag{Symmetric Re-quantization}
-$$
-
-$$
-Xr = \frac{Xq + zp_{x}}{sc_{x}}
-\tag{Zero-point Re-quantization}
-$$
-
-Re-quantization is elaborated in operator expansion, see [NN Operator Expansion](#nn-operator-expansion), [Broadcast Operator Expansion](#broadcast-operator-expansiono), [Elemwise Operator Expansion](#elemwise-operator-expansion), [Transform Operator Expansion](#transform-operator-expansion).
+Re-quantization into expansion is elaborated in operator expansion, see [NN Operator Expansion](#nn-operator-expansion), [Broadcast Operator Expansion](#broadcast-operator-expansiono), [Elemwise Operator Expansion](#elemwise-operator-expansion), [Transform Operator Expansion](#transform-operator-expansion).
 
 ### Granularity
 
@@ -105,22 +52,22 @@ Ye[n,o,p,q]
 \end{align}
 $$
 
-For **groupwise convolution**, the slice channel process will be performed in each the output channel, and **concat** along the output channel axis.
-
 #### Channel Merge
 
 Merge the channel symbol components to the equivalent symbol. 
 
-For operators like `Convolution`, merge as follows:
-$$
-X = \sum_{i=0}^{C-1} Xi
-\tag{add_n}
-$$
 For operators like `pad`, `relu`, `Pooling`, merge as follows:
 $$
 X = \text{concat}\Big( \big[Xi, \forall i \in [0, C) \big], \text{dim=ich} \Big)
 \tag{concat}
 $$
+
+For operators like `Convolution` (`num_group=1`), merge as follows:
+$$
+X = \sum_{i=0}^{C-1} Xi
+\tag{add_n}
+$$
+For operators like `Convolution` (`num_group>1`), the slice channel process will be performed in each the output channel, and **concat** along the output channel axis.
 
 ### NN Operator Expansion
 
@@ -167,57 +114,45 @@ Yr[n,o,p,q]
 $$
 For simplicity, here we will not inlcude the notation of groupwise convolution.
 
-**Expansion Scale**
-$$
-sc_{ye} = sc_{x} \cdot sc_{w}
-$$
-**Padding beforehand**
-
-```python
-Xe = pad(Xe, mode="constant", pad_width=(0,0,0,0,PH,PH,PW,PW), constant_value=0)
-```
+Given $Xe$ and $We$, MRT respectively quantize them into $Xq$ and $Wq$.
 
 **Expansion Formalization 1: Symmetric Quantized X and W**
 $$
 Ye[n,o,p,q] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj]
 $$
 
-```python
-Ye = Convoltion(Xq, Wq, **attrs)
-infer_prec = get_bit_cnt(C*KH*KW) + xprec + wprec
-```
+where the scale of $Ye$ is $sc_{x} \ sc_{w}$.
 
 **Expansion Formalization 2: Zero Point Quantized X and Symmetric Quantized W**
 $$
-\begin{equation} \begin{split}
-Ye[n,o,p,q] = 
-\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
-+ x_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
-\end{split} \end{equation}
+Ye1[n,o,p,q] = 
+\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj]
 $$
-```python
-Ye = Convoltion(Xq, Wq, **attrs) + C
-infer_prec1 = get_bit_cnt(C*KH*KW) + xprec + wprec + 1
-infer_prec2 = get_bit_cnt(abs(xzp)*C*KH*KW) + wprec
-infer_prec = max(infer_prec1, infer_prec2) + 1
-```
+$$
+Ye2[n,o,p,q] = zp_{xe} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Wq[o,i,ki,kj]
+$$
 
+where the scale of $Ye1$ is $sc_{x} \ sc_{w}$ and the scale of $Ye2$ is $sc_{w}$.  By [quantize_scale](#quantize-scale), MRT respectively quantize them into $Yq1$ and $Yq2$. Then get the final expansion.
+$$
+Ye = Yq1 + Yq2
+$$
 **Expansion Formalization 3: Symmetric Quantized X and Zero Point Quantized W**
 $$
-\begin{equation} \begin{split}
-Ye[n,o,p,q] =  
-\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
-+ w_{zp} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW]
-\end{split} \end{equation}
+Ye1[n,o,p,q] =  
+\sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj]
 $$
-```python
-Ye = Convoltion(Xq, Wq, **attrs) + C * Convolution(Xq, W1, **attrs)
-infer_prec1 = get_bit_cnt(C*KH*KW) + xprec + wprec + 1
-infer_prec2 = get_bit_cnt(abs(wzp)*C*KH*KW) + xprec
-infer_prec = max(infer_prec1, infer_prec2) + 1
-```
 
-**Expansion Formalization 4: Zero Point Quantized X and W**
+$$
+Ye2[n,o,p,q] =  
+zp_{we} \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW]
+$$
+where the scale of $Ye1$ is $sc_{x} \ sc_{w}$ and the scale of $Ye2$ is $sc_{x}$.  By [quantize_scale](#quantize-scale), MRT respectively quantize them into $Yq1$ and $Yq2$. Then get the final expansion.
+$$
+Ye = Yq1 + Yq2
+$$
+**Expansion Formalization 4: Zero Point Quantized X and W (Deprecated)**
+
+
 $$
 \begin{equation} \begin{split}
 Ye[n,o,p,q]
@@ -517,6 +452,6 @@ $$
 **Expansion Formalization**
 
 ```python
-Ye = merge(**Xqs, **attrs)
+Ye = quantize_scale(**Xqs, **attrs)
 infer_prec = max(xprecs) if op_name == "Concat" else max(xprecs)+1
 ```
