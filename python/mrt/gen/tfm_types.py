@@ -411,7 +411,7 @@ class USQuantizer(Quantizer):
         return out, self.get_prec(out)
 
 
-@register_quantizer("USCQuantizer")
+@register_quantizer("UniformSymmetricChannel")
 class USCQuantizer(USQuantizer):
     """ Information data type for uniform symmetric channel-wise quantizaton
     """
@@ -549,16 +549,6 @@ class UAQuantizer(Quantizer):
         mrange = 2**prec - 1
         return 0, mrange
 
-    def _get_zpoint(self, scale, ft):
-        minv, _ = ft.get()
-        return math.ceil(scale*minv)
-
-    def _get_buffer(self, oprec, ft):
-        minv, maxv = ft.get()
-        oscale = self.ger_range(oprec)[1] / (maxv - minv)
-        zpoint = self._get_zpoint(oscale, ft)
-        return SZBuffer(oscale, zpoint)
-
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):
             data = data.max().asscalar()
@@ -573,13 +563,12 @@ class UAQuantizer(Quantizer):
         wqn = N.n(wn)
 
         oprec = precs[wn].get(kwargs['oname'], oprec)
-        ft = features[wn]
-        minv, maxv = ft.get()
-        oscale, zpoint = self._get_buffer(oprec, ft).get() \
-            if oscale is None else oscale, self._get_zpoint(oscale, ft)
-        params[wqn], oprec = self.int_realize(
-            params[wn]*oscale, oprec, logger=logger) - zpoint
+        minv, maxv = features[wn].get()
+        oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
+        zpoint = round(minv)
         Zp = sutils.nd_const(zpoint, graph, params)
+        params[wqn], oprec = self.int_realize(
+            (params[wn] - zpoint)*oscale, oprec, logger=logger)
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
@@ -596,10 +585,9 @@ class UAQuantizer(Quantizer):
 
         oprec = precs[xn].get(kwargs['oname'], oprec)
         iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
-        ft = features[wn]
-        oprec = oprec if oprec < iprec else iprec
-        oscale, zpoint = self._get_buffer(oprec, ft).get() \
-            if oscale is None else oscale, self._get_zpoint(oscale, ft)
+        minv, maxv = features[wn].get()
+        oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
+        zpoint = round(minv*iscale)
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -623,8 +611,9 @@ class UAQuantizer(Quantizer):
             X = mx.sym.broadcast_mul(
                 X, var, name=N.n("mrt_quantize_scale"))
         Zp = sutils.nd_const(zpoint, graph, params)
+        X = mx.sym.broadcast_sub(X, Zp, name=N.n('minus_zp'))
         X = tutils.realize(
-            X, -exp, USQuantizer().get_prec(oscale*(maxv-minv))) - Zp
+            X, -exp, USQuantizer().get_prec(oscale*(maxv-minv)))
         oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
         logger.debug(
             "Operator  %-20s name=%-40s requantize" +
