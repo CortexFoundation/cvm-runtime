@@ -442,12 +442,12 @@ class UAQuantizer(Quantizer):
         minv, maxv = features[wn].get()
         oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
         zpoint = minv
+        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         params[wqn], oprec = self.int_realize(
             nd.relu((params[wn] - zpoint)*oscale), oprec, logger=logger)
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
-        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return W, oprec, oscale, zpoint
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
