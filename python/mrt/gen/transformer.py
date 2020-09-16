@@ -135,15 +135,28 @@ class MRT(tfm.MRT):
         op_precs['add_n'] = 16
 
     def quantize(self):
-        #  from mrt.sym_utils import is_params
+        #  from mrt.sym_utils import is_params, sym_iter
         #  sym, params = self.current_model.symbol, self.current_model.params
         #  for s in topo_sort(sym):
             #  name, op_name = s.attr('name'), s.attr('op_name')
-            #  if is_params(s, params):
-                #  weight = params[name]
-                #  maxv = weight.max().asscalar()
-                #  minv = weight.min().asscalar()
-                #  print(maxv, minv, name)
+            #  if op_name in ["broadcast_add"]:
+                #  childs = sym_iter(s.get_children())
+                #  for c in childs:
+                    #  cname = c.attr('name')
+                    #  if is_params(c, params):
+                        #  weight = params[cname]
+                        #  maxv = weight.max().asscalar()
+                        #  minv = weight.min().asscalar()
+                        #  #  print(cname)
+            #  elif op_name in ["Convolution"]:
+                #  childs = sym_iter(s.get_children())
+                #  for c in childs:
+                    #  cname = c.attr('name')
+                    #  if is_params(c, params):
+                        #  weight = params[cname]
+                        #  maxv = weight.max().asscalar()
+                        #  minv = weight.min().asscalar()
+                        #  print(maxv, minv, cname)
         #  exit()
 
         _sym, _prm = quantize(

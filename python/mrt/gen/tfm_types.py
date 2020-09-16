@@ -470,6 +470,7 @@ class UAQuantizer(Quantizer):
         minv, maxv = features[wn].get()
         oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
         zpoint = round(minv*iscale)
+        X = mx.sym.broadcast_sub(X, zpoint, name=N.n('minus_zp'))
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -494,16 +495,15 @@ class UAQuantizer(Quantizer):
                 X, var, name=N.n("mrt_quantize_scale"))
         Zp = sutils.nd_const(zpoint, graph, params)
         X = mx.sym.broadcast_sub(X, Zp, name=N.n('minus_zp'))
-        X = tutils.realize(
-            X, -exp, USQuantizer().get_prec(oscale*(maxv-minv)))
-        oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
+        oprec = self.get_prec(oscale*(maxv-minv))
+        X = tutils.realize(X, -exp, oprec)
         logger.debug(
             "Operator  %-20s name=%-40s requantize" +
             " with scale=%-16.8f<%d, %d>" +
             " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
             xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
 
-        return X, oprec, oscale, Zp
+        return X, oprec, oscale, zpoint
 
     def int_realize(self, data, prec, **kwargs):
         logger = kwargs.get("logger", logging)
