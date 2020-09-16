@@ -135,6 +135,17 @@ class MRT(tfm.MRT):
         op_precs['add_n'] = 16
 
     def quantize(self):
+        #  from mrt.sym_utils import is_params
+        #  sym, params = self.current_model.symbol, self.current_model.params
+        #  for s in topo_sort(sym):
+            #  name, op_name = s.attr('name'), s.attr('op_name')
+            #  if is_params(s, params):
+                #  weight = params[name]
+                #  maxv = weight.max().asscalar()
+                #  minv = weight.min().asscalar()
+                #  print(maxv, minv, name)
+        #  exit()
+
         _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.features, self.precs, self.buffers, self.cfg_dict,

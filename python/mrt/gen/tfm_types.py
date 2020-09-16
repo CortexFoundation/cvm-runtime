@@ -266,6 +266,11 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_range` function defined in Quantizer")
 
+    def get_scale(self, oprec, ft):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `get_scale` function defined in Quantizer")
+
     def get_prec(self, val):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
@@ -309,8 +314,8 @@ class USQuantizer(Quantizer):
         mrange = 2**(prec-1) - 1
         return -mrange, mrange
 
-    def _get_buffer(self, oprec, absmax):
-        return self.get_range(oprec)[1] / absmax
+    def get_scale(self, oprec, ft):
+        return self.get_range(oprec)[1] / ft.get()
 
     def get_prec(self, val):
         return tutils.get_bit(val)
@@ -332,8 +337,7 @@ class USQuantizer(Quantizer):
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self._get_buffer(oprec, absmax) \
-                if oscale is None else oscale
+            oscale = self.get_scale(oprec, ft) if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
         attr = {"precision": str(oprec)}
@@ -358,8 +362,7 @@ class USQuantizer(Quantizer):
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
-        oscale = self._get_buffer(oprec, absmax) \
-            if oscale is None else oscale
+        oscale = self.get_scale(oprec, ft) if oscale is None else oscale
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -424,6 +427,10 @@ class UAQuantizer(Quantizer):
         mrange = 2**prec - 1
         return 0, mrange
 
+    def get_scale(self, oprec, ft):
+        minv, maxv = ft.get()
+        return self.get_range(oprec)[1] / (maxv-minv)
+
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):
             data = data.max().asscalar()
@@ -442,12 +449,12 @@ class UAQuantizer(Quantizer):
         minv, maxv = features[wn].get()
         oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
         zpoint = minv
-        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         params[wqn], oprec = self.int_realize(
             nd.relu((params[wn] - zpoint)*oscale), oprec, logger=logger)
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
+        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
         return W, oprec, oscale, zpoint
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):

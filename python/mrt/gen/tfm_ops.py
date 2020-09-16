@@ -15,7 +15,7 @@ from mrt.tfm_pass import OUT_KEY
 from .tfm_base import register_pass, register_transformer, Transformer
 from .tfm_types import get_quantizer, USQuantizer, UAQuantizer, \
                        FT_TYPE_EXP, AFeature, SBuffer, LAYER_WISE_TYPE, \
-                       US_QUANT_TYPE
+                       US_QUANT_TYPE, AFeature, MMFeature
 from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp, \
                        get_range_exp, get_bit_cnt_exp
 from .sym_utils import nd_full_const
@@ -346,7 +346,30 @@ class Pad(tops.Pad, Transformer):
 @register_transformer("broadcast_add")
 class BroadcastAdd(tops.BroadcastAdd, Transformer):
     def quantize(self, op, **kwargs):
-        return quantize_dual(op, **kwargs)
+        name, op_name = op.attr('name'), op.attr('op_name')
+        attr, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
+        cfg_dict = kwargs['cfg_dict']
+        graph, params = kwargs['graph'], kwargs['params']
+
+        aquant_type = cfg_dict[cns[0]]['quant_type']
+        aquant = get_quantizer(aquant_type)
+        bquant_type = cfg_dict[cns[1]]['quant_type']
+        bquant = get_quantizer(bquant_type)
+        A, B = childs
+        oprec = kwargs['op_input_precs'][op_name]
+
+        if aquant_type == bquant_type == USQuantizer.name:
+            op = _quantize_broadcast(op, **kwargs)
+        elif aquant_type == UAQuantizer.name or \
+            bquant_type == UAQuantizer.name:
+            op = _quantize_scale_zp(op, **kwargs)
+        else:
+            raise NotImplementedError(
+                "Quantization type not implementated," + \
+                " op: %20s, Aquant: %20s, Bquant: %20s" % \
+                (op_name, [aquant_type, bquant_type]))
+        return op
 
 
 @register_pass("validate")
@@ -358,7 +381,7 @@ class BroadcastAdd(tops.BroadcastAdd, Transformer):
 @register_transformer("broadcast_sub")
 class BroadcastSub(tops.BroadcastSub, Transformer):
     def quantize(self, op, **kwargs):
-        return quantize_dual(op, **kwargs)
+        return _quantize_broadcast(op, **kwargs)
 
 
 @register_pass("rewrite")
@@ -709,6 +732,73 @@ class ElemwiseAdd(tops.ElemwiseAdd, Transformer):
 class BroadcastDiv(Transformer):
     pass
 
+def _quantize_scale_zp(op, **kwargs):
+    features, precs = kwargs['features'], kwargs['precs']
+    buffers, cfg_dict = kwargs['buffers'], kwargs['cfg_dict']
+    graph, params = kwargs['graph'], kwargs['params']
+    name, op_name = op.attr('name'), op.attr('op_name')
+    attr, childs = op.list_attr(), sym_iter(op.get_children())
+    cns = [c.attr('name') for c in childs] if childs else []
+
+    oprec = kwargs['op_input_precs'][op_name]
+    oscales = []
+    for c in childs:
+        cquant_type = cfg_dict[c.attr('name')]['quant_type']
+        cquant = get_quantizer(cquant_type)
+        ft = features[c.attr('name')]
+        oscale = cquant.get_scale(oprec, ft)
+        oscales.append(oscale)
+    oscale = min(oscales)
+    buffers[name] = SBuffer(oscale)
+    nodes, cprecs = [], []
+
+    for c in childs:
+        cquant_type = cfg_dict[c.attr('name')]['quant_type']
+        cquant = get_quantizer(cquant_type)
+        if cquant.name == USQuantizer.name:
+            c, cprec, _ = cquant.quantize(
+                c, oprec, oscale=oscale, oname=name, **kwargs)
+        elif cquant.name == UAQuantizer.name:
+            c, cprec, cscale, czpoint = cquant.quantize(
+                c, oprec, oscale=oscale, oname=name, **kwargs)
+            czint = round(czpoint*cscale)
+            Cz = nd_const(czint, graph, params)
+            nodes.append(Cz)
+            cprecs.append(get_bit_exp(czint))
+        cprecs.append(cprec)
+        nodes.append(c)
+
+    if op_name in [Concat.op_name]:
+        op = get_mxnet_op(op_name)(*nodes, **attr, name=name)
+        infer_prec = max(cprecs)
+    elif op_name in [BroadcastAdd.op_name]:
+        while len(nodes) > 1:
+            tname = N.n('broadcast_add') if len(nodes) > 2 else name
+            a, b = nodes.pop(0), nodes.pop(0)
+            tmp = mx.sym.broadcast_add(a, b, name=tname)
+            nodes.append(tmp)
+        kprec = get_bit_cnt_exp(len(nodes))
+        infer_prec = max(cprecs) + kprec
+        op = nodes[0]
+    elif op_name in [AddN.op_name]:
+        while len(nodes) > 1:
+            tname = N.n('elemwise_add') if len(nodes) > 2 else name
+            a, b = nodes.pop(0), nodes.pop(0)
+            tmp = mx.sym.elemwise_add(a, b, name=tname)
+            nodes.append(tmp)
+        kprec = get_bit_cnt_exp(len(nodes))
+        infer_prec = max(cprecs) + kprec
+        op = nodes[0]
+    else:
+        raise NotADirectoryError(
+            "symbol merge function of op_name: %s has not been " + \
+            "implemented, name: %s" % (op_name, name))
+    precs[name][OUT_KEY] = infer_prec
+
+    logger = logging.getLogger('log.mrt.realize')
+    logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                 op_name, name, buffers[name].serialize(), cns)
+    return op
 
 def _quantize_scale(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
@@ -820,7 +910,7 @@ def sym_merge(op, nodes, **kwargs):
     attr = op.list_attr()
     return op
 
-def quantize_dual(op, **kwargs):
+def _quantize_broadcast(op, **kwargs):
     params = kwargs['params']
     features = kwargs['features']
     precs = kwargs['precs']
