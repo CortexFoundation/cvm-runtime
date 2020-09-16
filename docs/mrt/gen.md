@@ -4,12 +4,12 @@
 
 ### Quantizer
 
-|                | Parameter <br> (Uniform Affine Quantizer)    | Input <br/> (Uniform Affine Quantizer)                       | Parameter <br/> (Uniform Symmetric Quantizer)                | Input <br/> (Uniform Symmetric Quantizer)                    |
+|                | Parameter <br> (Uniform Symmetric Quantizer) | Input <br/> (Uniform Symmetric Quantizer)                    | Parameter <br/> (Uniform Affine Quantizer)                   | Input <br/> (Uniform Affine Quantizer)                       |
 | -------------- | -------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
 | Scale          | $sc_{w} = \frac{2^{PREC-1}-1}{\max{|Wr|}}$   | $sc_{x} = \frac{2^{PREC-1}-1}{\max{|Xr|}}$                   | $sc_{w} = \frac{2^{PREC}-1}{\max{Wr} - \min{Wr}}$            | $sc_{x} = \frac{2^{PREC}-1}{\text{max}Xr-\text{min}Xr}$      |
-| Zero Point     | -                                            | -                                                            | $zp_{wr} = \text{round}\Big(\min Wr\Big)$                    | $zp_{xe} = \text{round} \Big(\min Xr \cdot sc_{xe}\Big)$     |
+| Zero Point     | -                                            | -                                                            | $zp_{wr} = \min Wr$                                          | $zp_{xe} = \text{round} \Big(\min Xr \cdot sc_{xe}\Big)$<br>$rzp_{x} = \text{round} \Big(\min Xr \Big)$ |
 | Quantization   | $Wq = \text{round}\Big(sc_{w} \cdot Wr\Big)$ | $frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\ Xq = \text{realize} (X_{e}, frac, exp)$ | $W_{q} = \text{round} \Big[ (sc_{w} \left( W_{r} - zp_{wr} \right) \Big]$ | $frac, exp = \text{cvm_float}\bigg(\frac{sc_{x}}{sc_{xe}}\bigg) \\ Xq = \text{realize}(Xe - zp_{xe}, frac, exp)$ |
-| Requantization | $Wr = \frac{Wq}{sc_{w}}$                     | $Xr = \frac{Xq}{sc_{x}}$                                     | $Wr = \frac{Wq}{sc_{w}} + zp_{wr}$                           | $Xr = \frac{Xq}{sc_{x}} + zp_{xe}$                           |
+| Requantization | $Wr = \frac{Wq}{sc_{w}}$                     | $Xr = \frac{Xq}{sc_{x}}$                                     | $Wr = \frac{Wq}{sc_{w}} + zp_{wr}$                           | $Xr = \frac{Xq}{sc_{x}} + rzp_{x}$                           |
 
 The variable whose names ending up with '**q**' stand for int quantized operators,  '**r**' stand for floating point operators and '**e**' stand for int expanded operators.
 

@@ -266,6 +266,11 @@ class Quantizer:
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_range` function defined in Quantizer")
 
+    def get_scale(self, oprec, ft):
+        raise NotImplementedError(
+            "Derived " + self.name + " quantizer not override the" + \
+            " base `get_scale` function defined in Quantizer")
+
     def get_prec(self, val):
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
@@ -309,8 +314,8 @@ class USQuantizer(Quantizer):
         mrange = 2**(prec-1) - 1
         return -mrange, mrange
 
-    def _get_buffer(self, oprec, absmax):
-        return self.get_range(oprec)[1] / absmax
+    def get_scale(self, oprec, ft):
+        return self.get_range(oprec)[1] / ft.get()
 
     def get_prec(self, val):
         return tutils.get_bit(val)
@@ -332,8 +337,7 @@ class USQuantizer(Quantizer):
             oprec, oscale = 1, 1 if oscale is None else oscale
             params[wqn] = sutils.nd_zeros(params[wn].shape)
         else:
-            oscale = self._get_buffer(oprec, absmax) \
-                if oscale is None else oscale
+            oscale = self.get_scale(oprec, ft) if oscale is None else oscale
             params[wqn], oprec = self.int_realize(
                 params[wn]*oscale, oprec, logger=logger)
         attr = {"precision": str(oprec)}
@@ -358,8 +362,7 @@ class USQuantizer(Quantizer):
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
-        oscale = self._get_buffer(oprec, absmax) \
-            if oscale is None else oscale
+        oscale = self.get_scale(oprec, ft) if oscale is None else oscale
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -371,131 +374,6 @@ class USQuantizer(Quantizer):
             rescale = oscale / iscale
             bits = MAX_BIT - iprec
             frac, exp = sim.cvm_float(rescale, bits)
-            sim_scale = frac * (2**exp)
-            scale_err = abs((sim_scale - rescale) / rescale)
-            if scale_err > 0.001:
-                logger.warn(
-                    "Operator  %-20s name=%-40s quantize with sb=%s" +
-                    " scale=%s, error=%s",
-                    xopn, xn, sb, iscale, scale_err)
-            oscale = iscale * frac * (2**exp)
-            if frac > 1:
-                var = sutils.nd_const(frac, graph, params)
-                X = mx.sym.broadcast_mul(
-                    X, var, name=N.n("mrt_quantize_scale"))
-            oprec = self.get_prec(oscale*absmax)
-            X = tutils.realize(X, -exp, oprec)
-            logger.debug(
-                "Operator  %-20s name=%-40s requantize" +
-                " with scale=%-16.8f<%d, %d>" +
-                " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
-                xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
-        else:
-            oprec, oscale = iprec, iscale
-            logger.debug(
-                "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
-                xopn, xn, iprec, oprec)
-
-        return X, oprec, oscale
-
-    def int_realize(self, data, prec, **kwargs):
-        logger = kwargs.get("logger", logging)
-
-        out = data.round()
-        lower, upper = self.get_range(prec)
-        if out.abs().max() > upper:
-            logger.warn(
-                "quant out of range int%d with data=<%s,%s>",
-                prec, out.max().asnumpy(), out.min().asnumpy())
-        out = out.clip(a_min=lower, a_max=upper)
-        return out, self.get_prec(out)
-
-
-@register_quantizer("UniformSymmetricChannel")
-class USCQuantizer(USQuantizer):
-    """ Information data type for uniform symmetric channel-wise quantizaton
-    """
-    def sample(self, data, **kwargs):
-        ichannel = kwargs['ichannel']
-        step = kwargs.get('step', 1)
-        C = data.shape[ichannel]
-        absmax = data.abs().max(axis=ichannel, keepdims=False).asnumpy().tolist()
-        absmax_list = [float(max(absmax[i:i+step])) for i in range(0, C, step)]
-        return ALFeature(absmax_list)
-
-    def get_range(self, prec):
-        mrange = 2**(prec-1) - 1
-        return -mrange, mrange
-
-    def get_prec(self, val):
-        return tutils.get_bit(val)
-
-    def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
-        """ Symmetric Quantization of weight (real value)
-        """
-        logger = logging.getLogger("log.mrt.realize")
-        params, features = kwargs["params"], kwargs["features"]
-        precs = kwargs['precs']
-        wn = W.attr("name")
-        wqn = N.n(wn)
-
-        oprec = precs[wn].get(kwargs['oname'], oprec)
-        ft = features[wn]
-        absmax_list = ft.get()
-        oscale_list, oprec_list = [], []
-
-        for absmax in absmax_list:
-            if absmax == 0:
-                oscale_list.append(0 if oscale is None else oscale)
-                oprec_list.append(1)
-            else:
-                oscale_list.append(
-                    self.get_buffer(oprec, absmax) if oscale is None else oscale)
-                oprec_list.append(oprec)
-
-        ichannel = kwargs['ichannel']
-        os_tensor = nd.array(oscale_list)
-        shp = params[wqn].shape
-        for i in range(len(shp)):
-            if i != ichannel:
-                os_tensor = nd.expand_dims(oscale_tensor, axis=i)
-        params[wqn] = nd.broadcast_mul(params[wn], os_tensor)
-        oscale_list = [1 if oscale == 0 else oscale for oscale in oscale_list]
-        attr = {"precision": str(oprec_list)}
-        W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
-
-        return W, oprec_list, oscale_list
-
-    def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
-        """ Symmetric Quantization of symbol expansion (int value)
-        """
-        logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
-        params, features = kwargs["params"], kwargs["features"]
-        precs, buffers = kwargs["precs"], kwargs["buffers"]
-        graph, shift_bits = kwargs["graph"], kwargs["shift_bits"]
-        xn, xopn = X.attr("name"), X.attr("op_name")
-        xqn = N.n(xn)
-
-        oprec = precs[xn].get(kwargs['oname'], oprec)
-        iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
-        ft = features[xn]
-        absmax = ft.get()
-        if absmax == 0:
-            return X, 1, 1 if oscale is None else oscale
-        oscale = self._get_buffer(oprec, ft).get() \
-            if oscale is None else oscale
-
-        sb = iprec - oprec
-        if sb > shift_bits:
-            iprec -= sb
-            X = tutils.realize(X, sb, iprec)
-            iscale = iscale / (2**sb)
-
-        if oscale is not None or iprec > oprec:
-            rescale = oscale / iscale
-            bits = MAX_BIT - iprec
-            frac, exp = sim.cvm_float(rescale, bits)
-            # TODO: compare n times
             sim_scale = frac * (2**exp)
             scale_err = abs((sim_scale - rescale) / rescale)
             if scale_err > 0.001:
@@ -549,31 +427,35 @@ class UAQuantizer(Quantizer):
         mrange = 2**prec - 1
         return 0, mrange
 
+    def get_scale(self, oprec, ft):
+        minv, maxv = ft.get()
+        return self.get_range(oprec)[1] / (maxv-minv)
+
     def get_prec(self, data):
         if isinstance(data, nd.NDArray):
             data = data.max().asscalar()
         assert data > 0
-        return math.ceil(math.log2(math.data+1))
+        return math.ceil(math.log2(math.fabs(data)+1))
 
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
         logger = logging.getLogger("log.mrt.realize")
         params, features = kwargs["params"], kwargs["features"]
         precs = kwargs['precs']
+        graph = kwargs['graph']
         wn = W.attr("name")
         wqn = N.n(wn)
 
         oprec = precs[wn].get(kwargs['oname'], oprec)
         minv, maxv = features[wn].get()
         oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
-        zpoint = round(minv)
-        Zp = sutils.nd_const(zpoint, graph, params)
+        zpoint = minv
         params[wqn], oprec = self.int_realize(
-            (params[wn] - zpoint)*oscale, oprec, logger=logger)
+            nd.relu((params[wn] - zpoint)*oscale), oprec, logger=logger)
         attr = {"precision": str(oprec)}
         # TODO: CVM precision update
         # attr = {"precision": "uint"+str(oprec)}
         W = mx.sym.var(wqn, shape=params[wqn].shape, attr=attr)
-        return W, oprec, oscale, Zp
+        return W, oprec, oscale, zpoint
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
         logger = kwargs.get("logger", logging.getLogger("log.mrt.realize"))
@@ -588,6 +470,7 @@ class UAQuantizer(Quantizer):
         minv, maxv = features[wn].get()
         oscale = (2**(oprec)-1) / (maxv-minv) if oscale is None else oscale
         zpoint = round(minv*iscale)
+        X = mx.sym.broadcast_sub(X, zpoint, name=N.n('minus_zp'))
 
         sb = iprec - oprec
         if sb > shift_bits:
@@ -612,22 +495,21 @@ class UAQuantizer(Quantizer):
                 X, var, name=N.n("mrt_quantize_scale"))
         Zp = sutils.nd_const(zpoint, graph, params)
         X = mx.sym.broadcast_sub(X, Zp, name=N.n('minus_zp'))
-        X = tutils.realize(
-            X, -exp, USQuantizer().get_prec(oscale*(maxv-minv)))
-        oprec = self.get_prec(oscale*(maxv-minv)-zpoint)
+        oprec = self.get_prec(oscale*(maxv-minv))
+        X = tutils.realize(X, -exp, oprec)
         logger.debug(
             "Operator  %-20s name=%-40s requantize" +
             " with scale=%-16.8f<%d, %d>" +
             " iprec=%s, iscale=%-10.5f, oprec=%s, oscale=%-10.5f",
             xopn, xn, rescale, frac, exp, iprec, iscale, oprec, oscale)
 
-        return X, oprec, oscale, Zp
+        return X, oprec, oscale, zpoint
 
     def int_realize(self, data, prec, **kwargs):
         logger = kwargs.get("logger", logging)
 
         out = data.round()
-        lower, upper = self.ger_range(prec)
+        lower, upper = self.get_range(prec)
         if out.max() > upper and out.min() < lower:
             logger.warn(
                 "quant out of range int%d with data=<%s,%s>",
