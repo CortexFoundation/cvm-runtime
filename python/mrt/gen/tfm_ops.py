@@ -596,7 +596,8 @@ class BroadcastMul(tops.BroadcastMul, Transformer):
         cns = [c.attr('name') for c in childs] if childs else []
 
         oprec = kwargs['op_input_precs'][op_name]
-        xquant_type, bquant_type = cfg_dict[cns[0]], cfg_dict[cns[1]]
+        xquant_type, bquant_type = \
+            cfg_dict[cns[0]]['quant_type'], cfg_dict[cns[1]]['quant_type']
         xquant, bquant = \
             get_quantizer(xquant_type), get_quantizer(bquant_type)
         if xquant_type == bquant_type == USQuantizer.name:
@@ -679,13 +680,13 @@ class Sum(tops.Sum, Transformer):
         cns = [c.attr('name') for c in childs] if childs else []
         oshp = infer_shapes[name][get_entry_id(op)]
 
-        quant_type = cfg_dict[cns[0]]
-        assert quant_type == USQuantizer.name
+        quant_type = cfg_dict[cns[0]]['quant_type']
+        assert quant_type == USQuantizer.name, (quant_type, name, op_name)
         quant = get_quantizer(quant_type)
         oprec = kwargs['op_input_precs'][op_name]
         X, xprec, xs = quant.quantize(
             childs[0], oprec, oname=name, **kwargs)
-        buffers[name] = SBuffesr(xs)
+        buffers[name] = SBuffer(xs)
         op = get_mxnet_op(op_name)(X, **attr, name=name)
 
         ishp = infer_shapes[cns[0]][get_entry_id(childs[0])]
@@ -824,7 +825,8 @@ def _quantize_scale(op, **kwargs):
         cprecs.append(cprec)
         nodes.append(c)
 
-    if op_name in [Concat.op_name, BroadcastAdd.op_name]:
+    if op_name in [Concat.op_name, BroadcastAdd.op_name,
+        ElemwiseAdd.op_name]:
         op = get_mxnet_op(op_name)(*nodes, **attr, name=name)
         infer_prec = max(cprecs) if op_name == Concat.op_name \
             else max(cprecs)+1
@@ -838,7 +840,7 @@ def _quantize_scale(op, **kwargs):
         infer_prec = max(cprecs) + kprec
         op = nodes[0]
     else:
-        raise NotADirectoryError(
+        raise NotImplementedError(
             "symbol merge function of op_name: %s has not been " + \
             "implemented, name: %s" % (op_name, name))
     precs[name][OUT_KEY] = infer_prec
