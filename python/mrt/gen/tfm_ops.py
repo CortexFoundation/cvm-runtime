@@ -733,6 +733,15 @@ class ElemwiseAdd(tops.ElemwiseAdd, Transformer):
 class BroadcastDiv(Transformer):
     pass
 
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_transformer("SwapAxis")
+class SwapAxis(Transformer, tops.SwapAxis):
+    pass
+
 def _quantize_scale_zp(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
     buffers, cfg_dict = kwargs['buffers'], kwargs['cfg_dict']

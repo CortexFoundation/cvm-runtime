@@ -285,9 +285,11 @@ def sym_separate_pad(symbol, params):
         if op_name not in [Convolution.op_name]:
             return op
 
-        assert 'layout' in attr and attr['layout'] == 'NCHW'
+        if 'layout' in attr:
+            assert attr['layout'] == 'NCHW'
         PH, PW = sutils.get_attr(attr, 'pad', (0,0))
-        del attr['pad']
+        if 'pad' in attr:
+            del attr['pad']
         if PH == 0 and PW == 0:
             return sutils.get_mxnet_op(op_name)(*childs, **attr, name=name)
 
@@ -316,7 +318,8 @@ def sym_separate_bias(symbol, params):
             childs[0], childs[1], **attr, name=N.n(name))
         bn = childs[2].attr('name')
         if op_name == Convolution.op_name:
-            assert 'layout' in attr and attr['layout'] == 'NCHW'
+            if 'layout' in attr:
+                assert attr['layout'] == 'NCHW'
             B = mx.sym.expand_dims(childs[2], axis=0, name=N.n('expand_dims'))
             B = mx.sym.expand_dims(B, axis=-1, name=N.n('expand_dims'))
             B = mx.sym.expand_dims(B, axis=-1, name=N.n(bn))
