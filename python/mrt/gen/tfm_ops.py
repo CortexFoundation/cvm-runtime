@@ -742,6 +742,57 @@ class BroadcastDiv(Transformer):
 class SwapAxis(Transformer, tops.SwapAxis):
     pass
 
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("compile")
+@register_pass("prepare_for_compile")
+@register_transformer('Embedding')
+class Embedding(Transformer):
+    def quantize(self, op, **kwargs):
+        features, buffers = kwargs['features'], kwargs['buffers']
+        cfg_dict = kwargs['cfg_dict']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        attr, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
+
+        xquant_type = cfg_dict[cns[0]]['quant_type']
+        wquant_type = cfg_dict[cns[1]]['quant_type']
+        xquant, wquant = \
+            get_quantizer(xquant_type), get_quantizer(wquant_type)
+        oprec = kwargs['op_input_precs'][op_name]
+
+        if xquant_type == wquant_type == USQuantizer.name:
+            X, xs = childs[0], buffers[cns[0]]
+            if xs != 1:
+                X, _, _ = xquant.quantize(X, 32, oscale=1, oname=name, **kwargs)
+            W, _, ws = wquant.quantize(childs[1], oprec, oname=name, **kwargs)
+            features[name] = features[cns[1]]
+            buffers[name] = SBuffer(ws)
+            kwargs['precs'][name][OUT_KEY] = get_bit_exp(features[name].get()*ws)
+            op = get_mxnet_op(op_name)(X, W, **attr, name=name)
+        else:
+            raise NotImplementedError(
+                "Quantization type not implementated," + \
+                " op: %20s, Xquant: %20s, Wquant: %20s" % \
+                (op_name, [xquant_type, wquant_type]))
+
+        return op
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer('expand_dims')
+class ExpandDims(Transformer, tops.ExpandDims):
+    pass
+
 def _quantize_scale_zp(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
     buffers, cfg_dict = kwargs['buffers'], kwargs['cfg_dict']
