@@ -141,6 +141,7 @@ class MRT(tfm.MRT):
         self.features[name] = AFeature(threshold)
 
     def quantize(self):
+        # # print out zero point quantization candidates
         #  from mrt.sym_utils import is_params, sym_iter
         #  sym, params = self.current_model.symbol, self.current_model.params
         #  for s in topo_sort(sym):
