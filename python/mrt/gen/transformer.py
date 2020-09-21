@@ -10,13 +10,14 @@ from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort
 from mrt.tfm_pass import OUT_KEY
-from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP
+from .tfm_types import get_feature, get_buffer, BUF_TYPE_EXP, AFeature
 from .tfm_pass import quantize, sym_calibrate, rewrite, \
                       sym_config_infos, sym_slice_channel, \
                       sym_separate_pad, sym_separate_bias, \
                       prepare_for_compile
 
 from mrt import transformer as tfm
+from mrt import sym_utils as sutils
 from mrt import utils
 from mrt import sim_quant_helper as sim
 from mrt import tfm_pass as tpass
@@ -28,10 +29,12 @@ __all__ = ["MRT", "Model"]
 class Model(tfm.Model):
     @staticmethod
     def load(symbol_file, params_file):
-        """ Model load from disk. """
         symbol = mx.sym.load(symbol_file)
         params = nd.load(params_file)
         return Model(symbol, params)
+
+    def split(self, keys):
+        return split_model(self, keys)
 
     def prepare(self, input_shape=None):
         model = init(self, input_shape)
@@ -134,6 +137,9 @@ class MRT(tfm.MRT):
         op_precs['batch_dot'] = 8
         op_precs['add_n'] = 16
 
+    def set_threshold(self, name, threshold):
+        self.features[name] = AFeature(threshold)
+
     def quantize(self):
         #  from mrt.sym_utils import is_params, sym_iter
         #  sym, params = self.current_model.symbol, self.current_model.params
@@ -222,3 +228,28 @@ def reduce_graph(model, input_shapes):
     _sym, _prm = prepare_for_compile(_sym, _prm)
     _sym, _prm = tpass.fuse_constant(_sym, _prm)
     return Model(_sym, _prm)
+
+def split_model(model, keys):
+    symbol, params = model.symbol, model.params
+    nodes = [s for s in topo_sort(symbol) if s.attr('name') in keys]
+    base = nodes[0] if len(nodes) == 1 else mx.sym.Group(nodes)
+    base_params = {k:params[k] for k in base.list_inputs() if k in params}
+
+    graph = {}
+    infer_shapes = tpass.infer_shape(symbol, params)
+    for sym in topo_sort(symbol):
+        name, op_name = sym.attr('name'), sym.attr('op_name')
+        childs, attr = sutils.sym_iter(sym.get_children()), sym.list_attr()
+        node = sym
+        if childs is not None:
+            childs = [sutils.get_node(c, graph) for c in childs]
+            node = sutils.get_mxnet_op(op_name)(*childs, **attr, name=name)
+        if name in keys:
+            node = mx.sym.var(name, \
+                shape=infer_shapes[name][sutils.get_entry_id(sym)])
+        graph[name] = node
+    nodes = [sutils.get_node(c, graph) for c in symbol]
+    top = nodes[0] if len(nodes) == 1 else mx.sym.Group(nodes)
+    top_params = {k:params[k] for k in top.list_inputs() if k in params}
+
+    return Model(base, base_params), Model(top, top_params)

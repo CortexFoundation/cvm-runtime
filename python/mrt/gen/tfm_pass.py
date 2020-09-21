@@ -95,7 +95,7 @@ def deserialize(cfg_groups):
         try:
             names = json.loads(names.replace(".", ","))
         except:
-            raise ValueError("Invalid value, names: %s" % names)
+            raise ValueError("Invalid value, names: %s", names)
 
         # Deserialize
         cfg_info = {}
@@ -108,8 +108,8 @@ def deserialize(cfg_groups):
                     val.replace(".", ",").replace(";", ":"))
             except:
                 raise ValueError(
-                    "Invalid value, names: %s, attr: %s, val: %s" % \
-                    (names, attr, val))
+                    "Invalid value, names: %s, attr: %s, val: %s",
+                    names, attr, val)
             cfg_info[attr] = val
 
         # Granularity Settings Validate
@@ -117,44 +117,41 @@ def deserialize(cfg_groups):
         if "gn_type" not in gn_info:
             raise ValueError(
                 "Please specify the opt_type, names: %s, " + \
-                "opt_info: %s" % (names, opt_info))
+                "opt_info: %s", names, opt_info)
         gn_type = gn_info["gn_type"]
         if gn_type == CHANNEL_WISE_TYPE:
             if "ichannel" not in gn_info:
                 raise ValueError(
                     "Please specify the axis number of channel " + \
-                    "(ichannel), names: %s" % names)
+                    "(ichannel), names: %s", names)
             ichannel = gn_info["ichannel"]
             if not isinstance(ichannel, int):
                 raise ValueError(
                     "Please specify the correct axis number of channel " + \
-                    "(ichannel), names: %s, ichannel: %s" % \
-                    (names, ichannel))
+                    "(ichannel), names: %s, ichannel: %s", names, ichannel)
             if "step" not in gn_info:
                 raise ValueError(
                     "Please specify the step size of channel " + \
-                    "(step), names: %s" % names)
+                    "(step), names: %s", names)
             step = gn_info["step"]
             if not isinstance(step, int):
                 raise ValueError(
                     "Please specify the correct step of channel " + \
-                    "(step), names: %s, step: %s" % (names, step))
+                    "(step), names: %s, step: %s", names, step)
         elif gn_type == LAYER_WISE_TYPE:
             if len(gn_info) > 1:
                 raise ValueError(
-                    "Redundant values in gn_info: %s" % gn_info)
+                    "Redundant values in gn_info: %s", gn_info)
         else:
             raise TypeError(
-                "Unsupported granulari type: %s, names: %s" % \
-                (gn_type, names))
+                "Unsupported granulari type: %s, names: %s", gn_type, names)
         cfg_info["gn_info"] = gn_info
 
         # Quantizer Settings Validate
         quant_type = cfg_info.get("quant_type", DEFAULT_QUANT_TYPE)
         if quant_type not in QUANT_REG:
             raise TypeError(
-                "Unsupported quantizer type: %s, names: %s" % \
-                (quant_type, names))
+                "Unsupported quantizer type: %s, names: %s", quant_type, names)
         cfg_info["quant_type"] = quant_type
 
         # Optimizor Settings Validate
@@ -162,17 +159,16 @@ def deserialize(cfg_groups):
         if "opt_type" not in opt_info:
             raise ValueError(
                 "Please specify the opt_type, names: %s, " + \
-                "opt_info: %s" % (names, opt_info))
+                "opt_info: %s", names, opt_info)
         opt_type = opt_info["opt_type"]
         if opt_type not in OPT_REG:
             raise TypeError(
-                "Unsupported optimizor type: %s, names: %s" % \
-                (opt_type, names))
+                "Unsupported optimizor type: %s, names: %s", opt_type, names)
         if quant_type not in OPT_REG[opt_type].list_supported_quant_types():
             raise ValueError(
                 "quantizer type: (%s) is not supported by " + \
-                "optimizor type: (%s), names: %s" % \
-                (quant_type, opt_type, names))
+                "optimizor type: (%s), names: %s",
+                quant_type, opt_type, names)
         opt_attrs = opt_info.copy()
         opt_attrs.pop("opt_type")
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
@@ -180,8 +176,7 @@ def deserialize(cfg_groups):
             if k not in opt_attr_types:
                 raise ValueError(
                     "Attribute: (%s) is not found in " + \
-                    "optimizor type: (%s), names: %s" % \
-                    (k, opt_type, names))
+                    "optimizor type: (%s), names: %s", k, opt_type, names)
             dtypes = opt_attr_types[k]
             if isinstance(v, int) and float in dtypes and int not in dtypes:
                 v = float(v)
@@ -191,8 +186,7 @@ def deserialize(cfg_groups):
                 raise TypeError(
                     "Attribute: (%s) dtype: (%s) is not compatible " + \
                     "with any of supported dtypes: (%s), names: %s, " + \
-                    "optimizor type: %s" % \
-                    (k, type(v), dtypes, names, opt_type))
+                    "optimizor type: %s", k, type(v), dtypes, names, opt_type)
         cfg_info["opt_info"] = make_key_opt(opt_info)
 
         for name in names:

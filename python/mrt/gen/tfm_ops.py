@@ -109,8 +109,8 @@ class FullyConnected(tops.FullyConnected, Transformer):
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Xquant: %20s, Wquant: %20s" % \
-                (op_name, [xquant_type, wquant_type]))
+                " op: %20s, Xquant: %20s, Wquant: %20s",
+                op_name, [xquant_type, wquant_type])
 
         logger = logging.getLogger('log.mrt.realize')
         logger.debug(
@@ -316,8 +316,8 @@ class Convolution(tops.Convolution, Transformer):
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Xquant: %20s, Wquant: %20s" % \
-                (op_name, [xquant_type, wquant_type]))
+                " op: %20s, Xquant: %20s, Wquant: %20s",
+                op_name, [xquant_type, wquant_type])
 
         logger = logging.getLogger('log.mrt.realize')
         logger.debug(
@@ -367,8 +367,8 @@ class BroadcastAdd(tops.BroadcastAdd, Transformer):
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Aquant: %20s, Bquant: %20s" % \
-                (op_name, [aquant_type, bquant_type]))
+                " op: %20s, Aquant: %20s, Bquant: %20s",
+                op_name, [aquant_type, bquant_type])
         return op
 
 
@@ -619,8 +619,8 @@ class BroadcastMul(tops.BroadcastMul, Transformer):
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Xquant: %20s, Wquant: %20s" % \
-                (op_name, [xquant_type, bquant_type]))
+                " op: %20s, Xquant: %20s, Wquant: %20s",
+                op_name, [xquant_type, bquant_type])
 
         logger = logging.getLogger('log.mrt.realize')
         logger.debug(
@@ -776,8 +776,8 @@ class Embedding(Transformer):
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Xquant: %20s, Wquant: %20s" % \
-                (op_name, [xquant_type, wquant_type]))
+                " op: %20s, Xquant: %20s, Wquant: %20s",
+                op_name, [xquant_type, wquant_type])
 
         return op
 
@@ -792,6 +792,154 @@ class Embedding(Transformer):
 @register_transformer('expand_dims')
 class ExpandDims(Transformer, tops.ExpandDims):
     pass
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_transformer("LeakyReLU")
+class LeakyReLU(Transformer, tops.LeakyReLU):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_transformer("_mul_scalar")
+class MulScalar(Transformer, tops.MulScalar):
+    pass
+
+
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("repeat")
+class Repeat(Transformer, tops.Repeat):
+    pass
+
+
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("slice_like")
+class SliceLike(Transformer, tops.SliceLike):
+    def quantize(self, op, **kwargs):
+        return _quantize_scale(op, **kwargs)
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+# @register_pass("prepare_for_compile") # only for restore
+@register_transformer("sigmoid")
+class Sigmoid(Transformer, tops.Sigmoid):
+    def quantize(self, op, **kwargs):
+        return _quantize_table(op, **kwargs)
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+# @register_pass("prepare_for_compile") # only for restore
+@register_transformer("exp")
+class Exp(Transformer, tops.Exp):
+    def quantize(self, op, **kwargs):
+        return _quantize_table(op, **kwargs)
+
+
+@register_pass("compile")
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("calculate_ops")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_transformer("elemwise_sub")
+class ElemwiseSub(Transformer, tops.ElemwiseSub):
+    def quantize(self, op, **kwargs):
+        return _quantize_scale(op, **kwargs)
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("tile")
+class Tile(Transformer, tops.Tile):
+    pass
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer('_contrib_box_nms')
+class BoxNms(Transformer):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("quantize")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("negative")
+class Negative(Transformer, tops.Negative):
+    pass
+
+def _quantize_table(op, **kwargs):
+    params, graph = kwargs['params'], kwargs['graph']
+    features, precs, buffers = \
+        kwargs['features'], kwargs['precs'], kwargs['buffers']
+    cfg_dict = kwargs['cfg_dict']
+    name, op_name = op.attr('name'), op.attr('op_name')
+    childs = sym_iter(op.get_children())
+    cns = [c.attr('name') for c in childs] if childs else []
+
+    xquant_type = cfg_dict[cns[0]]['quant_type']
+    xquant = get_quantizer(xquant_type)
+
+    iprec = kwargs['op_input_precs'][op_name]
+    xs = scale_exp(features[cns[0]].get(), iprec)
+    X, xprec, xs = xquant.quantize(
+        childs[0], iprec, oscale=xs, oname=name, **kwargs)
+    alpha = get_range_exp(xprec)
+    var = nd_const(alpha, graph, params)
+    X = mx.sym.broadcast_add(X, var, name=N.n(op_name+'_offset'))
+
+    out = sutils.get_nd_op(op_name)(sutils.nd_arange(-alpha, alpha+1) / xs)
+    oprec = precs[name].get(OUT_KEY, 16)
+    oscale = scale_exp(out.abs().max().asscalar(), oprec)
+    buffers[name] = SBuffer(oscale)
+
+    W_name = N.n("cvm_lut_weight")
+    params[W_name] = weight = (out * oscale).round().reshape(2*alpha+1, 1)
+    wattr = {'precision': str(oprec)}
+    W = graph[W_name] = mx.sym.var(W_name, shape=weight.shape, attr=wattr)
+    op = mx.sym.Custom(X, W, in_dim=2*alpha+1, name=name, op_type='cvm_lut')
+    precs[name][OUT_KEY] = oprec
+
+    logger = logging.getLogger('log.mrt.realize')
+    logger.debug("operator  %-20s name=%-40s oscale=%s, iscale=%s",
+                 op_name, name, buffers[name].serialize(), cns)
+    return op
 
 def _quantize_scale_zp(op, **kwargs):
     features, precs = kwargs['features'], kwargs['precs']
@@ -853,7 +1001,7 @@ def _quantize_scale_zp(op, **kwargs):
     else:
         raise NotADirectoryError(
             "symbol merge function of op_name: %s has not been " + \
-            "implemented, name: %s" % (op_name, name))
+            "implemented, name: %s", op_name, name)
     precs[name][OUT_KEY] = infer_prec
 
     logger = logging.getLogger('log.mrt.realize')
@@ -886,7 +1034,7 @@ def _quantize_scale(op, **kwargs):
         nodes.append(c)
 
     if op_name in [Concat.op_name, BroadcastAdd.op_name,
-        ElemwiseAdd.op_name]:
+        ElemwiseAdd.op_name, ElemwiseSub.op_name, SliceLike.op_name]:
         op = get_mxnet_op(op_name)(*nodes, **attr, name=name)
         infer_prec = max(cprecs) if op_name == Concat.op_name \
             else max(cprecs)+1
@@ -902,7 +1050,7 @@ def _quantize_scale(op, **kwargs):
     else:
         raise NotImplementedError(
             "symbol merge function of op_name: %s has not been " + \
-            "implemented, name: %s" % (op_name, name))
+            "implemented, name: %s", op_name, name)
     precs[name][OUT_KEY] = infer_prec
 
     logger = logging.getLogger('log.mrt.realize')

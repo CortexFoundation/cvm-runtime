@@ -626,8 +626,7 @@ class HVOptimizor(Optimizor):
                 opt = MMFeature(min(minv, hminv), max(maxv, hmaxv))
         else:
             raise TypeError(
-                "Unsupported feature type: %s for HVOptimizor" % \
-                type(raw_ft))
+                "Unsupported feature type: %s for HVOptimizor", type(raw_ft))
         return opt
 
     @staticmethod
@@ -668,8 +667,7 @@ class MAOptimizor(Optimizor):
                     (1-self.c)*hmaxv + self.c*maxv)
         else:
             raise TypeError(
-                "Unsupported feature type: %s for MAOptimizor" % \
-                type(raw_ft))
+                "Unsupported feature type: %s for MAOptimizor", type(raw_ft))
         return opt
 
     @staticmethod
@@ -771,7 +769,7 @@ class KLDOptimizor(Optimizor):
         if not isinstance(raw_ft, AFeature):
             raise TypeError(
                 "KLDOptimizor do not support feature type: %s, " + \
-                "only AFeature is supported" % type(raw_ft))
+                "only AFeature is supported", type(raw_ft))
 
         absmax = raw_ft.get()
         kval = self._kldiverge(absmax, out)
