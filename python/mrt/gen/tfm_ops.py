@@ -889,7 +889,7 @@ class Tile(Transformer, tops.Tile):
 @register_pass("prepare_for_compile")
 @register_pass("compile")
 @register_transformer('_contrib_box_nms')
-class BoxNms(Transformer):
+class BoxNms(Transformer, tops.BoxNms):
     pass
 
 
@@ -902,6 +902,55 @@ class BoxNms(Transformer):
 @register_pass("compile")
 @register_transformer("negative")
 class Negative(Transformer, tops.Negative):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_transformer("_plus_scalar")
+class PlusScalar(Transformer, tops.PlusScalar):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_transformer("zeros_like")
+class ZerosLike(Transformer, tops.ZerosLike):
+    pass
+
+
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_pass("validate")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("_greater_scalar")
+class GreaterScalar(Transformer, tops.GreaterScalar):
+    pass
+
+
+@register_pass("calculate_ops")
+@register_pass("validate")
+@register_pass("rewrite")
+@register_pass("fuse_transpose")
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("where")
+class Where(Transformer, tops.Where):
+    pass
+
+
+@register_pass("validate")
+@register_pass("calculate_ops")
+@register_pass("fuse_transpose")
+@register_pass("rewrite")
+@register_transformer("ones_like")
+class OnesLike(Transformer, tops.OnesLike):
     pass
 
 def _quantize_table(op, **kwargs):
