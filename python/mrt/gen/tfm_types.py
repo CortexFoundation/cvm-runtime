@@ -45,8 +45,12 @@ def register_feature(name):
 
 
 class Feature:
-    """
+    """ The data structure which specifies the object of data sampling in calibration stage.
+
+        Feature can be manipulated in quantization stage.
+
         out -> features
+        Quantization schemes display.
 
         Parameters & Inputs
         -> Quantize()
@@ -60,7 +64,7 @@ class Feature:
 
         S, P = f.Quantize(S, P, scale, target_precision)
 
-        - add new operators
+        New operators that is possibly needed.
 
         1. naive: abs(max(out)) = opt_value > [-opt_value, opt_value]
             -> [-127, 127]
@@ -88,11 +92,25 @@ class Feature:
             " base `__init__` function defined in Feature")
 
     def get(self):
+        """ Get the value of feature.
+
+            Returns
+            -------
+            ret : float or tuple
+                The feature value.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `get` function defined in Feature")
 
     def serialize(self):
+        """ Serialize the feature into list to be compatible with json.
+
+            Returns
+            -------
+            ret : list
+                list of serialized features.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " feature not override the" + \
             " base `toJSON` function defined in Feature")
@@ -100,7 +118,9 @@ class Feature:
 
 @register_feature("Absmax")
 class AFeature(Feature):
-    """ Absmax Feature
+    """ AFeature is designed for uniform symmetric quantization.
+        absmax stands for the max of the absolute value
+        of every entry in the input tensor.
     """
     def __init__(self, *args):
         assert len(args) == 1
@@ -129,7 +149,9 @@ class ALFeatrue(Feature):
 
 @register_feature("MinMax")
 class MMFeature(Feature):
-    """ Min and Max Feature
+    """ MMFeature is designed for unifrom affine quantization.
+        minv and maxv respectively stand for the min and max entries
+        of the input tensor.
     """
     def __init__(self, *args):
         assert len(args) == 2
@@ -142,6 +164,20 @@ class MMFeature(Feature):
         return [self.name, self.minv, self.maxv]
 
 def get_feature(ft_type, *args):
+    """ Create the feature with repect to the feature type.
+
+        Parameters
+        ----------
+        ft_type : str
+            The type of the feature.
+        *args : float or list
+            The init value of the specified feature.
+
+        Returns
+        -------
+        ret : Feature
+            The created feature.
+    """
     if ft_type not in FT_REG:
         raise TypeError("Unknown feature type: %20s", ft_type)
     return FT_REG[ft_type](*args)
@@ -167,6 +203,9 @@ def register_buffer(name):
 
 
 class Buffer:
+    """ Quantization buffer used to store the scale.
+        For uniform affine quantizers, the zero point is also stored.
+    """
     name = None
 
     def __init__(self, *args):
@@ -175,11 +214,25 @@ class Buffer:
             " base `__init__` function defined in Buffer")
 
     def get(self):
+        """ Get the value of buffer.
+
+            Returns
+            -------
+            ret : float or tuple
+                The buffer value.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
             " base `get` function defined in Buffer")
 
     def serialize(self):
+        """ Serialize the buffer into list to be compatible with json.
+
+            Returns
+            -------
+            ret : list
+                list of serialized buffers.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " buffer not override the" + \
             " base `serialize` function defined in Buffer")
@@ -187,7 +240,8 @@ class Buffer:
 
 @register_buffer("Scale")
 class SBuffer(Buffer):
-    """ Scale Buffer
+    """ SBuffer is designed for uniform symmetric quantizers,
+        where scale is stored.
     """
     def __init__(self, *args):
         assert len(args) == 1
@@ -216,7 +270,8 @@ class SLBuffer(Buffer):
 
 @register_buffer("ScaleZpoint")
 class SZBuffer(Buffer):
-    """ Scale and Zero Point Buffer
+    """ SZBuffer is designed for uniform affine quantizers,
+        where both scale and zero point is stored.
     """
     def __init__(self, *args):
         assert len(args) == 2
@@ -229,6 +284,20 @@ class SZBuffer(Buffer):
         return [self.name, self.scale, self.zpoint]
 
 def get_buffer(buf_type, *args):
+    """ Create the buffer with repect to the buffer type.
+
+        Parameters
+        ----------
+        buf_type : str
+            The type of the buffer.
+        *args : float or list
+            The init value of the specified buffer.
+
+        Returns
+        -------
+        ret : Buffer
+            The created buffer.
+    """
     if buf_type not in BUF_REG:
         raise TypeError("Unknown buffer type: %20s", buf_type)
     return BUF_REG[buf_type](*args)
@@ -304,7 +373,7 @@ US_QUANT_TYPE = "UniformSymmetric"
 
 @register_quantizer(US_QUANT_TYPE)
 class USQuantizer(Quantizer):
-    """ Information data type for uniform symmetric quantizaton
+    """ Uniform symmetric quantizer
     """
     def sample(self, data, **kwargs):
         absmax = float(data.abs().max().asscalar())
@@ -416,7 +485,7 @@ class USQuantizer(Quantizer):
 
 @register_quantizer("UniformAffine")
 class UAQuantizer(Quantizer):
-    """ Information data type for uniform affine quantizaton
+    """ Uniform affine quantizer
     """
     def sample(self, data):
         minv = float(data.min().asscalar())
