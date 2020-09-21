@@ -165,6 +165,14 @@ class MRT(tfm.MRT):
                         #  print(maxv, minv, cname)
         #  exit()
 
+        # # print out channel slice candidates
+        # sym, params = self.current_model.symbol, self.current_model.params
+        # for s in topo_sort(sym):
+            # name, op_name = s.attr('name'), s.attr('op_name')
+            # if op_name in ["Convolution"]:
+                # print(name)
+        # exit()
+
         _sym, _prm = quantize(
             self.current_model.symbol, self.current_model.params,
             self.features, self.precs, self.buffers, self.cfg_dict,
