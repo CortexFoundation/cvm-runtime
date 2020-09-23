@@ -455,3 +455,74 @@ $$
 Ye = quantize_scale(**Xqs, **attrs)
 infer_prec = max(xprecs) if op_name == "Concat" else max(xprecs)+1
 ```
+
+### Op-level Configuration Turorial
+
+#### Optimized Quantization
+
+MRT GEN support op-level **channel-slice** and **zero point specification** to optimize the quantization process for a better int inference result. Two steps are needed in the optimization process.
+
+**Step 1. Find out potential layers to optimize**
+
+A simple method is to print out the names of all the layers like follows. See [mrt.gen.Transformer.py](https://github.com/CortexFoundation/cvm-runtime/blob/archRev/python/mrt/gen/transformer.py)
+
+```python
+        print out zero point quantization candidates
+        from mrt.sym_utils import is_params, sym_iter
+        sym, params = self.current_model.symbol, self.current_model.params
+        for s in topo_sort(sym):
+            name, op_name = s.attr('name'), s.attr('op_name')
+            if op_name in ["broadcast_add"]:
+                childs = sym_iter(s.get_children())
+                for c in childs:
+                    cname = c.attr('name')
+                    if is_params(c, params):
+                        weight = params[cname]
+                        maxv = weight.max().asscalar()
+                        minv = weight.min().asscalar()
+                        print(cname)
+            elif op_name in ["Convolution"]:
+                childs = sym_iter(s.get_children())
+                for c in childs:
+                    cname = c.attr('name')
+                    if is_params(c, params):
+                        weight = params[cname]
+                        maxv = weight.max().asscalar()
+                        minv = weight.min().asscalar()
+                        print(maxv, minv, cname)
+        exit()
+```
+
+**Step 2. Set up Cfg_groups in configuration file**
+
+See [Configuration Example](https://github.com/CortexFoundation/cvm-runtime/blob/archRev/python/mrt/gen/model_zoo/config.example.ini). An examplary configuration is provide.
+
+```ini
+...
+[CALIBRATION]
+# [Optional] Calibration batch size, 16 by default.
+Batch=16
+# [Optional] Iterator numbers of calibration, 1 by default.
+Calibrate_num=1
+# [Optional] Granularity, Quantizer and Optimizor Configuration for specified nodes 
+Cfg_groups=
+  ["mrt_sym_separate_bias_alexnet0_conv0_fwd_0"]: gn_info: {"gn_type"; "channel-wise". "ichannel"; 1. "step"; 1},
+  ["alexnet0_conv0_weight"]: quant_type: UniformAffine,
+ 	["mrt_sym_separate_bias_alexnet0_dense1_bias_0"]: quant_type: UniformAffine
+...
+```
+
+#### Layer-wise Restoration
+
+Also, both MRT and MRT GEN support layer-wise **restoration** for debugging purpose if MRT is developed for enhancement purposes. See [Configuration Example](https://github.com/CortexFoundation/cvm-runtime/blob/archRev/python/mrt/gen/model_zoo/config.example.ini). The restore can be specified by symbol names in `Restore_name`:
+
+```ini
+[QUANTIZATION]
+...
+# [Optional] Debug usage
+Restore_name=
+...
+```
+
+
+
