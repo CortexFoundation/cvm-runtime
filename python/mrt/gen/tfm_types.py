@@ -48,41 +48,6 @@ class Feature:
     """ The data structure which specifies the object of data sampling in calibration stage.
 
         Feature can be manipulated in quantization stage.
-
-        out -> features
-        Quantization schemes display.
-
-        Parameters & Inputs
-        -> Quantize()
-        : Weight -> Int8
-
-        QuantizeExtraInfo()
-        f = Feature(out)
-
-        S2, P2, info = f.Quantize(S1, P1, info=default,
-        target_precision, target_scale)
-
-        S, P = f.Quantize(S, P, scale, target_precision)
-
-        New operators that is possibly needed.
-
-        1. naive: abs(max(out)) = opt_value > [-opt_value, opt_value]
-            -> [-127, 127]
-            scale.shape = (1,)
-        2. outlier remove -> opt_value < abs(max(out)) -> [-127, 127]:
-            KMeans methods
-        3. out -> [minV, maxV] -> [-r, r]
-            zero_point = (minV + maxV) / 2
-            (out - zero_point) <> [-r, r] -> [-127, 127]
-        4. layerwise-quantize: out -> (N, C, H, W) * scale -> [-127, 127]
-            -> layer (N, i, H, W) -> opt_value, -> [-127, 127]:
-            image classification or detection
-            mobilenet -> significant improve
-            [opt_value_i] -> (1, C, 1, 1) >> cvm_right_shift
-            scale.shape = (out[1],)
-            -> precision
-        5. for i in out -> [-127, 127]
-            scale.shape = out.shape
     """
     name = None
 
@@ -323,46 +288,145 @@ def register_quantizer(name):
 
 
 class Quantizer:
+    """ Helper class to execute quantization process.
+
+        Current quantizer types supported by MRT GEN:
+            1. Uniform Symmetric Quantization
+            2. Uniform Affine Quantization
+    """
     name = None
 
     def sample(self, data, **kwargs):
+        """ Create the feature with repect to the feature type.
+
+            Parameters
+            ----------
+            data : mxnet.NDArray
+                The input data feature.
+
+            Returns
+            -------
+            ret : Feature
+                The created feature.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `sample` function defined in Quantizer")
 
     def get_range(self, prec):
+        """ Get the quantizer range of with respect to the given precision.
+
+            Parameters
+            ----------
+            prec : int
+                The specified precision.
+
+            Returns
+            -------
+            ret : tuple
+                The minimal and maximal possible value.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_range` function defined in Quantizer")
 
     def get_scale(self, oprec, ft):
+        """ Get the quantizer scale.
+
+            Parameters
+            ----------
+            oprec : int
+                The quantize precision of the node.
+            ft : mrt.gen.Feature
+                The feature of the node to be quantized.
+
+            Returns
+            -------
+            ret : float
+                The quantizer scale.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_scale` function defined in Quantizer")
 
     def get_prec(self, val):
+        """ Get the quantizer precision with respect to the given value.
+
+            For quantizers like uniform symmetric quantizers,
+            the returned precision should be 'int',
+
+            For quantizers like uniform affine quantizers,
+            the returned precision should be 'uint'.
+
+            Parameters
+            ----------
+            val : float
+                The quantize precision of the node.
+
+            Returns
+            -------
+            ret : int
+                The quantizer precision.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `get_prec` function defined in Quantizer")
 
     def quantize(self, sym, oprec, oscale=None, **kwargs):
+        """ The interface where operator quantization is perfomed.
+
+            Parameters
+            ----------
+            sym : mxnet.symbol
+                The expansion symbol or float weight symbol to be quantized.
+            oprec : int
+                The output precision of the quantized symbol.
+            oscale : flaot or NoneType
+                The output scale of the quantized symbol.
+                If it's not NoneType, the expansion operator will be quantized by output scale.
+                Otherwise, it will be quantized by output precision.
+
+            Returns
+            -------
+            ret : tuple
+                Respectively output quantized symbol, output precision, output scale.
+                For quantizers like uniform affine quantizer, zero point is also returned.
+        """
         if sutils.is_params(sym, kwargs["params"]):
             return self._quantize_parameter(sym, oprec, oscale=oscale, **kwargs)
         return self._quantize_operator(sym, oprec, oscale=oscale, **kwargs)
 
     def _quantize_parameter(self, W, oprec, oscale=None, **kwargs):
+        """ Float quantization interface for weight operators.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_parameter` function " + \
             "defined in Quantizer")
 
     def _quantize_operator(self, X, oprec, oscale=None, **kwargs):
+        """ Int quantization interface for expansion operators.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `_quantize_opoerator` function " + \
             "defined in Quantizer")
 
     def int_realize(self, data, prec, **kwargs):
+        """ Realize the given input with respect to the given precision bound.
+
+            Parameters
+            ----------
+            data : mxnet.NDArray
+                The float weight to be realized.
+            prec : int
+                The output precision bound.
+
+            Returns
+            -------
+            ret : tuple
+                The realized result and the tight precision.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " quantizer not override the" + \
             " base `int_realize` function " + \
@@ -622,7 +686,7 @@ def register_optimizor(name):
 
 
 class Optimizor:
-    """ Currently supported optimizor types intended for sampling:
+    """ Currently supported optimizor types intended for sampling optimization:
             1. historical value
             2. moving average
             3. kl divergence
@@ -641,12 +705,28 @@ class Optimizor:
             setattr(self, attr, value)
 
     def get_opt(self, raw_ft, out, **kwargs):
+        """ Get the optimized value of the calibrated feature.
+
+            Parameters
+            ----------
+            raw_ft : float
+                The calibrated feature.
+            out : mxnet.NDArray
+                The original data from which the raw_ft is calibrated.
+
+            Returns
+            -------
+            ret : float
+                The optimized feature.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
             " base `get_opt` function defined in Optimizor")
 
     @staticmethod
     def list_supported_quant_types():
+        """ List the supported quantizer types.
+        """
         raise NotImplementedError(
             "Derived " + self.name + " optimizor not override the" + \
             " base `list_supported_quant_types` function defined in Optimizor")

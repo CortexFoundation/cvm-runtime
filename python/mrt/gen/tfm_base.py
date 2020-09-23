@@ -1,4 +1,9 @@
+""" Customized Symbolic Pass Interfaces.
+    Base passes with default operation settings for MRT GEN.
+    Collection of transformer management functions.
+"""
 import logging
+
 
 import mxnet as mx
 
@@ -8,6 +13,9 @@ from mrt.tfm_pass import OUT_KEY
 from mrt import tfm_base as tbase
 
 class Transformer(tbase.Transformer):
+    """ Generalized transformer which provide default slice_channel and quantize interface for specific ops.
+        Other default transformer interface like fuse_transpose is inherited.
+    """
     def slice_channel(self, op, **kwargs):
         """ Operators will be split into multiple channels for intended for quantization of channel-wise granularity.
 
@@ -16,6 +24,8 @@ class Transformer(tbase.Transformer):
         return op
 
     def quantize(self, op, **kwargs):
+        """ Generalized version of quantization for quantization.
+        """
         precs, buffers = kwargs['precs'], kwargs['buffers']
         name, op_name = op.attr('name'), op.attr('op_name')
         childs = sym_iter(op.get_children())

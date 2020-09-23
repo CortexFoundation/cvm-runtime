@@ -8,39 +8,43 @@ MRT Generalized Quantization API
 .. _mrt_gen_api:
 
 
-Transformer Helper Types
-------------------------
+Quantizer API
+-------------
 .. automodule:: mrt.gen.tfm_types
 
 
-.. autoclass:: Feature
+.. autoclass:: mrt.gen.tfm_types.Feature
+  :members:
 
 
-.. autoclass:: AFeature
+.. autoclass:: mrt.gen.tfm_types.AFeature
 
 
-.. autoclass:: MMFeature
+.. autoclass:: mrt.gen.tfm_types.MMFeature
 
 
-.. autoclass:: Buffer
+.. autoclass:: mrt.gen.tfm_types.Buffer
+  :members:
 
 
-.. autoclass:: SBuffer
+.. autoclass:: mrt.gen.tfm_types.SBuffer
 
 
-.. autoclass:: SZBuffer
+.. autoclass:: mrt.gen.tfm_types.SZBuffer
 
 
-.. autoclass:: Quantizer
+.. autoclass:: mrt.gen.tfm_types.Quantizer
+  :members:
 
 
-.. autoclass:: USQuantizer
+.. autoclass:: mrt.gen.tfm_types.USQuantizer
 
 
-.. autoclass:: UAQuantizer
+.. autoclass:: mrt.gen.tfm_types.UAQuantizer
 
 
-.. autoclass:: Optimizor
+.. autoclass:: mrt.gen.tfm_types.Optimizor
+  :members:
 
 
 .. autoclass:: HVOptimizor
@@ -52,28 +56,36 @@ Transformer Helper Types
 .. autoclass:: KLDOptimizor
 
 
-Derived Transformer Class
--------------------------
-.. autoclass:: mrt.gen.tfm_base.Transformer
-  :members: slice_channel
+Graph API
+---------
+.. automodule:: mrt.gen.tfm_pass
 
-
-Derived MRT Class
------------------
-.. autoclass:: mrt.gen.transformer.MRT
-  :members: set_cfg_dict
-
-Interface Passes
-----------------
-.. autofunction:: mrt.gen.tfm_pass.sym_slice_channel
 
 .. autofunction:: mrt.gen.tfm_pass.sym_config_infos
+
 
 .. autofunction:: mrt.gen.tfm_pass.deserialize
 
 
-Operator Helper Functions
--------------------------
-.. autofunction:: mrt.gen.tfm_ops.separate_bias
+.. autofunction:: mrt.gen.tfm_pass.sym_calibrate
 
-.. autofunction:: mrt.gen.tfm_ops.separate_pad
+
+.. autofunction:: mrt.gen.tfm_pass.sym_separate_pad
+
+
+.. autofunction:: mrt.gen.tfm_pass.sym_separate_bias
+
+
+.. autofunction:: mrt.gen.tfm_pass.sym_slice_channel
+
+
+.. autofunction:: mrt.gen.tfm_pass.quantize
+
+
+Transformer API
+---------------
+.. automodule:: mrt.gen.tfm_base
+
+
+.. autoclass:: mrt.gen.tfm_base.Transformer
+  :members: quantize, slice_channel

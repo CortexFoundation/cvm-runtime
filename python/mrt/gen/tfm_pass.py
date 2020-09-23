@@ -1,3 +1,8 @@
+""" Collection of MRT GEN pass tions.
+    Stage-level symbol pass designation for MRT.
+    Compatible with MRT architecture.
+"""
+
 import logging
 import json
 
@@ -200,7 +205,9 @@ def deserialize(cfg_groups):
 #----------------------------
 
 def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
-    # TODO(archRev): independent of other interfaces besides sample, can be move to tfm_pass
+    """ Customized graph-level topo pass definition.
+        Interface for MRT GEN Calibration.
+    """
     logger = logging.getLogger('log.mrt')
     _, deps = sutils.topo_sort(
         symbol, logger=logger, with_deps=True)
@@ -356,7 +363,32 @@ def sym_slice_channel(symbol, params, cfg_dict={}):
 def quantize(
     symbol, params, features, precs, buffers, cfg_dict,
     op_input_precs, restore_names, shift_bits, softmax_lambd):
+    """ Customized graph-level topo pass definition.
+        Interface for MRT GEN Quantization.
 
+        Parameters
+        ----------
+        symbol : mxnet.symbol
+            the grouped output symbol represent the graph to be quantized.
+        params : dict
+            symbol name maps to mxnet.NDArray, represent graph parameters
+        features : dict
+            symbol name maps to mrt.gen.Feature
+        precs : dict
+            symbol name maps to precision dict
+        buffers : dict
+            symbol name maps to mrt.gen.Buffer
+        cfg_dict : dict
+            symbol name maps to configuration dict
+        op_input_precs : dict
+            symbol name maps to input precision
+        restore_names : set
+            set of symbol names representing symbols to be restored
+        shift_bits : int
+            hyperparameter for quantize precision control
+        softmax_lambd : float
+            hyperparameter for feature optimization
+    """
     infer_shapes = infer_shape(symbol, params)
 
     def restore(op, **kwargs):
