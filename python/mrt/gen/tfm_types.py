@@ -48,41 +48,6 @@ class Feature:
     """ The data structure which specifies the object of data sampling in calibration stage.
 
         Feature can be manipulated in quantization stage.
-
-        out -> features
-        Quantization schemes display.
-
-        Parameters & Inputs
-        -> Quantize()
-        : Weight -> Int8
-
-        QuantizeExtraInfo()
-        f = Feature(out)
-
-        S2, P2, info = f.Quantize(S1, P1, info=default,
-        target_precision, target_scale)
-
-        S, P = f.Quantize(S, P, scale, target_precision)
-
-        New operators that is possibly needed.
-
-        1. naive: abs(max(out)) = opt_value > [-opt_value, opt_value]
-            -> [-127, 127]
-            scale.shape = (1,)
-        2. outlier remove -> opt_value < abs(max(out)) -> [-127, 127]:
-            KMeans methods
-        3. out -> [minV, maxV] -> [-r, r]
-            zero_point = (minV + maxV) / 2
-            (out - zero_point) <> [-r, r] -> [-127, 127]
-        4. layerwise-quantize: out -> (N, C, H, W) * scale -> [-127, 127]
-            -> layer (N, i, H, W) -> opt_value, -> [-127, 127]:
-            image classification or detection
-            mobilenet -> significant improve
-            [opt_value_i] -> (1, C, 1, 1) >> cvm_right_shift
-            scale.shape = (out[1],)
-            -> precision
-        5. for i in out -> [-127, 127]
-            scale.shape = out.shape
     """
     name = None
 

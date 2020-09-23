@@ -1,3 +1,8 @@
+""" Collection of MRT GEN pass tions.
+    Stage-level symbol pass designation for MRT.
+    Compatible with MRT architecture.
+"""
+
 import logging
 import json
 
