@@ -528,28 +528,30 @@ Restore_name=
 
 The comparison between the original float model, mrt quantized model and non-tuned mrt gen quantized model is listed as below.
 
-| model name               | Original Float Model          | MRT Quantized Model (Tuned)  | MRT Quantized Model           | MRT GEN Quanzied Model                             |
-| ------------------------ | ----------------------------- | ---------------------------- | ----------------------------- | -------------------------------------------------- |
-| resnet50_v1              | top1=77.39%<br />top5=93.59%  | top1=76.47%<br />top5=93.28% | top1=76.41%<br />top5=93.18%  | top1=75.66%<br />top2=92.79%                       |
-| resnet50_v2              | top1=77.15%<br />top5=93.44%  | top1=70.76%<br />top5=89.56% | top1=69.89%<br />top5=88.84%  | top1=69.83%<br />top5=88.84%                       |
-| resnet18_v1              | top1=70.96%<br />top5=89.93%  | top1=70.11%<br />top5=89.60% | top1=69.90%<br />top5=89.50%  | top1=69.97%<br />top5=88.84%                       |
-| resnet18v1_b_0.89        | top1=67.21%<br />top5=87.45%  | -                            | top1=63.75%<br />top5=85.67%  | top1=69.97%<br />top5=89.53%                       |
-| quickdraw                | top1=81.90%<br />top5=98.26%  | -                            | top1=81.83%<br />top5=98.24%  | top1=81.89%<br />top5=98.22%                       |
-| qd10_resnetv1_20         | top1=85.79%<br />top5=98.73%  | -                            | top1=85.79%<br />top5=98.73%  | top1=85.94%<br />top5=98.73%                       |
-| densenet161              | top1=77.62%<br />top5=93.82%  | -                            | top1=77.32%<br />top5=93.63%  | top1=76.90%<br />top5=93.49%                       |
-| alexnet                  | top1=55.91%<br />top5=78.75%  | -                            | top1=51.69%<br />top5=77.99%  | top1=51.82%<br />top5=78.09%<br />(channel sliced) |
-| cifar_resnet20_v1        | top1=92.88%<br />top5=99.78%  | -                            | top1=92.82%<br />top5=99.75%  | top1=92.52%<br />top5=99.79%                       |
-| mobilenet1_0             | top1=70.77%<br />top5=89.97%  | top1=66.11%<br />top5=87.35% | top1=63.07%<br />top5=85.02%  | top1=61.30%<br />top5=83.88%                       |
-| mobilenetv2_1.0          | top1=71.51%<br />top5=90.10%  | top1=69.39%<br />top5=89.30% | top1=66.93%<br />top5=87.39%  | top1=62.15%<br />top5=84.00%                       |
-| shufflenet_v1            | top1=63.48%<br />top5=85.12%  | top1=60.45%<br />top5=82.95% | top1=60.40%<br />top5=82.91%  | top1=60.13%<br />top5=82.70%                       |
-| squeezenet1.0            | top1=57.20%<br />top5=80.04%  | top1=55.16%<br />top5=78.67% | top1=52.46%<br />top5=77.10%  | top1=54.36%<br />top5=78.19%                       |
-| tf_inception_v3          | top1=55.58%<br />top5=77.56%  | top1=55.54%<br />top5=83.03% | top1=53.79%<br />top5=75.99%  | top1=52.13%<br />top5=73.96%                       |
-| vgg19                    | top1=74.14%<br />top5=91.78%  | top1=73.75%<br />top5=91.67% | top1=73.70%<br />top5=91.66%  | top1=73.58%<br />top5=91.60%                       |
-| mnist                    | top1=99.18%<br />top5=100.00% | -                            | top1=99.17%<br />top5=100.00% | top1=98.16%<br />top5=100.00%                      |
-| trec                     | 97.84%                        | 97.63%                       | 97.20%                        | 97.38%                                             |
-| yolo3_darknet53_voc      | 81.37%                        | -                            | 82.08%                        | 80.85%                                             |
-| yolo3_mobilenet1.0_voc   | 75.98%                        | -                            | 71.53%                        | 70.70%                                             |
-| ssd_512_resnet50_v1_voc  | 80.27%                        | -                            | 80.01%                        | 79.57%                                             |
-| ssd_512_mobilenet1.0_voc | 75.57%                        | 71.32%                       | 70.21%                        | 69.68%                                             |
+| model name                    | Original Float Model          | MRT Quantized Model (Tuned)  | MRT Quantized Model           | MRT GEN Quanzied Model                             |
+| ----------------------------- | ----------------------------- | ---------------------------- | ----------------------------- | -------------------------------------------------- |
+| resnet50_v1                   | top1=77.39%<br />top5=93.59%  | top1=76.47%<br />top5=93.28% | top1=76.41%<br />top5=93.18%  | top1=75.66%<br />top2=92.79%                       |
+| resnet50_v2                   | top1=77.15%<br />top5=93.44%  | top1=70.76%<br />top5=89.56% | top1=69.89%<br />top5=88.84%  | top1=69.83%<br />top5=88.84%                       |
+| resnet18_v1                   | top1=70.96%<br />top5=89.93%  | top1=70.11%<br />top5=89.60% | top1=69.90%<br />top5=89.50%  | top1=69.97%<br />top5=88.84%                       |
+| resnet18v1_b_0.89             | top1=67.21%<br />top5=87.45%  | -                            | top1=63.75%<br />top5=85.67%  | top1=69.97%<br />top5=89.53%                       |
+| quickdraw                     | top1=81.90%<br />top5=98.26%  | -                            | top1=81.83%<br />top5=98.24%  | top1=81.89%<br />top5=98.22%                       |
+| qd10_resnetv1_20              | top1=85.79%<br />top5=98.73%  | -                            | top1=85.79%<br />top5=98.73%  | top1=85.94%<br />top5=98.73%                       |
+| densenet161                   | top1=77.62%<br />top5=93.82%  | -                            | top1=77.32%<br />top5=93.63%  | top1=76.90%<br />top5=93.49%                       |
+| alexnet                       | top1=55.91%<br />top5=78.75%  | -                            | top1=51.69%<br />top5=77.99%  | top1=51.82%<br />top5=78.09%<br />(channel sliced) |
+| cifar_resnet20_v1             | top1=92.88%<br />top5=99.78%  | -                            | top1=92.82%<br />top5=99.75%  | top1=92.52%<br />top5=99.79%                       |
+| mobilenet1_0                  | top1=70.77%<br />top5=89.97%  | top1=66.11%<br />top5=87.35% | top1=63.07%<br />top5=85.02%  | top1=61.30%<br />top5=83.88%                       |
+| mobilenetv2_1.0               | top1=71.51%<br />top5=90.10%  | top1=69.39%<br />top5=89.30% | top1=66.93%<br />top5=87.39%  | top1=62.15%<br />top5=84.00%                       |
+| shufflenet_v1                 | top1=63.48%<br />top5=85.12%  | top1=60.45%<br />top5=82.95% | top1=60.40%<br />top5=82.91%  | top1=60.13%<br />top5=82.70%                       |
+| squeezenet1.0                 | top1=57.20%<br />top5=80.04%  | top1=55.16%<br />top5=78.67% | top1=52.46%<br />top5=77.10%  | top1=54.36%<br />top5=78.19%                       |
+| tf_inception_v3               | top1=55.58%<br />top5=77.56%  | top1=55.54%<br />top5=83.03% | top1=53.79%<br />top5=75.99%  | top1=52.13%<br />top5=73.96%                       |
+| vgg19                         | top1=74.14%<br />top5=91.78%  | top1=73.75%<br />top5=91.67% | top1=73.70%<br />top5=91.66%  | top1=73.58%<br />top5=91.60%                       |
+| mnist                         | top1=99.18%<br />top5=100.00% | -                            | top1=99.17%<br />top5=100.00% | top1=98.16%<br />top5=100.00%                      |
+| trec                          | 97.84%                        | 97.63%                       | 97.20%                        | 97.38%                                             |
+| yolo3_darknet53_voc           | 81.37%                        | -                            | 82.08%                        | 80.85%                                             |
+| yolo3_mobilenet1.0_voc        | 75.98%                        | -                            | 71.53%                        | 70.70%                                             |
+| ssd_512_resnet50_v1_voc       | 80.27%                        | -                            | 80.01%                        | 79.57%                                             |
+| ssd_512_mobilenet1.0_voc      | 75.57%                        | 71.32%                       | 70.21%                        | 69.68%                                             |
+| tf_mobilenet_v1_0.25_224_lite | top1=34.68%<br />top5=59.32%  | -                            | top1=3.39%<br />top5=9.93%    | top1=31.71%<br />top5=55.83%<br />(slice channel)  |
 
 The MRT GEN module apply pad separate for `Convolution` and bias `separate` for both `Convolution` and `FullyConnected`. From the chart above we can that some model like `quickdraw`,  `qd10_resnetv1_20`, `resnet18v1_b_0.89`, `trec`, `squeezenet1.0` and  `alexnet` and have observable better accuracy than MRT module.
+
