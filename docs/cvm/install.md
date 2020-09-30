@@ -117,7 +117,7 @@ CVM & MRT python packages are respectively stored at directories:
 `python/cvm` and `python/mrt`. and you may setup python for the
 ability of importing cvm and mrt.
 
-### Pre-requisites
+### Python Environments
 
 - python version: 3.6 and higher
 - python dependencies: numpy
