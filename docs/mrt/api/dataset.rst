@@ -1,9 +1,9 @@
 
 .. _mrt_dataset_api:
 
-********************
-MRT Dataset Deveplop
-********************
+*************************
+MRT Dataset Documentation 
+*************************
 
 .. contents::
 
@@ -24,10 +24,9 @@ We have achieved some common datasets in MRT dataset module,
 including image classification, detection and NLP models.
 
 
-Module Infomation
------------------
+Package Info
+############
 
-module path: ``mrt.dataset``
 module exports: ``DS_REG``, ``Dataset``
 
 **DS_REG**
@@ -54,14 +53,16 @@ export variable: ``DS_REG``.
 .. _abstract_dataset:
  
 Abstract Dataset
-----------------
+################
+
 .. autoclass:: mrt.dataset.Dataset
   :members: _load_data, iter_func
   :undoc-members: metrics, validate
 
 
 Common Datasets
----------------
+###############
+
 .. autoclass:: mrt.dataset.COCODataset
   :members: _load_data, metrics, validate
 
@@ -94,7 +95,7 @@ Common Datasets
 
 
 Customize Dataset
------------------
+#################
 
 One may want to add implemantary dataset into MRT framework,
 and there are two situations: the extra dataset format is
@@ -104,7 +105,7 @@ or the dataset has an unique format that need to customize
 the data load logic.
 
 Compatible Format
-~~~~~~~~~~~~~~~~~
+=================
 
 For dataset that is compatible with existed dataset, one can
 simply reuse the corresponding dataset class with changing
@@ -121,8 +122,8 @@ Codes like:
       root="your/dataset/path", # specify the new dataset path
       )
 
-Unique Format
-~~~~~~~~~~~~~
+Custom Format
+=============
 
 You need to implement the unique dataset class after importing
 the MRT dataset package. And we suggest that you review the
@@ -136,6 +137,7 @@ implement the four abstract functions: ``_load_data``,
 Here are some example codes:
 
 .. code-block::
+  :linenos:
 
   from mxnet import ndarray as nd
   @register_dataset("my_dataset")
