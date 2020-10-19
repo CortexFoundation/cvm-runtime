@@ -4,10 +4,10 @@ from mxnet import ndarray as nd
 from mrt.gen import cvm_op
 from mrt import cvm_op
 
-def test_symbol(precs, sbs, num_channel, inc):
+def test_symbol(precs, sbs):
     X = mx.sym.var("var")
     op = mx.sym.Custom(
-        X, precs=precs, sbs=sbs, num_channel=num_channel, inc=inc, name="out",
+        X, precs=precs, sbs=sbs, name="out",
         op_type="cvm_right_shift_channel")
 
 def check_valid(A, B, tol=1e-6):
@@ -33,14 +33,14 @@ def check_valid(A, B, tol=1e-6):
         (tol, diff))
     print("check valid")
 
-def forward_right_shift_channel(X, precs, sbs, inc):
+def forward_right_shift_channel(X, precs, sbs):
     num_channel = X.shape[1]
     out = nd.Custom(
-        X, precs=precs, sbs=sbs, num_channel=num_channel, inc=inc,
+        X, precs=precs, sbs=sbs,
         op_type="cvm_right_shift_channel")
     return out
 
-def forward_slice_right_shift(X, precs, sbs, inc):
+def forward_slice_right_shift(X, precs, sbs):
     precs = [eval(prec) for prec in precs.split(',')]
     sbs = [eval(sb) for sb in sbs.split(',')]
     xshp = X.shape
@@ -48,9 +48,7 @@ def forward_slice_right_shift(X, precs, sbs, inc):
     assert xshp[1] % len(precs) == 0, \
         "division error, xshp[0]: {}, len(precs): {}".format( \
         (xshp[1], len(precs)))
-    assert inc == xshp[1] // len(precs), \
-        "invalid inc, inc: {}, xshp[1]//len(precs): {}".format( \
-        (inc, xshp[1]//len(precs)))
+    inc = xshp[1] // len(precs)
     nodes = []
     for i in range(0, xshp[1], inc):
         begin = (None,i,) + (None,)*(ndim-2)
@@ -70,13 +68,13 @@ def generate_data_int(shp, th=2**24):
     X = nd.array(X)
     return X
 
-def test_nd(shp, precs, sbs, inc, tol=1e-6):
+def test_nd(shp, precs, sbs, tol=1e-6):
     X = generate_data_int(shp)
-    out1 = forward_right_shift_channel(X, precs=precs, sbs=sbs, inc=inc)
-    out2 = forward_slice_right_shift(X, precs=precs, sbs=sbs, inc=inc)
+    out1 = forward_right_shift_channel(X, precs=precs, sbs=sbs)
+    out2 = forward_slice_right_shift(X, precs=precs, sbs=sbs)
     check_valid(out1, out2, tol=tol)
 
 if __name__ == "__main__":
-    test_symbol(precs="8,8,8", sbs="8,8,8", num_channel=3, inc=1)
-    test_nd(shp=(16,3,224,224), precs="8,8,8", sbs="8,8,8", inc=1)
-    test_nd(shp=(16,128,32,32), precs="8,7,8,8", sbs="8,8,8,8", inc=32)
+    test_symbol(precs="8,8,8", sbs="8,8,8")
+    test_nd(shp=(16,3,224,224), precs="8,8,8", sbs="8,8,8")
+    test_nd(shp=(16,128,32,32), precs="8,7,8,8", sbs="8,8,8,8")

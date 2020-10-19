@@ -5,22 +5,13 @@ import numpy as np
 
 
 class RightShiftChannel(mx.operator.CustomOp):
-    def __init__(self, precs, sbs, num_channel, inc, **kwargs):
+    def __init__(self, precs, sbs, **kwargs):
         super(RightShiftChannel, self).__init__(**kwargs)
-        self.inc = eval(inc)
-        self.num_channel = eval(num_channel)
         precs = [eval(prec) for prec in precs.split(',')]
         sbs = [eval(sb) for sb in sbs.split(',')]
         assert len(precs) == len(sbs), \
             "invalid length, length of precs: {}, length of sbs: {}".format( \
             (precs, sbs))
-        assert self.num_channel % self.inc == 0, \
-            "the number of channels: {} must be divisible by inc: {}".format( \
-            (self.num_channel, self.inc))
-        assert self.num_channel == self.inc * len(precs), \
-            "the multiplication of the length of precs: {} and inc: {} " + \
-            "must be equal to the number of channels: {}".format( \
-            (len(precs), self.inc, self.num_channel))
         clips = [2**(int(prec)-1)-1 for prec in precs]
         self.mins = [int(-clip) for clip in clips]
         self.maxs = [int(clip) for clip in clips]
@@ -32,9 +23,14 @@ class RightShiftChannel(mx.operator.CustomOp):
         X = in_data[0]
         amins, amaxs = self.mins, self.maxs
         out = X.round()
-        for i in range(0, self.num_channel, self.inc):
-            j = i+self.inc
-            k = i // self.inc
+        num_channel = X.shape[1]
+        assert num_channel % len(amins) == 0, \
+            "num_channel: {} is not divisible by len(amins): {}".format( \
+            (num_channel, len(amins)))
+        inc = num_channel // len(amins)
+        for i in range(0, num_channel, inc):
+            j = i + inc
+            k = i // inc
             if self.sbs[k] > 1:
                 out[:,i:j] = out[:,i:j] / (2 ** (self.sbs[k]-1))
                 out[:,i:j] = out[:,i:j].floor()
@@ -51,7 +47,7 @@ class RightShiftChannel(mx.operator.CustomOp):
 class Conv2DChannel(mx.operator.CustomOp):
     def __init__(
         self, dilate, kernel, layout, no_bias, num_filter,
-        num_group, pad, stride, num_channel, inc, **kwargs):
+        num_group, pad, stride, inc, **kwargs):
         super(RightShiftChannel, self).__init__(**kwargs)
         self.dilate = eval(dilate)
         self.kernel = eval(kernel)
@@ -61,11 +57,14 @@ class Conv2DChannel(mx.operator.CustomOp):
         self.num_group = eval(num_group)
         self.pad = eval(pad)
         self.stride = eval(stride)
-        self.num_channel = eval(num_channel)
         self.inc = eval(inc)
 
     def forward(self, is_train, req, in_data, out_data, aux):
         assert is_train == False
+        n_batch, in_channels, x_h, x_W = in_data[0].shape
+        oshp = out_data[0].shape
+        print(oshp)
+        # TODO(archRev): realize
 
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         assert False
@@ -73,11 +72,9 @@ class Conv2DChannel(mx.operator.CustomOp):
 
 @mx.operator.register("cvm_right_shift_channel")
 class RightShiftChannelProp(mx.operator.CustomOpProp):
-    def __init__(self, precs, sbs, num_channel, inc):
+    def __init__(self, precs, sbs):
         self.precs = precs
         self.sbs = sbs
-        self.num_channel = num_channel
-        self.inc = inc
         super(RightShiftChannelProp, self).__init__(need_top_grad=True)
     def list_arguments(self):
         return ['data']
@@ -91,15 +88,14 @@ class RightShiftChannelProp(mx.operator.CustomOpProp):
         X_type = in_type[0]
         return [X_type], [X_type], []
     def create_operator(self, ctx, shapes, dtypes):
-        return RightShiftChannel(
-            self.precs, self.sbs, self.num_channel, self.inc)
+        return RightShiftChannel(self.precs, self.sbs)
 
 
 @mx.operator.register("cvm_conv2d_channel")
 class Conv2DChannelProp(mx.operator.CustomOpProp):
     def __init__(
-        self, dilate, kernel, layout, no_bias, num_filter,
-        num_group, pad, stride, num_channel, inc):
+        self, dilate, kernel, layout, no_bias,
+        num_filter, num_group, pad, stride, inc):
         self.dilate = dilate
         self.kernel = kernel
         self.layout = layout
@@ -108,7 +104,6 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         self.num_group = num_group
         self.pad = pad
         self.stride = stride
-        self.num_channel = num_channel
         self.inc = inc
         super(Conv2DChannelProp, self).__init__(need_top_grad=True)
     def list_arguments(self):
@@ -165,11 +160,10 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         # TODO(archRev): case when num_group > 1
         num_group = eval(self.num_group)
         assert num_group == 1, "invalid attr num_group: {}".format(num_group)
-        num_channel = eval(self.num_channel)
-        assert W_shape[1] == X_shape[1] == num_channel, \
-            "num_channel: {}, input channel size: {} and " + \
+        num_channel = X_shape[1]
+        assert W_shape[1] == X_shape[1], "input channel size: {} and " + \
             "weight channel size: {} not consistant".format( \
-            (num_channel, X_shape[1], W_shape[1]))
+            (X_shape[1], W_shape[1]))
         inc = eval(self.inc)
         assert num_channel % inc == 0, \
             "the number of channels: {} must be divisible by inc: {}".format( \
@@ -190,8 +184,8 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         return [X_type, B_type], [X_type], []
     def create_operator(self, ctx, shapes, dtypes):
         return Conv2DChannel(
-            self.dilate, self.kernel ,self.layout, self.no_bias, self.num_filter,
-            self.num_group, self.pad, self.stride, self.num_channel, self.inc)
+            self.dilate, self.kernel ,self.layout, self.no_bias,
+            self.num_filter, self.num_group, self.pad, self.stride, self.inc)
 
 ATTR_MIN_VALUE = 0
 ATTR_MAX_VALUE = 4096
