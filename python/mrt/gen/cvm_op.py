@@ -6,6 +6,7 @@ import numpy as np
 
 class RightShiftChannel(mx.operator.CustomOp):
     def __init__(self, precs, sbs, num_channel, inc, **kwargs):
+        super(RightShiftChannel, self).__init__(**kwargs)
         self.inc = eval(inc)
         self.num_channel = eval(num_channel)
         precs = [eval(prec) for prec in precs.split(',')]
@@ -49,9 +50,19 @@ class RightShiftChannel(mx.operator.CustomOp):
 
 class Conv2DChannel(mx.operator.CustomOp):
     def __init__(
-        self, dilate, kernel, layout, no_bias,
-        num_filter, num_group, pad, stride, **kwargs):
-        pass
+        self, dilate, kernel, layout, no_bias, num_filter,
+        num_group, pad, stride, num_channel, inc, **kwargs):
+        super(RightShiftChannel, self).__init__(**kwargs)
+        self.dilate = eval(dilate)
+        self.kernel = eval(kernel)
+        self.layout = layout
+        self.no_boas = eval(no_bias)
+        self.num_filter = eval(num_filter)
+        self.num_group = eval(num_group)
+        self.pad = eval(pad)
+        self.stride = eval(stride)
+        self.num_channel = eval(num_channel)
+        self.inc = eval(inc)
 
     def forward(self, is_train, req, in_data, out_data, aux):
         assert is_train == False
@@ -87,11 +98,12 @@ class RightShiftChannelProp(mx.operator.CustomOpProp):
 @mx.operator.register("cvm_conv2d_channel")
 class Conv2DChannelProp(mx.operator.CustomOpProp):
     def __init__(
-        self, dilate, kernel, layout, num_filter,
+        self, dilate, kernel, layout, no_bias, num_filter,
         num_group, pad, stride, num_channel, inc):
         self.dilate = dilate
         self.kernel = kernel
         self.layout = layout
+        self.no_bias = no_bias
         self.num_filter = num_filter
         self.num_group = num_group
         self.pad = pad
@@ -100,7 +112,8 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         self.inc = inc
         super(Conv2DChannelProp, self).__init__(need_top_grad=True)
     def list_arguments(self):
-        return ['data', 'weight']
+        no_bias = eval(self.no_bias)
+        return ['data', 'weight'] if no_bias else ['data', 'weight', 'bias']
     def list_outputs(self, in_shape):
         return ['output']
     def infer_shape(self, in_shape):
@@ -109,7 +122,13 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
             "cvm_conv2d_channel only supports layout: NCHW vs {}".format(
             self.layout)
         # verify shapes
-        assert len(in_shape) == 2, "invalid in_shape: {}".format(in_shape)
+        no_bias = eval(no_bias)
+        if no_bias == True:
+            assert len(in_shape) == 2, \
+                "invalid in_shape: {}".format(in_shape)
+        else:
+            assert len(in_shape) == 3, \
+                "invalid in_shape: {}".format(in_shape)
         X_shape, W_shape = in_shape
         assert len(X_shape) == 4, \
             "input data should be 4d: {}".format(X_shape)
@@ -156,13 +175,13 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
             "the number of channels: {} must be divisible by inc: {}".format( \
             (num_channel, inc))
         # output shape
-        out_shape = [X_shape[0], W_shape[0]*num_channel//inc, 0, 0]
+        out_shape = [X_shape[0], W_shape[0], num_channel//inc, 0, 0]
         SH, SW = eval(self.stride)
         H, W = in_shape[2:]
         if H != 0:
-            out_shape[2] = (H+PH*2-DH_size) // SH + 1
+            out_shape[3] = (H+PH*2-DH_size) // SH + 1
         if W != 0:
-            out_shape[3] = (W+PW*2-DW_size) // SW + 1
+            out_shape[4] = (W+PW*2-DW_size) // SW + 1
         out_shape = tuple(out_shape)
         return [X_shape, W_shape], [out_shape], []
     def infer_type(self, in_type):
@@ -171,7 +190,7 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         return [X_type, B_type], [X_type], []
     def create_operator(self, ctx, shapes, dtypes):
         return Conv2DChannel(
-            self.dilate, self.kernel ,self.layout, self.num_filter,
+            self.dilate, self.kernel ,self.layout, self.no_bias, self.num_filter,
             self.num_group, self.pad, self.stride, self.num_channel, self.inc)
 
 ATTR_MIN_VALUE = 0
