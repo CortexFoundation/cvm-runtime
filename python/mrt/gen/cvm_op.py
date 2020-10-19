@@ -87,7 +87,8 @@ class RightShiftChannelProp(mx.operator.CustomOpProp):
 @mx.operator.register("cvm_conv2d_channel")
 class Conv2DChannelProp(mx.operator.CustomOpProp):
     def __init__(
-        self, dilate, kernel, layout, num_filter, num_group, pad, stride):
+        self, dilate, kernel, layout, num_filter,
+        num_group, pad, stride, num_channel, inc):
         self.dilate = dilate
         self.kernel = kernel
         self.layout = layout
@@ -95,6 +96,8 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         self.num_group = num_group
         self.pad = pad
         self.stride = stride
+        self.num_channel = num_channel
+        self.inc = inc
         super(Conv2DChannelProp, self).__init__(need_top_grad=True)
     def list_arguments(self):
         return ['data', 'weight']
@@ -139,9 +142,21 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
         assert DH_size < H+2*PH and DW_size < W+2*PW, \
             "invalid kernel attr, kernel: {}, pad: {}, dilate: {}".format( \
             (self.kernel, self.pad, self.dilate))
+        # num_group
+        # TODO(archRev): case when num_group > 1
+        num_group = eval(self.num_group)
+        assert num_group == 1, "invalid attr num_group: {}".format(num_group)
+        num_channel = eval(self.num_channel)
+        assert W_shape[1] == X_shape[1] == num_channel, \
+            "num_channel: {}, input channel size: {} and " + \
+            "weight channel size: {} not consistant".format( \
+            (num_channel, X_shape[1], W_shape[1]))
+        inc = eval(self.inc)
+        assert num_channel % inc == 0, \
+            "the number of channels: {} must be divisible by inc: {}".format( \
+            (num_channel, inc))
         # output shape
-        # TODO(archRev): out_shape[1] when num_group > 1
-        out_shape = [X_shape[0], W_shape[0], 0, 0]
+        out_shape = [X_shape[0], W_shape[0]*num_channel//inc, 0, 0]
         SH, SW = eval(self.stride)
         H, W = in_shape[2:]
         if H != 0:
@@ -157,9 +172,9 @@ class Conv2DChannelProp(mx.operator.CustomOpProp):
     def create_operator(self, ctx, shapes, dtypes):
         return Conv2DChannel(
             self.dilate, self.kernel ,self.layout, self.num_filter,
-            self.num_group, self.pad, self.stride)
+            self.num_group, self.pad, self.stride, self.num_channel, self.inc)
 
-ATTR_MIN_VALIE = 0
+ATTR_MIN_VALUE = 0
 ATTR_MAX_VALUE = 4096
 
 def verify_attr_range(val, name, minv=ATTR_MIN_VALUE, maxv=ATTR_MAX_VALUE):
