@@ -8,6 +8,10 @@
 #include <cvm/runtime/ndarray.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include <cvm/runtime/device_api.h>
+#include <cvm/runtime/forward.h>
+#include <cvm/tuple.h>
+#include <cvm/runtime/base.h>
+#include <cvm/dlpack.h>
 
 // deleter for arrays used by DLPack exporter
 extern "C" void NDArrayDLPackDeleter(DLManagedTensor* tensor);
@@ -165,6 +169,21 @@ void NDArray::CopyFromTo(DLTensor* from,
     from_size, from->ctx, to->ctx, from->dtype, stream);
 }
 
+template <typename T>
+void NDArray::CPUFill(T value) {
+  VERIFY(operator->()->ctx.device_type == kDLCPU)
+      << "CPUFill() can only be called for a CPU tensor, but got "
+      << operator->()->ctx.device_id << "\n";
+  VERIFY(8 * sizeof(T) == operator->()->dtype.bits)
+      << "Size of type doesn't match! Expecting data type of "
+      << (int)operator->()->dtype.bits << " bits but got data type of "
+      << 8 * sizeof(T) << " bits.";
+  T* data = static_cast<T*>(operator->()->data);
+  for (Indices idx(TShape(data_->shape_)); !idx.End(); idx++) {
+    data[idx.Index()] = value;
+  }
+}
+
 }  // namespace runtime
 }  // namespace cvm
 
@@ -243,5 +262,96 @@ int CVMArrayCopyToBytes(CVMArrayHandle handle,
       handle->data, static_cast<size_t>(handle->byte_offset),
       data, 0,
       nbytes, handle->ctx, cpu_ctx, handle->dtype, nullptr);
+  API_END();
+}
+
+int CVMAssignSliceND(CVMArrayHandle target, int* indices,
+  CVMArrayHandle source) {
+  API_BEGIN();
+  auto ndim = target->ndim;
+  int* starts = indices;
+  int* ends = indices + ndim;
+  int* steps = indices + 2 * ndim;
+  int* sizes = indices + 3 * ndim;
+  cvm::Tuple<cvm::dim_t> targetShape(target->shape, target->shape + ndim);
+  Indices srcIdx(cvm::Tuple<cvm::dim_t>(sizes, sizes + ndim));
+  Indices targetIdx(targetShape);
+  targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, ends));
+
+  CVM_TYPE_SWITCH(source->dtype, SrcDType, {
+    CVM_TYPE_SWITCH(target->dtype, TgtDType, {
+      SrcDType* sdata = static_cast<SrcDType*>(source->data);
+      TgtDType* tdata = static_cast<TgtDType*>(target->data);
+      for (; !srcIdx.End(); srcIdx++) {
+        targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, ends));
+        for (int i = 0; i < ndim; i++) {
+          targetIdx.Ref(i) += steps[i] * srcIdx[i];
+        }
+        tdata[targetIdx.Index()] = sdata[srcIdx.Index()];
+      }
+    })});
+
+  API_END();
+}
+
+int CVMAssignSliceScalar(CVMArrayHandle target, int* indices, double value) {
+  API_BEGIN();
+  // TODO: is it ok to modify without checking reference count?
+  auto container =
+      reinterpret_cast<cvm::runtime::NDArray::Container*>(target);
+  int ndim = target->ndim;
+  int* starts = indices;
+  int* ends = indices + ndim;
+  int* steps = indices + ndim * 2;
+  int* sizes = indices + ndim * 3;
+  cvm::TShape targetShape(target->shape, target->shape + ndim);
+  Indices assignIdx(cvm::Tuple<cvm::dim_t>(sizes, sizes + ndim));
+  Indices targetIdx(targetShape);
+  targetIdx.CopyIndicesFrom(std::vector<int64_t>(starts, starts + ndim));
+
+  CVM_TYPE_SWITCH(target->dtype, DType, {
+    DType typeValue = static_cast<DType>(value);
+    for (; !assignIdx.End(); ++assignIdx) {
+      Indices tmpIdx(targetIdx);
+      for (int i = 0; i < ndim; i++) {
+        tmpIdx.Ref(i) += assignIdx[i] * steps[i];
+      }
+      DeviceAPI::Get(target->ctx)
+          ->CopyDataFromTo(&typeValue, 0, target->data,
+                           tmpIdx.Index() * sizeof(DType), sizeof(DType),
+                           DLContext{kDLCPU, 0}, target->ctx,
+                           CVMType{kDLFloat, 64, 1}, nullptr);
+    }
+  })
+  API_END();
+}
+
+int CVMAssignAllScalar(CVMArrayHandle target, double value) {
+  API_BEGIN();
+  
+  // TODO: if target is a CPU tensor, call CPUFill directly.
+  //if (target->ctx.device_id == kDLCPU) {
+  //  NDArray tmp(target);
+  //}
+  std::vector<int64_t> targetShape(target->shape, target->shape + target->ndim);
+  Indices idx(cvm::TShape(targetShape));
+  CVM_TYPE_SWITCH(target->dtype, DType, {
+    NDArray tmp = NDArray::Empty(targetShape, target->dtype, DLContext{kDLCPU, 0});
+    DType typeValue = static_cast<DType>(value);
+    tmp.CPUFill<DType>(typeValue);
+    NDArray::CopyFromTo(tmp.operator->(), target);
+  })
+  API_END();
+}
+
+int CVMAssignAllND(CVMArrayHandle target, CVMArrayHandle source) {
+  API_BEGIN();
+  VERIFY(target->dtype.code == source->dtype.code &&
+         target->dtype.bits == source->dtype.bits)
+      << "assigning an ndarray to another requires the type should be the same"
+      << "but target.(type, bits) vs source.(type, bits) is ("
+      << target->dtype.code << ", " << target->dtype.bits << ") vs ("
+      << source->dtype.code << ", " << source->dtype.bits << ")\n";
+  NDArray::CopyFromTo(source, target);
   API_END();
 }

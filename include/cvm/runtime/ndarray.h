@@ -94,6 +94,7 @@ class NDArray {
   inline int use_count() const;
   /*! \return Pointer to content of DLTensor */
   inline const DLTensor* operator->() const;
+  inline DLTensor* operator->();
   /*!
    * \brief Copy data content from another array.
    * \param other The source array to be copied from.
@@ -116,6 +117,13 @@ class NDArray {
    * \return The array under another context.
    */
   inline NDArray CopyTo(const DLContext& ctx) const;
+  /*!
+   * \brief Can ONLY be called for a cpu tensor! Fill the tensor with 
+   *        a scalar value
+   * \param value The value to assign to the tensor
+  */
+  template<typename T>
+  void CPUFill(T value);
   /*!
    * \brief Load NDArray from stream
    * \param stream The input data stream
@@ -380,6 +388,8 @@ inline int NDArray::use_count() const {
 inline const DLTensor* NDArray::operator->() const {
   return &(data_->dl_tensor);
 }
+
+inline DLTensor* NDArray::operator->() { return &(data_->dl_tensor); }
 
 inline void printDType(DLDataType dtype, std::string message) {
   std::cout << message << "code: " << (int)dtype.code
