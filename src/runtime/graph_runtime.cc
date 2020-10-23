@@ -9,6 +9,7 @@
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
 #include <cvm/runtime/device_api.h>
+#include <cvm/runtime/param_dict.h>
 #include <cvm/errors.h>
 #include <cvm/op_attr_types.h>
 
@@ -321,12 +322,10 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
   uint32_t nid = input_nodes_[index];
   uint32_t eid = this->entry_id(nid, 0);
 
-  auto dtype = data_in->dtype;
-  VERIFY((dtype.code == kDLInt) &&
-         (dtype.bits == 32) &&
-         (dtype.lanes == 1))
-    << "cvm runtime only supported INT32 NDArray, but ("
-    << dtype.code << ", " << dtype.bits << ", " << dtype.lanes << ")";
+  VERIFY(data_in->dtype.code == kDLInt)
+    << "cvm runtime only supported INT NDArray, but ("
+    << data_in->dtype.code << ")";
+
   auto ctx = data_in->ctx;
   VERIFY_EQ(ctx.device_type, kDLCPU)
     << "cvm runtime only supported input with `cpu` device"
@@ -340,6 +339,7 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
   VERIFY_EQ(ndim, expected.size())
     << "Loaded data shape ndim " << ndim
     << " not matched " << expected.size();
+
   for (int i = 0; i < ndim; ++i) {
     VERIFY_EQ(dshp[i], expected[i])
       << "Loaded data shape at index " << i
@@ -348,10 +348,37 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
     size *= dshp[i];
   }
 
-  // Precision check
-  int32_t *data = static_cast<int32_t*>(data_in->data);
+  auto dtype = data_in->dtype;
+  VERIFY((dtype.code == kDLInt) &&
+         ((dtype.bits == 32) || (dtype.bits == 8)) &&
+         (dtype.lanes == 1))
+    << "cvm runtime only supported INT8 or INT32 NDArray, but ("
+    << dtype.code << ", " << dtype.bits << ", "
+    << dtype.lanes << ")";
+
+  // copy data to runtime
+  NDArray nd_in(reinterpret_cast<NDArray::Container*>(data_in));
+
+  if (data_in->dtype.bits == 8) {
+    NDArray nd32 = NDArray::Empty(
+        std::vector<int64_t>(dshp, dshp+ndim),
+        DLDataType{.code=kDLInt, .bits=32, .lanes=1},
+        ctx);
+    int8_t *data8 = static_cast<int8_t*>(data_in->data);
+    int32_t *data32 = static_cast<int32_t*>(nd32->data);
+    int64_t num_elems = 1;
+    for (int i = 0; i < data_in->ndim; ++i)
+      num_elems *= data_in->shape[i];
+    for (int i = 0; i < num_elems; i++)
+      data32[i] = static_cast<int32_t>(data8[i]);
+
+    nd_in.swap(nd32);
+  }
+
+  // precision check
   auto& prec = this->attrs_.precision[eid];
   int32_t range = (1 << (prec - 1)) - 1;
+  int32_t *data = static_cast<int32_t*>(nd_in->data);
   if (nodes_[nid].is_data()) {
     for (uint64_t i = 0; i < size; ++i) {
       if (data[i] > range) data[i] = range;
@@ -366,7 +393,7 @@ void CvmRuntime::SetInput(int index, DLTensor* data_in) {
     }
   }
 
-  data_entry_[eid].CopyFrom(data_in);
+  data_entry_[eid].CopyFrom(nd_in);
 }
 /*!
  * \brief Get the number of outputs
@@ -452,32 +479,17 @@ void CvmRuntime::LoadParams(const std::string& param_blob) {
 }
 
 void CvmRuntime::LoadParams(utils::Stream* strm) {
-  uint64_t header, reserved;
-  VERIFY(strm->Read(&header))
-      << "Invalid parameters file format";
-  VERIFY(header == kCVMNDArrayListMagic)
-      << "Invalid parameters file format";
-  VERIFY(strm->Read(&reserved))
-      << "Invalid parameters file format";
-
   std::vector<std::string> names;
-  VERIFY(strm->Read(&names))
-      << "Invalid parameters file format";
-  uint64_t sz;
-  strm->Read(&sz);
-  size_t size = static_cast<size_t>(sz);
-  VERIFY(size == names.size())
-      << "Invalid parameters file format";
+  std::vector<cvm::runtime::NDArray> values;
+  load_param_dict(strm, names, values);
 
   std::vector<bool> set_flag(input_nodes_.size(), false);
-  for (size_t i = 0; i < size; ++i) {
+  for (size_t i = 0; i < names.size(); ++i) {
     int in_idx = GetInputIndex(names[i]);
     set_flag[in_idx] = true;
-
-    // The data_entry is allocated on device, NDArray.load always load the array into CPU.
-    NDArray temp;
-    temp.Load(strm);
-    this->SetInput(in_idx, const_cast<DLTensor*>(temp.operator->()));
+    
+    SetInput(in_idx,
+        const_cast<DLTensor*>(values[i].operator->()));
   }
 
   for (size_t i = 0; i < set_flag.size(); ++i) {
@@ -836,62 +848,3 @@ CVM_REGISTER_GLOBAL("cvm.runtime.estimate_ops")
   });
 }  // namespace runtime
 }  // namespace cvm
-
-int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* ret){
-  API_BEGIN();
-  CHECK_EQ(params_size % 2, 0u);
-  size_t num_params = params_size / 2;
-  std::vector<std::string> names;
-  names.reserve(num_params);
-  std::vector<DLTensor*> arrays;
-  arrays.reserve(num_params);
-  for (size_t i = 0; i < num_params * 2; i += 2) {
-    names.emplace_back(std::string((char*)params[i]));
-    arrays.emplace_back((DLTensor*)params[i+1]);
-  } 
-  CVMRuntimeEntry* e = CVMAPIRuntimeStore::Get();
-  utils::MemoryStringStream strm(&e->ret_str);
-  utils::Stream* fo = &strm;
-  uint64_t header = cvm::runtime::kCVMNDArrayListMagic, reserved = 0;
-  fo->Write(header);
-  fo->Write(reserved);
-  fo->Write(names);
-  {
-    uint64_t sz = static_cast<uint64_t>(arrays.size());
-    fo->Write(sz);
-    for (size_t i = 0; i < sz; ++i) {
-      cvm::runtime::SaveDLTensor(fo, arrays[i]);
-    }
-  }
-
-  ret->data = e->ret_str.c_str();
-  ret->size = e->ret_str.size();
-
-  //test
-  //{
-  //  printf("test save load param \n");
-  //  utils::MemoryStringStream fo(const_cast<std::string*>(&e->ret_str));
-  //  utils::Stream* strm = &fo;
-  //  uint64_t header, reserved;
-  //  VERIFY(strm->Read(&header))
-  //    << "Invalid parameters file format";
-  //  VERIFY(header == cvm::runtime::kCVMNDArrayListMagic)
-  //    << "Invalid parameters file format";
-  //  VERIFY(strm->Read(&reserved))
-  //    << "Invalid parameters file format";
-
-  //  std::vector<std::string> names;
-  //  VERIFY(strm->Read(&names))
-  //    << "Invalid parameters file format";
-  //  uint64_t sz;
-  //  strm->Read(&sz);
-  //  size_t size = static_cast<size_t>(sz);
-  //  VERIFY(size == names.size())
-  //    << "Invalid parameters file format";
-  //  for(size_t i = 0; i < names.size(); i++){
-  //    printf("names %d = %s\n", i, names[i].c_str());
-  //  }
-  //
-  //}
-  API_END();
-}

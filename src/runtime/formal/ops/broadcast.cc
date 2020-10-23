@@ -1,4 +1,8 @@
-#include "ops.h"
+// #include "ops.h"
+#include <cvm/runtime/forward.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/top/tensor.h>
+#include <cvm/top/nn.h>
 
 namespace cvm {
 namespace runtime {
@@ -21,19 +25,19 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
     auto Y_shape = CVMArgShape(Y);
 
     // K = max(M, N)
-    auto K = Y_shape.size();
+    auto K = Y_shape.ndim();
     
     // SA represents the new shape of A, that is obtained through 
     // extending A.shape into K dimension by prefixing with 1 
     // SA_i = 1, i < K - M
-    std::vector<int64_t> SA(K - A_shape.size(), 1);
+    std::vector<int64_t> SA(K - A_shape.ndim(), 1);
     // SA_i = m_{i-K+M}, i >= K - M
     SA.insert(SA.end(), A_shape.begin(), A_shape.end());
     
     // SB represents the new shape of B, that is obtained through 
     // extending B.shape into K dimension by prefixing with 1 
     // SB_i = 1, i < K - N
-    std::vector<int64_t> SB(K - B_shape.size(), 1);
+    std::vector<int64_t> SB(K - B_shape.ndim(), 1);
     // SB_i = n_{i-K+N}, i >= K-N
     SB.insert(SB.end(), B_shape.begin(), B_shape.end());
     
@@ -46,7 +50,7 @@ static void broadcast(cvm::runtime::CVMArgValue& A,
     // Y.shape = (k_0, k_1,,, k_{K-1}), k_i = max(SA_i, SB_i)  
     // For \forall i \in [0, K)], d_{i} \in [0, k_{i})
     for (auto j = CVMShapeBegin(Y); j < CVMShapeEnd(Y); j++){
-      for (auto i = 0; i < K; i++){
+      for (int32_t i = 0; i < K; i++){
         // a_i = min(d_{i}, SA_i-1)
         a_k[i] = (SA[i] - 1 < d_k[i]) ? SA[i] - 1 : d_k[i];
 

@@ -79,13 +79,6 @@ struct NDArray::Internal {
     data->dl_tensor.ctx = ctx;
     return ret;
   }
-  // Implementation of API function
-  static DLTensor* MoveAsDLTensor(NDArray arr) {
-    DLTensor* tensor = const_cast<DLTensor*>(arr.operator->());
-    CHECK(reinterpret_cast<DLTensor*>(arr.data_) == tensor);
-    arr.data_ = nullptr;
-    return tensor;
-  }
   // Container to DLManagedTensor
   static DLManagedTensor* ToDLPack(NDArray::Container* from) {
     CHECK(from != nullptr);
@@ -119,6 +112,13 @@ NDArray NDArray::CreateView(std::vector<int64_t> shape,
 
 DLManagedTensor* NDArray::ToDLPack() const {
   return Internal::ToDLPack(data_);
+}
+
+DLTensor* NDArray::MoveAsDLTensor() {
+  DLTensor* tensor = const_cast<DLTensor*>(operator->());
+  CHECK(reinterpret_cast<DLTensor*>(data_) == tensor);
+  data_ = nullptr;
+  return tensor;
 }
 
 NDArray NDArray::Empty(std::vector<int64_t> shape,
@@ -191,8 +191,10 @@ int CVMArrayAlloc(const cvm_index_t* shape,
   DLContext ctx;
   ctx.device_type = static_cast<DLDeviceType>(device_type);
   ctx.device_id = device_id;
-  *out = NDArray::Internal::MoveAsDLTensor(
-      NDArray::Empty(std::vector<int64_t>(shape, shape + ndim), dtype, ctx));
+  *out = NDArray::Empty(
+      std::vector<int64_t>(shape, shape+ndim),
+      dtype, ctx)
+    .MoveAsDLTensor();
   API_END();
 }
 

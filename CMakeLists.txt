@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(cvm C CXX)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Utility functions
 include(cmake/util/Util.cmake)
@@ -18,6 +18,7 @@ include_directories("include")
 # Generic compilation options
 set(CMAKE_C_FLAGS "-fsigned-char -Wall -fPIC ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-fsigned-char -Wall -fPIC -std=c++11 ${CMAKE_CXX_FLAGS}")
+
 if (DEBUG)
   set(CMAKE_C_FLAGS "-Og -g ${CMAKE_C_FLAGS}")
   set(CMAKE_CXX_FLAGS "-Og -g ${CMAKE_CXX_FLAGS}")
@@ -77,6 +78,7 @@ if(ENABLE_CUDA)
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
+    # set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
     if(USE_NANO)
@@ -112,8 +114,6 @@ if(ENABLE_OPENCL)
 
 endif()
 
-list(APPEND RUNTIME_SRCS ${CVM_SRCS})
-
 file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/nn/*.cc
                        src/top/tensor/*.cc)
@@ -125,5 +125,3 @@ target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 list(APPEND CVM_SRCS ${RUNTIME_SRCS})
 add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
 target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})
-
-

@@ -173,7 +173,7 @@ inline bool FlattenInferShape(const NodeAttrs& attrs,
   VERIFY_EQ(out_attrs->size(), 1U);
   const TShape &dshape = (*in_attrs)[0];
   uint32_t target_dim = 1;
-  for (uint32_t i = 1; i < dshape.ndim(); ++i) {
+  for (int i = 1; i < dshape.ndim(); ++i) {
     target_dim *= dshape[i];
   }
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0,
@@ -569,7 +569,7 @@ inline bool SqueezeShape(const cvm::NodeAttrs& attrs,
     }
   } else {
     std::unordered_set<dim_t> axis_checker;
-    for (size_t i = 0; i < param.axis.ndim(); ++i) {
+    for (int i = 0; i < param.axis.ndim(); ++i) {
       VerifyAttrRange(param.axis[i], "squeeze.axis", -ndim, ndim-1);
       int real_axis;
       if (param.axis[i] < 0) {
@@ -849,7 +849,7 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
   const TakeParam& param = cvm::get<TakeParam>(attrs.parsed);
   TShape oshape((!param.axis ? 0: dshape.ndim() - 1) + indicesshape.ndim());
   if (!param.axis) {
-    for (size_t j = 0; j < indicesshape.ndim(); ++j) {
+    for (int j = 0; j < indicesshape.ndim(); ++j) {
       oshape[j] = indicesshape[j];
     }
   } else {
@@ -862,7 +862,7 @@ inline bool TakeInferShape(const NodeAttrs& attrs,
     size_t posi = 0;
     for (int i = 0; i < ndim; ++i) {
       if (i == axis) {
-        for (size_t j = 0; j < indicesshape.ndim(); ++j) {
+        for (int j = 0; j < indicesshape.ndim(); ++j) {
           oshape[posi++] = indicesshape[j];
         }
       } else {
@@ -952,7 +952,7 @@ inline bool LUTInferShape(const NodeAttrs& attrs,
   const CVMLUTParam &param = cvm::get<CVMLUTParam>(attrs.parsed);
   VERIFY_EQ(lutshape.Size(), param.in_dim);
   TShape oshape(dshape.ndim());
-	for (size_t j = 0; j < dshape.ndim(); ++j) {
+	for (int j = 0; j < dshape.ndim(); ++j) {
 	  oshape[j] = dshape[j];
 	}
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_shape, 0, oshape);
@@ -1022,10 +1022,12 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
   const SliceLikeParam& param = cvm::get<SliceLikeParam>(attrs.parsed);
   const TShape& src_shape = in_attrs->at(0);
   const TShape& target_shape = in_attrs->at(1);
+  VERIFY(src_shape.ndim() == target_shape.ndim() || param.axis.ndim() != 0)
+    << "input X and shape_like must be of the same shape if no axis is given\n";
   Tuple<dim_t> end_idx;
   end_idx = Tuple<dim_t>(src_shape);
   if (param.axis.ndim() == 0) {
-    for (size_t i = 0; i < src_shape.ndim(); ++i) {
+    for (int i = 0; i < src_shape.ndim(); ++i) {
       if (i < target_shape.ndim()) {
         end_idx[i] = target_shape[i];
         VERIFY_LE(end_idx[i], src_shape[i])
@@ -1035,11 +1037,11 @@ inline bool SliceLikeShape(const cvm::NodeAttrs& attrs,
     }
   } else {
     for (auto i : param.axis) {
-      VerifyAttrRange(i, "slice_like.axis",
-          -src_shape.ndim(), target_shape.ndim()-1);
       if (i < 0) {
         i = src_shape.ndim() + i;
       }
+      VerifyAttrRange(i, "slice_like.axis",
+        0, std::min(target_shape.ndim(), src_shape.ndim()) - 1);
       end_idx[i] = target_shape[i];
       VERIFY_LE(end_idx[i], src_shape[i])
         << "End index of axis " << i << " exceeds input shape: "
@@ -1085,6 +1087,9 @@ inline bool WhereShape(const cvm::NodeAttrs& attrs,
     VERIFY_EQ(cond_shape.ndim(), 1)
       << "Shape of condition " << cond_shape
       << " must be either equal to x or has dimension of 1.";
+    VERIFY_EQ(cond_shape[0], x_shape[0])
+        << "If dim of condition is 1, " << cond_shape
+        << " must be the same as the first dimension of input shape.";
   }
   CVM_ASSIGN_OUTPUT_SHAPE(attrs, *out_attrs, 0, x_shape);
   return true;

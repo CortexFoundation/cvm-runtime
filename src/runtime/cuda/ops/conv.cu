@@ -412,11 +412,11 @@ const char* cuda_conv2d(
   const int TK = (K + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
   const int N = o_h * o_w;
   const int TN = (N + (MATRIX_PAD-1)) / MATRIX_PAD * MATRIX_PAD;
-  const int BS = 8;
  // const int NA = 2;
  // const int NB = 2;
   //const int NUMA = 8;
   //const int NUMB = 8;
+  const int BS = 8;
   dim3 bDim1(BS, BS, 1);
   dim3 bDim2(TILE_WIDTH, TILE_WIDTH, 1);
   int gh = TM / 64;

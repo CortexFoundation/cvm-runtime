@@ -1,4 +1,4 @@
-"""NNVM Graph IR API.
+"""CVM Graph IR API.
 
 This is a developer API that is used to manipulate and transform graphs.
 """

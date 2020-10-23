@@ -33,30 +33,8 @@
 namespace cvm {
 namespace pass {
 namespace {
+
   using namespace cvm::top;
-// Return bytes of data flag.
-static int GetDTypeSize(int type_flag) {
-  switch (type_flag) {
-    case kUint8:
-    case kInt8:
-      return 1;
-    case kFloat16:
-    case kInt16:
-    case kUint16:
-      return 2;
-    case kFloat32:
-    case kInt32:
-    case kUint32:
-      return 4;
-    case kFloat64:
-    case kInt64:
-    case kUint64:
-      return 8;
-    default:
-      LOG(FATAL) << "unknown type_flag=" << type_flag;
-      return -1;
-  }
-}
 
 // simple graph based allocator.
 class GraphAllocator {

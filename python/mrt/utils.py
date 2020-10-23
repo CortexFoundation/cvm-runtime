@@ -1,3 +1,10 @@
+""" Collection of MRT Model evaluation and file management tool functions.
+
+    Simplification of MRT evaluation process.
+
+    Only **crucial parts** of the module are elaborated.
+"""
+
 import mxnet as mx
 from mxnet import ndarray as nd
 
@@ -102,6 +109,20 @@ def log_init(level=logging.NOTSET):
         handler.setFormatter(formatter)
 
 def extend_fname(prefix, with_ext=False):
+    """ Get the precision of the data.
+
+        Parameters
+        __________
+        prefix : str
+            The model path prefix.
+        with_ext : bool
+            Whether to include ext_file path in return value.
+
+        Returns
+        _______
+        ret : tuple
+            The symbol path, params path; and with_ext is True, also return ext file path.
+    """
     ret = ["%s.json"%prefix, "%s.params"%prefix]
     if with_ext:
         ret.append("%s.ext"%prefix)
@@ -114,6 +135,20 @@ def load_model(sym_fname, param_fname, inputs, ctx=mx.gpu()):
     return net
 
 def load_parameters(graph, params, prefix="", ctx=None, dtype=None):
+    """ Unify the parameters dict with the given graph def and parameters dict.
+
+        Parameters
+        __________
+        graph : dict
+            MxNet symbol name (str) maps to mxnet.symbol
+        params : dict
+            MxNet symbol name (str) maps to mxnet.NDArray.
+
+        Returns
+        _______
+        ret : dict
+            The unified MxNet symbol name (str) maps to mxnet.NDArray
+    """
     params_dict = graph.collect_params()
     params_dict.initialize(ctx=ctx)
 
@@ -135,6 +170,21 @@ def load_parameters(graph, params, prefix="", ctx=None, dtype=None):
 
 def multi_validate(base_func, data_iter, *comp_funcs,
         iter_num=10, logger=logging, batch_size=16):
+    """ Quantization precision comparative function for the original model and quantized models.
+
+        Parameters
+        __________
+        base_func : function
+            The original model evaluation function before quantization.
+        data_iter : function
+            Data iter function.
+        comp_funcs : list
+            A List of quantized model evaluation functions.
+        iter_num : int
+            The number of iteration steps.
+        batch_size : int
+            The customized evaluation batch size of the input data.
+    """
     log_str = "Iteration: {:3d} | " + base_func.__name__ + ": {} | "
     for func in comp_funcs:
         log_str += func.__name__ + ": {} | "

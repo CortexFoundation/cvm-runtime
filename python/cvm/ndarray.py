@@ -4,6 +4,7 @@ from ._ctypes.ndarray import *
 from ._ctypes.lib import _LIB
 
 import numpy as np
+import sys
 
 class NDArray(NDArrayBase):
     @property
@@ -107,7 +108,7 @@ class NDArray(NDArrayBase):
         return self
 
     def __repr__(self):
-        res = "<cvm.NDArray shape={0} {1}>\n".format(self.shape, self.context)
+        res = "<cvm.NDArray shape={0} {1}>\t".format(self.shape, self.context)
         res += self.asnumpy().__repr__()
         return res
 
@@ -170,6 +171,17 @@ def _make_array(handle):
     return NDArray(handle, False)
 
 def empty(shape, dtype="int32", ctx=cpu()):
+    """ C wrapper method of NDArray generator.
+
+        Notice: the allocated memory is supposed as empty, which means
+        the memory is not formated and the real data created is random
+        and unuseful.
+
+        Returns
+        =======
+        nd_arr: :class:`cvm.ndarray.NDArray`
+            An empty NDArray.
+    """
     shape = c_array(ctypes.c_int64, shape)
     ndim = ctypes.c_int(len(shape))
     handle = CVMArrayHandle()
@@ -192,12 +204,12 @@ def array(arr, ctx=cpu()):
     arr : numpy.ndarray
         The array to be copied from
 
-    ctx : CVMContext, optional
-        The device context to create the array
+    ctx : :py:class:`cvm.CVMContext`
+        The device context to create the array, CPU context by default.
 
     Returns
     -------
-    ret : NDArray
+    ret : :py:class:`cvm.ndarray.NDArray`
         The created array
     """
     if not isinstance(arr, (np.ndarray, NDArray)):
@@ -205,6 +217,13 @@ def array(arr, ctx=cpu()):
     return empty(arr.shape, arr.dtype, ctx).copyfrom(arr)
 
 def save_param_dict(dict_data):
+    """ Transform the python :class:`cvm.ndarray.NDArray` handle into bytes.
+
+        Returns
+        =======
+        seq: bytes
+            The bytes binary of parameters dict.
+    """
     data = []
     for k, v in dict_data.items():
         pk = ctypes.c_char_p(bytes(k, encoding='utf-8'))
@@ -216,3 +235,23 @@ def save_param_dict(dict_data):
     check_call(_LIB.CVMSaveParamsDict(ctypes.byref(arr), len(data), ctypes.byref(ret)))
     return ret.tobytes()
 
+def load_param_dict(bytes_arr):
+    ret = {}
+    num = ctypes.c_int()
+    names = ctypes.POINTER(ctypes.c_void_p)()
+    values = ctypes.POINTER(ctypes.c_void_p)()
+
+    check_call(_LIB.CVMLoadParamsDict(
+            ctypes.c_char_p(bytes_arr),
+            ctypes.c_int(len(bytes_arr)),
+            ctypes.byref(num),
+            ctypes.byref(names),
+            ctypes.byref(values)))
+    for i in range(num.value):
+        name = str(ctypes.cast(names[i],
+                ctypes.c_char_p).value, encoding="utf-8")
+        value = NDArray(ctypes.cast(values[i],
+                CVMArrayHandle), False)
+        print (name, value)
+        ret[name] = value
+    return ret

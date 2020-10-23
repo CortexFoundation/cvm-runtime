@@ -1,3 +1,6 @@
+""" This is a user API that is used to parse model configurations.
+"""
+
 import sys
 from os import path
 import configparser
@@ -7,6 +10,7 @@ import numpy as np
 import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
+from mrt import conf
 from mrt.transformer import Model, reduce_graph, MRT
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
@@ -16,20 +20,79 @@ from mrt import sym_utils as sutils
 from mrt import cvm_op
 
 def set_batch(input_shape, batch):
+    """Get the input shape with respect to a specified batch value and an original input shape.
+
+    Parameters
+    ----------
+    input_shape : tuple
+        The input shape with batch axis unset.
+    batch : int
+        The batch value.
+
+    Returns
+    -------
+    ishape : tuple
+        The input shape with the value of batch axis equal to batch.
+    """
     return [batch if s == -1 else s for s in input_shape]
 
 def batch_axis(input_shape):
+    """Get the batch axis entry of an input shape.
+
+    Parameters
+    ----------
+    input_shape : tuple
+        The data shape related to dataset.
+
+    Returns
+    -------
+    axis : int
+        The batch axis entry of an input shape.
+    """
     idx = [i for i, s in enumerate(input_shape) if s == -1]
     assert len(idx) == 1
     return idx[0]
 
 def _check(expression, section, option, message='Not a valid value'):
+    """check whether an operation of main2 if valid and report error message if invalid.
+
+    Parameters
+    ----------
+    expression : bool
+        The judgement conditions in main2.
+    section : string
+        The section of configuration file.
+    option : string
+        The option of the section.
+    message : string
+        The error message to be reported.
+    """
     assert expression, message + '.\noption `%s` in section `%s`' \
         % (option, section)
 
 NoneType = object()
 
 def _get_path(config, section, option, is_dir=False, dpath=NoneType):
+    """Get and validate the path specified in configuration file.
+
+    Parameters
+    ----------
+    config: configparser.ConfigParser
+        The initialized config parser.
+    section : string
+        The section of configuration file.
+    option : string
+        The option of the section.
+    is_dir : bool
+        Whether the path is a directory.
+    dpath : string
+        The default path.
+
+    Returns
+    -------
+    path : string
+        The verified absolute path specified in the option.
+    """
     pth_ = _get_val(config, section, option, dval=dpath)
     pth = path.abspath(path.expanduser(pth_))
     if is_dir:
@@ -43,6 +106,22 @@ def _get_path(config, section, option, is_dir=False, dpath=NoneType):
     return pth
 
 def _get_ctx(config, section, dctx=mx.cpu()):
+    """Get the context specified in configuration file.
+
+    Parameters
+    ----------
+    config: configparser.ConfigParser
+        The initialized config parser.
+    section : string
+        The section of configuration file.
+    dctx: mxnet.context
+        The default context.
+
+    Returns
+    -------
+    path : mxnet.context
+        The context specified in the option.
+    """
     contex = dctx
     device_type = _get_val(config, section, 'Device_type', dval='cpu')
     _check(device_type in ['', 'gpu', 'cpu'], section, 'Device_type',
@@ -57,8 +136,8 @@ def _get_ctx(config, section, dctx=mx.cpu()):
                    message='`Device_ids` should be an integer in Calibration')
     else:
         device_ids = _get_val(config, section, 'Device_ids', dval='')
-        _check(device_ids == '', section, 'Device_ids',
-               message='`Device_ids` should be null given `cpu` device type')
+        # _check(device_ids == '', section, 'Device_ids',
+               # message='`Device_ids` should be null given `cpu` device type')
     return contex
 
 str_t = '_str_'
@@ -68,12 +147,58 @@ tuple_t = '_tuple_'
 float_t = '_float_'
 
 def ARRAY(dtype):
+    """Array wrapper of the uniform data type.
+
+    Parameters
+    ----------
+    dtype : string
+        The data type to be uniformly wrapped into an array.
+
+    Returns
+    -------
+    ret : string
+        The wrapped data type name.
+    """
     return '[' + dtype + ']'
 
 def PAIR(*dtypes):
+    """Multi-level map wrapper of the uniform data types.
+
+    Parameters
+    ----------
+    dtypes : list of string
+        The data types to be uniformly wrapped into an multi-level map.
+
+    Returns
+    -------
+    ret : string
+        The wrapped data type name.
+    """
     return '{' + ':'.join(list(dtypes)) + '}'
 
 def _get_val(config, section, option, dtype=str_t, dval=NoneType):
+    """Get the value of the option in the section, with data type and default value specified.
+
+    Parameters
+    ----------
+    config: configparser.ConfigParser
+        The initialized config parser.
+    section : string
+        The section of configuration file.
+    option : string
+        The option of the section.
+    dtype : string
+        The data type to be recognised by the parser.
+    dval : string, int, etc
+        The default value.
+    message : string
+        The error message to be reported.
+
+    Returns
+    -------
+    val : string, int, etc
+        The parsed value.
+    """
     val_ = config[section][option]
     if val_ == '':
         _check(dval != NoneType, section, option,
@@ -105,6 +230,28 @@ def _get_val(config, section, option, dtype=str_t, dval=NoneType):
     return val
 
 def _cast_val(section, option, val_, dtype=str_t):
+    """Get the value of the option in the section, with data type and default value specified.
+
+    Parameters
+    ----------
+    config: configparser.ConfigParser
+        The initialized config parser.
+    section : string
+        The section of configuration file.
+    option : string
+        The option of the section.
+    dtype : string
+        The data type to be recognised by the parser.
+    dval : string, int, etc
+        The default value.
+    message : string
+        The error message to be reported.
+
+    Returns
+    -------
+    val : string, int, etc
+        The parsed value.
+    """
     if dtype == str_t:
         val = val_
     elif dtype in [int_t, tuple_t, float_t, bool_t]:
@@ -120,10 +267,35 @@ def _cast_val(section, option, val_, dtype=str_t):
     return val
 
 def _load_fname(prefix, suffix=None, with_ext=False):
+    """Get the model files at a given stage.
+
+    Parameters
+    ----------
+    prefix : string
+        The file path without and extension.
+    suffix : string
+        The file suffix with respect to a given stage of MRT.
+    with_ext: bool
+        Whether to include ext file.
+
+    Returns
+    -------
+    files : tuple of string
+        The loaded file names.
+    """
     suffix = "."+suffix if suffix is not None else ""
     return utils.extend_fname(prefix+suffix, with_ext)
 
 def _checkpoint_exist(sec, *flist):
+    """Check whether the given file satisfy the check point of the MRT Stage.
+
+    Parameters
+    ----------
+    sec : string
+        The MRT stage to be checked.
+    flist : list of string
+        The checkpoint file to be checked.
+    """
     for fname in flist:
         _check(path.exists(fname), 'DEFAULT', 'Start',
                message="Check point of `%s` not found, " % sec + \
@@ -145,7 +317,7 @@ if __name__ == "__main__":
                          dtype=int_t, dval=logging.NOTSET)
     utils.log_init(level=verbosity)
     logger = logging.getLogger("log.main")
-    default_dir = path.expanduser("~/data")
+    default_dir = conf.MRT_MODEL_ROOT
     model_dir = _get_val(cfg, sec, 'Model_dir', dval=default_dir)
     assert path.exists(model_dir), \
         "Please create the folder `data` first"
@@ -166,7 +338,8 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, sym_path=sym_path, prm_path=prm_path)
+        save_model(model_name, data_dir=model_dir, ctx=model_ctx)
+        # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
         model = Model.load(sym_path, prm_path)
@@ -210,15 +383,15 @@ if __name__ == "__main__":
     sec = 'CALIBRATION'
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
-    ds_name = _get_val(cfg, sec, 'dataset')
-    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=None)
+    ds_name = _get_val(cfg, sec, 'Dataset')
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
             cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
         lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp, dataset_dir=dataset_dir)
+        dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
         data_iter_func = dataset.iter_func()
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
         for i in range(calibrate_num):
@@ -379,6 +552,7 @@ if __name__ == "__main__":
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
+        #  dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
         iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
@@ -442,9 +616,14 @@ if __name__ == "__main__":
         dump_dir = _get_path(
             cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
-        model_name_tfm = model_name + "_tfm"
+        device_type = _get_val(cfg, sec, 'Device_type', dval='cpu')
+        device_ids = _get_val(
+            cfg, sec, 'Device_ids',
+            dtype=ARRAY(int_t), dval=0)
+        model_name_tfm = model_name + "_cvm"
         qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
-                      input_shape=set_batch(input_shape, batch))
+                      input_shape=set_batch(input_shape, batch),
+                      target=device_type, device_ids=device_ids)
 
         dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
         dump_data, _ = dataset.iter_func()()
@@ -453,10 +632,11 @@ if __name__ == "__main__":
         model_root = path.join(dump_dir, model_name_tfm)
         np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
-        ext_file_tfm = path.join(model_root, model_name+".all.quantize.ext")
-        infos = ['oscales: ', oscales,
-                 'input_ext: ', inputs_ext,
-                 'input shapes: ', input_shape]
-        sim.save_ext(ext_file_tfm, *infos)
+        infos = {
+            "inputs_ext": inputs_ext,
+            "oscales": oscales,
+            "input_shapes": input_shape,
+        }
+        sim.save_ext(path.join(model_root, "ext"), infos)
         logger.info("`%s` stage finished" % sec)
 

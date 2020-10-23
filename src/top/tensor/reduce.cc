@@ -33,13 +33,13 @@ inline TShape GetReduceAxes(const uint32_t indim,
     VerifyAttrRange(i, "reduce.axis", 0, indim-1);
   }
   std::sort(in_axis.begin(), in_axis.end());
-  for(size_t i = 0; i < in_axis.ndim()-1; i++){
+  for(int i = 0; i < in_axis.ndim()-1; i++){
     VERIFY(in_axis[i] != in_axis[i+1]);
   }
   if (!exclude) return in_axis;
   TShape r_axis(indim - in_axis.ndim());
   for (unsigned i = 0, j = 0, k = 0; i < indim; ++i) {
-    if (j < in_axis.ndim() && i == in_axis[j]) {
+    if ((int)j < in_axis.ndim() && i == in_axis[j]) {
         ++j;
         continue;
     }
@@ -52,7 +52,7 @@ inline TShape ReduceShapeImpl(const TShape& ishape,
                               const TShape& axis,
                               bool keepdims,
                               bool exclude) {
-  uint32_t indim = ishape.ndim();
+  int indim = ishape.ndim();
   TShape r_axes = GetReduceAxes(indim, axis, exclude);
   if (!r_axes.ndim()) return ishape;
   if (r_axes.ndim() == indim)
@@ -61,7 +61,7 @@ inline TShape ReduceShapeImpl(const TShape& ishape,
   VERIFY(r_axes.ndim() < indim);
   if (keepdims) {
     TShape oshape(ishape);
-    for (unsigned i = 0, j = 0; i < indim; ++i) {
+    for (int i = 0, j = 0; i < indim; ++i) {
       if (j >= r_axes.ndim() || i != r_axes[j]) continue;
       oshape[i] = 1;
       ++j;
@@ -70,7 +70,7 @@ inline TShape ReduceShapeImpl(const TShape& ishape,
   }
 
   TShape oshape(indim - r_axes.ndim());
-  for (unsigned i = 0, j = 0, k = 0; i < indim; ++i) {
+  for (int i = 0, j = 0, k = 0; i < indim; ++i) {
     if (j < r_axes.ndim() && i == r_axes[j]) {
       ++j;
       continue;
