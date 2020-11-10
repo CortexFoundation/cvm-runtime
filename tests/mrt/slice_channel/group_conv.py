@@ -99,7 +99,7 @@ def test1():
     }
     ichannel = 1
     step = 1
-    test(xshp, wshp, attr, ichannel, step)
+    test(xshp, wshp, attr, ichannel, step, ctx=mx.gpu())
 
 def test2():
     xshp = (16, 16, 56, 56)
@@ -134,6 +134,6 @@ def test3():
     test(xshp, wshp, attr, ichannel, step, ctx=mx.gpu())
 
 if __name__ == '__main__':
-    # test1()
-    # test2()
+    test1()
+    test2()
     test3()
