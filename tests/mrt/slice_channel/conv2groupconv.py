@@ -40,3 +40,11 @@ if __name__ == '__main__':
         'num_filter': 4,
     }
     utils.test_nd(shps, attrs, fwd_conv2d, fwd_conv2d_groupwise)
+    shps = [(1, 3, 225, 225), (8, 3, 3, 3)]
+    attrs = {
+        'no_bias': True,
+        'num_group': 1,
+        'kernel': (3,3),
+        'num_filter': 8,
+    }
+    utils.test_nd(shps, attrs, fwd_conv2d, fwd_conv2d_groupwise)
