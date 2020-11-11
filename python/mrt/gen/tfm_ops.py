@@ -154,45 +154,47 @@ class Convolution(tops.Convolution, Transformer):
         C, IC, OC = xshp[1], wshp[1], wshp[0]
         assert num_group * IC == C and OC >= num_group and OC % num_group == 0
         if num_group == 1:
-            # xs = sym_slice(X, ichannel, step, **kwargs)
-            # ws = sym_slice(W, ichannel, step, **kwargs)
-            # nodes = []
-            # j = 0
-            # for i in range(0, C, step):
-                # suffix = '_' + str(i)+'-'+str(i+step)
-                # xni = xs[j].attr('name')
-                # cfg_dict[xni] = xi_cfg_info
-                # wni = ws[j].attr('name')
-                # cfg_dict[wni] = wi_cfg_info
-                # yni = N.n(name+suffix)
-                # Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
-                # cfg_dict[yni] = yi_cfg_info
-                # nodes.append(Yi)
-                # j += 1
-            # assert len(nodes) > 1
-            # op = mx.sym.add_n(*nodes, name=name)
-            # transpose and reshape weight
-            Wt = mx.sym.transpose(W, axes=(1,0,2,3), name=N.n('transpose'))
-            rshp = (OC*IC,1,) + wshp[2:]
-            wrn = N.n('reshape')
-            cfg_dict[wrn] = wi_cfg_info
-            Wr = mx.sym.reshape(Wt, shape=rshp, name=wrn)
-            # groupwise convolution
-            nattr = attr.copy()
-            nattr['num_group'] = IC
-            nattr['num_filter'] = IC * OC
-            conv_name = N.n('groupwise_convolution')
-            cfg_dict[conv_name] = yi_cfg_info
-            op = mx.sym.Convolution(X, Wr, **nattr, name=conv_name)
-            # reshape output
-            rname = N.n('reshape')
-            cfg_dict[rname] = yi_cfg_info
-            rshp = (-1, IC, OC,) + oshp[2:]
-            op = mx.sym.reshape(op, shape=rshp, name=rname)
-            # sum
-            sum_name = N.n('sum')
-            cfg_dict[sum_name] = yi_cfg_info
-            op = mx.sym.sum(op, axis=1, keepdims=False, name=sum_name)
+            xs = sym_slice(X, ichannel, step, **kwargs)
+            ws = sym_slice(W, ichannel, step, **kwargs)
+            nodes = []
+            j = 0
+            for i in range(0, C, step):
+                suffix = '_' + str(i)+'-'+str(i+step)
+                xni = xs[j].attr('name')
+                cfg_dict[xni] = xi_cfg_info
+                wni = ws[j].attr('name')
+                cfg_dict[wni] = wi_cfg_info
+                yni = N.n(name+suffix)
+                Yi = get_mxnet_op(op_name)(xs[j], ws[j], **attr, name=yni)
+                cfg_dict[yni] = yi_cfg_info
+                nodes.append(Yi)
+                j += 1
+            assert len(nodes) > 1
+            op = mx.sym.add_n(*nodes, name=name)
+
+            # # transpose and reshape weight
+            # Wt = mx.sym.transpose(W, axes=(1,0,2,3), name=N.n('transpose'))
+            # rshp = (OC*IC,1,) + wshp[2:]
+            # wrn = N.n('reshape')
+            # cfg_dict[wrn] = wi_cfg_info
+            # Wr = mx.sym.reshape(Wt, shape=rshp, name=wrn)
+            # # groupwise convolution
+            # nattr = attr.copy()
+            # nattr['num_group'] = IC
+            # nattr['num_filter'] = IC * OC
+            # conv_name = N.n('groupwise_convolution')
+            # cfg_dict[conv_name] = yi_cfg_info
+            # print(nattr, name)
+            # op = mx.sym.Convolution(X, Wr, **nattr, name=conv_name)
+            # # reshape output
+            # rname = N.n('reshape')
+            # cfg_dict[rname] = yi_cfg_info
+            # rshp = (-1, IC, OC,) + oshp[2:]
+            # op = mx.sym.reshape(op, shape=rshp, name=rname)
+            # # sum
+            # sum_name = N.n('sum')
+            # cfg_dict[sum_name] = yi_cfg_info
+            # op = mx.sym.sum(op, axis=1, keepdims=False, name=sum_name)
         else:
             assert step == 1
             xs = sym_slice(X, ichannel, step, **kwargs)
