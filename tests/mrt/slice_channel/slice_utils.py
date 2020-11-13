@@ -1,10 +1,12 @@
 import numpy as np
+import logging
 from mxnet import ndarray as nd
 
-def check_valid(A, B, tol=1e-6):
+def check_valid(A, B, tol=1e-6, logger=logging.getLogger("mrt.test.channel")):
     assert A.shape == B.shape, \
         "invalid shape, shape of A: {}, shape of B: {}".format(
         A.shape, B.shape)
+    shp = A.shape
     Xs = []
     for X in [A, B]:
         assert isinstance(X, nd.NDArray), \
@@ -22,7 +24,7 @@ def check_valid(A, B, tol=1e-6):
         diff = abs(A[i] - B[i])
         assert diff <= tol, \
             "invalid tolerance, tol: {}, diff: {}".format(tol, diff)
-    print("check valid")
+    logger.info("check valid, shape of data: {}".format(shp))
 
 def generate_data_int(shp, th=2**8):
     X = np.random.random(shp)*th*2 - th

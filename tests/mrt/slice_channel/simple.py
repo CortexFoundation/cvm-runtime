@@ -2,6 +2,7 @@ import mxnet as mx
 import numpy as np
 import slice_utils as utils
 from mxnet import ndarray as nd
+from mrt.utils import log_init
 
 def test_ord1():
     a = nd.array(np.random.random((16,32,28,28)))
@@ -33,27 +34,12 @@ def test_ord1():
     # print("sum", c1)
     utils.check_valid(c, c1, tol=1e-5)
 
-def forward_conv2gconv_input():
-    pass
-
-def backward_gconv2conv_input():
-    pass
-
-def forward_conv2gconv_output():
-    pass
-
-def backward_gconv2conv_output():
-    pass
-
-def fuse_transform_output():
-    pass
-
 def test_gen(
     step=2,
     NG=1, OPG=4, IPG=8,
     N=16, H=28, W=28, KH=1, KW=1,
     PH=0, PW=0, SH=1, SW=1, DH=1, DW=1,
-    tol=1e-5, th=1e7):
+    tol=1e-6, th=2**8):
     # for temporory
     assert PH == 0 and PW == 0 and SH == 1 and SW == 1 \
         and DH == 1 and DW == 1 and NG == 1
@@ -62,8 +48,8 @@ def test_gen(
     # for reference
     C = IPG * NG
     O = OPG * NG
-    X = nd.array(np.random.random((N,C,H,W)))
-    W = nd.array(np.random.random((O,IPG,KH,KW)))
+    X = utils.generate_data_int((N,C,H,W), th=th)
+    W = utils.generate_data_int((O,IPG,KH,KW), th=th)
     attrs = {
         'no_bias': True,
         'num_group': NG,
@@ -107,6 +93,7 @@ def test_gen(
     utils.check_valid(Y, Y1, tol=tol)
 
 if __name__ == '__main__':
+    log_init()
     test_ord1()
     test_gen(
-        step=4, IPG=512, OPG=512, H=14, W=14, tol=1e-4)
+        step=16, IPG=512, OPG=512, H=14, W=14, tol=1e-6, th=2**8)
