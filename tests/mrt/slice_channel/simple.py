@@ -41,8 +41,7 @@ def test_gen(
     PH=0, PW=0, SH=1, SW=1, DH=1, DW=1,
     tol=1e-6, th=2**8):
     # for temporory
-    assert PH == 0 and PW == 0 and SH == 1 and SW == 1 \
-        and DH == 1 and DW == 1 and NG == 1
+    assert NG == 1
     YH = (H+2*PH-DH*(KH-1)-1)//SH + 1
     YW = (W+2*PW-DW*(KW-1)-1)//SW + 1
     # for reference
@@ -96,4 +95,8 @@ if __name__ == '__main__':
     log_init()
     test_ord1()
     test_gen(
-        step=16, IPG=512, OPG=512, H=14, W=14, tol=1e-6, th=2**8)
+        step=4,
+        NG=1, IPG=512, OPG=512,
+        N=8, H=56, W=56, KH=5, KW=5,
+        PH=2, PW=1, SH=4, SW=3, DH=2, DW=5,
+        tol=1e-6, th=2**8)
