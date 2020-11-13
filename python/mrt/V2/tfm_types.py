@@ -337,7 +337,7 @@ class Quantizer:
             ----------
             oprec : int
                 The quantize precision of the node.
-            ft : mrt.gen.Feature
+            ft : mrt.V2.Feature
                 The feature of the node to be quantized.
 
             Returns

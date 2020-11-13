@@ -1,7 +1,7 @@
 import numpy as np
 import mxnet as mx
 from mxnet import ndarray as nd
-from mrt.gen import cvm_op
+from mrt.V2 import cvm_op
 from mrt import cvm_op
 import slice_utils as utils
 

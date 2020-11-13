@@ -14,8 +14,8 @@ from mrt.main2 import set_batch, batch_axis, _check, \
                       bool_t, tuple_t, float_t, ARRAY, \
                       PAIR, _get_val, _cast_val, \
                       _load_fname, _checkpoint_exist
-from mrt.gen.transformer import MRT, Model, reduce_graph
-from mrt.gen.tfm_pass import deserialize
+from mrt.V2.transformer import MRT, Model, reduce_graph
+from mrt.V2.tfm_pass import deserialize
 
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
@@ -160,7 +160,7 @@ if __name__ == "__main__":
                 new_names.append(name)
         restore_names = set(new_names)
         if '_ALL_EXCEPT_' in restore_names:
-            from mrt.gen.tfm_base import _pass_manager
+            from mrt.V2.tfm_base import _pass_manager
             from mrt.tfm_ops import disabled_restore_ops
 
             quantize_ops = [op_name for op_name in _pass_manager["quantize"] \

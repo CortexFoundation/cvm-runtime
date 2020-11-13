@@ -5,7 +5,7 @@ from mxnet import ndarray as nd
 from os import path
 
 # import as registry pattern
-from mrt.gen import tfm_ops  # pylint: disable=unused-import
+from mrt.V2 import tfm_ops  # pylint: disable=unused-import
 from mrt import cvm_op   # pylint: disable=unused-import
 
 from mrt.sym_utils import topo_sort

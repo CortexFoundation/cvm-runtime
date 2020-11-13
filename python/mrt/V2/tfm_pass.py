@@ -394,11 +394,11 @@ def quantize(
         params : dict
             symbol name maps to mxnet.NDArray, represent graph parameters
         features : dict
-            symbol name maps to mrt.gen.Feature
+            symbol name maps to mrt.V2.Feature
         precs : dict
             symbol name maps to precision dict
         buffers : dict
-            symbol name maps to mrt.gen.Buffer
+            symbol name maps to mrt.V2.Buffer
         cfg_dict : dict
             symbol name maps to configuration dict
         op_input_precs : dict
