@@ -650,6 +650,46 @@ class UAQuantizer(Quantizer):
         out = out.clip(a_min=lower, a_max=upper)
         return out, self.get_prec(out)
 
+
+@register_quantizer("GroupConvQuant")
+class GroupConvQuant(Quantizer):
+    """ Quantizer for Group-wise Convolution
+    """
+    def sample(
+        self, data, is_weight=False, num_groups=None, **kwargs):
+        shp = data.shape
+        assert len(shp) == 4, "invalid data shape: {}".format(shp)
+        assert num_groups is not None, "num_groups should be specified"
+        if is_weight:
+            """ shape of W (OPG*NG, IPG, KH, KW)
+            """
+            absmax_list = [
+                float(data[i:i+num_groups]) \
+                for i in range(0, shp[0], num_groups)
+            ]
+        else:
+            """ shape of X (N, IPG*NG, H, W)
+            """
+            absmax_list = [
+                float(data[:,i:i+num_groups]) \
+                for i in range(0, shp[0], num_groups)
+            ]
+        return ALFeature(absmax_list)
+
+    def _quantize_parameter(
+        self, W, oprec, oscale=None, num_groups=None, **kwargs):
+        assert oscale is None, \
+            "Quantizer: {} does not support quantize with oscale".format(
+                GroupConvQuant.name)
+        assert False, "implementing..."
+
+    def _quantize_operator(
+        self, X, oprec, oscale=None, num_groups=None, **kwargs):
+        assert oscale is None, \
+            "Quantizer: {} does not support quantize with oscale".format(
+                GroupConvQuant.name)
+        assert False, "implementing..."
+
 DEFAULT_QUANT_TYPE = US_QUANT_TYPE
 DEFAULT_QUANTIZER = USQuantizer()
 
@@ -780,7 +820,7 @@ class HVOptimizor(Optimizor):
 
     @staticmethod
     def list_supported_quant_types():
-        return ["UniformSymmetric", "UniformAffine"]
+        return ["UniformSymmetric", "UniformAffine", GroupConvQuant.name]
 
     @staticmethod
     def list_attr_types():
@@ -987,6 +1027,7 @@ QUANT_TYPE_EXP = USQuantizer.name
 
 LAYER_WISE_TYPE = "layer-wise"
 CHANNEL_WISE_TYPE = "channel-wise"
+GROUP_WISE_TYPE = "group-wise"
 DEFAULT_GN_INFO = {"gn_type": LAYER_WISE_TYPE}
 
 GN_REG = {

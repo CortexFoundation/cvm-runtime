@@ -19,7 +19,7 @@ from .tfm_types import get_quantizer, DEFAULT_QUANT_TYPE, get_optimizor, \
 from .tfm_utils import get_buffer_exp, get_bit_exp, scale_exp, \
                        get_quantizer_exp
 from .tfm_base import apply_pass
-from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, \
+from .tfm_types import LAYER_WISE_TYPE, CHANNEL_WISE_TYPE, GROUP_WISE_TYPE, \
                        DEFAULT_GN_INFO, QUANT_REG, OPT_REG, make_key_opt
 from .tfm_ops import Convolution, FullyConnected
 
@@ -143,6 +143,27 @@ def deserialize(cfg_groups):
                 raise ValueError(
                     "Please specify the correct step of channel " + \
                     "(step), names: %s, step: %s", names, step)
+        elif gn_type == GROUP_WISE_TYPE:
+            if "is_weight" not in gn_info:
+                raise ValueError(
+                    "Please specify whether the node is weight or not " + \
+                    "(is_weight), names: {}".format(names))
+            is_weight = gn_info["is_weight"]
+            if not isinstance(is_weight, bool):
+                raise ValueError(
+                    "Please sepcify the correct is_weight, " + \
+                    "names: {}, is_weight: {}".format(
+                        names, is_weight))
+            if "num_groups" not in gn_info:
+                raise ValueError(
+                    "Please specify the number of groups (num_groups), " + \
+                    "names: {}".format(names))
+            num_groups = gn_info["num_groups"]
+            if not isinstance(num_groups, int):
+                raise ValueError(
+                    "Please specify the correct number of groups " + \
+                    "(num_groups), names: {}, num_groups: {}".format(
+                        names, num_groups))
         elif gn_type == LAYER_WISE_TYPE:
             if len(gn_info) > 1:
                 raise ValueError(
@@ -171,9 +192,8 @@ def deserialize(cfg_groups):
                 "Unsupported optimizor type: %s, names: %s", opt_type, names)
         if quant_type not in OPT_REG[opt_type].list_supported_quant_types():
             raise ValueError(
-                "quantizer type: (%s) is not supported by " + \
-                "optimizor type: (%s), names: %s",
-                quant_type, opt_type, names)
+                "quantizer type: {} is not supported by ".format(quant_type) + \
+                "optimizor type: {}, names: {}".format(opt_type, names))
         opt_attrs = opt_info.copy()
         opt_attrs.pop("opt_type")
         opt_attr_types = OPT_REG[opt_type].list_attr_types()
@@ -225,6 +245,7 @@ def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
             op.get_children()), op.list_attr()
         quant_type, opt_info = \
             cfg_dict[name]["quant_type"], cfg_dict[name]["opt_info"]
+        gn_info = cfg_dict[name]["gn_info"]
         quantizer, optimizor = \
             get_quantizer(quant_type), get_optimizor(opt_info)
 
@@ -249,7 +270,7 @@ def sym_calibrate(symbol, params, data, cfg_dict, **kwargs):
 
         out = [out] if len(op) == 1 else out
         out_cache[name] = [o.as_in_context(ctx) for o in out]
-        raw_ft = quantizer.sample(out[0])
+        raw_ft = quantizer.sample(out[0], **gn_info)
         hist_ft = features[name] if name in features else None
         features[name] = optimizor.get_opt(
             raw_ft, out[0], hist_ft=hist_ft, logger=logger, name=name)

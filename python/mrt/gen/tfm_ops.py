@@ -237,7 +237,8 @@ class Convolution(tops.Convolution, Transformer):
         childs, attr = sym_iter(op.get_children()), op.list_attr()
         cns = [c.attr('name') for c in childs] if childs else []
 
-        assert len(childs) == 2 and 'pad' not in attr
+        # assert len(childs) == 2 and 'pad' not in attr
+        assert len(childs) == 2
         xquant_type = cfg_dict[cns[0]]['quant_type']
         wquant_type = cfg_dict[cns[1]]['quant_type']
         X, W = childs

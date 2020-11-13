@@ -161,7 +161,7 @@ if __name__ == "__main__":
         restore_names = set(new_names)
         if '_ALL_EXCEPT_' in restore_names:
             from mrt.gen.tfm_base import _pass_manager
-            from mrt.gen.tfm_ops import disabled_restore_ops
+            from mrt.tfm_ops import disabled_restore_ops
 
             quantize_ops = [op_name for op_name in _pass_manager["quantize"] \
                             if op_name not in disabled_restore_ops]
