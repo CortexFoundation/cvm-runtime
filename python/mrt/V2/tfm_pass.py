@@ -113,8 +113,8 @@ def deserialize(cfg_groups):
                     val.replace(".", ",").replace(";", ":"))
             except:
                 raise ValueError(
-                    "Invalid value, names: %s, attr: %s, val: %s",
-                    names, attr, val)
+                    "Invalid value, names: {}, attr: {}, val: {}".format(
+                        names, attr, val))
             cfg_info[attr] = val
 
         # Granularity Settings Validate
@@ -148,7 +148,7 @@ def deserialize(cfg_groups):
                 raise ValueError(
                     "Please specify whether the node is weight or not " + \
                     "(is_weight), names: {}".format(names))
-            is_weight = gn_info["is_weight"]
+            is_weight = eval(gn_info["is_weight"])
             if not isinstance(is_weight, bool):
                 raise ValueError(
                     "Please sepcify the correct is_weight, " + \
@@ -215,7 +215,7 @@ def deserialize(cfg_groups):
         cfg_info["opt_info"] = make_key_opt(opt_info)
 
         for name in names:
-            assert name not in cfg_dict
+            assert name not in cfg_dict, "name: {}".format(name)
             cfg_dict[name] = cfg_info.copy()
 
     return cfg_dict
