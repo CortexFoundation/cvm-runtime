@@ -68,6 +68,13 @@ class Feature:
             "Derived " + self.name + " feature not override the" + \
             " base `get` function defined in Feature")
 
+    def get_threshold(self):
+        """ Get the threshold of feature
+        """
+        raise NotImplementedError(
+            "Derived " + self.name + " feature not override the" + \
+            " base `get_threshold` function defined in Feature")
+
     def serialize(self):
         """ Serialize the feature into list to be compatible with json.
 
@@ -94,6 +101,9 @@ class AFeature(Feature):
     def get(self):
         return self.absmax
 
+    def get_threshold(self):
+        return self.get()
+
     def serialize(self):
         return [self.name, self.absmax]
 
@@ -103,10 +113,13 @@ class ALFeature(Feature):
     """ Absmax Channel-wise Feature
     """
     def __init__(self, *args):
-        self.absmax_list = args
+        self.absmax_list = args[0]
 
     def get(self):
         return self.absmax_list
+
+    def get_threshold(self):
+        return max(self.get())
 
     def serialize(self):
         return [self.name, self.absmax_list]
@@ -124,6 +137,10 @@ class MMFeature(Feature):
 
     def get(self):
         return self.minv, self.maxv
+
+    def get_threshold(self):
+        minv, maxv = self.get()
+        return max(abs(minv), maxv)
 
     def serialize(self):
         return [self.name, self.minv, self.maxv]

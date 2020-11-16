@@ -463,8 +463,7 @@ def quantize(
         features, buffers = kwargs['features'], kwargs['buffers']
         precs = kwargs['precs']
         ft = features[name]
-        assert ft.name == FT_TYPE_EXP
-        absmax = ft.get()
+        absmax = ft.get_threshold()
         name, op_name = op.attr('name'), op.attr('op_name')
         buf = buffers[name]
         assert buf.name == BUF_TYPE_EXP
