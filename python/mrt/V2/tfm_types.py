@@ -99,7 +99,7 @@ class AFeature(Feature):
 
 
 @register_feature("AbsmaxList")
-class ALFeatrue(Feature):
+class ALFeature(Feature):
     """ Absmax Channel-wise Feature
     """
     def __init__(self, *args):
@@ -663,16 +663,24 @@ class GroupConvQuant(Quantizer):
         if is_weight:
             """ shape of W (OPG*NG, IPG, KH, KW)
             """
+            assert shp[0] % num_groups == 0, \
+                "invalid slice, shp[0]: {}, num_groups: {}".format(
+                    shp[0], num_groups)
+            step = shp[0] // num_groups
             absmax_list = [
-                float(data[i:i+num_groups]) \
-                for i in range(0, shp[0], num_groups)
+                float(data[i:i+step].abs().max().asscalar()) \
+                for i in range(0, shp[0], step)
             ]
         else:
             """ shape of X (N, IPG*NG, H, W)
             """
+            assert shp[1] % num_groups == 0, \
+                "invalid slice, shp[1]: {}, num_groups: {}".format(
+                    shp[1], num_groups)
+            step = shp[1] // num_groups
             absmax_list = [
-                float(data[:,i:i+num_groups]) \
-                for i in range(0, shp[0], num_groups)
+                float(data[:,i:i+step].abs().max().asscalar()) \
+                for i in range(0, shp[1], step)
             ]
         return ALFeature(absmax_list)
 
@@ -813,6 +821,17 @@ class HVOptimizor(Optimizor):
             else:
                 hminv, hmaxv = hist_ft.get()
                 opt = MMFeature(min(minv, hminv), max(maxv, hmaxv))
+        elif isinstance(raw_ft, ALFeature):
+            if hist_ft is None:
+                opt = raw_ft
+            else:
+                absmax_list = raw_ft.get()
+                habsmax_list = raw_ft.get()
+                nabsmax_list = [ \
+                    max(absmax_list[i], habsmax_list[i]) \
+                    for i in range(len(absmax_list))
+                ]
+                opt = ALFeature(nabsmax_list)
         else:
             raise TypeError(
                 "Unsupported feature type: %s for HVOptimizor", type(raw_ft))
