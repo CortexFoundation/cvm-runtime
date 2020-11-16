@@ -15,7 +15,7 @@ from mrt.tfm_pass import OUT_KEY
 from .tfm_base import register_pass, register_transformer, Transformer
 from .tfm_types import get_quantizer, USQuantizer, UAQuantizer, \
                        FT_TYPE_EXP, AFeature, SBuffer, LAYER_WISE_TYPE, \
-                       US_QUANT_TYPE, AFeature, MMFeature
+                       US_QUANT_TYPE, AFeature, MMFeature, GroupConvQuant
 from .tfm_utils import scale_exp, get_buffer_exp, get_bit_exp, \
                        get_range_exp, get_bit_cnt_exp
 from .sym_utils import nd_full_const
@@ -339,11 +339,24 @@ class Convolution(tops.Convolution, Transformer):
             op = nodes[0]
             infer_prec = max(infer_precs) + 2
             precs[name][OUT_KEY] = infer_prec
+        elif xquant_type == GroupConvQuant.name and \
+            wquant_type == GroupConvQuant.name:
+            num_groups_x = cfg_dict[cns[0]]['gn_info']['num_groups']
+            num_groups_w = cfg_dict[cns[1]]['gn_info']['num_groups']
+            assert num_groups_x == num_groups_w, \
+                "num_groups of x and weight should be equal, " + \
+                "num_groups of x: {}, num_groups of weight: {}".format(
+                    num_groups_x, num_groups_w)
+            Xq, xprec_list, xscale_list = xquant.quantize(
+                X, oprec, oname=name, num_groups=num_groups_x, **kwargs)
+            Wq, wprec_list, wscale_list = wquant.quantize(
+                W, oprec, oname=name, num_groups=num_groups_w, **kwargs)
+            assert False, "implementing..."
         else:
             raise NotImplementedError(
                 "Quantization type not implementated," + \
-                " op: %20s, Xquant: %20s, Wquant: %20s",
-                op_name, [xquant_type, wquant_type])
+                " op: {}, Xquant: {}, Wquant: {}".format(
+                op_name, xquant_type, wquant_type))
 
         logger = logging.getLogger('log.mrt.realize')
         logger.debug(

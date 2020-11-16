@@ -512,6 +512,7 @@ class USQuantizer(Quantizer):
         absmax = ft.get()
         if absmax == 0:
             return X, 1, 1 if oscale is None else oscale
+        exactly = oscale is not None
         oscale = self.get_scale(oprec, ft) if oscale is None else oscale
 
         sb = iprec - oprec
@@ -520,7 +521,7 @@ class USQuantizer(Quantizer):
             X = tutils.realize(X, sb, iprec)
             iscale = iscale / (2**sb)
 
-        if oscale is not None or iprec > oprec:
+        if exactly or iprec > oprec:
             rescale = oscale / iscale
             bits = MAX_BIT - iprec
             frac, exp = sim.cvm_float(rescale, bits)
@@ -669,7 +670,7 @@ class UAQuantizer(Quantizer):
 
 
 @register_quantizer("GroupConvQuant")
-class GroupConvQuant(Quantizer):
+class GroupConvQuant(USQuantizer):
     """ Quantizer for Group-wise Convolution
     """
     def sample(
@@ -701,18 +702,136 @@ class GroupConvQuant(Quantizer):
             ]
         return ALFeature(absmax_list)
 
-    def _quantize_parameter(
-        self, W, oprec, oscale=None, num_groups=None, **kwargs):
+    def quantize(self, sym, oprec, oscale=None, num_groups=None, **kwargs):
         assert oscale is None, \
             "Quantizer: {} does not support quantize with oscale".format(
                 GroupConvQuant.name)
-        assert False, "implementing..."
+        assert num_groups is not None, \
+            "num_groups should not be None for Quantizer: {} ".format(
+                GroupConvQuant.name)
+        if sutils.is_params(sym, kwargs["params"]):
+            return self._quantize_parameter(
+                sym, oprec, oscale=oscale, num_groups=num_groups, **kwargs)
+        return self._quantize_operator(
+            sym, oprec, oscale=oscale, num_groups=num_groups, **kwargs)
 
-    def _quantize_operator(
-        self, X, oprec, oscale=None, num_groups=None, **kwargs):
-        assert oscale is None, \
-            "Quantizer: {} does not support quantize with oscale".format(
-                GroupConvQuant.name)
+    def _quantize_parameter(self, W, oprec, num_groups=None, **kwargs):
+        """ Groupwise Convolution Quantizer
+            weight (real value)
+        """
+        params, features = kwargs['params'], kwargs['features']
+        logger = logging.getLogger("log.mrt.realize")
+        precs = kwargs['precs']
+
+        wn = W.attr('name')
+        data = params[wn]
+        shp = data.shape
+        step = shp[0] // num_groups
+        prm_slices = [
+            params[wn].slice(
+                begin=(i,None,None,None),
+                end=(i+step,None,None,None)
+            ) for i in range(0, shp[0], step)
+        ]
+
+        oprec = precs[wn].get(kwargs['oname'], oprec)
+        ft = features[wn]
+        absmax_list = ft.get()
+        wprec_list, wscale_list, prm_list = [], [], []
+        for i, absmax in enumerate(absmax_list):
+            if absmax == 0:
+                wprec, wscale = 1, 1
+                prm = sutils.nd_zeros((step,)+shp[1:])
+            else:
+                tmp_ft = AFeature(absmax)
+                wscale = self.get_scale(oprec, tmp_ft)
+                prm, wprec = self.int_realize(
+                    prm_slices[i]*wscale, oprec, logger=logger)
+            wprec_list.append(wprec)
+            wscale_list.append(wscale)
+            prm_list.append(prm)
+        prm = nd.concat(*prm_list, dim=0)
+        W = mx.sym.var(N.n(wn), shape=prm.shape)
+        return W, wprec_list, wscale_list
+
+    def _quantize_operator(self, X, oprec, num_groups=None, **kwargs):
+        """ Groupwise Convolution Quantizer
+            symbol expansion (int version)
+        """
+        logger = kwargs.get(
+            'logger', logging.getLogger('log.mrt.realize'))
+        params, features = kwargs['params'], kwargs['features']
+        precs, buffers = kwargs['precs'], kwargs['buffers']
+        graph, shift_bits = kwargs['graph'], kwargs['shift_bits']
+        xn, xopn = X.attr('name'), X.attr('op_name')
+
+        oprec = precs[xn].get(kwargs['oname'], oprec)
+        iscale, iprec = buffers[xn].get(), precs[xn][OUT_KEY]
+        ft = features[xn]
+        absmax_list = ft.get()
+
+        oscale_list = []
+        for absmax in absmax_list:
+            if absmax == 0:
+                oscale_list.append(None)
+            else:
+                tmp_ft = AFeature(absmax)
+                oscale = self.get_scale(oprec, tmp_ft)
+                oscale_list.append(oscale)
+
+        sb = iprec - oprec
+        if sb > shift_bits:
+            iprec -= sb
+            X = tutils.realize(X, sb, iprec)
+            iscale = iscale / (2**sb)
+
+        xprec_list, xscale_list, exp_list, var_list = [], [], [], []
+        if iprec > oprec:
+            for i, absmax in enumerate(absmax_list):
+                if absmax == 0:
+                    xprec_list.append(1)
+                    xscale_list.append(1)
+                    exp_list.append(None)
+                    var_list.append(1)
+                else:
+                    rescale = oscale_list[i] / iscale
+                    bits = MAX_BIT - iprec
+                    frac, exp = sim.cvm_float(rescale, bits)
+                    sim_scale = frac * (2**exp)
+                    scale_err = abs((sim_scale-rescale) / rescale)
+                    if scale_err > 0.001:
+                        logger.warn(
+                            "Operator  %-20s name=%-40s quantize with sb=%s" +
+                            " scale=%s, error=%s",
+                            xopn, xn, sb, iscale, scale_err)
+                    xscale = iscale * frac * (2**exp)
+                    if frac > 1:
+                        var = sutils.nd_const(frac, graph, params)
+                        # X = mx.sym.broadcast_mul(
+                            # X, var, name=N.n("mrt_quantize_scale"))
+                    else:
+                        var = 1
+                    xprec = self.get_prec(xscale*absmax)
+                    # X = tutils.realize(X, -exp, xprec)
+                    logger.debug(
+                        "Operator  %-20s name=%-40s slice %s requantize" +
+                        " with scale=%-16.8f<%d, %d>" +
+                        " iprec=%s, iscale=%-10.5f, xprec=%s, xscale=%-10.5f",
+                        xopn, xn, i, rescale, frac, exp,
+                        iprec, iscale, xprec, xscale)
+                    xprec_list.append(xprec)
+                    xscale_list.append(xscale)
+                    exp_list.append(exp)
+                    var_list.append(var)
+            # broadcast_mul list of frac
+            xshp = kwargs['infer_shapes'][xn][sutils.get_entry_id(X)]
+            # realize
+        else:
+            xprec_list = [iprec if absmax == 0 else 1 for absmax in absmax_list]
+            xscale_list = [iscale if absmax == 0 else 1 for absmax in absmax_list]
+            logger.debug(
+                "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
+                xopn, xn, iprec, oprec)
         assert False, "implementing..."
 
 DEFAULT_QUANT_TYPE = US_QUANT_TYPE
