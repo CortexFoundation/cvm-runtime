@@ -1,7 +1,6 @@
+from mrt import tfm_utils as tutils
 from .tfm_types import get_buffer, BUF_TYPE_EXP, QUANT_TYPE_EXP, \
                        get_quantizer
-
-from mrt import tfm_utils as tutils
 
 def get_bit_exp(opt):
     return tutils.get_bit(opt)

@@ -8,15 +8,12 @@
 import math
 import logging
 import json
-
-import mxnet as mx
-from mxnet import ndarray as nd
 import numpy as np
-import json
+import mxnet as mx
 
+from mxnet import ndarray as nd
 from mrt.tfm_base import MAX_BIT, N
 from mrt.tfm_pass import OUT_KEY
-
 from mrt import sym_utils as sutils
 from mrt import tfm_utils as tutils
 from mrt import sim_quant_helper as sim
@@ -785,14 +782,14 @@ class GroupConvQuant(USQuantizer):
             X = tutils.realize(X, sb, iprec)
             iscale = iscale / (2**sb)
 
-        xprec_list, xscale_list, exp_list, var_list = [], [], [], []
+        xprec_list, xscale_list, sb_list, var_list = [], [], [], []
         if iprec > oprec:
             for i, absmax in enumerate(absmax_list):
                 if absmax == 0:
                     xprec_list.append(1)
                     xscale_list.append(1)
-                    exp_list.append(None)
-                    var_list.append(1)
+                    sb_list.append(None)
+                    var_list.append(sutils.nd_const(1, graph, params))
                 else:
                     rescale = oscale_list[i] / iscale
                     bits = MAX_BIT - iprec
@@ -810,7 +807,7 @@ class GroupConvQuant(USQuantizer):
                         # X = mx.sym.broadcast_mul(
                             # X, var, name=N.n("mrt_quantize_scale"))
                     else:
-                        var = 1
+                        var = sutils.nd_const(1, graph, params)
                     xprec = self.get_prec(xscale*absmax)
                     # X = tutils.realize(X, -exp, xprec)
                     logger.debug(
@@ -821,18 +818,43 @@ class GroupConvQuant(USQuantizer):
                         iprec, iscale, xprec, xscale)
                     xprec_list.append(xprec)
                     xscale_list.append(xscale)
-                    exp_list.append(exp)
+                    sb_list.append(-exp)
                     var_list.append(var)
             # broadcast_mul list of frac
             xshp = kwargs['infer_shapes'][xn][sutils.get_entry_id(X)]
+            frac = mx.sym.concat(*var_list, name=N.n('concat_mul_frac'))
+            frac = mx.sym.reshape(
+                frac, shape=(1,xshp[1],1,1), name=N.n('reshape_mul_frac'))
+            X = mx.sym.broadcast_mul(
+                X, frac, name=N.n('mrt_quantize_scale'))
             # realize
+            X = self._realize_ch(X, sb_list, xprec_list)
         else:
-            xprec_list = [iprec if absmax == 0 else 1 for absmax in absmax_list]
-            xscale_list = [iscale if absmax == 0 else 1 for absmax in absmax_list]
+            xprec_list = [
+                iprec if absmax == 0 else 1 for absmax in absmax_list
+            ]
+            xscale_list = [
+                iscale if absmax == 0 else 1 for absmax in absmax_list
+            ]
             logger.debug(
                 "Operator  %-20s name=%-40s clip with iprec=%s, oprec=%s",
                 xopn, xn, iprec, oprec)
-        assert False, "implementing..."
+        return X, xprec_list, xscale_list
+
+    def _realize_ch(self, X, sbs, precs, name=None):
+        name = name if name else N.n('realize_ch')
+        attrs = {
+            "sbs": ','.join([str(sb) for sb in sbs]),
+            "precs": ','.join([str(prec) for prec in precs]),
+            "op_type": "cvm_right_shift_channel",
+        }
+        if all([sb >= 0 for sb in sbs]):
+            assert False, "implementing..."
+            sym = mx.sym.Custom(X, **attrs)
+        else:
+            raise NotImplementedError(
+                "realize_ch has not be implemented for sbs: {}".format(sbs))
+        return sym
 
 DEFAULT_QUANT_TYPE = US_QUANT_TYPE
 DEFAULT_QUANTIZER = USQuantizer()
