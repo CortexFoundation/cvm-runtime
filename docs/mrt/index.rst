@@ -37,6 +37,7 @@ Mnist Tutorial
   :maxdepth: 3
 
   mnist_tutorial.md
+  gen.md
 
 
 API Documentation
@@ -62,6 +63,10 @@ Deprecated Docs
 .. toctree::
   :maxdepth: 2
 
-  README.md
-  mrt.md
-
+  MRT Main2 API <api/main2>
+  MRT Transformer API <api/transformer>
+  MRT Operator API <api/operator>
+  MRT Graph API <api/graph>
+  MRT Dataset API <api/dataset>
+  MRT Utils API <api/utils>
+  MRT Generalized Quantization API <api/gen>
