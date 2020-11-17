@@ -848,7 +848,7 @@ class GroupConvQuant(USQuantizer):
             "precs": ','.join([str(prec) for prec in precs]),
             "op_type": "cvm_right_shift_channel",
         }
-        if all([sb >= 0 for sb in sbs]):
+        if all([sb > 0 for sb in sbs]):
             assert False, "implementing..."
             sym = mx.sym.Custom(X, **attrs)
         else:
