@@ -30,7 +30,7 @@ def forward_slice_right_shift(X, precs=None, sbs=None):
     xshp = X.shape
     ndim = len(xshp)
     assert xshp[1] % len(precs) == 0, \
-        "division error, xshp[0]: {}, len(precs): {}".format( \
+        "division error, xshp[1]: {}, len(precs): {}".format( \
         (xshp[1], len(precs)))
     inc = xshp[1] // len(precs)
     nodes = []
@@ -68,3 +68,13 @@ if __name__ == "__main__":
     utils.test_nd(
         shps, attrs, forward_right_shift_channel,
         forward_slice_right_shift)
+
+    # case 2
+    shps = [(2,4,1,4)]
+    attrs = {
+        "precs": "8,7,8,8",
+        "sbs": "8,8,8,8",
+    }
+    utils.test_nd(
+        shps, attrs, forward_right_shift_channel,
+        forward_slice_right_shift, th=1e-6)

@@ -17,6 +17,7 @@ from mrt.tfm_pass import OUT_KEY
 from mrt import sym_utils as sutils
 from mrt import tfm_utils as tutils
 from mrt import sim_quant_helper as sim
+from . import cvm_op
 
 _NULL_NAME = "_NULL_NAME_"
 _NONETYPE = type(None)
@@ -788,7 +789,7 @@ class GroupConvQuant(USQuantizer):
                 if absmax == 0:
                     xprec_list.append(1)
                     xscale_list.append(1)
-                    sb_list.append(None)
+                    sb_list.append(1)
                     var_list.append(sutils.nd_const(1, graph, params))
                 else:
                     rescale = oscale_list[i] / iscale
@@ -849,8 +850,7 @@ class GroupConvQuant(USQuantizer):
             "op_type": "cvm_right_shift_channel",
         }
         if all([sb > 0 for sb in sbs]):
-            assert False, "implementing..."
-            sym = mx.sym.Custom(X, **attrs)
+            sym = mx.sym.Custom(X, name=name, **attrs)
         else:
             raise NotImplementedError(
                 "realize_ch has not be implemented for sbs: {}".format(sbs))
