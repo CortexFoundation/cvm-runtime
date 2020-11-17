@@ -351,6 +351,17 @@ class Convolution(tops.Convolution, Transformer):
                 X, oprec, oname=name, num_groups=num_groups_x, **kwargs)
             Wq, wprec_list, wscale_list = wquant.quantize(
                 W, oprec, oname=name, num_groups=num_groups_w, **kwargs)
+            op = get_mxnet_op(op_name)(Xq, Wq, **attr, name=name)
+            IPG = kwargs['infer_shapes'][cns[1]][get_entry_id(X)][1]
+            kprec = get_bit_cnt_exp(IPG)
+            infer_prec_list = [
+                kprec + wprec_list[i] + xprec_list[i] \
+                for i in range(len(wprec_list))
+            ]
+            oscale_list = [
+                xscale_list[i] * wscale_list[i] \
+                for i in range(len(wscale_list))
+            ]
             assert False, "implementing..."
         else:
             raise NotImplementedError(
