@@ -552,7 +552,7 @@ if __name__ == "__main__":
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
-        dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
+        #  dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
         iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)

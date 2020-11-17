@@ -1,12 +1,11 @@
-""" Dataset Base Class Definition.
-
-    File manipulation helper function set.
+""" Dataset Class Definition.
 
     Customized datasets definition and customized interface
-    definition including `metrics`, `validate`, `_load_data`
-    and `iter_func`.
+    definition including ``metrics``, ``validate``,
+    ``_load_data`` and ``iter_func``.
 
-    Only **crucial parts** of the custommized interface implementation are elaborated.
+    Only **crucial parts** of the custommized interface
+    implementation are elaborated.
 """
 
 import mxnet as mx
@@ -124,7 +123,7 @@ class Dataset:
             ``MRT_DATASET_ROOT`` in conf.py or custom directory.
 
 
-        **Custom Dataset Implementation(derived this class):**
+        **Custom Dataset Implementation (derived this class):**
 
             1. Register dataset name into DS_REG that can be accessed
             at the ``dataset`` package API. And releated function is
@@ -239,7 +238,16 @@ class Dataset:
                 " base `_load_data` function defined in Dataset")
 
     def iter_func(self):
-        """ Returns (data, label) iterator function """
+        """ Returns (data, label) iterator function.
+
+            Get the iterator of `self.data` and iterate each batch sample
+            with `next` function manually. Call like this:
+
+            .. code-block:: python
+
+                data_iter_func = dataset.iter_func()
+                data, label = data_iter_func()
+        """
         data_iter = iter(self.data)
         def _wrapper():
             return next(data_iter)

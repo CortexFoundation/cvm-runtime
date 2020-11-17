@@ -52,7 +52,9 @@ class Indices {
   Indices(TShape && src)
     : shape_(src), max_size_(src.Size()),
       indices_(src.ndim()), index_cache_(0) {}
-
+  Indices(Indices const& rv)
+    : shape_(rv.shape_), max_size_(rv.max_size_),
+    indices_(rv.indices_), index_cache_(rv.index_cache_) {}
   Indices(Indices && other) {
     this->swap(other);
   }
