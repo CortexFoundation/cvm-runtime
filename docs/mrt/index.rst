@@ -43,11 +43,16 @@ Quantization Documentation
 ==========================
 
 .. toctree::
-  :maxdepth: 1
-  
+  :maxdepth: 3
   
 
+V2 Documentation
+================
 
+.. toctree::
+  :maxdepth: 3
+
+  V2.md
 
 API Documentation
 =================
