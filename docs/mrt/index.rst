@@ -39,6 +39,15 @@ Mnist Tutorial
   mnist_tutorial.md
   V2.md
 
+Quantization Documentation
+==========================
+
+.. toctree::
+  :maxdepth: 1
+  
+  
+
+
 
 API Documentation
 =================
@@ -70,10 +79,3 @@ Deprecated Docs
   MRT Dataset API <api/dataset>
   MRT Utils API <api/utils>
   MRT Generalized Quantization API <api/gen>
-
-
-.. TODO list
-
-.. Optimizor
-.. verification of KLDOptimizor, MAOptimizor (moving average ooptimizor)
-.. implementation of outlier removal optimizor
