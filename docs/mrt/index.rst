@@ -37,7 +37,7 @@ Mnist Tutorial
   :maxdepth: 3
 
   mnist_tutorial.md
-  gen.md
+  V2.md
 
 
 API Documentation
@@ -70,3 +70,10 @@ Deprecated Docs
   MRT Dataset API <api/dataset>
   MRT Utils API <api/utils>
   MRT Generalized Quantization API <api/gen>
+
+
+.. TODO list
+
+.. Optimizor
+.. verification of KLDOptimizor, MAOptimizor (moving average ooptimizor)
+.. implementation of outlier removal optimizor
