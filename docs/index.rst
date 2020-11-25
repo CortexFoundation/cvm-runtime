@@ -13,6 +13,7 @@ Welcome to cvm-runtime's documentation!
   cvm/install
   guide/contrib/index
   guide/dev_guide
+  guide/get_started.rst
 
 .. toctree::
   :maxdepth: 2
@@ -23,7 +24,7 @@ Welcome to cvm-runtime's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: CONTENTS
+   :caption: Develop API
 
    cvm/index
    mrt/index

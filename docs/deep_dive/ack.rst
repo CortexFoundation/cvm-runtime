@@ -30,7 +30,8 @@ a consistent state, including memory state, smart contract and
 the block chain etc. **And the consistent inference result for any
 model execution is also natural.** Ideally, keep the same output
 for the same model and input at virous devices and system environments is our first target, and after that, keep all the 
-operators output deterministic is another goal to be perform incidentally. Besides, we keep an ambiguous attitude for the 
+operators output deterministic is another goal to be perform incidentally.
+Besides, we keep an ambiguous attitude for the 
 flexibility and scalability of model graph (or model structure), 
 like the sequence alteration or fuse operation for operators in 
 a model.
@@ -61,6 +62,11 @@ integer data to avoid the non-determinism in floating point,
 such as different summation order and multi-threading.
 Also, we brought an **data precision schema** to get out of
 the overflow or underflow problem.
+
+.. note::
+  All data in CVM Runtime is an array of interger with precision ranged
+  between 0 and 32. In mathmetical format, it means that
+  :math:`d \in [-r, r], r = 2 ^ {\text{precision} - 1} - 1`.
 
 More design and architecture introduction refers to the section:
 :ref:`Design and Architecture <design-and-arch>` please.
