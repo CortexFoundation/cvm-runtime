@@ -16,56 +16,56 @@ convolution. The core implementation attributes to the module
 Quantizer
 ~~~~~~~~~
 
-+---+------------------+-----------------+-----------------+-----------------+
-|   | Parameter        | Input (Uniform  | Parameter       | Input (Uniform  |
-|   | (Uniform         | Symmetric       | (Uniform Affine | Affine          |
-|   | Symmetric        | Quantizer)      | Quantizer)      | Quantizer)      |
-|   | Quantizer)       |                 |                 |                 |
-+===+==================+=================+=================+=================+
-| S | :math:`sc_       | :math:`sc_      | :math:`sc_      | :math:`sc_      |
-| c | {w} = \frac{2^{  | {x} = \frac{2^{ | {w} = \frac{2^{ | {x} = \frac{2^{ |
-| a | PREC-1}-         | PREC-1}-        | PREC}-1}{\max{W | PREC}-1}{\max{  |
-| l | 1}{\max{|Wr|}}`  | 1}{\max{|Xr|}}` | r} - \min{Wr}}` | Xr}-\min {Xr}}` |
-| e |                  |                 |                 |                 |
-+---+------------------+-----------------+-----------------+-----------------+
-| Z | -                | -               | :math:`zp_      | :math:`zp_      |
-| e |                  |                 | {wr} = \min Wr` | {xe} = \text{   |
-| r |                  |                 |                 | round}\Big(\min |
-| o |                  |                 |                 | Xr \cdot sc_{xe |
-| P |                  |                 |                 | }\Big) \\       |
-| o |                  |                 |                 | rzp_{x} =       |
-| i |                  |                 |                 | round \Big      |
-| n |                  |                 |                 | (\min Xr \Big)` |
-| t |                  |                 |                 |                 |
-+---+------------------+-----------------+-----------------+-----------------+
-| Q | :math:`Wq        | :math:`         | :mat            | :math:`frac,    |
-| u | = \text{round}   | frac, exp = \te | h:`W_{q} = \tex | exp = \text{cvm |
-| a | \Big(sc_{w}      | xt{cvm_float}\b | t{round} \Big[  | _float}\bigg(\f |
-| n | \cdot            | igg(\frac{sc_{x | (sc_{w} \left(  | rac{sc_{x}}{sc_ |
-| t | Wr \Big)`        | }}{sc_{xe}}\big | W_{r} - zp_{wr} | {xe}}\bigg) \\  |
-| i |                  | g) \\ Xq = \tex |  \right) \Big]` | Xq = \text{real |
-| z |                  | t{realize} (X_{ |                 | ize}(Xe - zp_{x |
-| a |                  | e}, frac, exp)` |                 | e}, frac, exp)` |
-| t |                  |                 |                 |                 |
-| i |                  |                 |                 |                 |
-| o |                  |                 |                 |                 |
-| n |                  |                 |                 |                 |
-+---+------------------+-----------------+-----------------+-----------------+
-| R | :math:`Wr        | :math:`Xr =     | :math:`Wr       | :math:`Xr       |
-| e | = \frac{Wq       | \frac{Xq        | = \frac{Wq}{sc_ | = \frac{Xq}{sc_ |
-| q | }{sc_{w}}`       | }{sc_{x}}`      | {w}} + zp_{wr}` | {x}} + rzp_{x}` |
-| u |                  |                 |                 |                 |
-| a |                  |                 |                 |                 |
-| n |                  |                 |                 |                 |
-| t |                  |                 |                 |                 |
-| i |                  |                 |                 |                 |
-| z |                  |                 |                 |                 |
-| a |                  |                 |                 |                 |
-| t |                  |                 |                 |                 |
-| i |                  |                 |                 |                 |
-| o |                  |                 |                 |                 |
-| n |                  |                 |                 |                 |
-+---+------------------+-----------------+-----------------+-----------------+
++---+------------------+-------------------+-----------------+-----------------------+
+|   | Parameter        | Input (Uniform    | Parameter       | Input (Uniform        |
+|   | (Uniform         | Symmetric         | (Uniform Affine | Affine                |
+|   | Symmetric        | Quantizer)        | Quantizer)      | Quantizer)            |
+|   | Quantizer)       |                   |                 |                       |
++===+==================+===================+=================+=======================+
+| S | :math:`sc_       | :math:`sc_        | :math:`sc_      | :math:`sc_            |
+| c | {w} = \frac{2^{  | {x} = \frac{2^{   | {w} = \frac{2^{ | {x} = \frac{2^{       |
+| a | PREC-1}-         | PREC-1}-          | PREC}-1}{\max{W | PREC}-1}{\max{        |
+| l | 1}{\max{|Wr|}}`  | 1}{\max{|Xr|}}`   | r} - \min{Wr}}` | Xr}-\min {Xr}}`       |
+| e |                  |                   |                 |                       |
++---+------------------+-------------------+-----------------+-----------------------+
+| Z | -                | -                 | :math:`zp_      | :math:`zp_            |
+| e |                  |                   | {wr} = \min Wr` | {xe} = \text{         |
+| r |                  |                   |                 | round}\Big(\min       |
+| o |                  |                   |                 | Xr \cdot sc_{xe       |
+| P |                  |                   |                 | }\Big) \\             |
+| o |                  |                   |                 | rzp_{x} =             |
+| i |                  |                   |                 | round \Big            |
+| n |                  |                   |                 | (\min Xr \Big)`       |
+| t |                  |                   |                 |                       |
++---+------------------+-------------------+-----------------+-----------------------+
+| Q | :math:`Wq        | :math:`frac,      | :math:`W_{q}    | :math:`frac,          |
+| u | = \text{round}   | exp =             | = \text{        | exp = \text{cvm_float |
+| a | \Big(sc_{w}      | \text{cvm_float}  | round} \Big[    | }\bigg(\frac{         |
+| n | \cdot            | \bigg(\frac{sc_{x | (sc_{w} (       | sc_{x}}{sc_           |
+| t | Wr \Big)`        | }}{sc_{xe}}\bigg  | W_{r} - zp_{wr} | {xe}}\bigg) \\        |
+| i |                  | ) \\ Xq = \text{  | ) \Big]`        | Xq = \text{realize    |
+| z |                  | realize} (X_{     |                 | }(Xe - zp_{x          |
+| a |                  | e}, frac, exp)`   |                 | e}, frac, exp)`       |
+| t |                  |                   |                 |                       |
+| i |                  |                   |                 |                       |
+| o |                  |                   |                 |                       |
+| n |                  |                   |                 |                       |
++---+------------------+-------------------+-----------------+-----------------------+
+| R | :math:`Wr        | :math:`Xr =       | :math:`Wr       | :math:`Xr             |
+| e | = \frac{Wq       | \frac{Xq          | = \frac{Wq}{sc_ | = \frac{Xq}{sc_       |
+| q | }{sc_{w}}`       | }{sc_{x}}`        | {w}} + zp_{wr}` | {x}} + rzp_{x}`       |
+| u |                  |                   |                 |                       |
+| a |                  |                   |                 |                       |
+| n |                  |                   |                 |                       |
+| t |                  |                   |                 |                       |
+| i |                  |                   |                 |                       |
+| z |                  |                   |                 |                       |
+| a |                  |                   |                 |                       |
+| t |                  |                   |                 |                       |
+| i |                  |                   |                 |                       |
+| o |                  |                   |                 |                       |
+| n |                  |                   |                 |                       |
++---+------------------+-------------------+-----------------+-----------------------+
 
 The variable whose names ending up with ‘**q**’ stand for int quantized
 operators, ‘**r**’ stand for floating point operators and ‘**e**’ stand
@@ -93,12 +93,7 @@ the channels in MRT rewrite process:
 
 .. math::
 
-
-   \forall i \text{ in } [0, C, \text{step})
-
-.. math::
-
-
+   \forall i \text{ in } [0, C, \text{step}), \\
    Xi = \text{slice}\Big(X, \\
    \text{begin=(None,)*ichannel+(i,)+(None,)*(ndims-ichannel-1)}, \\
    \text{end=(None,)*ichannel+(i+step,)+(None,)*(ndims-ichannel-1)}, \\
@@ -111,19 +106,18 @@ with :math:`X` (or :math:`W`).
 Take ``Convolution`` (for simplicity, only point-wise convolution is
 considered here, i.e. ``num_group=1``) for instance (only uniform
 symmetric quantization is considered for simplicity), layer-wise
-Convolution can be rewritten as: $$ :raw-latex:`\begin{align}
+Convolution can be rewritten as:
 
-Ye[n,o,p,q] 
+.. math::
+  Ye[n,o,p,q], \\
 
-&= \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj] \\
+  = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,i,ki,kj], \\
 
-&= \sum_{i=0}^{C/step-1} \sum_{j=i*step}^{(i+1)*step-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, j, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,j,ki,kj] \\
+  = \sum_{i=0}^{C/step-1} \sum_{j=i*step}^{(i+1)*step-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xq[n, j, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wq[o,j,ki,kj], \\
 
-&= \sum_{i=0}^{C/step-1} Convolution(Xq[:,i*step:(i+1)*step,:,:], Wq[:,i*step:(i+1)*step,:,:]) \\
+  = \sum_{i=0}^{C/step-1} Convolution(Xq[:,i*step:(i+1)*step,:,:], Wq[:,i*step:(i+1)*step,:,:]), \\
 
-&= \sum_{i=0}^{C/step-1} Yei[n,o,p,q]
-
-\end{align}` $$
+  = \sum_{i=0}^{C/step-1} Yei[n,o,p,q]
 
 Channel Merge
 ^^^^^^^^^^^^^
@@ -180,14 +174,12 @@ Convolution
 
 .. math::
 
-
    \forall n \in [0, N), \quad
    \forall o \in [0, O), \quad
    \forall p \in \Bigg{[} 0, \bigg\lfloor \frac{H - DH \cdot (KH-1) - 1}{SH} \bigg\rfloor + 1 \Bigg{)}, \quad
    \forall q \in \Bigg{[} 0, \bigg\lfloor \frac{W - DW \cdot (KW-1) - 1}{SW} \bigg\rfloor + 1 \Bigg{)}
 
 .. math::
-
 
    Yr[n,o,p,q] = \sum_{i=0}^{C-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1} Xr[n, i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW] \cdot Wr[o,i,ki,kj]
 
@@ -196,12 +188,16 @@ Note, if ``num_groups`` is not 1, then convolution is generalized as
 
 Specifically, suppose kernel weight :math:`W` is of shape
 :math:`(O,IC,KH,KW)` and input data :math:`X` is of shape
-:math:`(N,C,H,W)`. $$ Yr[n,o,p,q]
+:math:`(N,C,H,W)`. 
 
-= :raw-latex:`\sum`\ *{i=0}^{IC-1} :raw-latex:`\sum`*\ {ki=0}^{KH-1}
-:raw-latex:`\sum`\_{kj=0}^{KW-1}
-Xr:raw-latex:`\Bigg[n, \bigg\lfloor\frac{o}{OPG}\bigg\rfloor IC + i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW\Bigg] `:raw-latex:`\cdot `Wr[o,i,ki,kj]
-$$ For simplicity, here we will not inlcude the notation of groupwise
+.. math::
+
+  Yr[n,o,p,q], \\
+
+  = \sum_{i=0}^{IC-1} \sum_{ki=0}^{KH-1} \sum_{kj=0}^{KW-1}
+  Xr \Bigg[n, \bigg\lfloor\frac{o}{OPG}\bigg\rfloor IC + i, p \cdot SH + ki \cdot DH, q \cdot SW + kj \cdot DW\Bigg] \cdot Wr[o,i,ki,kj]
+
+For simplicity, here we will not inlcude the notation of groupwise
 convolution.
 
 Given :math:`Xe` and :math:`We`, MRT respectively quantize them into
