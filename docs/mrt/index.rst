@@ -52,7 +52,7 @@ V2 Documentation
 .. toctree::
   :maxdepth: 3
 
-  V2.md
+  V2.rst
 
 API Documentation
 =================
