@@ -37,8 +37,22 @@ Mnist Tutorial
   :maxdepth: 3
 
   mnist_tutorial.md
-  gen.md
 
+Quantization Documentation
+==========================
+
+.. toctree::
+  :maxdepth: 3
+
+  quantize.md
+
+V2 Documentation
+================
+
+.. toctree::
+  :maxdepth: 3
+
+  V2.rst
 
 API Documentation
 =================
