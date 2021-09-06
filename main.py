@@ -1,48 +1,61 @@
 import sys
 from os import path
+import argparse
+from typing import Tuple, List, Union
+import logging
+
+import mxnet as mx
+
 from mrt.conf import MRT_MODEL_ROOT
+from mrt.common import cmd, log, thread
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
 sys.path.insert(0, path.join(__ROOT__, "python"))
 
-import logging
-
-from mrt.common import cmd, log, thread
-
 LOG_MSG = ",".join(["{}:{}".format(l, n) \
     for l, n in zip(log.LOG_LEVELS, log.LOG_NAMES)])
 
-@cmd.option("-v", "--verbosity", metavar="LEVEL",
-            choices=log.LOG_NAMES, default=log.level2name(log.DEBUG),
-            help="log verbosity to pring information, " + \
-                "available options: {}".format(log.LOG_NAMES) + \
-                " by default {}".format(log.level2name(log.DEBUG)))
-@cmd.global_options()
-def global_func(args):
-    log.Init(log.name2level(args.verbosity))
+# @cmd.option("-v", "--verbosity", metavar="LEVEL",
+            # choices=log.LOG_NAMES, default=log.level2name(log.DEBUG),
+            # help="log verbosity to pring information, " + \
+                # "available options: {}".format(log.LOG_NAMES) + \
+                # " by default {}".format(log.level2name(log.DEBUG)))
+# @cmd.global_options()
+# def global_func(args):
+    # log.Init(log.name2level(args.verbosity))
+
+def get_ctx(device_type, device_ids, dctx=mx.cpu()):
+    contex = dctx
+    if device_type == 'gpu':
+        contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
+              else [mx.gpu(i) for i in device_ids]
+        # if section == 'CALIBRATION':
+            # _check(type(contex).__name__ != 'list', section, 'Device_ids',
+                   # message='`Device_ids` should be an integer in Calibration')
+    return contex
 
 
-class DeviceTypeAction:
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        pass
-    def __call__(self, parser, namespace, values, option_string=None):
-        pass
-
-@cmd.option("--model-dir", nargs='?', type=str, default=MRT_MODEL_ROOT)
-@cmd.option("--default_device_type", nargs='?', type=str,
-            dest="default_model_ctx", choices=['cpu', 'gpu'],
-            default='cpu', action=DeviceTypeAction)
+# TODO(ryt): option string abbreviation
+@cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
+@cmd.option("model_name", type=str)
+@cmd.option("--default-device-type", type=str, default='cpu',
+            choices=['cpu', 'gpu'])
+@cmd.option("--default-device-ids", nargs='+', type=int, default=[0])
+@cmd.option("--verbosity", type=str, default='debug',
+            choices=['none', 'debug', 'info', 'warning', 'error', 'critical'])
+@cmd.option("--input-shape", nargs='+', type=int, default=[-1, 3, 224, 224])
+@cmd.option("--start", type=str, default="default",
+            choices=['default', 'prepare', 'split_model',
+            'calibration', 'quantization', 'merge_model'])
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
 """)
 def cvm_main(args):
-    # default
-    # verbosity = _get_val(cfg, sec, 'Verbosity',
-                         # dtype=int_t, dval=logging.NOTSET)
-    # utils.log_init(level=verbosity)
-    # logger = logging.getLogger("log.main")
+    # default stage
+    log.Init(log.name2level(args.verbosity.upper()))
+    logger = logging.getLogger("log.main")
     model_dir = args.model_dir
     if model_dir.startswith("~"):
         model_dir = path.expanduser(model_dir)
@@ -50,19 +63,15 @@ def cvm_main(args):
         "Please create the folder `data` first"
     model_name = args.model_name
     model_prefix = path.join(model_dir, model_name)
-    default_model_ctx = args.default_model_ctx
-    # TODO
-    raise NotImplementedError("to be implemented, proceeding...")
-    input_shape = _get_val(cfg, sec, 'Input_shape', dtype=tuple_t)
-    start_pos = {'DEFAULT': 0, 'PREPARE': 1, 'SPLIT_MODEL': 2, \
-                 'CALIBRATION': 3, 'QUANTIZATION': 4, \
-                 'MERGE_MODEL': 5}
-    start = _get_val(cfg, sec, 'Start', dtype=str_t, dval='DEFAULT')
-    _check(start in start_pos.keys(), sec, 'Start',
-           message="Please choose a value from `%s`" % start_pos.keys())
-    start_point = start_pos[start]
-
-    # prepare
+    model_ctx = get_ctx(args.default_device_type, args.default_device_ids)
+    input_shape = args.input_shape
+    start_pos = {
+        'default': 0, 'prepare': 1, 'split_model': 2,
+        'calibration': 3, 'quantization': 4, 'merge_model': 5}
+    start_point = start_pos[args.start]
+    # TODO(ryt), prepare, split_model, calibration, quantization, merge_model
+    return
+    # prepare stage
     sec = 'PREPARE'
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
