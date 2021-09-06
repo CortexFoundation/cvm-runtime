@@ -9,6 +9,7 @@ import mxnet as mx
 from mrt.conf import MRT_MODEL_ROOT
 from mrt.common import cmd, log, thread
 from mrt.transformer import Model
+from mrt import utils
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -56,6 +57,23 @@ def load_fname(prefix, suffix=None, with_ext=False):
     suffix = "."+suffix if suffix is not None else ""
     return utils.extend_fname(prefix+suffix, with_ext)
 
+def set_batch(input_shape, batch):
+    """Get the input shape with respect to a specified batch value and an original input shape.
+
+    Parameters
+    ----------
+    input_shape : tuple
+        The input shape with batch axis unset.
+    batch : int
+        The batch value.
+
+    Returns
+    -------
+    ishape : tuple
+        The input shape with the value of batch axis equal to batch.
+    """
+    return [batch if s == -1 else s for s in input_shape]
+
 # TODO(ryt): option string abbreviation
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
 @cmd.option("model_name", type=str)
@@ -68,7 +86,7 @@ def load_fname(prefix, suffix=None, with_ext=False):
 @cmd.option("--start", type=str, default="default",
             choices=['default', 'prepare', 'split_model',
             'calibration', 'quantization', 'merge_model'])
-@cmd.option("--suppress-dump-prepare", type=bool, action='store_false')
+@cmd.option("--suppress-dump-prepare", action='store_false')
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
@@ -84,7 +102,7 @@ def cvm_main(args):
         "Please create the folder `data` first"
     model_name = args.model_name
     model_prefix = path.join(model_dir, model_name)
-    model_ctx = get_ctx(args.default_device_type, args.default_device_ids)
+    model_ctx = get_ctx(args.device_type_default, args.device_ids_default)
     input_shape = args.input_shape
     start_pos = {
         'default': 0, 'prepare': 1, 'split_model': 2,
@@ -102,7 +120,7 @@ def cvm_main(args):
         model.prepare(set_batch(input_shape, 1))
         if not args.suppress_dump_prepare:
             model.save(sym_file, prm_file)
-        logger.info("`%s` stage finihed" % sec)
+        logger.info("preparation stage finihed")
     elif start_point == 1:
         if not path.exists(sym_file):
             raise RuntimeError(
