@@ -8,6 +8,7 @@ import mxnet as mx
 
 from mrt.conf import MRT_MODEL_ROOT
 from mrt.common import cmd, log, thread
+from mrt.transformer import Model
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -35,25 +36,45 @@ def get_ctx(device_type, device_ids, dctx=mx.cpu()):
                    # message='`Device_ids` should be an integer in Calibration')
     return contex
 
+def load_fname(prefix, suffix=None, with_ext=False):
+    """Get the model files at a given stage.
+
+    Parameters
+    ----------
+    prefix : string
+        The file path without and extension.
+    suffix : string
+        The file suffix with respect to a given stage of MRT.
+    with_ext: bool
+        Whether to include ext file.
+
+    Returns
+    -------
+    files : tuple of string
+        The loaded file names.
+    """
+    suffix = "."+suffix if suffix is not None else ""
+    return utils.extend_fname(prefix+suffix, with_ext)
 
 # TODO(ryt): option string abbreviation
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
 @cmd.option("model_name", type=str)
-@cmd.option("--default-device-type", type=str, default='cpu',
+@cmd.option("--device-type-default", type=str, default='cpu',
             choices=['cpu', 'gpu'])
-@cmd.option("--default-device-ids", nargs='+', type=int, default=[0])
+@cmd.option("--device-ids-default", nargs='+', type=int, default=[0])
 @cmd.option("--verbosity", type=str, default='debug',
             choices=['none', 'debug', 'info', 'warning', 'error', 'critical'])
 @cmd.option("--input-shape", nargs='+', type=int, default=[-1, 3, 224, 224])
 @cmd.option("--start", type=str, default="default",
             choices=['default', 'prepare', 'split_model',
             'calibration', 'quantization', 'merge_model'])
+@cmd.option("--suppress-dump-prepare", type=bool, action='store_false')
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
 """)
 def cvm_main(args):
-    # default stage
+    # default
     log.Init(log.name2level(args.verbosity.upper()))
     logger = logging.getLogger("log.main")
     model_dir = args.model_dir
@@ -69,30 +90,33 @@ def cvm_main(args):
         'default': 0, 'prepare': 1, 'split_model': 2,
         'calibration': 3, 'quantization': 4, 'merge_model': 5}
     start_point = start_pos[args.start]
-    # TODO(ryt), prepare, split_model, calibration, quantization, merge_model
-    return
-    # prepare stage
-    sec = 'PREPARE'
-    sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
-    sym_path, prm_path = _load_fname(model_prefix)
+
+    # prepare
+    sym_file, prm_file = load_fname(model_prefix, suffix='prepare')
+    sym_path, prm_path = load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
         save_model(model_name, data_dir=model_dir, ctx=model_ctx)
-        # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
         model = Model.load(sym_path, prm_path)
         model.prepare(set_batch(input_shape, 1))
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
-        if dump:
+        if not args.suppress_dump_prepare:
             model.save(sym_file, prm_file)
         logger.info("`%s` stage finihed" % sec)
     elif start_point == 1:
-        _check(path.exists(sym_file) and path.exists(prm_file), 'DEFAULT',
-               'Start', message="Check point of `%s` not found, " % sec + \
-               "please move the start point earlier")
+        if not path.exists(sym_file):
+            raise RuntimeError(
+                "sym_file: {} of not found".format(sym_file) +
+                "please specify the --start flag before 'prepare'")
+        if not path.exists(prm_file):
+            raise RuntimeError(
+                "prm_file: {} of not found".format(prm_file) +
+                "please specify the --start flag before 'prepare'")
         model = Model.load(sym_file, prm_file)
-        logger.info("`%s` stage checked" % sec)
+        logger.info("preparation stage checked")
 
+    # TODO(ryt), split_model, calibration, quantization, merge_model
+    return
     # split model
     sec = 'SPLIT_MODEL'
     keys = _get_val(cfg, sec, 'Keys', dtype=ARRAY(str_t), dval='')
