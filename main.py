@@ -61,14 +61,15 @@ def load_fname(prefix, suffix=None, with_ext=False):
 @cmd.option("model_name", type=str)
 @cmd.option("--device-type-default", type=str, default='cpu',
             choices=['cpu', 'gpu'])
-@cmd.option("--device-ids-default", nargs='+', type=int, default=[0])
+@cmd.option("--device-ids-default", nargs="+", type=int, default=[0])
 @cmd.option("--verbosity", type=str, default='debug',
             choices=['none', 'debug', 'info', 'warning', 'error', 'critical'])
 @cmd.option("--input-shape", nargs='+', type=int, default=[-1, 3, 224, 224])
 @cmd.option("--start", type=str, default="default",
             choices=['default', 'prepare', 'split_model',
             'calibration', 'quantization', 'merge_model'])
-@cmd.option("--suppress-dump-prepare", type=bool, action='store_false')
+@cmd.option("--no-dump-prepare", type=bool, action='store_false')
+@cmd.option("--keys", nargs="+", type=str)
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
