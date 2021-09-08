@@ -6,14 +6,17 @@ import logging
 import json
 
 import mxnet as mx
+from mxnet import gluon, ndarray as nd
+import numpy as np
 
 from mrt.conf import MRT_MODEL_ROOT, MRT_DATASET_ROOT
 from mrt.common import cmd, log, thread
-from mrt.transformer import Model, MRT
+from mrt.transformer import Model, MRT, reduce_graph
 from mrt import utils
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sym_utils as sutils
+from mrt import sim_quant_helper as sim
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -37,6 +40,23 @@ def get_ctx(device_type, device_ids, dctx=mx.cpu()):
         contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
               else [mx.gpu(i) for i in device_ids]
     return contex
+
+def batch_axis(input_shape):
+    """Get the batch axis entry of an input shape.
+
+    Parameters
+    ----------
+    input_shape : tuple
+        The data shape related to dataset.
+
+    Returns
+    -------
+    axis : int
+        The batch axis entry of an input shape.
+    """
+    idx = [i for i, s in enumerate(input_shape) if s == -1]
+    assert len(idx) == 1
+    return idx[0]
 
 def load_fname(prefix, suffix=None, with_ext=False):
     """Get the model files at a given stage.
@@ -85,8 +105,8 @@ def set_batch(input_shape, batch):
             choices=["none", "debug", "info", "warning", "error", "critical"])
 @cmd.option("--input-shape", nargs="+", type=int, default=[-1, 3, 224, 224])
 @cmd.option("--start", type=str, default="default",
-            choices=["default", "prepare", "split_model",
-            "calibrate", "quantize", "merge_model"])
+            choices=["default", "prepare", "splitmodel",
+            "calibrate", "quantize", "mergemodel"])
 @cmd.option("--no-dump-prepare", action="store_false")
 @cmd.option("--keys", nargs="+", type=str, default="")
 @cmd.option("--no-dump-splitmodel", action="store_false")
@@ -113,6 +133,18 @@ def set_batch(input_shape, batch):
 @cmd.option("--attribute-deps", type=str)
 @cmd.option("--oscale-maps", type=str)
 @cmd.option("--no-dump-mergemodel", action="store_false")
+@cmd.option("--evaluate", action="store_true")
+@cmd.option("--batch-evaluate", type=int)
+@cmd.option("--device-type-evaluate", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-evaluate", nargs="+", type=int, default=[0])
+@cmd.option("--num-iter", type=int, default=0)
+@cmd.option("--compile", action="store_true")
+@cmd.option("--batch-compile", type=int)
+@cmd.option("--dump-dir", type=str, default="/data1/tmp")
+@cmd.option("--device-type-compile", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-compile", nargs="+", type=int, default=[0])
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
@@ -131,8 +163,8 @@ def cvm_main(args):
     model_ctx = get_ctx(args.device_type_default, args.device_ids_default)
     input_shape = args.input_shape
     start_pos = {
-        'default': 0, 'prepare': 1, 'split_model': 2,
-        'calibrate': 3, 'quantize': 4, 'merge_model': 5}
+        'default': 0, 'prepare': 1, 'splitmodel': 2,
+        'calibrate': 3, 'quantize': 4, 'mergemodel': 5}
     start_point = start_pos[args.start]
 
     # prepare
@@ -154,11 +186,15 @@ def cvm_main(args):
         model = Model.load(sym_file, prm_file)
         logger.info("preparation stage checked")
 
-    # split model
+    # splitmodel
     sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
     sym_base_file, prm_base_file = load_fname(model_prefix, suffix='base')
     keys = args.keys
     if keys == "":
+        if start_point == 2:
+            raise RuntimeError(
+                "this model does not support model splitting stage" +
+                "please respecify --start flag")
         logger.info("model splitting stage skipped")
     elif start_point < 2:
         base, top = model.split(keys)
@@ -184,6 +220,9 @@ def cvm_main(args):
         shp = set_batch(input_shape, batch)
         dataset = ds.DS_REG[ds_name](shp, root=args.dataset_dir)
         data_iter_func = dataset.iter_func()
+        if len(args.device_ids_calibrate) > 1:
+            raise RuntimeError(
+                "device ids should be an integer in calibration stage")
         ctx = get_ctx(
             args.device_type_calibrate, args.device_ids_calibrate,
             dctx=model_ctx)
@@ -207,7 +246,7 @@ def cvm_main(args):
             top = Model.load(sym_top_file, prm_top_file)
         logger.info("calibration stage checkd")
 
-    # quantization
+    # quantize
     sec = 'QUANTIZATION'
     model_name_quant = model_name + '.mrt.quantize'
     if start_point < 4:
@@ -253,8 +292,8 @@ def cvm_main(args):
             mrt.set_softmax_lambd(args.softmax_lambd)
         if args.shift_bits is not None:
             mrt.set_shift_bits(args.shift_bits)
-        thresholds = json.loads(args.thresholds)
-        if thresholds is not None:
+        if args.thresholds is not None:
+            thresholds = json.loads(args.thresholds)
             for name, threshold in thresholds.items():
                 mrt.set_threshold(name, threshold)
         mrt.quantize()
@@ -284,13 +323,14 @@ def cvm_main(args):
             top = Model.load(sym_top_file, prm_top_file)
         logger.info("quantization stage checkd")
 
-    # TODO(ryt), merge_model
-
-    # merge_model
-    sec = 'MERGE_MODEL'
+    # mergemodel
     sym_all_file, prm_all_file, ext_all_file = load_fname(
         model_prefix, suffix='all.quantize', with_ext=True)
     if keys == "":
+        if start_point == 5:
+            raise RuntimeError(
+                "this model does not support model merging stage" +
+                "please respecify --start flag")
         qmodel = mrt.current_model
         oscales = mrt.get_output_scales()
         logger.info("model merging stage skipped")
@@ -336,14 +376,13 @@ def cvm_main(args):
         _, oscales, _, inputs_ext, _, _ = sim.load_ext(ext_all_file)
         logger.info("model merging stage checked")
 
-    return
-    # TODO
-    # evaluation
-    sec = 'EVALUATION'
-    if sec in cfg.sections():
-        iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
-        batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
-        ctx = _get_ctx(cfg, sec, dctx=model_ctx)
+    # evaluate
+    if args.evaluate:
+        if args.batch_evaluate is not None:
+            batch = args.batch_evaluate
+        ctx = get_ctx(
+            args.device_type_evaluate, args.device_ids_evaluate,
+            dctx=model_ctx)
         if isinstance(ctx, mx.Context):
             ctx = [ctx]
         org_model = Model.load(sym_path, prm_path)
@@ -373,9 +412,8 @@ def cvm_main(args):
             return acc
 
         ngpus = len(ctx)
-        _check(
-            not batch % ngpus, sec, 'Device_ids',
-            'Batch must be divisible by the number of gpus')
+        if batch % ngpus:
+            raise RuntimeError("Batch must be divisible by the number of gpus")
         split_batch = batch//ngpus
         rqmodel = reduce_graph(qmodel, {
             'data': set_batch(input_shape, split_batch)})
@@ -390,34 +428,33 @@ def cvm_main(args):
             acc = dataset.validate(qmetric, outs, label)
             return acc
 
-        if iter_num > 0:
+        if args.num_iter > 0:
             logger.info("Validating...")
             utils.multi_validate(evalfunc, data_iter_func, quantize,
-                                 iter_num=iter_num,
+                                 iter_num=args.num_iter,
                                  logger=logging.getLogger('mrt.validate'),
                                  batch_size=batch)
-            logger.info("`%s` stage finished" % sec)
+            logger.info("evaluatation stage finished")
 
-    # compilation
-    sec = 'COMPILATION'
-    if sec in cfg.sections():
-        dump_dir = _get_path(
-            cfg, sec, 'Dump_dir', is_dir=True, dpath=model_dir)
-        batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
-        device_type = _get_val(cfg, sec, 'Device_type', dval='cpu')
-        device_ids = _get_val(
-            cfg, sec, 'Device_ids',
-            dtype=ARRAY(int_t), dval=0)
+    # compile
+    if args.compile:
+        if args.batch_compile is not None:
+            batch = args.batch_compile
         model_name_tfm = model_name + "_cvm"
-        qmodel.to_cvm(model_name_tfm, datadir=dump_dir,
+        if len(args.device_ids_compile) > 1:
+            raise RuntimeError(
+                "device ids should be an integer in compilation stage")
+        device_ids_compile = args.device_ids_compile[0]
+        qmodel.to_cvm(model_name_tfm, datadir=args.dump_dir,
                       input_shape=set_batch(input_shape, batch),
-                      target=device_type, device_ids=device_ids)
+                      target=args.device_type_compile,
+                      device_ids=device_ids_compile)
 
         dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
         dump_data, _ = dataset.iter_func()()
         dump_data = sim.load_real_data(
             dump_data.astype("float64"), 'data', mrt.get_inputs_ext())
-        model_root = path.join(dump_dir, model_name_tfm)
+        model_root = path.join(args.dump_dir, model_name_tfm)
         np.save(path.join(model_root, "data.npy"),
                 dump_data.astype('int8').asnumpy())
         infos = {
@@ -426,10 +463,10 @@ def cvm_main(args):
             "input_shapes": input_shape,
         }
         sim.save_ext(path.join(model_root, "ext"), infos)
-        logger.info("`%s` stage finished" % sec)
+        logger.info("compilation stage finished")
 
     # starting processes
-    thread.start_services(args)
+    # thread.start_services(args)
 
 if __name__ == "__main__":
     logger = logging.getLogger("main")
