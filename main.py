@@ -6,11 +6,12 @@ import logging
 
 import mxnet as mx
 
-from mrt.conf import MRT_MODEL_ROOT
+from mrt.conf import MRT_MODEL_ROOT, MRT_DATASET_ROOT
 from mrt.common import cmd, log, thread
 from mrt.transformer import Model
 from mrt import utils
 from mrt.gluon_zoo import save_model
+from mrt import dataset as ds
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -33,9 +34,6 @@ def get_ctx(device_type, device_ids, dctx=mx.cpu()):
     if device_type == 'gpu':
         contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
               else [mx.gpu(i) for i in device_ids]
-        # if section == 'CALIBRATION':
-            # _check(type(contex).__name__ != 'list', section, 'Device_ids',
-                   # message='`Device_ids` should be an integer in Calibration')
     return contex
 
 def load_fname(prefix, suffix=None, with_ext=False):
@@ -75,21 +73,31 @@ def set_batch(input_shape, batch):
     """
     return [batch if s == -1 else s for s in input_shape]
 
-# TODO(ryt): option string abbreviation
+# TODO: option string abbreviation
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
 @cmd.option("model_name", type=str)
-@cmd.option("--device-type-default", type=str, default='cpu',
-            choices=['cpu', 'gpu'])
+@cmd.option("--device-type-default", type=str, default="cpu",
+            choices=["cpu", "gpu"])
 @cmd.option("--device-ids-default", nargs="+", type=int, default=[0])
-@cmd.option("--verbosity", type=str, default='debug',
-            choices=['none', 'debug', 'info', 'warning', 'error', 'critical'])
-@cmd.option("--input-shape", nargs='+', type=int, default=[-1, 3, 224, 224])
+@cmd.option("--verbosity", type=str, default="debug",
+            choices=["none", "debug", "info", "warning", "error", "critical"])
+@cmd.option("--input-shape", nargs="+", type=int, default=[-1, 3, 224, 224])
 @cmd.option("--start", type=str, default="default",
-            choices=['default', 'prepare', 'split_model',
-            'calibration', 'quantization', 'merge_model'])
-@cmd.option("--no-dump-prepare", action='store_false')
+            choices=["default", "prepare", "split_model",
+            "calibrate", "quantize", "merge_model"])
+@cmd.option("--no-dump-prepare", action="store_false")
 @cmd.option("--keys", nargs="+", type=str, default="")
-@cmd.option("--no-dump-splitmodel", action='store_false')
+@cmd.option("--no-dump-splitmodel", action="store_false")
+@cmd.option("--batch-calibrate", type=int, default=16)
+@cmd.option("--num-calibrate", type=int, default=1)
+@cmd.option("--lambd", type=int)
+@cmd.option("--dataset", type=str, default="imagenet",
+            choices=list(ds.DS_REG.keys()))
+@cmd.option("--dataset-dir", type=str, default=MRT_DATASET_ROOT)
+@cmd.option("--device-type-calibrate", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-calibrate", nargs="+", type=int, default=[0])
+@cmd.option("--no-dump-calibrate", action="store_false")
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
@@ -134,11 +142,12 @@ def cvm_main(args):
     # split model
     sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
     sym_base_file, prm_base_file = load_fname(model_prefix, suffix='base')
-    if args.keys == "":
+    keys = args.keys
+    if keys == "":
         logger.info("model splitting stage skipped")
     elif start_point < 2:
-        base, top = model.split(args.keys)
-        if args.no_dump_splitmodel:
+        base, top = model.split(keys)
+        if not args.no_dump_splitmodel:
             top.save(sym_top_file, prm_top_file)
             base.save(sym_base_file, prm_base_file)
         logger.info("model splitting stage finished")
@@ -151,41 +160,41 @@ def cvm_main(args):
         base = Model.load(sym_base_file, prm_base_file)
         logger.info("model splitting stage checked")
 
-    return
-    # TODO(ryt), calibration, quantization, merge_model
-    # calibration
-    sec = 'CALIBRATION'
+    # calibrate
     model_name_calib = model_name + '.mrt.calibrate'
-    batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
-    ds_name = _get_val(cfg, sec, 'Dataset')
-    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
+    batch = args.batch_calibrate
+    ds_name = args.dataset
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
-        calibrate_num = _get_val(
-            cfg, sec, 'Calibrate_num', dtype=int_t, dval=1)
-        lambd = _get_val(cfg, sec, 'Lambda', dtype=float_t, dval=None)
         shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp, root=dataset_dir)
+        dataset = ds.DS_REG[ds_name](shp, root=args.dataset_dir)
         data_iter_func = dataset.iter_func()
-        ctx = _get_ctx(cfg, sec, dctx=model_ctx)
-        for i in range(calibrate_num):
+        device_type_calibrate = args.device_type_calibrate
+        device_ids_calibrate = args.device_ids_calibrate
+        ctx = get_ctx(
+            device_type_calibrate, device_ids_calibrate, dctx=model_ctx)
+        for i in range(args.num_calibrate):
             data, _ = data_iter_func()
             mrt.set_data(data)
-            mrt.calibrate(lambd=lambd, ctx=ctx)
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
-        if dump:
+            mrt.calibrate(lambd=args.lambd, ctx=ctx)
+        if not args.no_dump_calibrate:
             mrt.save(model_name_calib, datadir=model_dir)
-        logger.info("`%s` stage finished" % sec)
+        logger.info("calibrate stage finished")
     elif start_point == 3:
-        _checkpoint_exist(
-            sec, *list(utils.extend_fname(
-            model_prefix+".mrt.calibrate", with_ext=True)))
+        fpaths = utils.extend_fname(model_prefix)
+        for fpath in fpaths:
+            if not path.exists(fpath):
+                raise RuntimeError("file path {} not found".format(fpath))
         mrt = MRT.load(model_name_calib, datadir=model_dir)
         if keys != "":
-            _checkpoint_exist(sec, sym_top_file, prm_top_file)
+            for fpath in [sym_top_file, prm_top_file]:
+                if not path.exists(fpath):
+                    raise RuntimeError("file path {} not found".format(fpath))
             top = Model.load(sym_top_file, prm_top_file)
-        logger.info("`%s` stage checkd" % sec)
+        logger.info("calibration stage checkd")
 
+    return
+    # TODO(ryt), calibration, quantization, merge_model
     # quantization
     sec = 'QUANTIZATION'
     model_name_quant = model_name + '.mrt.quantize'
@@ -326,7 +335,6 @@ def cvm_main(args):
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
-        #  dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
         iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)
