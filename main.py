@@ -10,6 +10,7 @@ from mrt.conf import MRT_MODEL_ROOT
 from mrt.common import cmd, log, thread
 from mrt.transformer import Model
 from mrt import utils
+from mrt.gluon_zoo import save_model
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -86,8 +87,9 @@ def set_batch(input_shape, batch):
 @cmd.option("--start", type=str, default="default",
             choices=['default', 'prepare', 'split_model',
             'calibration', 'quantization', 'merge_model'])
-@cmd.option("--no-dump-prepare", type=bool, action='store_false')
-@cmd.option("--keys", nargs="+", type=str)
+@cmd.option("--no-dump-prepare", action='store_false')
+@cmd.option("--keys", nargs="+", type=str, default="")
+@cmd.option("--no-dump-splitmodel", action='store_false')
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
@@ -119,47 +121,38 @@ def cvm_main(args):
     if start_point < 1:
         model = Model.load(sym_path, prm_path)
         model.prepare(set_batch(input_shape, 1))
-        if not args.suppress_dump_prepare:
+        if not args.no_dump_prepare:
             model.save(sym_file, prm_file)
         logger.info("preparation stage finihed")
     elif start_point == 1:
-        if not path.exists(sym_file):
-            raise RuntimeError(
-                "sym_file: {} of not found".format(sym_file) +
-                "please specify the --start flag before 'prepare'")
-        if not path.exists(prm_file):
-            raise RuntimeError(
-                "prm_file: {} of not found".format(prm_file) +
-                "please specify the --start flag before 'prepare'")
+        for fpath in [sym_file, prm_file]:
+            if not path.exists(fpath):
+                raise RuntimeError("file path {} not found".format(fpath))
         model = Model.load(sym_file, prm_file)
         logger.info("preparation stage checked")
 
-    # TODO(ryt), split_model, calibration, quantization, merge_model
-    return
     # split model
-    sec = 'SPLIT_MODEL'
-    keys = _get_val(cfg, sec, 'Keys', dtype=ARRAY(str_t), dval='')
-    sym_top_file, prm_top_file = _load_fname(model_prefix, suffix='top')
-    sym_base_file, prm_base_file = _load_fname(model_prefix, suffix='base')
-    if keys == '':
-        _check(start_point != 2, 'DEFAULT', 'Start',
-               message="Invalid start point")
-        if start_point <= 1:
-            logger.info("`%s` stage skipped" % sec)
+    sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
+    sym_base_file, prm_base_file = load_fname(model_prefix, suffix='base')
+    if args.keys == "":
+        logger.info("model splitting stage skipped")
     elif start_point < 2:
-        base, top = model.split(keys)
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
-        if dump:
+        base, top = model.split(args.keys)
+        if args.no_dump_splitmodel:
             top.save(sym_top_file, prm_top_file)
             base.save(sym_base_file, prm_base_file)
-        logger.info("`%s` stage finished" % sec)
+        logger.info("model splitting stage finished")
     elif start_point == 2:
-        _checkpoint_exist(
-            sec, *[sym_top_file, prm_top_file, sym_base_file, prm_base_file])
+        for fpath in \
+            [sym_top_file, prm_top_file, sym_base_file, prm_base_file]:
+            if not path.exists(fpath):
+                raise RuntimeError("file path {} not found".format(fpath))
         top = Model.load(sym_top_file, prm_top_file)
         base = Model.load(sym_base_file, prm_base_file)
-        logger.info("`%s` stage checked" % sec)
+        logger.info("model splitting stage checked")
 
+    return
+    # TODO(ryt), calibration, quantization, merge_model
     # calibration
     sec = 'CALIBRATION'
     model_name_calib = model_name + '.mrt.calibrate'
