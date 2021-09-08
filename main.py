@@ -3,15 +3,17 @@ from os import path
 import argparse
 from typing import Tuple, List, Union
 import logging
+import json
 
 import mxnet as mx
 
 from mrt.conf import MRT_MODEL_ROOT, MRT_DATASET_ROOT
 from mrt.common import cmd, log, thread
-from mrt.transformer import Model
+from mrt.transformer import Model, MRT
 from mrt import utils
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
+from mrt import sym_utils as sutils
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -98,6 +100,19 @@ def set_batch(input_shape, batch):
             choices=["cpu", "gpu"])
 @cmd.option("--device-ids-calibrate", nargs="+", type=int, default=[0])
 @cmd.option("--no-dump-calibrate", action="store_false")
+@cmd.option("--restore-names", nargs="+", type=str, default=[])
+@cmd.option("--input-precision", type=int)
+@cmd.option("--output-precision", type=int)
+@cmd.option("--device-type-quantize", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-quantize", nargs="+", type=int, default=[0])
+@cmd.option("--softmax-lambd", type=float)
+@cmd.option("--shift-bits", type=int)
+@cmd.option("--thresholds", type=str)
+@cmd.option("--no-dump-quantize", action="store_false")
+@cmd.option("--attribute-deps", type=str)
+@cmd.option("--oscale-maps", type=str)
+@cmd.option("--no-dump-mergemodel", action="store_false")
 @cmd.module("", as_main=True,
             description="""
 CVM Python Tool
@@ -117,7 +132,7 @@ def cvm_main(args):
     input_shape = args.input_shape
     start_pos = {
         'default': 0, 'prepare': 1, 'split_model': 2,
-        'calibration': 3, 'quantization': 4, 'merge_model': 5}
+        'calibrate': 3, 'quantize': 4, 'merge_model': 5}
     start_point = start_pos[args.start]
 
     # prepare
@@ -169,10 +184,9 @@ def cvm_main(args):
         shp = set_batch(input_shape, batch)
         dataset = ds.DS_REG[ds_name](shp, root=args.dataset_dir)
         data_iter_func = dataset.iter_func()
-        device_type_calibrate = args.device_type_calibrate
-        device_ids_calibrate = args.device_ids_calibrate
         ctx = get_ctx(
-            device_type_calibrate, device_ids_calibrate, dctx=model_ctx)
+            args.device_type_calibrate, args.device_ids_calibrate,
+            dctx=model_ctx)
         for i in range(args.num_calibrate):
             data, _ = data_iter_func()
             mrt.set_data(data)
@@ -193,16 +207,13 @@ def cvm_main(args):
             top = Model.load(sym_top_file, prm_top_file)
         logger.info("calibration stage checkd")
 
-    return
-    # TODO(ryt), calibration, quantization, merge_model
     # quantization
     sec = 'QUANTIZATION'
     model_name_quant = model_name + '.mrt.quantize'
     if start_point < 4:
-        restore_names = _get_val(
-            cfg, sec, 'Restore_name', dtype=ARRAY(str_t), dval=[])
+        restore_names = args.restore_names
         name_to_op = {}
-        from sym_utils import topo_sort
+        from mrt.sym_utils import topo_sort
         for sym in topo_sort(mrt.current_model.symbol):
             name, op_name = sym.attr('name'), sym.attr('op_name')
             if op_name not in name_to_op:
@@ -231,32 +242,24 @@ def cvm_main(args):
             restore_names = set(restore_names_new)
         for name in restore_names:
             mrt.set_restore(name)
-        input_precision = _get_val(
-            cfg, sec, 'Input_precision', dtype=int_t, dval=None)
-        if input_precision is not None:
-            mrt.set_input_prec(input_precision)
-        output_precision = _get_val(
-            cfg, sec, 'Output_precision', dtype=int_t, dval=None)
-        if output_precision is not None:
-            mrt.set_output_prec(output_precision)
-        ctx = _get_ctx(cfg, sec, dctx=model_ctx)
-        softmax_lambd = _get_val(
-            cfg, sec, 'Softmax_lambd', dtype=float_t, dval=None)
-        if softmax_lambd is not None:
-            mrt.set_softmax_lambd(softmax_lambd)
-        shift_bits = _get_val(
-            cfg, sec, 'Shift_bits', dtype=int_t, dval=None)
-        if shift_bits is not None:
-            mrt.set_shift_bits(shift_bits)
-        thresholds = _get_val(
-            cfg, sec, 'Thresholds', dtype=PAIR(str_t, float_t), dval=None)
+        if args.input_precision is not None:
+            mrt.set_input_prec(args.input_precision)
+        if args.output_precision is not None:
+            mrt.set_output_prec(args.output_precision)
+        ctx = get_ctx(
+            args.device_type_quantize, args.device_ids_quantize,
+            dctx=model_ctx)
+        if args.softmax_lambd is not None:
+            mrt.set_softmax_lambd(args.softmax_lambd)
+        if args.shift_bits is not None:
+            mrt.set_shift_bits(args.shift_bits)
+        thresholds = json.loads(args.thresholds)
         if thresholds is not None:
             for name, threshold in thresholds.items():
                 mrt.set_threshold(name, threshold)
         mrt.quantize()
         inputs_ext = mrt.get_inputs_ext()
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
-        if dump:
+        if not args.no_dump_quantize:
             mrt.save(model_name_quant, datadir=model_dir)
             oscales = mrt.get_output_scales()
             inputs_ext = mrt.get_inputs_ext()
@@ -265,35 +268,37 @@ def cvm_main(args):
                      'input shapes: ', input_shape]
             ext_all_file = path.join(model_dir, model_name+".all.quantize.ext")
             sim.save_ext(ext_all_file, *infos)
-        logger.info("`%s` stage finished" % sec)
+        logger.info("quantization stage finished")
     elif start_point == 4:
-        _checkpoint_exist(
-            sec, *list(utils.extend_fname(
-            model_prefix+'.mrt.quantize', with_ext=True)))
+        fpaths = utils.extend_fname(
+            model_prefix+".mrt.quantize", with_ext=True)
+        for fpath in fpaths:
+            if not path.exists(fpath):
+                raise RuntimeError("file path {} not found".format(fpath))
         mrt = MRT.load(model_name_quant, datadir=model_dir)
         inputs_ext = mrt.get_inputs_ext()
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
         if keys != "":
-            _checkpoint_exist(sec, sym_top_file, prm_top_file)
+            for fpath in [sym_top_file, prm_top_file]:
+                if not path.exists(fpath):
+                    raise RuntimeError("file path {} not found".format(fpath))
             top = Model.load(sym_top_file, prm_top_file)
-        logger.info("`%s` stage checkd" % sec)
+        logger.info("quantization stage checkd")
+
+    # TODO(ryt), merge_model
 
     # merge_model
     sec = 'MERGE_MODEL'
-    sym_all_file, prm_all_file, ext_all_file = _load_fname(
+    sym_all_file, prm_all_file, ext_all_file = load_fname(
         model_prefix, suffix='all.quantize', with_ext=True)
-    if keys == '':
-        _check(start_point != 5, 'DEFAULT', 'Start',
-               message="Invalid start point")
+    if keys == "":
         qmodel = mrt.current_model
         oscales = mrt.get_output_scales()
-        logger.info("`%s` stage skipped" % sec)
+        logger.info("model merging stage skipped")
     elif start_point < 5:
         qmodel = mrt.current_model
         mrt_oscales = mrt.get_output_scales()
         model_merger = Model.merger(qmodel, top, mrt.get_maps())
-        attribute_deps = _get_val(
-            cfg, sec, 'Attribute_deps', dtype=PAIR(str_t, str_t, str_t))
+        attribute_deps = json.loads(args.attribute_deps)
 
         name_idx = {mrt.get_maps().get(
             s.attr("name"), s.attr("name")): i \
@@ -312,26 +317,27 @@ def cvm_main(args):
             return node
 
         qmodel = model_merger.merge(callback=mergefunc)
-        oscale_maps = _get_val(
-            cfg, sec, 'Oscale_maps', dtype=PAIR(str_t, str_t))
+        oscale_maps = json.loads(args.oscale_maps)
         oscales = model_merger.get_output_scales(
             mrt_oscales, oscale_maps)
         inputs_ext = mrt.get_inputs_ext()
-        dump = _get_val(cfg, sec, 'Dump', dtype=bool_t, dval=False)
-        if dump:
+        if not args.no_dump_mergemodel:
             qmodel.save(sym_all_file, prm_all_file)
             infos = ['oscales: ', oscales,
                      'input_ext: ', inputs_ext,
                      'input shapes: ', input_shape]
             sim.save_ext(ext_all_file, *infos)
-        logger.info("`%s` stage finished" % sec)
+        logger.info("model merging stage finished")
     else:
-        _check(start_point == 5, 'DEFAULT', 'Start',
-               message='Start_point invalid')
+        for fpath in [sym_all_file, prm_all_file]:
+            if not path.exists(fpath):
+                raise RuntimeError("file path {} not found".format(fpath))
         qmodel = Model.load(sym_all_file, prm_all_file)
         _, oscales, _, inputs_ext, _, _ = sim.load_ext(ext_all_file)
-        logger.info("`%s` stage checked" % sec)
+        logger.info("model merging stage checked")
 
+    return
+    # TODO
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
