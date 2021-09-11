@@ -465,9 +465,6 @@ def cvm_main(args):
         sim.save_ext(path.join(model_root, "ext"), infos)
         logger.info("compilation stage finished")
 
-    # starting processes
-    # thread.start_services(args)
-
 if __name__ == "__main__":
     logger = logging.getLogger("main")
     cmd.Run()
