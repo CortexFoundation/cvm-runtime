@@ -95,31 +95,135 @@ def set_batch(input_shape, batch):
     """
     return [batch if s == -1 else s for s in input_shape]
 
-# TODO: option string abbreviation
-@cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
+def save_ext(fname, logger=logging, **info_map):
+    try:
+        info_s = json.dumps(info_map, indent=4)
+    except:
+        logger.error("Json seralize invalid with data: {}".format(info_map))
+    with open(fname, "w") as f:
+        f.write(info_s)
+
+def load_ext(fname, logger=logging):
+    with open(fname, "r") as f:
+        try:
+            info_map = json.load(f)
+        except:
+            logger.error("Json deserialize invalid, fname: {}".format(fname))
+    return info_map
+
 @cmd.option("model_name", type=str)
-@cmd.option("--device-type-default", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-default", nargs="+", type=int, default=[0])
+@cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
+@cmd.module("modelprefix")
+def get_model_prefix(args):
+    model_dir = args.model_dir
+    if model_dir.startswith("~"):
+        model_dir = path.expanduser(model_dir)
+    model_name = args.model_name
+    assert path.exists(model_dir), \
+        "model_dir: {} does not exist".format(model_dir)
+    model_prefix = path.join(model_dir, model_name)
+    return model_prefix
+
 @cmd.option("--verbosity", type=str, default="debug",
             choices=["none", "debug", "info", "warning", "error", "critical"])
+@cmd.module("logger")
+def get_logger(args):
+    log.Init(log.name2level(args.verbosity.upper()))
+    logger = logging.getLogger("log.main")
+    return logger
+
+@cmd.option("--device-type-prepare", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-prepare", nargs="+", type=int, default=[0])
 @cmd.option("--input-shape", nargs="+", type=int, default=[-1, 3, 224, 224])
-@cmd.option("--start", type=str, default="default",
-            choices=["default", "prepare", "splitmodel",
-            "calibrate", "quantize", "mergemodel"])
-@cmd.option("--no-dump-prepare", action="store_false")
-@cmd.option("--keys", nargs="+", type=str, default="")
-@cmd.option("--no-dump-splitmodel", action="store_false")
+@cmd.option("--split-keys", nargs="+", type=str, default="")
+@cmd.module("prepare", as_main=True, refs=["modelprefix", "logger"],
+            description="""
+MRT Python Tool: preparation stage
+""")
+def mrt_prepare(args):
+    model_dir = args.model_dir
+    model_prefix = get_model_prefix(args)
+    logger = get_logger(args)
+    input_shape = args.input_shape
+
+    # preparation
+    sym_path, prm_path = load_fname(model_prefix)
+    if not path.exists(sym_path) or not path.exists(prm_path):
+        save_model(
+            args.model_name, data_dir=model_dir,
+            ctx=get_ctx(args.device_type_prepare, args.device_ids_prepare))
+    model = Model.load(sym_path, prm_path)
+    model.prepare(set_batch(input_shape, 1))
+    sym_file, prm_file, ext_file = load_fname(
+        model_prefix, suffix="prepare", with_ext=True)
+    model.save(sym_file, prm_file)
+    save_ext(
+        ext_file, logger=logger, input_shape=input_shape)
+    logger.info("preparation stage finihed")
+
+    # model splitting
+    split_keys = args.split_keys
+    if split_keys:
+        sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
+        sym_base_file, prm_base_file = load_fname(
+            model_prefix, suffix="base")
+        base, top = model.split(split_keys)
+        top.save(sym_top_file, prm_top_file)
+        base.save(sym_base_file, prm_base_file)
+        save_ext(
+            ext_file, logger=logger, input_shape=input_shape,
+            split_keys=split_keys)
+        logger.info("model splitting finished")
+    else:
+        logger.info("model splitting skipped")
+
 @cmd.option("--batch-calibrate", type=int, default=16)
 @cmd.option("--num-calibrate", type=int, default=1)
 @cmd.option("--lambd", type=int)
-@cmd.option("--dataset", type=str, default="imagenet",
+@cmd.option("--dataset-name", type=str, default="imagenet",
             choices=list(ds.DS_REG.keys()))
 @cmd.option("--dataset-dir", type=str, default=MRT_DATASET_ROOT)
 @cmd.option("--device-type-calibrate", type=str, default="cpu",
             choices=["cpu", "gpu"])
 @cmd.option("--device-ids-calibrate", nargs="+", type=int, default=[0])
-@cmd.option("--no-dump-calibrate", action="store_false")
+@cmd.module("calibrate", as_main=True, refs=["modelprefix", "logger"],
+            description="""
+MRT Python Tool: calibration stage
+""")
+def mrt_calibrate(args):
+    model_prefix = get_model_prefix(args)
+    logger = get_logger(args)
+    _, _, ext_prepare_file = load_fname(
+        model_prefix, suffix="prepare", with_ext=True)
+    info_map = load_ext(ext_prepare_file, logger=logger)
+    dataset_name = args.dataset_name
+
+    if info_map.get("split_keys", "") == "":
+        sym_file, prm_file = load_fname(model_prefix, suffix="prepare")
+        mrt = Model.load(sym_file, prm_file).get_mrt()
+    else:
+        sym_base_file, prm_base_file = load_fname(
+            model_prefix, suffix="base")
+        mrt = Model.load(sym_base_file, prm_base_file).get_mrt()
+    shp = set_batch(info_map["input_shape"], args.batch_calibrate)
+    dataset = ds.DS_REG[dataset_name](shp, root=args.dataset_dir)
+    data_iter_func = dataset.iter_func()
+    if len(args.device_ids_calibrate) > 1:
+        raise RuntimeError(
+            "device ids should be an integer in calibration stage")
+    ctx = get_ctx(args.device_type_calibrate, args.device_ids_calibrate)
+    for i in range(args.num_calibrate):
+        data, _ = data_iter_func()
+        mrt.set_data(data)
+        mrt.calibrate(lambd=args.lambd, ctx=ctx)
+    mrt.save(args.model_name+".mrt.calibrate", datadir=args.model_dir)
+    _, _, ext_file = load_fname(
+        model_prefix, suffix="mrt.calibrate", with_ext=True)
+    info_map["dataset_name"] = dataset_name
+    save_ext(ext_file, logger=logger, **info_map)
+    logger.info("calibrate stage finished")
+
 @cmd.option("--restore-names", nargs="+", type=str, default=[])
 @cmd.option("--input-precision", type=int)
 @cmd.option("--output-precision", type=int)
@@ -129,125 +233,14 @@ def set_batch(input_shape, batch):
 @cmd.option("--softmax-lambd", type=float)
 @cmd.option("--shift-bits", type=int)
 @cmd.option("--thresholds", type=str)
-@cmd.option("--no-dump-quantize", action="store_false")
 @cmd.option("--attribute-deps", type=str)
 @cmd.option("--oscale-maps", type=str)
-@cmd.option("--no-dump-mergemodel", action="store_false")
-@cmd.option("--evaluate", action="store_true")
-@cmd.option("--batch-evaluate", type=int)
-@cmd.option("--device-type-evaluate", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-evaluate", nargs="+", type=int, default=[0])
-@cmd.option("--num-iter", type=int, default=0)
-@cmd.option("--compile", action="store_true")
-@cmd.option("--batch-compile", type=int)
-@cmd.option("--dump-dir", type=str, default="/data1/tmp")
-@cmd.option("--device-type-compile", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-compile", nargs="+", type=int, default=[0])
-@cmd.module("", as_main=True,
+@cmd.module("quantize", as_main=True,
             description="""
-CVM Python Tool
+MRT Python Tool: quantization stage
 """)
-def cvm_main(args):
-    # default
-    log.Init(log.name2level(args.verbosity.upper()))
-    logger = logging.getLogger("log.main")
-    model_dir = args.model_dir
-    if model_dir.startswith("~"):
-        model_dir = path.expanduser(model_dir)
-    assert path.exists(model_dir), \
-        "Please create the folder `data` first"
-    model_name = args.model_name
-    model_prefix = path.join(model_dir, model_name)
-    model_ctx = get_ctx(args.device_type_default, args.device_ids_default)
-    input_shape = args.input_shape
-    start_pos = {
-        'default': 0, 'prepare': 1, 'splitmodel': 2,
-        'calibrate': 3, 'quantize': 4, 'mergemodel': 5}
-    start_point = start_pos[args.start]
-
-    # prepare
-    sym_file, prm_file = load_fname(model_prefix, suffix='prepare')
-    sym_path, prm_path = load_fname(model_prefix)
-    if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, data_dir=model_dir, ctx=model_ctx)
-
-    if start_point < 1:
-        model = Model.load(sym_path, prm_path)
-        model.prepare(set_batch(input_shape, 1))
-        if not args.no_dump_prepare:
-            model.save(sym_file, prm_file)
-        logger.info("preparation stage finihed")
-    elif start_point == 1:
-        for fpath in [sym_file, prm_file]:
-            if not path.exists(fpath):
-                raise RuntimeError("file path {} not found".format(fpath))
-        model = Model.load(sym_file, prm_file)
-        logger.info("preparation stage checked")
-
-    # splitmodel
-    sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
-    sym_base_file, prm_base_file = load_fname(model_prefix, suffix='base')
-    keys = args.keys
-    if keys == "":
-        if start_point == 2:
-            raise RuntimeError(
-                "this model does not support model splitting stage" +
-                "please respecify --start flag")
-        logger.info("model splitting stage skipped")
-    elif start_point < 2:
-        base, top = model.split(keys)
-        if not args.no_dump_splitmodel:
-            top.save(sym_top_file, prm_top_file)
-            base.save(sym_base_file, prm_base_file)
-        logger.info("model splitting stage finished")
-    elif start_point == 2:
-        for fpath in \
-            [sym_top_file, prm_top_file, sym_base_file, prm_base_file]:
-            if not path.exists(fpath):
-                raise RuntimeError("file path {} not found".format(fpath))
-        top = Model.load(sym_top_file, prm_top_file)
-        base = Model.load(sym_base_file, prm_base_file)
-        logger.info("model splitting stage checked")
-
-    # calibrate
-    model_name_calib = model_name + '.mrt.calibrate'
-    batch = args.batch_calibrate
-    ds_name = args.dataset
-    if start_point < 3:
-        mrt = model.get_mrt() if keys == '' else base.get_mrt()
-        shp = set_batch(input_shape, batch)
-        dataset = ds.DS_REG[ds_name](shp, root=args.dataset_dir)
-        data_iter_func = dataset.iter_func()
-        if len(args.device_ids_calibrate) > 1:
-            raise RuntimeError(
-                "device ids should be an integer in calibration stage")
-        ctx = get_ctx(
-            args.device_type_calibrate, args.device_ids_calibrate,
-            dctx=model_ctx)
-        for i in range(args.num_calibrate):
-            data, _ = data_iter_func()
-            mrt.set_data(data)
-            mrt.calibrate(lambd=args.lambd, ctx=ctx)
-        if not args.no_dump_calibrate:
-            mrt.save(model_name_calib, datadir=model_dir)
-        logger.info("calibrate stage finished")
-    elif start_point == 3:
-        fpaths = utils.extend_fname(model_prefix)
-        for fpath in fpaths:
-            if not path.exists(fpath):
-                raise RuntimeError("file path {} not found".format(fpath))
-        mrt = MRT.load(model_name_calib, datadir=model_dir)
-        if keys != "":
-            for fpath in [sym_top_file, prm_top_file]:
-                if not path.exists(fpath):
-                    raise RuntimeError("file path {} not found".format(fpath))
-            top = Model.load(sym_top_file, prm_top_file)
-        logger.info("calibration stage checkd")
-
+def mrt_quantize(args):
     # quantize
-    sec = 'QUANTIZATION'
     model_name_quant = model_name + '.mrt.quantize'
     if start_point < 4:
         restore_names = args.restore_names
@@ -376,7 +369,16 @@ def cvm_main(args):
         _, oscales, _, inputs_ext, _, _ = sim.load_ext(ext_all_file)
         logger.info("model merging stage checked")
 
-    # evaluate
+@cmd.option("--batch-evaluate", type=int)
+@cmd.option("--device-type-evaluate", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-evaluate", nargs="+", type=int, default=[0])
+@cmd.option("--num-iter", type=int, default=0)
+@cmd.module("evaluate", as_main=True,
+            description="""
+MRT Python Tool: quantization stage
+""")
+def mrt_evaluate(args):
     if args.evaluate:
         if args.batch_evaluate is not None:
             batch = args.batch_evaluate
@@ -436,7 +438,16 @@ def cvm_main(args):
                                  batch_size=batch)
             logger.info("evaluatation stage finished")
 
-    # compile
+@cmd.option("--batch-compile", type=int)
+@cmd.option("--dump-dir", type=str, default="/data1/tmp")
+@cmd.option("--device-type-compile", type=str, default="cpu",
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids-compile", nargs="+", type=int, default=[0])
+@cmd.module("compile", as_main=True,
+            description="""
+MRT Python Tool: compilation stage
+""")
+def mrt_compile(args):
     if args.compile:
         if args.batch_compile is not None:
             batch = args.batch_compile
@@ -464,6 +475,32 @@ def cvm_main(args):
         }
         sim.save_ext(path.join(model_root, "ext"), infos)
         logger.info("compilation stage finished")
+
+@cmd.option("--start-after", type=str,
+            choices=["prepare", "calibrate", "quantize"])
+@cmd.option("--evaluate", action="store_true")
+@cmd.option("--compile", action="store_true")
+@cmd.module("main", as_main=True,
+            refs=["prepare", "calibrate", "quantize",
+                  "evaluate", "compile"],
+            description="""
+MRT Python Tool
+""")
+def main(args):
+    start_pos = 0
+    start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
+    if args.start_after in start_pos_map:
+        start_pos = start_pos_map[args.start_after]
+    if start_pos < 1:
+        mrt_prepare(args)
+    if start_pos < 2:
+        mrt_calibrate(args)
+    if start_pos < 3:
+        mrt_quantize(args)
+    if args.evaluate:
+        mrt_evaluate(args)
+    if args.compile:
+        mrt_compile(args)
 
 if __name__ == "__main__":
     logger = logging.getLogger("main")
