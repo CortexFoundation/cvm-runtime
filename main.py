@@ -12,6 +12,7 @@ import numpy as np
 from mrt.conf import MRT_MODEL_ROOT, MRT_DATASET_ROOT
 from mrt.common import cmd, log, thread
 from mrt.transformer import Model, MRT, reduce_graph
+from mrt.sym_utils import topo_sort
 from mrt import utils
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
@@ -95,21 +96,27 @@ def set_batch(input_shape, batch):
     """
     return [batch if s == -1 else s for s in input_shape]
 
-def save_ext(fname, logger=logging, **info_map):
+def save_conf(fname, logger=logging, **conf_map):
     try:
-        info_s = json.dumps(info_map, indent=4)
+        info_s = json.dumps(conf_map, indent=4)
     except:
-        logger.error("Json seralize invalid with data: {}".format(info_map))
+        logger.error("Json seralize invalid with data: {}".format(conf_map))
     with open(fname, "w") as f:
         f.write(info_s)
 
-def load_ext(fname, logger=logging):
+def load_conf(fname, logger=logging):
     with open(fname, "r") as f:
         try:
-            info_map = json.load(f)
+            conf_map = json.load(f)
         except:
             logger.error("Json deserialize invalid, fname: {}".format(fname))
-    return info_map
+    return conf_map
+
+def check_file_existance(*fpaths, logger=logging):
+    for fpath in fpaths:
+        if not path.exists(fpath):
+            logger.error("fpath: {} does not exist".format(fpath))
+            raise FileNotFoundError
 
 @cmd.option("model_name", type=str)
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
@@ -142,24 +149,24 @@ def get_logger(args):
 MRT Python Tool: preparation stage
 """)
 def mrt_prepare(args):
-    model_dir = args.model_dir
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
-    input_shape = args.input_shape
+    conf_prep_file = model_prefix + ".prepare.conf"
+    conf_map = {}
 
     # preparation
     sym_path, prm_path = load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
         save_model(
-            args.model_name, data_dir=model_dir,
+            args.model_name, data_dir=args.model_dir,
             ctx=get_ctx(args.device_type_prepare, args.device_ids_prepare))
     model = Model.load(sym_path, prm_path)
-    model.prepare(set_batch(input_shape, 1))
-    sym_file, prm_file, ext_file = load_fname(
-        model_prefix, suffix="prepare", with_ext=True)
-    model.save(sym_file, prm_file)
-    save_ext(
-        ext_file, logger=logger, input_shape=input_shape)
+    model.prepare(set_batch(args.input_shape, 1))
+    sym_prep_file, prm_prep_file = load_fname(
+        model_prefix, suffix="prepare")
+    model.save(sym_prep_file, prm_prep_file)
+    conf_map["input_shape"] = args.input_shape
+    save_conf(conf_prep_file, logger=logger, **conf_map)
     logger.info("preparation stage finihed")
 
     # model splitting
@@ -171,9 +178,8 @@ def mrt_prepare(args):
         base, top = model.split(split_keys)
         top.save(sym_top_file, prm_top_file)
         base.save(sym_base_file, prm_base_file)
-        save_ext(
-            ext_file, logger=logger, input_shape=input_shape,
-            split_keys=split_keys)
+        conf_map["split_keys"] = split_keys
+        save_conf(conf_prep_file, logger=logger, **conf_map)
         logger.info("model splitting finished")
     else:
         logger.info("model splitting skipped")
@@ -194,20 +200,23 @@ MRT Python Tool: calibration stage
 def mrt_calibrate(args):
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
-    _, _, ext_prepare_file = load_fname(
-        model_prefix, suffix="prepare", with_ext=True)
-    info_map = load_ext(ext_prepare_file, logger=logger)
-    dataset_name = args.dataset_name
+    conf_prep_file = model_prefix + ".prepare.conf"
+    check_file_existance(conf_prep_file, logger=logger)
+    conf_map = load_conf(conf_prep_file, logger=logger)
 
-    if info_map.get("split_keys", "") == "":
-        sym_file, prm_file = load_fname(model_prefix, suffix="prepare")
+    # calibration
+    if conf_map.get("split_keys", "") == "":
+        sym_prep_file, prm_prep_file = load_fname(
+            model_prefix, suffix="prepare")
+        check_file_existance(sym_prep_file, prm_prep_file, logger=logger)
         mrt = Model.load(sym_file, prm_file).get_mrt()
     else:
         sym_base_file, prm_base_file = load_fname(
             model_prefix, suffix="base")
+        check_file_existance(sym_base_file, prm_base_file, logger=logger)
         mrt = Model.load(sym_base_file, prm_base_file).get_mrt()
-    shp = set_batch(info_map["input_shape"], args.batch_calibrate)
-    dataset = ds.DS_REG[dataset_name](shp, root=args.dataset_dir)
+    shp = set_batch(conf_map["input_shape"], args.batch_calibrate)
+    dataset = ds.DS_REG[args.dataset_name](shp, root=args.dataset_dir)
     data_iter_func = dataset.iter_func()
     if len(args.device_ids_calibrate) > 1:
         raise RuntimeError(
@@ -218,10 +227,8 @@ def mrt_calibrate(args):
         mrt.set_data(data)
         mrt.calibrate(lambd=args.lambd, ctx=ctx)
     mrt.save(args.model_name+".mrt.calibrate", datadir=args.model_dir)
-    _, _, ext_file = load_fname(
-        model_prefix, suffix="mrt.calibrate", with_ext=True)
-    info_map["dataset_name"] = dataset_name
-    save_ext(ext_file, logger=logger, **info_map)
+    conf_map["dataset_name"] = args.dataset_name
+    save_conf(model_prefix+".mrt.calibrate.conf", logger=logger, **conf_map)
     logger.info("calibrate stage finished")
 
 @cmd.option("--restore-names", nargs="+", type=str, default=[])
@@ -235,86 +242,78 @@ def mrt_calibrate(args):
 @cmd.option("--thresholds", type=str)
 @cmd.option("--attribute-deps", type=str)
 @cmd.option("--oscale-maps", type=str)
-@cmd.module("quantize", as_main=True,
+@cmd.module("quantize", as_main=True, refs=["modelprefix", "logger"],
             description="""
 MRT Python Tool: quantization stage
 """)
 def mrt_quantize(args):
-    # quantize
-    model_name_quant = model_name + '.mrt.quantize'
-    if start_point < 4:
-        restore_names = args.restore_names
-        name_to_op = {}
-        from mrt.sym_utils import topo_sort
+    model_prefix = get_model_prefix(args)
+    logger = get_logger(args)
+    conf_calib_file = model_prefix + ".mrt.calibrate.conf"
+    check_file_existance(conf_calib_file, logger=logger)
+    conf_map = load_conf(conf_calib_file, logger=logger)
+    sym_calib_file, prm_calib_file, ext_calib_file = load_fname(
+        model_prefix, suffix="mrt.calibrate", with_ext=True)
+    check_file_existance(
+        sym_calib_file, prm_calib_file, ext_calib_file, logger=logger)
+    mrt = MRT.load(args.model_name+".mrt.calibrate", datadir=args.model_dir)
+
+    # restoration configuration
+    restore_names = args.restore_names
+    name_to_op = {}
+    for sym in topo_sort(mrt.current_model.symbol):
+        name, op_name = sym.attr('name'), sym.attr('op_name')
+        if op_name not in name_to_op:
+            name_to_op[op_name] = []
+        name_to_op[op_name].append(name)
+    new_names = []
+    for name in restore_names:
+        if name.startswith("_OP_") and name[4:] in name_to_op:
+            for new_name in name_to_op[name[4:]]:
+                new_names.append(new_name)
+        else:
+            new_names.append(name)
+    restore_names = set(new_names)
+    if '_ALL_EXCEPT_' in restore_names:
+        from tfm_base import _pass_manager
+        from tfm_ops import disabled_restore_ops
+
+        quantize_ops = [op_name for op_name in _pass_manager["quantize"] \
+                        if op_name not in disabled_restore_ops]
+        restore_names_new = []
         for sym in topo_sort(mrt.current_model.symbol):
             name, op_name = sym.attr('name'), sym.attr('op_name')
-            if op_name not in name_to_op:
-                name_to_op[op_name] = []
-            name_to_op[op_name].append(name)
-        new_names = []
-        for name in restore_names:
-            if name.startswith("_OP_") and name[4:] in name_to_op:
-                for new_name in name_to_op[name[4:]]:
-                    new_names.append(new_name)
-            else:
-                new_names.append(name)
-        restore_names = set(new_names)
-        if '_ALL_EXCEPT_' in restore_names:
-            from tfm_base import _pass_manager
-            from tfm_ops import disabled_restore_ops
+            if op_name in quantize_ops and \
+                name not in restore_names:
+                restore_names_new.append(name)
+        restore_names = set(restore_names_new)
+    for name in restore_names:
+        mrt.set_restore(name)
 
-            quantize_ops = [op_name for op_name in _pass_manager["quantize"] \
-                            if op_name not in disabled_restore_ops]
-            restore_names_new = []
-            for sym in topo_sort(mrt.current_model.symbol):
-                name, op_name = sym.attr('name'), sym.attr('op_name')
-                if op_name in quantize_ops and \
-                    name not in restore_names:
-                    restore_names_new.append(name)
-            restore_names = set(restore_names_new)
-        for name in restore_names:
-            mrt.set_restore(name)
-        if args.input_precision is not None:
-            mrt.set_input_prec(args.input_precision)
-        if args.output_precision is not None:
-            mrt.set_output_prec(args.output_precision)
-        ctx = get_ctx(
-            args.device_type_quantize, args.device_ids_quantize,
-            dctx=model_ctx)
-        if args.softmax_lambd is not None:
-            mrt.set_softmax_lambd(args.softmax_lambd)
-        if args.shift_bits is not None:
-            mrt.set_shift_bits(args.shift_bits)
-        if args.thresholds is not None:
-            thresholds = json.loads(args.thresholds)
-            for name, threshold in thresholds.items():
-                mrt.set_threshold(name, threshold)
-        mrt.quantize()
-        inputs_ext = mrt.get_inputs_ext()
-        if not args.no_dump_quantize:
-            mrt.save(model_name_quant, datadir=model_dir)
-            oscales = mrt.get_output_scales()
-            inputs_ext = mrt.get_inputs_ext()
-            infos = ['oscales: ', oscales,
-                     'input_ext: ', inputs_ext,
-                     'input shapes: ', input_shape]
-            ext_all_file = path.join(model_dir, model_name+".all.quantize.ext")
-            sim.save_ext(ext_all_file, *infos)
-        logger.info("quantization stage finished")
-    elif start_point == 4:
-        fpaths = utils.extend_fname(
-            model_prefix+".mrt.quantize", with_ext=True)
-        for fpath in fpaths:
-            if not path.exists(fpath):
-                raise RuntimeError("file path {} not found".format(fpath))
-        mrt = MRT.load(model_name_quant, datadir=model_dir)
-        inputs_ext = mrt.get_inputs_ext()
-        if keys != "":
-            for fpath in [sym_top_file, prm_top_file]:
-                if not path.exists(fpath):
-                    raise RuntimeError("file path {} not found".format(fpath))
-            top = Model.load(sym_top_file, prm_top_file)
-        logger.info("quantization stage checkd")
+    # hyper parameters configuration
+    if args.input_precision is not None:
+        mrt.set_input_prec(args.input_precision)
+    if args.output_precision is not None:
+        mrt.set_output_prec(args.output_precision)
+    ctx = get_ctx(args.device_type_quantize, args.device_ids_quantize)
+    if args.softmax_lambd is not None:
+        mrt.set_softmax_lambd(args.softmax_lambd)
+    if args.shift_bits is not None:
+        mrt.set_shift_bits(args.shift_bits)
+    if args.thresholds is not None:
+        thresholds = json.loads(args.thresholds)
+        for name, threshold in thresholds.items():
+            mrt.set_threshold(name, threshold)
+
+    # quantization
+    mrt.quantize()
+    mrt.save(args.model_name + ".mrt.quantize", datadir=args.model_dir)
+    conf_map["oscales"] = mrt.get_output_scales()
+    conf_map["inputs_ext"] = mrt.get_inputs_ext()
+    _, _, ext_quant_file = load_fname(
+        model_prefix, suffix="mrt.quantize", with_ext=True)
+    save_conf(ext_quant_file, logger=logger, **conf_map)
+    logger.info("quantization stage finished")
 
     # mergemodel
     sym_all_file, prm_all_file, ext_all_file = load_fname(
@@ -361,13 +360,6 @@ def mrt_quantize(args):
                      'input shapes: ', input_shape]
             sim.save_ext(ext_all_file, *infos)
         logger.info("model merging stage finished")
-    else:
-        for fpath in [sym_all_file, prm_all_file]:
-            if not path.exists(fpath):
-                raise RuntimeError("file path {} not found".format(fpath))
-        qmodel = Model.load(sym_all_file, prm_all_file)
-        _, oscales, _, inputs_ext, _, _ = sim.load_ext(ext_all_file)
-        logger.info("model merging stage checked")
 
 @cmd.option("--batch-evaluate", type=int)
 @cmd.option("--device-type-evaluate", type=str, default="cpu",
