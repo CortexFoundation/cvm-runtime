@@ -35,9 +35,18 @@ LOG_MSG = ",".join(["{}:{}".format(l, n) \
 # def global_func(args):
     # log.Init(log.name2level(args.verbosity))
 
-def get_ctx(device_type, device_ids, dctx=mx.cpu()):
+default_device_type = "cpu"
+default_device_ids = [0]
+default_ctx = mx.cpu()
+default_batch = 16
+
+def get_ctx(device_type, device_ids, dctx=default_ctx):
+    if device_type is None:
+        device_type = default_device_type
+    if device_ids is None:
+        device_ids = default_device_ids
     contex = dctx
-    if device_type == 'gpu':
+    if device_type == "gpu":
         contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
               else [mx.gpu(i) for i in device_ids]
     return contex
@@ -138,9 +147,8 @@ def get_logger(args):
     logger = logging.getLogger("log.main")
     return logger
 
-@cmd.option("--device-type-prepare", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-prepare", nargs="+", type=int, default=[0])
+@cmd.option("--device-type-prepare", type=str, choices=["cpu", "gpu"])
+@cmd.option("--device-ids-prepare", nargs="+", type=int)
 @cmd.option("--input-shape", nargs="+", type=int, default=[-1, 3, 224, 224])
 @cmd.option("--split-keys", nargs="+", type=str, default="")
 @cmd.module("prepare", as_main=True, refs=["modelprefix", "logger"],
@@ -183,20 +191,21 @@ def mrt_prepare(args):
     else:
         logger.info("model splitting skipped")
 
-@cmd.option("--batch-calibrate", type=int, default=16)
+@cmd.option("--batch-calibrate", type=int)
 @cmd.option("--calibrate-num", type=int, default=1)
 @cmd.option("--lambd", type=int)
 @cmd.option("--dataset-name", type=str, default="imagenet",
             choices=list(ds.DS_REG.keys()))
 @cmd.option("--dataset-dir", type=str, default=MRT_DATASET_ROOT)
-@cmd.option("--device-type-calibrate", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-calibrate", nargs="+", type=int, default=[0])
+@cmd.option("--device-type-calibrate", type=str, choices=["cpu", "gpu"])
+@cmd.option("--device-ids-calibrate", nargs="+", type=int)
 @cmd.module("calibrate", as_main=True, refs=["modelprefix", "logger"],
             description="""
 MRT Python Tool: calibration stage
 """)
 def mrt_calibrate(args):
+    batch = default_batch if args.batch_calibrate is None \
+        else args.batch_calibrate
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
     conf_prep_file = model_prefix + ".prepare.conf"
@@ -214,7 +223,7 @@ def mrt_calibrate(args):
             model_prefix, suffix="base")
         check_file_existance(sym_base_file, prm_base_file, logger=logger)
         mrt = Model.load(sym_base_file, prm_base_file).get_mrt()
-    shp = set_batch(conf_map["input_shape"], args.batch_calibrate)
+    shp = set_batch(conf_map["input_shape"], batch)
     dataset = ds.DS_REG[args.dataset_name](shp, root=args.dataset_dir)
     data_iter_func = dataset.iter_func()
     if len(args.device_ids_calibrate) > 1:
@@ -233,9 +242,8 @@ def mrt_calibrate(args):
 @cmd.option("--restore-names", nargs="+", type=str, default=[])
 @cmd.option("--input-precision", type=int)
 @cmd.option("--output-precision", type=int)
-@cmd.option("--device-type-quantize", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-quantize", nargs="+", type=int, default=[0])
+@cmd.option("--device-type-quantize", type=str, choices=["cpu", "gpu"])
+@cmd.option("--device-ids-quantize", nargs="+", type=int)
 @cmd.option("--softmax-lambd", type=float)
 @cmd.option("--shift-bits", type=int)
 @cmd.option("--thresholds", type=str)
@@ -360,9 +368,8 @@ def mrt_quantize(args):
         logger.info("model merging skipped")
 
 @cmd.option("--batch-evaluate", type=int)
-@cmd.option("--device-type-evaluate", type=str, default="cpu",
-            choices=["cpu", "gpu"])
-@cmd.option("--device-ids-evaluate", nargs="+", type=int, default=[0])
+@cmd.option("--device-type-evaluate", type=str, choices=["cpu", "gpu"])
+@cmd.option("--device-ids-evaluate", nargs="+", type=int)
 @cmd.option("--iter-num", type=int, default=0)
 @cmd.module("evaluate", as_main=True, refs=["modelprefix", "logger"],
             description="""
@@ -371,12 +378,12 @@ MRT Python Tool: evaluation stage
 def mrt_evaluate(args):
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
-    batch = args.batch_evaluate
+    batch = default_batch if args.batch_evaluate is None \
+        else args.batch_evaluate
     conf_quant_file = model_prefix + ".quantize.conf"
     check_file_existance(conf_quant_file, logger=logger)
     conf_map = load_conf(conf_quant_file, logger=logger)
-    ctx = get_ctx(
-        args.device_type_evaluate, args.device_ids_evaluate)
+    ctx = get_ctx(args.device_type_evaluate, args.device_ids_evaluate)
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
 
@@ -493,17 +500,28 @@ def mrt_compile(args):
 
 @cmd.option("--start-after", type=str,
             choices=["prepare", "calibrate", "quantize"])
+@cmd.option("--device-type", type=str, default=default_device_type,
+            choices=["cpu", "gpu"])
+@cmd.option("--device-ids", nargs="+", type=int, default=default_device_ids)
+@cmd.option("--batch", type=int, default=default_batch)
 @cmd.option("--evaluate", action="store_true")
 @cmd.option("--compile", action="store_true")
-@cmd.module("main", as_main=True,
+@cmd.module("mrt", as_main=True,
             refs=["prepare", "calibrate", "quantize",
                   "evaluate", "compile"],
             description="""
 MRT Python Tool
 """)
-def main(args):
+def mrt_main(args):
+    # setting up attributes for all passes
+    for prefix in ["batch", "device_type", "device_ids"]:
+        for attr in dir(args):
+            if attr.startswith(prefix+"_") and getattr(args, attr) is None:
+                setattr(args, attr, getattr(args, prefix))
+
     start_pos = 0
     start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
+    return
     if args.start_after in start_pos_map:
         start_pos = start_pos_map[args.start_after]
     if start_pos < 1:
