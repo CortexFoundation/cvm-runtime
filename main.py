@@ -115,8 +115,7 @@ def load_conf(fname, logger=logging):
 def check_file_existance(*fpaths, logger=logging):
     for fpath in fpaths:
         if not path.exists(fpath):
-            logger.error("fpath: {} does not exist".format(fpath))
-            raise FileNotFoundError
+            raise FileNotFoundError("fpath: {} does not exist".format(fpath))
 
 @cmd.option("model_name", type=str)
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
@@ -185,7 +184,7 @@ def mrt_prepare(args):
         logger.info("model splitting skipped")
 
 @cmd.option("--batch-calibrate", type=int, default=16)
-@cmd.option("--num-calibrate", type=int, default=1)
+@cmd.option("--calibrate-num", type=int, default=1)
 @cmd.option("--lambd", type=int)
 @cmd.option("--dataset-name", type=str, default="imagenet",
             choices=list(ds.DS_REG.keys()))
@@ -209,7 +208,7 @@ def mrt_calibrate(args):
         sym_prep_file, prm_prep_file = load_fname(
             model_prefix, suffix="prepare")
         check_file_existance(sym_prep_file, prm_prep_file, logger=logger)
-        mrt = Model.load(sym_file, prm_file).get_mrt()
+        mrt = Model.load(sym_prep_file, prm_prep_file).get_mrt()
     else:
         sym_base_file, prm_base_file = load_fname(
             model_prefix, suffix="base")
@@ -222,13 +221,13 @@ def mrt_calibrate(args):
         raise RuntimeError(
             "device ids should be an integer in calibration stage")
     ctx = get_ctx(args.device_type_calibrate, args.device_ids_calibrate)
-    for i in range(args.num_calibrate):
+    for i in range(args.calibrate_num):
         data, _ = data_iter_func()
         mrt.set_data(data)
         mrt.calibrate(lambd=args.lambd, ctx=ctx)
     mrt.save(args.model_name+".mrt.calibrate", datadir=args.model_dir)
     conf_map["dataset_name"] = args.dataset_name
-    save_conf(model_prefix+".mrt.calibrate.conf", logger=logger, **conf_map)
+    save_conf(model_prefix+".calibrate.conf", logger=logger, **conf_map)
     logger.info("calibrate stage finished")
 
 @cmd.option("--restore-names", nargs="+", type=str, default=[])
@@ -249,7 +248,7 @@ MRT Python Tool: quantization stage
 def mrt_quantize(args):
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
-    conf_calib_file = model_prefix + ".mrt.calibrate.conf"
+    conf_calib_file = model_prefix + ".calibrate.conf"
     check_file_existance(conf_calib_file, logger=logger)
     conf_map = load_conf(conf_calib_file, logger=logger)
     sym_calib_file, prm_calib_file, ext_calib_file = load_fname(
@@ -257,6 +256,7 @@ def mrt_quantize(args):
     check_file_existance(
         sym_calib_file, prm_calib_file, ext_calib_file, logger=logger)
     mrt = MRT.load(args.model_name+".mrt.calibrate", datadir=args.model_dir)
+    conf_quant_file = model_prefix + ".quantize.conf"
 
     # restoration configuration
     restore_names = args.restore_names
@@ -311,22 +311,17 @@ def mrt_quantize(args):
     input_shape = conf_map["input_shape"]
     oscales = mrt.get_output_scales()
     inputs_ext = mrt.get_inputs_ext()
-    infos = ["oscales: ", oscales,
-             "input_ext: ", inputs_ext,
-             "input shapes: ", input_shape]
-    ext_mrt_file = path.join(
-        args.model_dir, args.model_name+".mrt.quantize.ext")
-    sim.save_ext(ext_mrt_file, *infos)
-    save_conf(model_prefix+".mrt.quantize.conf", logger=logger, **conf_map)
+    infos = [oscales, inputs_ext]
+    ext_all_file = model_prefix + ".all.quantize.ext"
+    sim.save_ext(ext_all_file, *infos)
+    save_conf(conf_quant_file, logger=logger, **conf_map)
     logger.info("quantization stage finished")
 
     # mergemodel
-    split_keys = conf_map["split_keys"]
-    if split_keys:
+    if conf_map.get("split_keys", "") != "":
         qmodel = mrt.current_model
         if args.attribute_deps is None:
-            logger.error("model merging, please specify --attribute_deps")
-            raise RuntimeError
+            raise RuntimeError("model merging, please specify --attribute_deps")
         attribute_deps = json.loads(args.attribute_deps)
         mrt_oscales = mrt.get_output_scales()
         name_idx = {mrt.get_maps().get(
@@ -345,24 +340,21 @@ def mrt_quantize(args):
                     *childs, **attr, name=name)
             return node
         sym_top_file, prm_top_file = load_fname(model_prefix, suffix="top")
-        check_file_existance(sym_top_file)
-        check_file_existance(prm_top_file)
+        check_file_existance(sym_top_file, prm_top_file, logger=logger)
         top = Model.load(sym_top_file, prm_top_file)
         model_merger = Model.merger(qmodel, top, mrt.get_maps())
         qmodel = model_merger.merge(callback=mergefunc)
         if args.oscale_maps is None:
-            logger.error("model merging, please specify --oscale_maps")
-            raise RuntimeError
+            raise RuntimeError("model merging, please specify --oscale_maps")
         oscale_maps = json.loads(args.oscale_maps)
         oscales = model_merger.get_output_scales(
             mrt_oscales, oscale_maps)
         sym_all_file, prm_all_file, ext_all_file = load_fname(
             model_prefix, suffix="all.quantize", with_ext=True)
         qmodel.save(sym_all_file, prm_all_file)
-        infos = ['oscales: ', oscales,
-                 'input_ext: ', inputs_ext,
-                 'input shapes: ', input_shape]
+        infos = [oscales, inputs_ext]
         sim.save_ext(ext_all_file, *infos)
+        save_conf(conf_quant_file, logger=logger, **conf_map)
         logger.info("model merging finished")
     else:
         logger.info("model merging skipped")
@@ -371,70 +363,95 @@ def mrt_quantize(args):
 @cmd.option("--device-type-evaluate", type=str, default="cpu",
             choices=["cpu", "gpu"])
 @cmd.option("--device-ids-evaluate", nargs="+", type=int, default=[0])
-@cmd.option("--num-iter", type=int, default=0)
-@cmd.module("evaluate", as_main=True,
+@cmd.option("--iter-num", type=int, default=0)
+@cmd.module("evaluate", as_main=True, refs=["modelprefix", "logger"],
             description="""
-MRT Python Tool: quantization stage
+MRT Python Tool: evaluation stage
 """)
 def mrt_evaluate(args):
-    if args.evaluate:
-        if args.batch_evaluate is not None:
-            batch = args.batch_evaluate
-        ctx = get_ctx(
-            args.device_type_evaluate, args.device_ids_evaluate,
-            dctx=model_ctx)
-        if isinstance(ctx, mx.Context):
-            ctx = [ctx]
-        org_model = Model.load(sym_path, prm_path)
-        graph = org_model.to_graph(ctx=ctx)
-        dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
-        data_iter_func = dataset.iter_func()
-        metric = dataset.metrics()
+    model_prefix = get_model_prefix(args)
+    logger = get_logger(args)
+    batch = args.batch_evaluate
+    conf_quant_file = model_prefix + ".quantize.conf"
+    check_file_existance(conf_quant_file, logger=logger)
+    conf_map = load_conf(conf_quant_file, logger=logger)
+    ctx = get_ctx(
+        args.device_type_evaluate, args.device_ids_evaluate)
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
 
-        baxis = batch_axis(input_shape)
-        olen = len(org_model.symbol)
-        def forward(net, data, ctx):
-            """ Multiple xpu run support.
-            """
-            data = gluon.utils.split_and_load(
-                data, ctx_list=ctx, batch_axis=baxis, even_split=False)
-            outs = [net(d) for d in data]
-            if olen == 1:
-                outs = nd.concatenate(outs)
-            else:
-                outs = [nd.concatenate([outs[i][j] \
-                    for i in range(len(outs))]) for j in range(olen)]
-            return outs
+    # forward function for the orginal model
+    omodel = Model.load(*load_fname(model_prefix))
+    graph = omodel.to_graph(ctx=ctx)
+    dataset_name = conf_map["dataset_name"]
+    input_shape = conf_map["input_shape"]
+    dataset = ds.DS_REG[dataset_name](set_batch(input_shape, batch))
+    data_iter_func = dataset.iter_func()
+    metric = dataset.metrics()
+    baxis = batch_axis(input_shape)
+    olen = len(omodel.symbol)
 
-        def evalfunc(data, label):
-            outs = forward(graph, data, ctx=ctx)
-            acc = dataset.validate(metric, outs, label)
-            return acc
+    def forward(net, data, ctx):
+        """ Multiple xpu run support.
+        """
+        data = gluon.utils.split_and_load(
+            data, ctx_list=ctx, batch_axis=baxis, even_split=False)
+        outs = [net(d) for d in data]
+        if olen == 1:
+            outs = nd.concatenate(outs)
+        else:
+            outs = [nd.concatenate([outs[i][j] \
+                for i in range(len(outs))]) for j in range(olen)]
+        return outs
 
-        ngpus = len(ctx)
-        if batch % ngpus:
-            raise RuntimeError("Batch must be divisible by the number of gpus")
-        split_batch = batch//ngpus
-        rqmodel = reduce_graph(qmodel, {
-            'data': set_batch(input_shape, split_batch)})
-        qgraph = rqmodel.to_graph(ctx=ctx)
-        qmetric = dataset.metrics()
+    def evalfunc(data, label):
+        outs = forward(graph, data, ctx=ctx)
+        acc = dataset.validate(metric, outs, label)
+        return acc
 
-        def quantize(data, label):
-            data = sim.load_real_data(data, 'data', inputs_ext)
-            outs = forward(qgraph, data, ctx)
-            outs = outs / oscales[0] if olen == 1 \
-                else [(t / oscales[i]) for i, t in enumerate(outs)]
-            acc = dataset.validate(qmetric, outs, label)
-            return acc
+    # forward function for the quantized model
+    num_xpus = len(ctx)
+    if batch % num_xpus:
+        raise RuntimeError("Batch must be divisible by the number of xpus")
+    split_batch = batch // num_xpus
+    if conf_map.get("split_keys", "") != "":
+        sym_all_file, prm_all_file, ext_all_file = load_fname(
+            model_prefix, suffix="all.quantize", with_ext=True)
+        check_file_existance(
+            sym_all_file, prm_all_file, ext_all_file, logger=logger)
+        qmodel = Model.load(sym_all_file, prm_all_file)
+        oscales, inputs_ext = sim.load_ext(ext_all_file)
+    else:
+        sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
+            model_prefix, suffix="mrt.quantize", with_ext=True)
+        check_file_existance(
+            sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
+        mrt = MRT.load(args.model_name+".mrt.quantize", datadir=args.model_dir)
+        oscales = mrt.get_output_scales()
+        inputs_ext = mrt.get_inputs_ext()
+        qmodel = mrt.current_model
+    rqmodel = reduce_graph(qmodel, {
+        'data': set_batch(input_shape, split_batch)})
+    qgraph = rqmodel.to_graph(ctx=ctx)
+    qmetric = dataset.metrics()
 
-        if args.num_iter > 0:
-            logger.info("Validating...")
-            utils.multi_validate(evalfunc, data_iter_func, quantize,
-                                 iter_num=args.num_iter,
-                                 logger=logging.getLogger('mrt.validate'),
-                                 batch_size=batch)
-            logger.info("evaluatation stage finished")
+    def quantize(data, label):
+        data = sim.load_real_data(data, 'data', inputs_ext)
+        outs = forward(qgraph, data, ctx)
+        outs = outs / oscales[0] if olen == 1 \
+            else [(t / oscales[i]) for i, t in enumerate(outs)]
+        acc = dataset.validate(qmetric, outs, label)
+        return acc
+
+    # evaluate
+    if args.iter_num > 0:
+        logger.info("Validating...")
+        utils.multi_validate(
+            evalfunc, data_iter_func, quantize, iter_num=args.iter_num,
+            logger=logging.getLogger('mrt.validate'), batch_size=batch)
+        logger.info("evaluatation stage finished")
+    else:
+        logger.info("evaluatation stage skipped")
 
 @cmd.option("--batch-compile", type=int)
 @cmd.option("--dump-dir", type=str, default="/data1/tmp")
