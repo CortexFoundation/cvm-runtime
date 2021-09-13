@@ -307,36 +307,36 @@ def mrt_quantize(args):
 
     # quantization
     mrt.quantize()
-    mrt.save(args.model_name + ".mrt.quantize", datadir=args.model_dir)
-    conf_map["oscales"] = mrt.get_output_scales()
-    conf_map["inputs_ext"] = mrt.get_inputs_ext()
-    _, _, ext_quant_file = load_fname(
-        model_prefix, suffix="mrt.quantize", with_ext=True)
-    save_conf(ext_quant_file, logger=logger, **conf_map)
+    mrt.save(args.model_name+".mrt.quantize", datadir=args.model_dir)
+    input_shape = conf_map["input_shape"]
+    oscales = mrt.get_output_scales()
+    inputs_ext = mrt.get_inputs_ext()
+    infos = ["oscales: ", oscales,
+             "input_ext: ", inputs_ext,
+             "input shapes: ", input_shape]
+    ext_mrt_file = path.join(
+        args.model_dir, args.model_name+".mrt.quantize.ext")
+    sim.save_ext(ext_mrt_file, *infos)
+    save_conf(model_prefix+".mrt.quantize.conf", logger=logger, **conf_map)
     logger.info("quantization stage finished")
 
-    # mergemodel
     sym_all_file, prm_all_file, ext_all_file = load_fname(
-        model_prefix, suffix='all.quantize', with_ext=True)
-    if keys == "":
-        if start_point == 5:
-            raise RuntimeError(
-                "this model does not support model merging stage" +
-                "please respecify --start flag")
-        qmodel = mrt.current_model
-        oscales = mrt.get_output_scales()
-        logger.info("model merging stage skipped")
-    elif start_point < 5:
-        qmodel = mrt.current_model
-        mrt_oscales = mrt.get_output_scales()
-        model_merger = Model.merger(qmodel, top, mrt.get_maps())
-        attribute_deps = json.loads(args.attribute_deps)
+        model_prefix, suffix="all.quantize", with_ext=True)
 
+    # mergemodel
+    split_keys = conf_map["split_keys"]
+    if split_keys:
+        qmodel = mrt.current_model
+        if args.attribute_deps is None:
+            logger.error("model merging, please specify --attribute_deps")
+            raise RuntimeError
+        attribute_deps = json.loads(args.attribute_deps)
+        mrt_oscales = mrt.get_output_scales()
         name_idx = {mrt.get_maps().get(
             s.attr("name"), s.attr("name")): i \
             for i, s in enumerate(qmodel.symbol)}
         def mergefunc(node, params, graph):
-            name, op_name = node.attr('name'), node.attr('op_name')
+            name, op_name = node.attr("name"), node.attr("op_name")
             childs, attr = sutils.sym_iter(
                 node.get_children()), node.list_attr()
             if op_name in attribute_deps:
@@ -347,19 +347,28 @@ def mrt_quantize(args):
                 node = sutils.get_mxnet_op(op_name)(
                     *childs, **attr, name=name)
             return node
-
+        sym_top_file, prm_top_file = load_fname(model_prefix, suffix="top")
+        check_file_existance(sym_top_file)
+        check_file_existance(prm_top_file)
+        top = Model.load(sym_top_file, prm_top_file)
+        model_merger = Model.merger(qmodel, top, mrt.get_maps())
         qmodel = model_merger.merge(callback=mergefunc)
+        if args.oscale_maps is None:
+            logger.error("model merging, please specify --oscale_maps")
+            raise RuntimeError
         oscale_maps = json.loads(args.oscale_maps)
         oscales = model_merger.get_output_scales(
             mrt_oscales, oscale_maps)
-        inputs_ext = mrt.get_inputs_ext()
-        if not args.no_dump_mergemodel:
-            qmodel.save(sym_all_file, prm_all_file)
-            infos = ['oscales: ', oscales,
-                     'input_ext: ', inputs_ext,
-                     'input shapes: ', input_shape]
-            sim.save_ext(ext_all_file, *infos)
-        logger.info("model merging stage finished")
+        qmodel.save(sym_all_file, prm_all_file)
+        infos = ['oscales: ', oscales,
+                 'input_ext: ', inputs_ext,
+                 'input shapes: ', input_shape]
+        sim.save_ext(ext_all_file, *infos)
+        logger.info("model merging finished")
+    else:
+        mrt.save(args.model_name+".all.quantize", datadir=args.model_dir)
+        sim.save_ext(ext_all_file, *infos)
+        logger.info("model merging skipped")
 
 @cmd.option("--batch-evaluate", type=int)
 @cmd.option("--device-type-evaluate", type=str, default="cpu",
