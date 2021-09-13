@@ -320,9 +320,6 @@ def mrt_quantize(args):
     save_conf(model_prefix+".mrt.quantize.conf", logger=logger, **conf_map)
     logger.info("quantization stage finished")
 
-    sym_all_file, prm_all_file, ext_all_file = load_fname(
-        model_prefix, suffix="all.quantize", with_ext=True)
-
     # mergemodel
     split_keys = conf_map["split_keys"]
     if split_keys:
@@ -359,6 +356,8 @@ def mrt_quantize(args):
         oscale_maps = json.loads(args.oscale_maps)
         oscales = model_merger.get_output_scales(
             mrt_oscales, oscale_maps)
+        sym_all_file, prm_all_file, ext_all_file = load_fname(
+            model_prefix, suffix="all.quantize", with_ext=True)
         qmodel.save(sym_all_file, prm_all_file)
         infos = ['oscales: ', oscales,
                  'input_ext: ', inputs_ext,
@@ -366,8 +365,6 @@ def mrt_quantize(args):
         sim.save_ext(ext_all_file, *infos)
         logger.info("model merging finished")
     else:
-        mrt.save(args.model_name+".all.quantize", datadir=args.model_dir)
-        sim.save_ext(ext_all_file, *infos)
         logger.info("model merging skipped")
 
 @cmd.option("--batch-evaluate", type=int)
