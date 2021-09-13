@@ -465,38 +465,64 @@ def mrt_evaluate(args):
 @cmd.option("--device-type-compile", type=str, default="cpu",
             choices=["cpu", "gpu"])
 @cmd.option("--device-ids-compile", nargs="+", type=int, default=[0])
-@cmd.module("compile", as_main=True,
+@cmd.module("compile", as_main=True, refs=["modelprefix", "logger"],
             description="""
 MRT Python Tool: compilation stage
 """)
 def mrt_compile(args):
-    if args.compile:
-        if args.batch_compile is not None:
-            batch = args.batch_compile
-        model_name_tfm = model_name + "_cvm"
-        if len(args.device_ids_compile) > 1:
-            raise RuntimeError(
-                "device ids should be an integer in compilation stage")
-        device_ids_compile = args.device_ids_compile[0]
-        qmodel.to_cvm(model_name_tfm, datadir=args.dump_dir,
-                      input_shape=set_batch(input_shape, batch),
-                      target=args.device_type_compile,
-                      device_ids=device_ids_compile)
+    model_prefix = get_model_prefix(args)
+    logger = get_logger(args)
+    batch = default_batch if args.batch_compile is None \
+        else args.batch_compile
+    conf_quant_file = model_prefix + ".quantize.conf"
+    check_file_existance(conf_quant_file, logger=logger)
+    conf_map = load_conf(conf_quant_file, logger=logger)
+    if args.device_type_compile is None:
+        args.device_type_compile = default_device_type
+    if args.device_ids_compile is None:
+        args.device_ids_compile = default_device_ids
+    if len(args.device_ids_compile) > 1:
+        raise RuntimeError(
+            "device ids should be an integer in compilation stage")
+    input_shape = conf_map["input_shape"]
 
-        dataset = ds.DS_REG[ds_name](set_batch(input_shape, batch))
-        dump_data, _ = dataset.iter_func()()
-        dump_data = sim.load_real_data(
-            dump_data.astype("float64"), 'data', mrt.get_inputs_ext())
-        model_root = path.join(args.dump_dir, model_name_tfm)
-        np.save(path.join(model_root, "data.npy"),
-                dump_data.astype('int8').asnumpy())
-        infos = {
-            "inputs_ext": inputs_ext,
-            "oscales": oscales,
-            "input_shapes": input_shape,
-        }
-        sim.save_ext(path.join(model_root, "ext"), infos)
-        logger.info("compilation stage finished")
+    # compilation
+    model_name_tfm = args.model_name + "_cvm"
+    device_ids_compile = args.device_ids_compile[0]
+    if conf_map.get("split_keys", "") != "":
+        sym_all_file, prm_all_file, ext_all_file = load_fname(
+            model_prefix, suffix="all.quantize", with_ext=True)
+        check_file_existance(
+            sym_all_file, prm_all_file, ext_all_file, logger=logger)
+        qmodel = Model.load(sym_all_file, prm_all_file)
+        oscales, inputs_ext = sim.load_ext(ext_all_file)
+    else:
+        sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
+            model_prefix, suffix="mrt.quantize", with_ext=True)
+        check_file_existance(
+            sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
+        mrt = MRT.load(args.model_name+".mrt.quantize", datadir=args.model_dir)
+        oscales = mrt.get_output_scales()
+        inputs_ext = mrt.get_inputs_ext()
+        qmodel = mrt.current_model
+    qmodel.to_cvm(
+        model_name_tfm, datadir=args.dump_dir,
+        input_shape=set_batch(input_shape, batch),
+        target=args.device_type_compile, device_ids=device_ids_compile)
+    dataset = ds.DS_REG[conf_map["dataset_name"]](set_batch(input_shape, batch))
+    dump_data, _ = dataset.iter_func()()
+    dump_data = sim.load_real_data(
+        dump_data.astype("float64"), "data", mrt.get_inputs_ext())
+    model_root = path.join(args.dump_dir, model_name_tfm)
+    np.save(
+        path.join(model_root, "data.npy"), dump_data.astype("int8").asnumpy())
+    infos = {
+        "inputs_ext": inputs_ext,
+        "oscales": oscales,
+        "input_shapes": input_shape,
+    }
+    sim.save_ext(path.join(model_root, "ext"), infos)
+    logger.info("compilation stage finished")
 
 @cmd.option("--start-after", type=str,
             choices=["prepare", "calibrate", "quantize"])
