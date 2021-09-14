@@ -125,6 +125,8 @@ The trained model are save in two files, one specifies model structure including
 # MRT Quantization
 Fixed-point quantization is based upon the MRT methodology which includes 6 stages, i.e., Prepare, Split Model, Calibration, Quantization, Merge Model, Evaluation and Compilation. For each stage where needs some specification parameters, user can adjust these parameters to get higher quantization performance than that from default settings.
 
+To begin with, user should comile the cvm runtime library, please refer Installation for compilation.
+
 The following is executed for MRT quantizaiton.
 
 ```python
