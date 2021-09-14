@@ -2,6 +2,9 @@
 """
 
 import sys
+
+sys.path.append('./python/')
+
 from os import path
 import configparser
 import logging
@@ -10,14 +13,12 @@ import numpy as np
 import mxnet as mx
 from mxnet import gluon, ndarray as nd
 
-from mrt import conf
 from mrt.transformer import Model, reduce_graph, MRT
 from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
 from mrt import utils
 from mrt import sym_utils as sutils
-from mrt import cvm_op
 
 def set_batch(input_shape, batch):
     """Get the input shape with respect to a specified batch value and an original input shape.
@@ -317,7 +318,7 @@ if __name__ == "__main__":
                          dtype=int_t, dval=logging.NOTSET)
     utils.log_init(level=verbosity)
     logger = logging.getLogger("log.main")
-    default_dir = conf.MRT_MODEL_ROOT
+    default_dir = "/home/mint/.mxnet/datasets"
     model_dir = _get_val(cfg, sec, 'Model_dir', dval=default_dir)
     assert path.exists(model_dir), \
         "Please create the folder `data` first"
@@ -384,7 +385,7 @@ if __name__ == "__main__":
     model_name_calib = model_name + '.mrt.calibrate'
     batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=16)
     ds_name = _get_val(cfg, sec, 'Dataset')
-    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
+    dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval='')
     if start_point < 3:
         mrt = model.get_mrt() if keys == '' else base.get_mrt()
         calibrate_num = _get_val(
@@ -552,7 +553,8 @@ if __name__ == "__main__":
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
-        #  dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
+        ds_name = _get_val(cfg, sec, 'Dataset')
+        dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval="")
         iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)

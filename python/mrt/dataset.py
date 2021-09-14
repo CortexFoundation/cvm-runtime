@@ -636,3 +636,21 @@ class TrecDataset(Dataset):
 
         acc = 1. * metrics["acc"] / metrics["total"]
         return "{:6.2%}".format(acc)
+
+@register_dataset("Custom")
+class CustomDataset(VisionDataset):
+
+    def _load_data(self):
+        self.dataset = mx.gluon.data.vision.datasets.ImageFolderDataset(
+            root=self.root_dir, 
+            flag=0, 
+            transform = lambda data, label: (nd.transpose(data.astype('float32'), (2,0,1)), label)
+        )
+        
+        batch_size = self.ishape[0]
+        self.data = gluon.data.DataLoader(
+            self.dataset,
+            batch_size=batch_size, shuffle=False, 
+            last_batch='rollover'
+        )
+    

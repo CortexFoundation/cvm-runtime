@@ -84,3 +84,12 @@ Deprecated Docs
   MRT Dataset API <api/dataset>
   MRT Utils API <api/utils>
   MRT Generalized Quantization API <api/gen>
+  
+An Example
+===============
+
+.. toctree::
+  :maxdepth: 3
+
+  example.md
+  
