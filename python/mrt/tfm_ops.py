@@ -1206,37 +1206,11 @@ class BroadcastAdd(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
-# @register_pass("calculate_ops")
-# @register_pass("fuse_transpose")
-# @register_pass("rewrite")
-# @register_pass("prepare_for_compile")
-# @register_pass("compile")
-# @register_transformer("broadcast_div")
-# class BroadcastDiv(Transformer):
-#     def quantize(self, op, **kwargs):
-#         precs, scales = kwargs["precs"], kwargs["scales"]
-#         th_dict = kwargs["th_dict"]
-#         name, op_name = op.attr("name"), op.attr("op_name")
-#         X, Y = sym_iter(op.get_children())
-#         xn, yn = X.attr("name"), Y.attr("name")
-# 
-#         xs, ys = scales[xn], scales[yn]
-#         th = th_dict[name]
-# 
-#         if get_bit(th*xs/ys) > MAX_BIT:
-#             ys = xs / scale(th, MAX_BIT)
-#             yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
-#             Y, _, ys = requant(
-#                 Y, yprec, oname=N.n("denominator"), **kwargs)
-# 
-#             xs = scale(th, MAX_BIT) * ys
-#             xprec = get_bit(th_dict[xn] * xs)
-#             X, _, xs = requant(
-#                 X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
-# 
-#         oscale = scales[name] = xs / ys
-#         precs[name][OUT_KEY] = get_bit(th * oscale)
-#         return get_mxnet_op(op_name)(X, Y, name=name)
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_div")
+class BroadcastDiv(Transformer):
+    pass
 
 
 @register_pass("calculate_ops")

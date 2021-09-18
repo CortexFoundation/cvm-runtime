@@ -472,7 +472,7 @@ MRT Python Tool: compilation stage
 def mrt_compile(args):
     model_prefix = get_model_prefix(args)
     logger = get_logger(args)
-    batch = default_batch if args.batch_compile is None \
+    batch = 1 if args.batch_compile is None \
         else args.batch_compile
     conf_quant_file = model_prefix + ".quantize.conf"
     check_file_existance(conf_quant_file, logger=logger)
