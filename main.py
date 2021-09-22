@@ -51,23 +51,6 @@ def get_ctx(device_type, device_ids, dctx=default_ctx):
               else [mx.gpu(i) for i in device_ids]
     return contex
 
-def batch_axis(input_shape):
-    """Get the batch axis entry of an input shape.
-
-    Parameters
-    ----------
-    input_shape : tuple
-        The data shape related to dataset.
-
-    Returns
-    -------
-    axis : int
-        The batch axis entry of an input shape.
-    """
-    idx = [i for i, s in enumerate(input_shape) if s == -1]
-    assert len(idx) == 1
-    return idx[0]
-
 def load_fname(prefix, suffix=None, with_ext=False):
     """Get the model files at a given stage.
 
@@ -200,7 +183,7 @@ def mrt_quantize(args):
         args.device_ids_quantize, args.softmax_lambd, args.shift_bits,
         args.thresholds, args.attribute_deps, args.oscale_maps)
 
-@cmd.option("--batch-evaluate", type=int)
+@cmd.option("--batch-evaluate", type=int, default=mentry.default_batch)
 @cmd.option("--device-type-evaluate", type=str, choices=["cpu", "gpu"])
 @cmd.option("--device-ids-evaluate", nargs="+", type=int)
 @cmd.option("--iter-num", type=int, default=0)
@@ -209,89 +192,10 @@ def mrt_quantize(args):
 MRT Python Tool: evaluation stage
 """)
 def mrt_evaluate(args):
-    model_prefix = get_model_prefix(args)
-    logger = get_logger(args)
-    batch = default_batch if args.batch_evaluate is None \
-        else args.batch_evaluate
-    conf_quant_file = model_prefix + ".quantize.conf"
-    check_file_existance(conf_quant_file, logger=logger)
-    conf_map = load_conf(conf_quant_file, logger=logger)
-    ctx = get_ctx(args.device_type_evaluate, args.device_ids_evaluate)
-    if isinstance(ctx, mx.Context):
-        ctx = [ctx]
-
-    # forward function for the orginal model
-    omodel = Model.load(*load_fname(model_prefix))
-    graph = omodel.to_graph(ctx=ctx)
-    dataset_name = conf_map["dataset_name"]
-    input_shape = conf_map["input_shape"]
-    dataset = ds.DS_REG[dataset_name](set_batch(input_shape, batch))
-    data_iter_func = dataset.iter_func()
-    metric = dataset.metrics()
-    baxis = batch_axis(input_shape)
-    olen = len(omodel.symbol)
-
-    def forward(net, data, ctx):
-        """ Multiple xpu run support.
-        """
-        data = gluon.utils.split_and_load(
-            data, ctx_list=ctx, batch_axis=baxis, even_split=False)
-        outs = [net(d) for d in data]
-        if olen == 1:
-            outs = nd.concatenate(outs)
-        else:
-            outs = [nd.concatenate([outs[i][j] \
-                for i in range(len(outs))]) for j in range(olen)]
-        return outs
-
-    def evalfunc(data, label):
-        outs = forward(graph, data, ctx=ctx)
-        acc = dataset.validate(metric, outs, label)
-        return acc
-
-    # forward function for the quantized model
-    num_xpus = len(ctx)
-    if batch % num_xpus:
-        raise RuntimeError("Batch must be divisible by the number of xpus")
-    split_batch = batch // num_xpus
-    if conf_map.get("split_keys", "") != "":
-        sym_all_file, prm_all_file, ext_all_file = load_fname(
-            model_prefix, suffix="all.quantize", with_ext=True)
-        check_file_existance(
-            sym_all_file, prm_all_file, ext_all_file, logger=logger)
-        qmodel = Model.load(sym_all_file, prm_all_file)
-        oscales, inputs_ext = sim.load_ext(ext_all_file)
-    else:
-        sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
-            model_prefix, suffix="mrt.quantize", with_ext=True)
-        check_file_existance(
-            sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
-        mrt = MRT.load(args.model_name+".mrt.quantize", datadir=args.model_dir)
-        oscales = mrt.get_output_scales()
-        inputs_ext = mrt.get_inputs_ext()
-        qmodel = mrt.current_model
-    rqmodel = reduce_graph(qmodel, {
-        'data': set_batch(input_shape, split_batch)})
-    qgraph = rqmodel.to_graph(ctx=ctx)
-    qmetric = dataset.metrics()
-
-    def quantize(data, label):
-        data = sim.load_real_data(data, 'data', inputs_ext)
-        outs = forward(qgraph, data, ctx)
-        outs = outs / oscales[0] if olen == 1 \
-            else [(t / oscales[i]) for i, t in enumerate(outs)]
-        acc = dataset.validate(qmetric, outs, label)
-        return acc
-
-    # evaluate
-    if args.iter_num > 0:
-        logger.info("Validating...")
-        utils.multi_validate(
-            evalfunc, data_iter_func, quantize, iter_num=args.iter_num,
-            logger=logging.getLogger('mrt.validate'), batch_size=batch)
-        logger.info("evaluatation stage finished")
-    else:
-        logger.info("evaluatation stage skipped")
+    mentry.mrt_evaluate(
+        args.model_dir, args.model_name, args.verbosity,
+        args.device_type_evaluate, args.device_ids_evaluate, args.iter_num,
+        batch=args.batch_evaluate)
 
 @cmd.option("--batch-compile", type=int)
 @cmd.option("--dump-dir", type=str, default="/data1/tmp")

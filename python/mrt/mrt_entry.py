@@ -3,11 +3,12 @@ import logging
 import json
 
 import mxnet as mx
+from mxnet import gluon, ndarray as nd
 
 from mrt.gluon_zoo import save_model
 from mrt.common import log
 from mrt import utils
-from mrt.transformer import Model, MRT
+from mrt.transformer import Model, MRT, reduce_graph
 from mrt import dataset as ds
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
@@ -97,6 +98,23 @@ def get_ctx(device_type, device_ids, dctx=default_ctx):
         contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
               else [mx.gpu(i) for i in device_ids]
     return contex
+
+def get_batch_axis(input_shape):
+    """Get the batch axis entry of an input shape.
+
+    Parameters
+    ----------
+    input_shape : tuple
+        The data shape related to dataset.
+
+    Returns
+    -------
+    axis : int
+        The batch axis entry of an input shape.
+    """
+    idx = [i for i, s in enumerate(input_shape) if s == -1]
+    assert len(idx) == 1
+    return idx[0]
 
 def mrt_prepare(
     model_dir, model_name, verbosity, device_type, device_ids, input_shape,
@@ -285,3 +303,143 @@ def mrt_quantize(
         logger.info("model merging finished")
     else:
         logger.info("model merging skipped")
+
+def mrt_evaluate(
+    model_dir, model_name, verbosity, device_type, device_ids, iter_num,
+    batch=default_batch):
+    model_prefix = get_model_prefix(model_dir, model_name)
+    logger = get_logger(verbosity)
+    conf_quant_file = model_prefix + ".quantize.conf"
+    check_file_existance(conf_quant_file, logger=logger)
+    conf_map = load_conf(conf_quant_file, logger=logger)
+    ctx = get_ctx(device_type, device_ids)
+    if isinstance(ctx, mx.Context):
+        ctx = [ctx]
+
+    # forward function for the orginal model
+    omodel = Model.load(*load_fname(model_prefix))
+    graph = omodel.to_graph(ctx=ctx)
+    dataset_name = conf_map["dataset_name"]
+    input_shape = conf_map["input_shape"]
+    dataset = ds.DS_REG[dataset_name](set_batch(input_shape, batch))
+    data_iter_func = dataset.iter_func()
+    metric = dataset.metrics()
+    baxis = get_batch_axis(input_shape)
+    olen = len(omodel.symbol)
+
+    def forward(net, data, ctx):
+        """ Multiple xpu run support.
+        """
+        data = gluon.utils.split_and_load(
+            data, ctx_list=ctx, batch_axis=baxis, even_split=False)
+        outs = [net(d) for d in data]
+        if olen == 1:
+            outs = nd.concatenate(outs)
+        else:
+            outs = [nd.concatenate([outs[i][j] \
+                for i in range(len(outs))]) for j in range(olen)]
+        return outs
+
+    def evalfunc(data, label):
+        outs = forward(graph, data, ctx=ctx)
+        acc = dataset.validate(metric, outs, label)
+        return acc
+
+    # forward function for the quantized model
+    num_xpus = len(ctx)
+    if batch % num_xpus:
+        raise RuntimeError("Batch must be divisible by the number of xpus")
+    split_batch = batch // num_xpus
+    if conf_map.get("split_keys", "") != "":
+        sym_all_file, prm_all_file, ext_all_file = load_fname(
+            model_prefix, suffix="all.quantize", with_ext=True)
+        check_file_existance(
+            sym_all_file, prm_all_file, ext_all_file, logger=logger)
+        qmodel = Model.load(sym_all_file, prm_all_file)
+        oscales, inputs_ext = sim.load_ext(ext_all_file)
+    else:
+        sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
+            model_prefix, suffix="mrt.quantize", with_ext=True)
+        check_file_existance(
+            sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
+        mrt = MRT.load(model_name+".mrt.quantize", datadir=model_dir)
+        oscales = mrt.get_output_scales()
+        inputs_ext = mrt.get_inputs_ext()
+        qmodel = mrt.current_model
+    rqmodel = reduce_graph(qmodel, {
+        'data': set_batch(input_shape, split_batch)})
+    qgraph = rqmodel.to_graph(ctx=ctx)
+    qmetric = dataset.metrics()
+
+    def quantize(data, label):
+        data = sim.load_real_data(data, 'data', inputs_ext)
+        outs = forward(qgraph, data, ctx)
+        outs = outs / oscales[0] if olen == 1 \
+            else [(t / oscales[i]) for i, t in enumerate(outs)]
+        acc = dataset.validate(qmetric, outs, label)
+        return acc
+
+    # evaluate
+    if iter_num > 0:
+        logger.info("Validating...")
+        utils.multi_validate(
+            evalfunc, data_iter_func, quantize, iter_num=iter_num,
+            logger=logging.getLogger('mrt.validate'), batch_size=batch)
+        logger.info("evaluatation stage finished")
+    else:
+        logger.info("evaluatation stage skipped")
+
+# def mrt_compile(args):
+    # model_prefix = get_model_prefix(args)
+    # logger = get_logger(args)
+    # batch = 1 if args.batch_compile is None \
+        # else args.batch_compile
+    # conf_quant_file = model_prefix + ".quantize.conf"
+    # check_file_existance(conf_quant_file, logger=logger)
+    # conf_map = load_conf(conf_quant_file, logger=logger)
+    # if args.device_type_compile is None:
+        # args.device_type_compile = default_device_type
+    # if args.device_ids_compile is None:
+        # args.device_ids_compile = default_device_ids
+    # if len(args.device_ids_compile) > 1:
+        # raise RuntimeError(
+            # "device ids should be an integer in compilation stage")
+    # input_shape = conf_map["input_shape"]
+
+    # # compilation
+    # model_name_tfm = args.model_name + "_cvm"
+    # device_ids_compile = args.device_ids_compile[0]
+    # if conf_map.get("split_keys", "") != "":
+        # sym_all_file, prm_all_file, ext_all_file = load_fname(
+            # model_prefix, suffix="all.quantize", with_ext=True)
+        # check_file_existance(
+            # sym_all_file, prm_all_file, ext_all_file, logger=logger)
+        # qmodel = Model.load(sym_all_file, prm_all_file)
+        # oscales, inputs_ext = sim.load_ext(ext_all_file)
+    # else:
+        # sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
+            # model_prefix, suffix="mrt.quantize", with_ext=True)
+        # check_file_existance(
+            # sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
+        # mrt = MRT.load(args.model_name+".mrt.quantize", datadir=args.model_dir)
+        # oscales = mrt.get_output_scales()
+        # inputs_ext = mrt.get_inputs_ext()
+        # qmodel = mrt.current_model
+    # qmodel.to_cvm(
+        # model_name_tfm, datadir=args.dump_dir,
+        # input_shape=set_batch(input_shape, batch),
+        # target=args.device_type_compile, device_ids=device_ids_compile)
+    # dataset = ds.DS_REG[conf_map["dataset_name"]](set_batch(input_shape, batch))
+    # dump_data, _ = dataset.iter_func()()
+    # dump_data = sim.load_real_data(
+        # dump_data.astype("float64"), "data", mrt.get_inputs_ext())
+    # model_root = path.join(args.dump_dir, model_name_tfm)
+    # np.save(
+        # path.join(model_root, "data.npy"), dump_data.astype("int8").asnumpy())
+    # infos = {
+        # "inputs_ext": inputs_ext,
+        # "oscales": oscales,
+        # "input_shapes": input_shape,
+    # }
+    # sim.save_ext(path.join(model_root, "ext"), infos)
+    # logger.info("compilation stage finished")
