@@ -18,7 +18,7 @@ from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
-import mrt.mrt_passes as mpass
+import mrt.mrt_entry as mentry
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -39,7 +39,6 @@ LOG_MSG = ",".join(["{}:{}".format(l, n) \
 default_device_type = "cpu"
 default_device_ids = [0]
 default_ctx = mx.cpu()
-default_batch = 16
 
 def get_ctx(device_type, device_ids, dctx=default_ctx):
     if device_type is None:
@@ -157,12 +156,12 @@ def get_logger(args):
 MRT Python Tool: preparation stage
 """)
 def mrt_prepare(args):
-    mpass.mrt_prepare(
+    mentry.mrt_prepare(
         args.model_dir, args.model_name, args.verbosity,
         args.device_type_prepare, args.device_ids_prepare,
         args.input_shape, args.split_keys)
 
-@cmd.option("--batch-calibrate", type=int)
+@cmd.option("--batch-calibrate", type=int, default=mentry.default_batch)
 @cmd.option("--calibrate-num", type=int, default=1)
 @cmd.option("--lambd", type=int)
 @cmd.option("--dataset-name", type=str, default="imagenet",
@@ -175,40 +174,10 @@ def mrt_prepare(args):
 MRT Python Tool: calibration stage
 """)
 def mrt_calibrate(args):
-    batch = default_batch if args.batch_calibrate is None \
-        else args.batch_calibrate
-    model_prefix = get_model_prefix(args)
-    logger = get_logger(args)
-    conf_prep_file = model_prefix + ".prepare.conf"
-    check_file_existance(conf_prep_file, logger=logger)
-    conf_map = load_conf(conf_prep_file, logger=logger)
-
-    # calibration
-    if conf_map.get("split_keys", "") == "":
-        sym_prep_file, prm_prep_file = load_fname(
-            model_prefix, suffix="prepare")
-        check_file_existance(sym_prep_file, prm_prep_file, logger=logger)
-        mrt = Model.load(sym_prep_file, prm_prep_file).get_mrt()
-    else:
-        sym_base_file, prm_base_file = load_fname(
-            model_prefix, suffix="base")
-        check_file_existance(sym_base_file, prm_base_file, logger=logger)
-        mrt = Model.load(sym_base_file, prm_base_file).get_mrt()
-    shp = set_batch(conf_map["input_shape"], batch)
-    dataset = ds.DS_REG[args.dataset_name](shp, root=args.dataset_dir)
-    data_iter_func = dataset.iter_func()
-    if len(args.device_ids_calibrate) > 1:
-        raise RuntimeError(
-            "device ids should be an integer in calibration stage")
-    ctx = get_ctx(args.device_type_calibrate, args.device_ids_calibrate)
-    for i in range(args.calibrate_num):
-        data, _ = data_iter_func()
-        mrt.set_data(data)
-        mrt.calibrate(lambd=args.lambd, ctx=ctx)
-    mrt.save(args.model_name+".mrt.calibrate", datadir=args.model_dir)
-    conf_map["dataset_name"] = args.dataset_name
-    save_conf(model_prefix+".calibrate.conf", logger=logger, **conf_map)
-    logger.info("calibrate stage finished")
+    mentry.mrt_calibrate(
+        args.model_dir, args.model_name, args.verbosity, args.dataset_name,
+        args.dataset_dir, args.device_type_calibrate, args.device_ids_calibrate,
+        args.calibrate_num, args.lambd, batch=args.batch_calibrate)
 
 @cmd.option("--restore-names", nargs="+", type=str, default=[])
 @cmd.option("--input-precision", type=int)
@@ -500,7 +469,7 @@ def mrt_compile(args):
 @cmd.option("--device-type", type=str, default=default_device_type,
             choices=["cpu", "gpu"])
 @cmd.option("--device-ids", nargs="+", type=int, default=default_device_ids)
-@cmd.option("--batch", type=int, default=default_batch)
+@cmd.option("--batch", type=int, default=mentry.default_batch)
 @cmd.option("--evaluate", action="store_true")
 @cmd.option("--compile", action="store_true")
 @cmd.module("mrt", as_main=True,
@@ -518,7 +487,6 @@ def mrt_main(args):
 
     start_pos = 0
     start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
-    return
     if args.start_after in start_pos_map:
         start_pos = start_pos_map[args.start_after]
     if start_pos < 1:
