@@ -36,99 +36,17 @@ LOG_MSG = ",".join(["{}:{}".format(l, n) \
 # def global_func(args):
     # log.Init(log.name2level(args.verbosity))
 
-default_device_type = "cpu"
-default_device_ids = [0]
-default_ctx = mx.cpu()
-
-def get_ctx(device_type, device_ids, dctx=default_ctx):
-    if device_type is None:
-        device_type = default_device_type
-    if device_ids is None:
-        device_ids = default_device_ids
-    contex = dctx
-    if device_type == "gpu":
-        contex = mx.gpu(device_ids[0]) if len(device_ids) == 1 \
-              else [mx.gpu(i) for i in device_ids]
-    return contex
-
-def load_fname(prefix, suffix=None, with_ext=False):
-    """Get the model files at a given stage.
-
-    Parameters
-    ----------
-    prefix : string
-        The file path without and extension.
-    suffix : string
-        The file suffix with respect to a given stage of MRT.
-    with_ext: bool
-        Whether to include ext file.
-
-    Returns
-    -------
-    files : tuple of string
-        The loaded file names.
-    """
-    suffix = "."+suffix if suffix is not None else ""
-    return utils.extend_fname(prefix+suffix, with_ext)
-
-def set_batch(input_shape, batch):
-    """Get the input shape with respect to a specified batch value and an original input shape.
-
-    Parameters
-    ----------
-    input_shape : tuple
-        The input shape with batch axis unset.
-    batch : int
-        The batch value.
-
-    Returns
-    -------
-    ishape : tuple
-        The input shape with the value of batch axis equal to batch.
-    """
-    return [batch if s == -1 else s for s in input_shape]
-
-def save_conf(fname, logger=logging, **conf_map):
-    try:
-        info_s = json.dumps(conf_map, indent=4)
-    except:
-        logger.error("Json seralize invalid with data: {}".format(conf_map))
-    with open(fname, "w") as f:
-        f.write(info_s)
-
-def load_conf(fname, logger=logging):
-    with open(fname, "r") as f:
-        try:
-            conf_map = json.load(f)
-        except:
-            logger.error("Json deserialize invalid, fname: {}".format(fname))
-    return conf_map
-
-def check_file_existance(*fpaths, logger=logging):
-    for fpath in fpaths:
-        if not path.exists(fpath):
-            raise FileNotFoundError("fpath: {} does not exist".format(fpath))
-
 @cmd.option("model_name", type=str)
 @cmd.option("--model-dir", type=str, default=MRT_MODEL_ROOT)
 @cmd.module("modelprefix")
 def get_model_prefix(args):
-    model_dir = args.model_dir
-    if model_dir.startswith("~"):
-        model_dir = path.expanduser(model_dir)
-    model_name = args.model_name
-    assert path.exists(model_dir), \
-        "model_dir: {} does not exist".format(model_dir)
-    model_prefix = path.join(model_dir, model_name)
-    return model_prefix
+    pass
 
 @cmd.option("--verbosity", type=str, default="debug",
             choices=["none", "debug", "info", "warning", "error", "critical"])
 @cmd.module("logger")
 def get_logger(args):
-    log.Init(log.name2level(args.verbosity.upper()))
-    logger = logging.getLogger("log.main")
-    return logger
+    pass
 
 @cmd.option("--device-type-prepare", type=str, choices=["cpu", "gpu"])
 @cmd.option("--device-ids-prepare", nargs="+", type=int)
@@ -214,15 +132,15 @@ def mrt_compile(args):
 
 @cmd.option("--start-after", type=str,
             choices=["prepare", "calibrate", "quantize"])
-@cmd.option("--device-type", type=str, default=default_device_type,
+@cmd.option("--device-type", type=str, default=mentry.default_device_type,
             choices=["cpu", "gpu"])
-@cmd.option("--device-ids", nargs="+", type=int, default=default_device_ids)
+@cmd.option("--device-ids", nargs="+", type=int,
+            default=mentry.default_device_ids)
 @cmd.option("--batch", type=int, default=mentry.default_batch)
 @cmd.option("--evaluate", action="store_true")
 @cmd.option("--compile", action="store_true")
 @cmd.module("mrt", as_main=True,
-            refs=["prepare", "calibrate", "quantize",
-                  "evaluate", "compile"],
+            refs=["prepare", "calibrate", "quantize", "evaluate", "compile"],
             description="""
 MRT Python Tool
 """)
