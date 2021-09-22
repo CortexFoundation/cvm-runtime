@@ -197,7 +197,7 @@ def mrt_evaluate(args):
         args.device_type_evaluate, args.device_ids_evaluate, args.iter_num,
         batch=args.batch_evaluate)
 
-@cmd.option("--batch-compile", type=int)
+@cmd.option("--batch-compile", type=int, default=mentry.default_batch)
 @cmd.option("--dump-dir", type=str, default="/data1/tmp")
 @cmd.option("--device-type-compile", type=str, default="cpu",
             choices=["cpu", "gpu"])
@@ -207,59 +207,10 @@ def mrt_evaluate(args):
 MRT Python Tool: compilation stage
 """)
 def mrt_compile(args):
-    model_prefix = get_model_prefix(args)
-    logger = get_logger(args)
-    batch = 1 if args.batch_compile is None \
-        else args.batch_compile
-    conf_quant_file = model_prefix + ".quantize.conf"
-    check_file_existance(conf_quant_file, logger=logger)
-    conf_map = load_conf(conf_quant_file, logger=logger)
-    if args.device_type_compile is None:
-        args.device_type_compile = default_device_type
-    if args.device_ids_compile is None:
-        args.device_ids_compile = default_device_ids
-    if len(args.device_ids_compile) > 1:
-        raise RuntimeError(
-            "device ids should be an integer in compilation stage")
-    input_shape = conf_map["input_shape"]
-
-    # compilation
-    model_name_tfm = args.model_name + "_cvm"
-    device_ids_compile = args.device_ids_compile[0]
-    if conf_map.get("split_keys", "") != "":
-        sym_all_file, prm_all_file, ext_all_file = load_fname(
-            model_prefix, suffix="all.quantize", with_ext=True)
-        check_file_existance(
-            sym_all_file, prm_all_file, ext_all_file, logger=logger)
-        qmodel = Model.load(sym_all_file, prm_all_file)
-        oscales, inputs_ext = sim.load_ext(ext_all_file)
-    else:
-        sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
-            model_prefix, suffix="mrt.quantize", with_ext=True)
-        check_file_existance(
-            sym_quant_file, prm_quant_file, ext_quant_file, logger=logger)
-        mrt = MRT.load(args.model_name+".mrt.quantize", datadir=args.model_dir)
-        oscales = mrt.get_output_scales()
-        inputs_ext = mrt.get_inputs_ext()
-        qmodel = mrt.current_model
-    qmodel.to_cvm(
-        model_name_tfm, datadir=args.dump_dir,
-        input_shape=set_batch(input_shape, batch),
-        target=args.device_type_compile, device_ids=device_ids_compile)
-    dataset = ds.DS_REG[conf_map["dataset_name"]](set_batch(input_shape, batch))
-    dump_data, _ = dataset.iter_func()()
-    dump_data = sim.load_real_data(
-        dump_data.astype("float64"), "data", mrt.get_inputs_ext())
-    model_root = path.join(args.dump_dir, model_name_tfm)
-    np.save(
-        path.join(model_root, "data.npy"), dump_data.astype("int8").asnumpy())
-    infos = {
-        "inputs_ext": inputs_ext,
-        "oscales": oscales,
-        "input_shapes": input_shape,
-    }
-    sim.save_ext(path.join(model_root, "ext"), infos)
-    logger.info("compilation stage finished")
+    mentry.mrt_compile(
+        args.model_dir, args.model_name, args.verbosity, args.dump_dir,
+        device_type=args.device_type_compile,
+        device_ids=args.device_ids_compile, batch=args.batch_compile)
 
 @cmd.option("--start-after", type=str,
             choices=["prepare", "calibrate", "quantize"])
