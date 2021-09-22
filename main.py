@@ -137,8 +137,8 @@ def mrt_compile(args):
 @cmd.option("--device-ids", nargs="+", type=int,
             default=mentry.default_device_ids)
 @cmd.option("--batch", type=int, default=mentry.default_batch)
-@cmd.option("--evaluate", action="store_true")
-@cmd.option("--compile", action="store_true")
+@cmd.option("--run-evaluate", action="store_true")
+@cmd.option("--run-compile", action="store_true")
 @cmd.module("mrt", as_main=True,
             refs=["prepare", "calibrate", "quantize", "evaluate", "compile"],
             description="""
@@ -150,7 +150,6 @@ def mrt_main(args):
         for attr in dir(args):
             if attr.startswith(prefix+"_") and getattr(args, attr) is None:
                 setattr(args, attr, getattr(args, prefix))
-
     start_pos = 0
     start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
     if args.start_after in start_pos_map:
@@ -161,9 +160,9 @@ def mrt_main(args):
         mrt_calibrate(args)
     if start_pos < 3:
         mrt_quantize(args)
-    if args.evaluate:
+    if args.run_evaluate:
         mrt_evaluate(args)
-    if args.compile:
+    if args.run_compile:
         mrt_compile(args)
 
 if __name__ == "__main__":
