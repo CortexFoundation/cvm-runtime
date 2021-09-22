@@ -18,6 +18,7 @@ from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
+import mrt.mrt_passes as mpass
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))
@@ -156,40 +157,10 @@ def get_logger(args):
 MRT Python Tool: preparation stage
 """)
 def mrt_prepare(args):
-    model_prefix = get_model_prefix(args)
-    logger = get_logger(args)
-    conf_prep_file = model_prefix + ".prepare.conf"
-    conf_map = {}
-
-    # preparation
-    sym_path, prm_path = load_fname(model_prefix)
-    if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(
-            args.model_name, data_dir=args.model_dir,
-            ctx=get_ctx(args.device_type_prepare, args.device_ids_prepare))
-    model = Model.load(sym_path, prm_path)
-    model.prepare(set_batch(args.input_shape, 1))
-    sym_prep_file, prm_prep_file = load_fname(
-        model_prefix, suffix="prepare")
-    model.save(sym_prep_file, prm_prep_file)
-    conf_map["input_shape"] = args.input_shape
-    save_conf(conf_prep_file, logger=logger, **conf_map)
-    logger.info("preparation stage finihed")
-
-    # model splitting
-    split_keys = args.split_keys
-    if split_keys:
-        sym_top_file, prm_top_file = load_fname(model_prefix, suffix='top')
-        sym_base_file, prm_base_file = load_fname(
-            model_prefix, suffix="base")
-        base, top = model.split(split_keys)
-        top.save(sym_top_file, prm_top_file)
-        base.save(sym_base_file, prm_base_file)
-        conf_map["split_keys"] = split_keys
-        save_conf(conf_prep_file, logger=logger, **conf_map)
-        logger.info("model splitting finished")
-    else:
-        logger.info("model splitting skipped")
+    mpass.mrt_prepare(
+        args.model_dir, args.model_name, args.verbosity,
+        args.device_type_prepare, args.device_ids_prepare,
+        args.input_shape, args.split_keys)
 
 @cmd.option("--batch-calibrate", type=int)
 @cmd.option("--calibrate-num", type=int, default=1)
