@@ -56,7 +56,7 @@ def get_logger(args):
             description="""
 MRT Python Tool: preparation stage
 """)
-def mrt_prepare(args):
+def cmd_prepare(args):
     mentry.mrt_prepare(
         args.model_dir, args.model_name, args.verbosity,
         args.device_type_prepare, args.device_ids_prepare,
@@ -74,7 +74,7 @@ def mrt_prepare(args):
             description="""
 MRT Python Tool: calibration stage
 """)
-def mrt_calibrate(args):
+def cmd_calibrate(args):
     mentry.mrt_calibrate(
         args.model_dir, args.model_name, args.verbosity, args.dataset_name,
         args.dataset_dir, args.device_type_calibrate, args.device_ids_calibrate,
@@ -94,7 +94,7 @@ def mrt_calibrate(args):
             description="""
 MRT Python Tool: quantization stage
 """)
-def mrt_quantize(args):
+def cmd_quantize(args):
     mentry.mrt_quantize(
         args.model_dir, args.model_name, args.verbosity, args.restore_names,
         args.input_precision, args.output_precision, args.device_type_quantize,
@@ -109,7 +109,7 @@ def mrt_quantize(args):
             description="""
 MRT Python Tool: evaluation stage
 """)
-def mrt_evaluate(args):
+def cmd_evaluate(args):
     mentry.mrt_evaluate(
         args.model_dir, args.model_name, args.verbosity,
         args.device_type_evaluate, args.device_ids_evaluate, args.iter_num,
@@ -124,7 +124,7 @@ def mrt_evaluate(args):
             description="""
 MRT Python Tool: compilation stage
 """)
-def mrt_compile(args):
+def cmd_compile(args):
     mentry.mrt_compile(
         args.model_dir, args.model_name, args.verbosity, args.dump_dir,
         device_type=args.device_type_compile,
@@ -139,12 +139,12 @@ def mrt_compile(args):
 @cmd.option("--batch", type=int, default=mentry.default_batch)
 @cmd.option("--run-evaluate", action="store_true")
 @cmd.option("--run-compile", action="store_true")
-@cmd.module("mrt", as_main=True,
+@cmd.module("cmd", as_main=True,
             refs=["prepare", "calibrate", "quantize", "evaluate", "compile"],
             description="""
-MRT Python Tool
+MRT CMD Tool
 """)
-def mrt_main(args):
+def cmd_main(args):
     # setting up attributes for all passes
     for prefix in ["batch", "device_type", "device_ids"]:
         for attr in dir(args):
@@ -155,15 +155,15 @@ def mrt_main(args):
     if args.start_after in start_pos_map:
         start_pos = start_pos_map[args.start_after]
     if start_pos < 1:
-        mrt_prepare(args)
+        cmd_prepare(args)
     if start_pos < 2:
-        mrt_calibrate(args)
+        cmd_calibrate(args)
     if start_pos < 3:
-        mrt_quantize(args)
+        cmd_quantize(args)
     if args.run_evaluate:
-        mrt_evaluate(args)
+        cmd_evaluate(args)
     if args.run_compile:
-        mrt_compile(args)
+        cmd_compile(args)
 
 if __name__ == "__main__":
     logger = logging.getLogger("main")
