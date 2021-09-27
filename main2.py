@@ -1,9 +1,11 @@
 import sys
 from os import path
 
-from mrt.defaults import get_cfg_defaults
+from mrt.yaml_defaults import get_cfg_defaults
 from mrt.conf import YAML_ROOT
 from mrt import mrt_entry as mentry
+
+thismodule = sys.modules[__name__]
 
 def yaml_prepare(CM, CN):
     mentry.mrt_prepare(
@@ -13,7 +15,7 @@ def yaml_prepare(CM, CN):
 def yaml_calibrate(CM, CN):
     mentry.mrt_calibrate(
         CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DATASET_NAME,
-        CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIBRATE,
+        CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIB,
         CN.LAMBD, batch=CN. BATCH)
 
 def yaml_quantize(CM, CN):
@@ -35,12 +37,11 @@ def yaml_compile(CM, CN):
 
 def yaml_main(cfg):
     for prefix in ["BATCH", "DEVICE_TYPE", "DEVICE_IDS"]:
-        for subcfg in [
-            cfg.PREPARE, cfg.CALIBRATE, cfg.QUANTIZE, cfg.EVALUATE,
-            cfg.COMPILE]:
+        for subcfg in [cfg.PREPARE, cfg.CALIBRATE, cfg.QUANTIZE,
+            cfg.EVALUATE, cfg.COMPILE]:
             for attr in dir(subcfg):
                 if attr == prefix and getattr(subcfg, prefix) is None:
-                    setattr(subcfg, prefix, getattr(cfg.COMMON, prefix)
+                    setattr(subcfg, prefix, getattr(cfg.COMMON, prefix))
     start_pos = 0
     start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
     if cfg.COMMON.START_AFTER in start_pos_map:
@@ -65,12 +66,12 @@ if __name__ == "__main__":
     cfg.freeze()
     if len(sys.argv) == 3:
         entry_name = sys.argv[2]
-        yaml_func_name = "mrt_{}".format(entry_name)
-        if not hasattr(mentry, yaml_func_name):
+        yaml_func_name = "yaml_{}".format(entry_name)
+        if not hasattr(thismodule, yaml_func_name):
             raise RuntimeError(
                 "invalid entry_name: {}, yaml_func_name: {}".format(
                     entry_name, yaml_func_name))
-        yaml_func = getattr(mentry, yaml_func_name)
+        yaml_func = getattr(thismodule, yaml_func_name)
         cfg_node_name = entry_name.upper()
         if not hasattr(cfg, cfg_node_name):
             raise RuntimeError(

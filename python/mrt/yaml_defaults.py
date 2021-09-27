@@ -49,6 +49,7 @@ MRT_CFG.EVALUATE.DEVICE_IDS = mentry.default_device_ids
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
 MRT_CFG.COMPILE = CN()
+MRT_CFG.COMPILE.BATCH = 1
 MRT_CFG.COMPILE.DUMP_DIR = "/data1/tmp"
 MRT_CFG.COMPILE.DEVICE_TYPE = mentry.default_device_type
 MRT_CFG.COMPILE.DEVICE_IDS = mentry.default_device_ids
