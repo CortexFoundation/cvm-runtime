@@ -2,7 +2,6 @@ import sys
 from os import path
 
 from mrt.yaml_defaults import get_cfg_defaults
-from mrt.conf import YAML_ROOT
 from mrt import mrt_entry as mentry
 
 thismodule = sys.modules[__name__]
@@ -19,6 +18,14 @@ def yaml_calibrate(CM, CN):
         CN.LAMBD, batch=CN. BATCH)
 
 def yaml_quantize(CM, CN):
+    if CN.is_frozen():
+        CN.defrost()
+    for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
+        v = getattr(CN, attr)
+        if v is not None:
+            setattr(CN, attr, v[1:-1])
+    if not CN.is_frozen():
+        CN.freeze()
     mentry.mrt_quantize(
         CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.RESTORE_NAMES,
         CN.INPUT_PRECISION, CN.OUTPUT_PRECISION, CN.DEVICE_TYPE, CN.DEVICE_IDS,
@@ -36,12 +43,16 @@ def yaml_compile(CM, CN):
         device_type=CN.DEVICE_TYPE, device_ids=CN.DEVICE_IDS, batch=CN.BATCH)
 
 def yaml_main(cfg):
+    if cfg.is_frozen():
+        cfg.defrost()
     for prefix in ["BATCH", "DEVICE_TYPE", "DEVICE_IDS"]:
         for subcfg in [cfg.PREPARE, cfg.CALIBRATE, cfg.QUANTIZE,
             cfg.EVALUATE, cfg.COMPILE]:
             for attr in dir(subcfg):
                 if attr == prefix and getattr(subcfg, prefix) is None:
                     setattr(subcfg, prefix, getattr(cfg.COMMON, prefix))
+    if not cfg.is_frozen():
+        cfg.freeze()
     start_pos = 0
     start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
     if cfg.COMMON.START_AFTER in start_pos_map:
@@ -58,9 +69,10 @@ def yaml_main(cfg):
         yaml_compile(cfg.COMMON, cfg.COMPILE)
 
 if __name__ == "__main__":
-    assert len(sys.argv) >= 2, len(sys.argv)
-    model_name = sys.argv[1]
-    yaml_file = path.join(YAML_ROOT, model_name+".yaml")
+    assert len(sys.argv) in [2,3], len(sys.argv)
+    yaml_file = sys.argv[1]
+    if yaml_file.startswith("~"):
+        yaml_file = path.expanduser(yaml_file)
     cfg = get_cfg_defaults()
     cfg.merge_from_file(yaml_file)
     cfg.freeze()

@@ -432,7 +432,7 @@ def mrt_compile(
     dataset = ds.DS_REG[conf_map["dataset_name"]](set_batch(input_shape, batch))
     dump_data, _ = dataset.iter_func()()
     dump_data = sim.load_real_data(
-        dump_data.astype("float64"), "data", mrt.get_inputs_ext())
+        dump_data.astype("float64"), "data", inputs_ext)
     model_root = path.join(dump_dir, model_name_tfm)
     np.save(
         path.join(model_root, "data.npy"), dump_data.astype("int8").asnumpy())
