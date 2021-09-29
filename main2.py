@@ -6,6 +6,9 @@ from mrt import mrt_entry as mentry
 
 thismodule = sys.modules[__name__]
 
+#TODO yaml merge argparse, research: searching, stk
+#TODO define in usage loc
+
 def yaml_prepare(CM, CN):
     mentry.mrt_prepare(
         CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DEVICE_TYPE,

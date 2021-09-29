@@ -1,5 +1,16 @@
 [TOC]
 
+# Introduction
+
+evoke passes by `mrt_entry.py` 
+
+1. for debugging purpose: `mrt_prepare`, `mrt_calibrate`, `mrt_quantize`
+2. for evaluation purpose: `mrt_evaluate`
+3. for compilation purpose: `mrt_compile`
+4. for the whole process, the configuration module will combine the afore mentioned processes.
+
+Currently supported configuration format by MRT: `yaml`, `argparse`, `ini`(not integrated into mrt_entry.py yet)
+
 # YAML Configuration Examples
 
 ## alexnet
