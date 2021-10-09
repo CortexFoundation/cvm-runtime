@@ -15,6 +15,8 @@ Currently supported configuration format by MRT: `yaml`, `argparse`, `ini`(not i
 
 ## alexnet
 
+Config  `alexnet.yaml` as follows.
+
 ```yaml
 COMMON:
   MODEL_NAME: alexnet
@@ -40,6 +42,14 @@ EVALUATE:
   ITER_NUM: 10
 
 ```
+
+run command
+
+```python
+python main2.py ~/mrt_yaml_root/alexnet.yaml
+```
+
+
 
 ## ssd_512_voc_resnet50_v1_voc
 
@@ -72,9 +82,19 @@ EVALUATE:
 
 ```
 
+run command
+
+```python
+python main2.py ~/mrt_yaml_root/ssd.yaml
+```
+
 # CMD Configuration Examples
 
 ## alexnet
+
+```python
+python main.py cmd alexnet
+```
 
 ### cmd_prepare
 
