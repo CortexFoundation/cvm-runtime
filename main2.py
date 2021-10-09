@@ -1,8 +1,8 @@
 import sys
 from os import path
 
-from mrt.yaml_defaults import get_cfg_defaults
-from mrt import mrt_entry as mentry
+from mrt.V3.yaml_defaults import get_cfg_defaults
+import mrt.V3.mrt_entry as mentry
 
 thismodule = sys.modules[__name__]
 
