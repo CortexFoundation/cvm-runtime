@@ -18,7 +18,7 @@ from mrt.gluon_zoo import save_model
 from mrt import dataset as ds
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
-import mrt.mrt_entry as mentry
+import mrt.V3.mrt_entry as mentry
 
 # set up dependencies
 __ROOT__ = path.dirname(path.realpath(__file__))

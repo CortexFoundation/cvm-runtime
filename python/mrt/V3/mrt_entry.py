@@ -14,7 +14,6 @@ from mrt import dataset as ds
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
 
-#TODO v3 folder
 #TODO rename: v3 pass, prepare.py,..
 #TODO join default conf, process
 #TODO main jungle server  # python server, flask

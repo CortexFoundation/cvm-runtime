@@ -1,6 +1,6 @@
 from yacs.config import CfgNode as CN
-from . import conf
-from mrt import mrt_entry as mentry
+from mrt import conf
+import mrt.V3.mrt_entry as mentry
 
 MRT_CFG = CN()
 
