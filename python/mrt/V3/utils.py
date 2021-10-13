@@ -9,6 +9,7 @@ from mrt import conf
 
 # TODO: jiazhen branch code design
 #TODO main jungle server  # python server, flask
+#TODO yaml merge argparse, research: searching, stk
 
 default_device_type = "cpu"
 default_device_ids = [0]

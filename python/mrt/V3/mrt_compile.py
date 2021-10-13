@@ -64,7 +64,7 @@ def mrt_compile(
     sim.save_ext(path.join(model_root, "ext"), infos)
     logger.info("compilation stage finished")
 
-def yaml_compile():
+def yaml_mrt_compile():
     CM = MRT_CFG.COMMON
     CN = MRT_CFG.COMPILE
     mrt_compile(

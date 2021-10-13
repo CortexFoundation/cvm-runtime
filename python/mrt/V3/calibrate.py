@@ -6,14 +6,14 @@ from mrt.V3.utils import (
     get_model_prefix, get_logger, set_batch, load_fname, save_conf,
     load_conf, check_file_existance, get_ctx)
 
-MRT_CFG.CALIBRATION = CN()
-MRT_CFG.CALIBRATION.BATCH = default_batch,
-MRT_CFG.CALIBRATION.NUM_CALIB = 1,
-MRT_CFG.CALIBRATION.LAMBD = None,
-MRT_CFG.CALIBRATION.DATASET_NAME = "imagenet",
-MRT_CFG.CALIBRATION.DATASET_DIR = conf.MRT_DATASET_ROOT,
-MRT_CFG.CALIBRATION.DEVICE_TYPE = default_device_type,
-MRT_CFG.CALIBRATION.DEVICE_IDS = default_device_ids,
+MRT_CFG.CALIBRATE = CN()
+MRT_CFG.CALIBRATE.BATCH = default_batch
+MRT_CFG.CALIBRATE.NUM_CALIB = 1
+MRT_CFG.CALIBRATE.LAMBD = None
+MRT_CFG.CALIBRATE.DATASET_NAME = "imagenet"
+MRT_CFG.CALIBRATE.DATASET_DIR = conf.MRT_DATASET_ROOT
+MRT_CFG.CALIBRATE.DEVICE_TYPE = default_device_type
+MRT_CFG.CALIBRATE.DEVICE_IDS = default_device_ids
 
 def calibrate(
     model_dir, model_name, verbosity, dataset_name, dataset_dir,

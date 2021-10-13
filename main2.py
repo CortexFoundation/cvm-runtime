@@ -1,20 +1,10 @@
 import sys
 from os import path
 
-from mrt.V3.mrt_pass import get_cfg_defaults
-import mrt.V3.mrt_entry as mentry
-from mrt.V3 import \
-    preparation, calibration, quantization, evaluation, compilation
+from mrt.V3.utils import get_cfg_defaults
+from mrt.V3 import prepare, calibrate, quantize, evaluate, mrt_compile
 
 thismodule = sys.modules[__name__]
-
-#TODO yaml merge argparse, research: searching, stk
-
-# def yaml_calibrate(CM, CN):
-    # mentry.mrt_calibrate(
-        # CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DATASET_NAME,
-        # CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIB,
-        # CN.LAMBD, batch=CN. BATCH)
 
 def yaml_main(cfg):
     if cfg.is_frozen():
@@ -52,20 +42,20 @@ if __name__ == "__main__":
     cfg.freeze()
     if len(sys.argv) == 3:
         entry_name = sys.argv[2]
-        # if not hasattr(thismodule, entry_name):
-            # raise RuntimeError(
-                # "invalid entry_name: {}, entry_name: {}".format(
-                    # entry_name, entry_name))
-        subpass_module = getattr(thismodule, entry_name)
-        cls_name = entry_name.upper()[0] + entry_name[1:]
-        subpass_cls = getattr(subpass_module, cls_name)
-        yaml_impl_func = getattr(subpass_cls, "yaml_impl")
-        cfg_node_name = entry_name.upper()
+        if not hasattr(thismodule, entry_name):
+            raise RuntimeError("invalid entry_name: {}".format(entry_name))
+        mrt_module = getattr(thismodule, entry_name)
+        yaml_func = getattr(mrt_module, "yaml_{}".format(entry_name))
+        if entry_name == "compile":
+            cfg_node_name = "COMPILE"
+        else:
+            cfg_node_name = entry_name.upper()
         if not hasattr(cfg, cfg_node_name):
             raise RuntimeError(
                 "invalid entry_name: {}, cfg_node_name: {}".format(
                     entry_name, cfg_node_name))
         cfg_node = getattr(cfg, cfg_node_name)
+        yaml_func()
         yaml_func(cfg.COMMON, cfg_node)
     else:
         yaml_main(cfg)
