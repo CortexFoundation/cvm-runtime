@@ -7,12 +7,13 @@ import mxnet as mx
 
 from mrt import conf
 
+# TODO: jiazhen branch code design
+#TODO main jungle server  # python server, flask
+
 default_device_type = "cpu"
 default_device_ids = [0]
 default_batch = 16
 default_ctx = mx.cpu()
-
-# TODO: jiazhen branch code design
 MRT_CFG = CN()
 MRT_CFG.COMMON = CN()
 MRT_CFG.COMMON.MODEL_DIR = conf.MRT_MODEL_ROOT
