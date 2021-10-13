@@ -50,9 +50,7 @@ def prepare(
     else:
         logger.info("model splitting skipped")
 
-def yaml_prepare():
-    CM = MRT_CFG.COMMON
-    CN = MRT_CFG.PREPARE
+def yaml_prepare(CM, CN):
     prepare(
         CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY,
         CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.INPUT_SHAPE, CN.SPLIT_KEYS)

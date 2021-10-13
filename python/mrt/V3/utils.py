@@ -6,23 +6,26 @@ from yacs.config import CfgNode as CN
 import mxnet as mx
 
 from mrt import conf
+from mrt.common import log
+from mrt.utils import extend_fname
 
 # TODO: jiazhen branch code design
-#TODO main jungle server  # python server, flask
-#TODO yaml merge argparse, research: searching, stk
+# TODO main jungle server  # python server, flask
+# TODO yaml merge argparse, research: searching, stk
 
 default_device_type = "cpu"
 default_device_ids = [0]
 default_batch = 16
 default_ctx = mx.cpu()
+
 MRT_CFG = CN()
 MRT_CFG.COMMON = CN()
 MRT_CFG.COMMON.MODEL_DIR = conf.MRT_MODEL_ROOT
-MRT_CFG.COMMON.MODEL_NAME = conf.MRT_MODEL_ROOT
+MRT_CFG.COMMON.MODEL_NAME = ""
 MRT_CFG.COMMON.VERBOSITY = "debug"
 MRT_CFG.COMMON.START_AFTER = None
 MRT_CFG.COMMON.DEVICE_TYPE = default_device_type
-MRT_CFG.COMMON.DVICE_IDS = default_device_ids
+MRT_CFG.COMMON.DEVICE_IDS = default_device_ids
 MRT_CFG.COMMON.BATCH = default_batch
 MRT_CFG.COMMON.RUN_EVALUATE = True
 MRT_CFG.COMMON.RUN_COMPILE = True
@@ -75,6 +78,7 @@ def load_fname(prefix, suffix=None, with_ext=False):
         The loaded file names.
     """
     suffix = "."+suffix if suffix is not None else ""
+    return extend_fname(prefix+suffix, with_ext)
 
 def save_conf(fname, logger=logging, **conf_map):
     try:
