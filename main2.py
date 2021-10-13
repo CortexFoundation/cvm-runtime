@@ -1,49 +1,20 @@
 import sys
 from os import path
 
-from mrt.V3.yaml_defaults import get_cfg_defaults
+from mrt.V3.mrt_pass import get_cfg_defaults
 import mrt.V3.mrt_entry as mentry
+from mrt.V3 import \
+    preparation, calibration, quantization, evaluation, compilation
 
 thismodule = sys.modules[__name__]
 
 #TODO yaml merge argparse, research: searching, stk
-#TODO define in usage loc
 
-def yaml_prepare(CM, CN):
-    mentry.mrt_prepare(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DEVICE_TYPE,
-        CN.DEVICE_IDS, CN.INPUT_SHAPE, CN.SPLIT_KEYS)
-
-def yaml_calibrate(CM, CN):
-    mentry.mrt_calibrate(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DATASET_NAME,
-        CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIB,
-        CN.LAMBD, batch=CN. BATCH)
-
-def yaml_quantize(CM, CN):
-    if CN.is_frozen():
-        CN.defrost()
-    for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
-        v = getattr(CN, attr)
-        if v is not None:
-            setattr(CN, attr, v[1:-1])
-    if not CN.is_frozen():
-        CN.freeze()
-    mentry.mrt_quantize(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.RESTORE_NAMES,
-        CN.INPUT_PRECISION, CN.OUTPUT_PRECISION, CN.DEVICE_TYPE, CN.DEVICE_IDS,
-        CN.SOFTMAX_LAMBD, CN.SHIFT_BITS, CN.THRESHOLDS, CN.ATTRIBUTE_DEPS,
-        CN.OSCALE_MAPS)
-
-def yaml_evaluate(CM, CN):
-    mentry.mrt_evaluate(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DEVICE_TYPE, CN.DEVICE_IDS,
-        CN.ITER_NUM, batch=CN.BATCH)
-
-def yaml_compile(CM, CN):
-    mentry.mrt_compile(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DUMP_DIR,
-        device_type=CN.DEVICE_TYPE, device_ids=CN.DEVICE_IDS, batch=CN.BATCH)
+# def yaml_calibrate(CM, CN):
+    # mentry.mrt_calibrate(
+        # CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DATASET_NAME,
+        # CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIB,
+        # CN.LAMBD, batch=CN. BATCH)
 
 def yaml_main(cfg):
     if cfg.is_frozen():
@@ -81,12 +52,14 @@ if __name__ == "__main__":
     cfg.freeze()
     if len(sys.argv) == 3:
         entry_name = sys.argv[2]
-        yaml_func_name = "yaml_{}".format(entry_name)
-        if not hasattr(thismodule, yaml_func_name):
-            raise RuntimeError(
-                "invalid entry_name: {}, yaml_func_name: {}".format(
-                    entry_name, yaml_func_name))
-        yaml_func = getattr(thismodule, yaml_func_name)
+        # if not hasattr(thismodule, entry_name):
+            # raise RuntimeError(
+                # "invalid entry_name: {}, entry_name: {}".format(
+                    # entry_name, entry_name))
+        subpass_module = getattr(thismodule, entry_name)
+        cls_name = entry_name.upper()[0] + entry_name[1:]
+        subpass_cls = getattr(subpass_module, cls_name)
+        yaml_impl_func = getattr(subpass_cls, "yaml_impl")
         cfg_node_name = entry_name.upper()
         if not hasattr(cfg, cfg_node_name):
             raise RuntimeError(
