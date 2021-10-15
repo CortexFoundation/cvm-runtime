@@ -48,7 +48,20 @@ run command
 python main2.py ~/mrt_yaml_root/alexnet.yaml
 ```
 
+or run either of the following commands for each pass.
 
+```bash
+# preparation
+python main2.py ~/mrt_yaml_root/alexnet.yaml prepare
+# calibration
+python main2.py ~/mrt_yaml_root/alexnet.yaml calibrate
+# quantization
+python main2.py ~/mrt_yaml_root/alexnet.yaml quantize
+# evaluation
+python main2.py ~/mrt_yaml_root/alexnet.yaml evaluate
+# compilation
+python main2.py ~/mrt_yaml_root/alexnet.yaml compile
+```
 
 ## ssd_512_voc_resnet50_v1_voc
 
