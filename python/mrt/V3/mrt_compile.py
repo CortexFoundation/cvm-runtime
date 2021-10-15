@@ -1,7 +1,11 @@
 from os import path
 from yacs.config import CfgNode as CN
 
-from mrt import conf
+import numpy as np
+
+from mrt.transformer import Model, MRT
+from mrt import dataset as ds
+from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname,
@@ -64,9 +68,8 @@ def mrt_compile(
     sim.save_ext(path.join(model_root, "ext"), infos)
     logger.info("compilation stage finished")
 
-def yaml_mrt_compile():
-    CM = MRT_CFG.COMMON
-    CN = MRT_CFG.COMPILE
+def yaml_mrt_compile(cm_cfg, pass_cfg):
     mrt_compile(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DUMP_DIR,
-        device_type=CN.DEVICE_TYPE, device_ids=CN.DEVICE_IDS, batch=CN.BATCH)
+        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
+        pass_cfg.DUMP_DIR, device_type=pass_cfg.DEVICE_TYPE,
+        device_ids=pass_cfg.DEVICE_IDS, batch=pass_cfg.BATCH)

@@ -1,6 +1,13 @@
 from yacs.config import CfgNode as CN
+import logging
 
-from mrt import conf
+import mxnet as mx
+from mxnet import gluon, ndarray as nd
+
+from mrt.transformer import Model, MRT, reduce_graph
+from mrt import dataset as ds
+from mrt import utils
+from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname,
@@ -97,9 +104,8 @@ def evaluate(
     else:
         logger.info("evaluatation stage skipped")
 
-def yaml_evaluate():
-    CM = MRT_CFG.COMMON
-    CN = MRT_CFG.EVALUATE
+def yaml_evaluate(cm_cfg, pass_cfg):
     evaluate(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DEVICE_TYPE, CN.DEVICE_IDS,
-        CN.ITER_NUM, batch=CN.BATCH)
+        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
+        pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS, pass_cfg.ITER_NUM,
+        batch=pass_cfg.BATCH)

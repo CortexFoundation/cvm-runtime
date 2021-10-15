@@ -1,5 +1,7 @@
 from yacs.config import CfgNode as CN
 
+from mrt.transformer import Model
+from mrt import dataset as ds
 from mrt import conf
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
@@ -51,10 +53,9 @@ def calibrate(
     save_conf(model_prefix+".calibrate.conf", logger=logger, **conf_map)
     logger.info("calibrate stage finished")
 
-def yaml_calibrate():
-    CM = MRT_CFG.COMMON
-    CN = MRT_CFG.CALIBRATE
+def yaml_calibrate(cm_cfg, pass_cfg):
     calibrate(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.DATASET_NAME,
-        CN.DATASET_DIR, CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.NUM_CALIB,
-        CN.LAMBD, batch=CN.BATCH)
+        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
+        pass_cfg.DATASET_NAME, pass_cfg.DATASET_DIR, pass_cfg.DEVICE_TYPE,
+        pass_cfg.DEVICE_IDS, pass_cfg.NUM_CALIB, pass_cfg.LAMBD,
+        batch=pass_cfg.BATCH)

@@ -50,7 +50,8 @@ def prepare(
     else:
         logger.info("model splitting skipped")
 
-def yaml_prepare(CM, CN):
+def yaml_prepare(cm_cfg, pass_cfg):
     prepare(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY,
-        CN.DEVICE_TYPE, CN.DEVICE_IDS, CN.INPUT_SHAPE, CN.SPLIT_KEYS)
+        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
+        pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS, pass_cfg.INPUT_SHAPE,
+        pass_cfg.SPLIT_KEYS)
