@@ -1,6 +1,8 @@
 from yacs.config import CfgNode as CN
 
-from mrt import conf
+from mrt.transformer import Model, MRT
+from mrt import sym_utils as sutils
+from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids,
     get_model_prefix, get_logger, load_fname, save_conf,
@@ -133,19 +135,18 @@ def quantize(
     else:
         logger.info("model merging skipped")
 
-def yaml_quantize():
-    CM = MRT_CFG.COMMON
-    CN = MRT_CFG.QUANTIZE
-    if CN.is_frozen():
-        CN.defrost()
+def yaml_quantize(cm_cfg, pass_cfg):
+    if pass_cfg.is_frozen():
+        pass_cfg.defrost()
     for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
-        v = getattr(CN, attr)
+        v = getattr(pass_cfg, attr)
         if v is not None:
-            setattr(CN, attr, v[1:-1])
-    if not CN.is_frozen():
-        CN.freeze()
+            setattr(pass_cfg, attr, v[1:-1])
+    if not pass_cfg.is_frozen():
+        pass_cfg.freeze()
     quantize(
-        CM.MODEL_DIR, CM.MODEL_NAME, CM.VERBOSITY, CN.RESTORE_NAMES,
-        CN.INPUT_PRECISION, CN.OUTPUT_PRECISION, CN.DEVICE_TYPE, CN.DEVICE_IDS,
-        CN.SOFTMAX_LAMBD, CN.SHIFT_BITS, CN.THRESHOLDS, CN.ATTRIBUTE_DEPS,
-        CN.OSCALE_MAPS)
+        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
+        pass_cfg.RESTORE_NAMES, pass_cfg.INPUT_PRECISION,
+        pass_cfg.OUTPUT_PRECISION, pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS,
+        pass_cfg.SOFTMAX_LAMBD, pass_cfg.SHIFT_BITS, pass_cfg.THRESHOLDS,
+        pass_cfg.ATTRIBUTE_DEPS, pass_cfg.OSCALE_MAPS)

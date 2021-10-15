@@ -42,21 +42,18 @@ if __name__ == "__main__":
     cfg.freeze()
     if len(sys.argv) == 3:
         entry_name = sys.argv[2]
+        if entry_name == "compile":
+            entry_name = "mrt_compile"
         if not hasattr(thismodule, entry_name):
             raise RuntimeError("invalid entry_name: {}".format(entry_name))
         mrt_module = getattr(thismodule, entry_name)
         yaml_func = getattr(mrt_module, "yaml_{}".format(entry_name))
-        CM = cfg.COMMON
-        CN = cfg.PREPARE
-        # if entry_name == "compile":
-            # cfg_node_name = "COMPILE"
-        # else:
-            # cfg_node_name = entry_name.upper()
-        # if not hasattr(cfg, cfg_node_name):
-            # raise RuntimeError(
-                # "invalid entry_name: {}, cfg_node_name: {}".format(
-                    # entry_name, cfg_node_name))
-        # cfg_node = getattr(cfg, cfg_node_name)
-        yaml_func(CM, CN)
+        cm_cfg = cfg.COMMON
+        if entry_name == "mrt_compile":
+            cfg_name = "COMPILE"
+        else:
+            cfg_name = entry_name.upper()
+        pass_cfg = getattr(cfg, cfg_name)
+        yaml_func(cm_cfg, pass_cfg)
     else:
         yaml_main(cfg)
