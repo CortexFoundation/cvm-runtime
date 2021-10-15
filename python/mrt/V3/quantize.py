@@ -1,4 +1,5 @@
 from yacs.config import CfgNode as CN
+import json
 
 from mrt.transformer import Model, MRT
 from mrt import sym_utils as sutils

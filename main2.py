@@ -22,15 +22,15 @@ def yaml_main(cfg):
     if cfg.COMMON.START_AFTER in start_pos_map:
         start_pos = start_pos_map[cfg.COMMON.START_AFTER]
     if start_pos < 1:
-        yaml_prepare(cfg.COMMON, cfg.PREPARE)
+        prepare.yaml_prepare(cfg.COMMON, cfg.PREPARE)
     if start_pos < 2:
-        yaml_calibrate(cfg.COMMON, cfg.CALIBRATE)
+        calibrate.yaml_calibrate(cfg.COMMON, cfg.CALIBRATE)
     if start_pos < 3:
-        yaml_quantize(cfg.COMMON, cfg.QUANTIZE)
+        quantize.yaml_quantize(cfg.COMMON, cfg.QUANTIZE)
     if cfg.COMMON.RUN_EVALUATE:
-        yaml_evaluate(cfg.COMMON, cfg.EVALUATE)
+        evaluate.yaml_evaluate(cfg.COMMON, cfg.EVALUATE)
     if cfg.COMMON.RUN_COMPILE:
-        yaml_compile(cfg.COMMON, cfg.COMPILE)
+        mrt_compile.yaml_mrt_compile(cfg.COMMON, cfg.COMPILE)
 
 if __name__ == "__main__":
     assert len(sys.argv) in [2,3], len(sys.argv)
@@ -47,7 +47,6 @@ if __name__ == "__main__":
         if not hasattr(thismodule, entry_name):
             raise RuntimeError("invalid entry_name: {}".format(entry_name))
         mrt_module = getattr(thismodule, entry_name)
-        yaml_func = getattr(mrt_module, "yaml_{}".format(entry_name))
         cm_cfg = cfg.COMMON
         if entry_name == "mrt_compile":
             cfg_name = "COMPILE"
