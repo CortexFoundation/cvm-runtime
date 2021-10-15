@@ -40,7 +40,6 @@ EVALUATE:
   DEVICE_TYPE: gpu
   DEVICE_IDS: [0]
   ITER_NUM: 10
-
 ```
 
 run command
