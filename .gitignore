@@ -55,3 +55,6 @@ out/*
 docs/html
 docs/doctrees
 docs/doxygen_output
+
+# django
+python/mrt/frontend/db.sqlite3
