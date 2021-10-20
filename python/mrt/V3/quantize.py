@@ -21,10 +21,29 @@ MRT_CFG.QUANTIZE.THRESHOLDS = None
 MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = None
 MRT_CFG.QUANTIZE.OSCALE_MAPS = ""
 
-def quantize(
-    model_dir, model_name, verbosity, restore_names, input_precision,
-    output_precision, device_type, device_ids, softmax_lambd, shift_bits,
-    thresholds, attribute_deps, oscale_maps):
+def quantize(cm_cfg, pass_cfg):
+    if pass_cfg.is_frozen():
+        pass_cfg.defrost()
+    for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
+        v = getattr(pass_cfg, attr)
+        if v is not None:
+            setattr(pass_cfg, attr, v[1:-1])
+    if not pass_cfg.is_frozen():
+        pass_cfg.freeze()
+    model_dir = cm_cfg.MODEL_DIR
+    model_name = cm_cfg.MODEL_NAME
+    verbosity = cm_cfg.VERBOSITY
+    restore_names = pass_cfg.RESTORE_NAMES
+    input_precision = pass_cfg.INPUT_PRECISION
+    output_precision = pass_cfg.OUTPUT_PRECISION
+    device_type = pass_cfg.DEVICE_TYPE
+    device_ids = pass_cfg.DEVICE_IDS
+    softmax_lambd = pass_cfg.SOFTMAX_LAMBD
+    shift_bits = pass_cfg.SHIFT_BITS
+    thresholds = pass_cfg.THRESHOLDS
+    attribute_deps = pass_cfg.ATTRIBUTE_DEPS
+    oscale_maps = pass_cfg.OSCALE_MAPS
+
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
     conf_calib_file = model_prefix + ".calibrate.conf"
@@ -135,19 +154,3 @@ def quantize(
         logger.info("model merging finished")
     else:
         logger.info("model merging skipped")
-
-def yaml_quantize(cm_cfg, pass_cfg):
-    if pass_cfg.is_frozen():
-        pass_cfg.defrost()
-    for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
-        v = getattr(pass_cfg, attr)
-        if v is not None:
-            setattr(pass_cfg, attr, v[1:-1])
-    if not pass_cfg.is_frozen():
-        pass_cfg.freeze()
-    quantize(
-        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
-        pass_cfg.RESTORE_NAMES, pass_cfg.INPUT_PRECISION,
-        pass_cfg.OUTPUT_PRECISION, pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS,
-        pass_cfg.SOFTMAX_LAMBD, pass_cfg.SHIFT_BITS, pass_cfg.THRESHOLDS,
-        pass_cfg.ATTRIBUTE_DEPS, pass_cfg.OSCALE_MAPS)

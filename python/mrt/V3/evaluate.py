@@ -19,9 +19,15 @@ MRT_CFG.EVALUATE.DEVICE_TYPE = default_device_type
 MRT_CFG.EVALUATE.DEVICE_IDS = default_device_ids
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
-def evaluate(
-    model_dir, model_name, verbosity, device_type, device_ids, iter_num,
-    batch=default_batch):
+def evaluate(cm_cfg, pass_cfg):
+    model_dir = cm_cfg.MODEL_DIR
+    model_name = cm_cfg.MODEL_NAME
+    verbosity = cm_cfg.VERBOSITY
+    device_type = pass_cfg.DEVICE_TYPE
+    device_ids = pass_cfg.DEVICE_IDS
+    iter_num = pass_cfg.ITER_NUM
+    batch = pass_cfg.BATCH
+
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
     conf_quant_file = model_prefix + ".quantize.conf"
@@ -103,9 +109,3 @@ def evaluate(
         logger.info("evaluatation stage finished")
     else:
         logger.info("evaluatation stage skipped")
-
-def yaml_evaluate(cm_cfg, pass_cfg):
-    evaluate(
-        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
-        pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS, pass_cfg.ITER_NUM,
-        batch=pass_cfg.BATCH)

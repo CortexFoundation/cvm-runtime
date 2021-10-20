@@ -2,7 +2,11 @@ import sys
 from os import path
 
 from mrt.V3.utils import get_cfg_defaults
-from mrt.V3 import prepare, calibrate, quantize, evaluate, mrt_compile
+from mrt.V3.prepare import prepare
+from mrt.V3.calibrate import calibrate
+from mrt.V3.quantize import quantize
+from mrt.V3.evaluate import evaluate
+from mrt.V3.mrt_compile import mrt_compile
 
 thismodule = sys.modules[__name__]
 
@@ -22,15 +26,15 @@ def yaml_main(cfg):
     if cfg.COMMON.START_AFTER in start_pos_map:
         start_pos = start_pos_map[cfg.COMMON.START_AFTER]
     if start_pos < 1:
-        prepare.yaml_prepare(cfg.COMMON, cfg.PREPARE)
+        prepare(cfg.COMMON, cfg.PREPARE)
     if start_pos < 2:
-        calibrate.yaml_calibrate(cfg.COMMON, cfg.CALIBRATE)
+        calibrate(cfg.COMMON, cfg.CALIBRATE)
     if start_pos < 3:
-        quantize.yaml_quantize(cfg.COMMON, cfg.QUANTIZE)
+        quantize(cfg.COMMON, cfg.QUANTIZE)
     if cfg.COMMON.RUN_EVALUATE:
-        evaluate.yaml_evaluate(cfg.COMMON, cfg.EVALUATE)
+        evaluate(cfg.COMMON, cfg.EVALUATE)
     if cfg.COMMON.RUN_COMPILE:
-        mrt_compile.yaml_mrt_compile(cfg.COMMON, cfg.COMPILE)
+        mrt_compile(cfg.COMMON, cfg.COMPILE)
 
 if __name__ == "__main__":
     assert len(sys.argv) in [2,3], len(sys.argv)
@@ -46,7 +50,7 @@ if __name__ == "__main__":
             entry_name = "mrt_compile"
         if not hasattr(thismodule, entry_name):
             raise RuntimeError("invalid entry_name: {}".format(entry_name))
-        mrt_module = getattr(thismodule, entry_name)
+        yaml_func = getattr(thismodule, entry_name)
         cm_cfg = cfg.COMMON
         if entry_name == "mrt_compile":
             cfg_name = "COMPILE"

@@ -13,9 +13,15 @@ MRT_CFG.PREPARE.DEVICE_IDS = default_device_ids
 MRT_CFG.PREPARE.INPUT_SHAPE = [-1, 3, 224, 224]
 MRT_CFG.PREPARE.SPLIT_KEYS = ""
 
-def prepare(
-    model_dir, model_name, verbosity, device_type, device_ids, input_shape,
-    split_keys):
+def prepare(cm_cfg, pass_cfg):
+    model_dir = cm_cfg.MODEL_DIR
+    model_name = cm_cfg.MODEL_NAME
+    verbosity = cm_cfg.VERBOSITY
+    device_type = pass_cfg.DEVICE_TYPE
+    device_ids = pass_cfg.DEVICE_IDS
+    input_shape = pass_cfg.INPUT_SHAPE
+    split_keys = pass_cfg.SPLIT_KEYS
+
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
     conf_prep_file = model_prefix + ".prepare.conf"
@@ -49,9 +55,3 @@ def prepare(
         logger.info("model splitting finished")
     else:
         logger.info("model splitting skipped")
-
-def yaml_prepare(cm_cfg, pass_cfg):
-    prepare(
-        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
-        pass_cfg.DEVICE_TYPE, pass_cfg.DEVICE_IDS, pass_cfg.INPUT_SHAPE,
-        pass_cfg.SPLIT_KEYS)
