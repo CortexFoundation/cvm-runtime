@@ -11,7 +11,7 @@ MRT_CFG.PREPARE= CN()
 MRT_CFG.PREPARE.DEVICE_TYPE = default_device_type
 MRT_CFG.PREPARE.DEVICE_IDS = default_device_ids
 MRT_CFG.PREPARE.INPUT_SHAPE = [-1, 3, 224, 224]
-MRT_CFG.PREPARE.SPLIT_KEYS = ""
+MRT_CFG.PREPARE.SPLIT_KEYS = []
 
 def prepare(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

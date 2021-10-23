@@ -1,5 +1,4 @@
 from yacs.config import CfgNode as CN
-import json
 
 from mrt.transformer import Model, MRT
 from mrt import sym_utils as sutils
@@ -17,19 +16,11 @@ MRT_CFG.QUANTIZE.DEVICE_TYPE = default_device_type
 MRT_CFG.QUANTIZE.DEVICE_IDS = default_device_ids
 MRT_CFG.QUANTIZE.SOFTMAX_LAMBD = None
 MRT_CFG.QUANTIZE.SHIFT_BITS = None
-MRT_CFG.QUANTIZE.THRESHOLDS = None
-MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = None
-MRT_CFG.QUANTIZE.OSCALE_MAPS = ""
+MRT_CFG.QUANTIZE.THRESHOLDS = []
+MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = []
+MRT_CFG.QUANTIZE.OSCALE_MAPS = []
 
 def quantize(cm_cfg, pass_cfg):
-    if pass_cfg.is_frozen():
-        pass_cfg.defrost()
-    for attr in ["THRESHOLDS", "ATTRIBUTE_DEPS", "OSCALE_MAPS"]:
-        v = getattr(pass_cfg, attr)
-        if v is not None:
-            setattr(pass_cfg, attr, v[1:-1])
-    if not pass_cfg.is_frozen():
-        pass_cfg.freeze()
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -40,9 +31,10 @@ def quantize(cm_cfg, pass_cfg):
     device_ids = pass_cfg.DEVICE_IDS
     softmax_lambd = pass_cfg.SOFTMAX_LAMBD
     shift_bits = pass_cfg.SHIFT_BITS
-    thresholds = pass_cfg.THRESHOLDS
-    attribute_deps = pass_cfg.ATTRIBUTE_DEPS
-    oscale_maps = pass_cfg.OSCALE_MAPS
+    thresholds = {opn: th for opn, th in pass_cfg.THRESHOLDS}
+    attribute_deps = {attr: {sattr: opn for sattr, opn in attr_map} \
+        for attr, attr_map in pass_cfg.ATTRIBUTE_DEPS}
+    oscale_maps = {opn1: opn2 for opn1, opn2 in pass_cfg.OSCALE_MAPS}
 
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
@@ -97,8 +89,7 @@ def quantize(cm_cfg, pass_cfg):
         mrt.set_softmax_lambd(softmax_lambd)
     if shift_bits is not None:
         mrt.set_shift_bits(shift_bits)
-    if thresholds is not None:
-        thresholds = json.loads(thresholds)
+    if thresholds != {}:
         for name, threshold in thresholds.items():
             mrt.set_threshold(name, threshold)
 
@@ -117,9 +108,8 @@ def quantize(cm_cfg, pass_cfg):
     # mergemodel
     if conf_map.get("split_keys", "") != "":
         qmodel = mrt.current_model
-        if attribute_deps is None:
+        if attribute_deps == {}:
             raise RuntimeError("model merging, please specify --attribute_deps")
-        attribute_deps = json.loads(attribute_deps)
         mrt_oscales = mrt.get_output_scales()
         name_idx = {mrt.get_maps().get(
             s.attr("name"), s.attr("name")): i \
@@ -141,9 +131,8 @@ def quantize(cm_cfg, pass_cfg):
         top = Model.load(sym_top_file, prm_top_file)
         model_merger = Model.merger(qmodel, top, mrt.get_maps())
         qmodel = model_merger.merge(callback=mergefunc)
-        if oscale_maps is None:
+        if oscale_maps == {}:
             raise RuntimeError("model merging, please specify --oscale_maps")
-        oscale_maps = json.loads(oscale_maps)
         oscales = model_merger.get_output_scales(mrt_oscales, oscale_maps)
         sym_all_file, prm_all_file, ext_all_file = load_fname(
             model_prefix, suffix="all.quantize", with_ext=True)
