@@ -17,10 +17,15 @@ MRT_CFG.COMPILE.DUMP_DIR = "/data1/tmp"
 MRT_CFG.COMPILE.DEVICE_TYPE = default_device_type
 MRT_CFG.COMPILE.DEVICE_IDS = default_device_ids
 
-def mrt_compile(
-    model_dir, model_name, verbosity, dump_dir,
-    batch=default_batch, device_type=default_device_type,
-    device_ids=default_device_ids):
+def mrt_compile(cm_cfg, pass_cfg):
+    model_dir = cm_cfg.MODEL_DIR
+    model_name = cm_cfg.MODEL_NAME
+    verbosity = cm_cfg.VERBOSITY
+    dump_dir = pass_cfg.DUMP_DIR
+    device_type = pass_cfg.DEVICE_TYPE
+    device_ids = pass_cfg.DEVICE_IDS
+    batch = pass_cfg.BATCH
+
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
     conf_quant_file = model_prefix + ".quantize.conf"
@@ -67,9 +72,3 @@ def mrt_compile(
     }
     sim.save_ext(path.join(model_root, "ext"), infos)
     logger.info("compilation stage finished")
-
-def yaml_mrt_compile(cm_cfg, pass_cfg):
-    mrt_compile(
-        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
-        pass_cfg.DUMP_DIR, device_type=pass_cfg.DEVICE_TYPE,
-        device_ids=pass_cfg.DEVICE_IDS, batch=pass_cfg.BATCH)

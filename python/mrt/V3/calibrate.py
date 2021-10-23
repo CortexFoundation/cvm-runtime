@@ -17,9 +17,18 @@ MRT_CFG.CALIBRATE.DATASET_DIR = conf.MRT_DATASET_ROOT
 MRT_CFG.CALIBRATE.DEVICE_TYPE = default_device_type
 MRT_CFG.CALIBRATE.DEVICE_IDS = default_device_ids
 
-def calibrate(
-    model_dir, model_name, verbosity, dataset_name, dataset_dir,
-    device_type, device_ids, calibrate_num, lambd, batch=default_batch):
+def calibrate(cm_cfg, pass_cfg):
+    model_dir = cm_cfg.MODEL_DIR
+    model_name = cm_cfg.MODEL_NAME
+    verbosity = cm_cfg.VERBOSITY
+    dataset_name = pass_cfg.DATASET_NAME
+    dataset_dir = pass_cfg.DATASET_DIR
+    device_type = pass_cfg.DEVICE_TYPE
+    device_ids = pass_cfg.DEVICE_IDS
+    calibrate_num = pass_cfg.NUM_CALIB
+    lambd = pass_cfg.LAMBD
+    batch=pass_cfg.BATCH
+
     model_prefix = get_model_prefix(model_dir, model_name)
     logger = get_logger(verbosity)
     conf_prep_file = model_prefix + ".prepare.conf"
@@ -52,10 +61,3 @@ def calibrate(
     conf_map["dataset_name"] = dataset_name
     save_conf(model_prefix+".calibrate.conf", logger=logger, **conf_map)
     logger.info("calibrate stage finished")
-
-def yaml_calibrate(cm_cfg, pass_cfg):
-    calibrate(
-        cm_cfg.MODEL_DIR, cm_cfg.MODEL_NAME, cm_cfg.VERBOSITY,
-        pass_cfg.DATASET_NAME, pass_cfg.DATASET_DIR, pass_cfg.DEVICE_TYPE,
-        pass_cfg.DEVICE_IDS, pass_cfg.NUM_CALIB, pass_cfg.LAMBD,
-        batch=pass_cfg.BATCH)
