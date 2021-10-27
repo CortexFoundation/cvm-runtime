@@ -2,6 +2,7 @@ from os import path
 import logging
 import json
 from yacs.config import CfgNode as CN
+import argparse
 
 import mxnet as mx
 
@@ -28,6 +29,17 @@ MRT_CFG.COMMON.DEVICE_IDS = default_device_ids
 MRT_CFG.COMMON.BATCH = default_batch
 MRT_CFG.COMMON.RUN_EVALUATE = True
 MRT_CFG.COMMON.RUN_COMPILE = True
+
+parser = argparse.ArgumentParser("MRT YAML Interface")
+parser.add_argument("--model-dir", type=str, default=conf.MRT_MODEL_ROOT)
+parser.add_argument("--model-name", type=str, default="")
+parser.add_argument("--verobosity", type=str, default="debug")
+parser.add_argument("--start-after", type=str, default=None)
+parser.add_argument("--device-type", type=str, default=default_device_type)
+parser.add_argument("--device-ids", type=int, default=default_device_ids)
+parser.add_argument("--batch", type=int, default=default_batch)
+parser.add_argument("--run-evaluate", action="store_true")
+parser.add_argument("--run-compile", action="store_true")
 
 def get_model_prefix(model_dir, model_name):
     if model_dir.startswith("~"):

@@ -5,13 +5,26 @@ from mrt.gluon_zoo import save_model
 from mrt.transformer import Model
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids,
-    get_model_prefix, get_logger, set_batch, load_fname, save_conf, get_ctx)
+    get_model_prefix, get_logger, set_batch, load_fname, save_conf,
+    get_ctx, parser)
+
+default_input_shape = [-1, 3, 224, 224]
 
 MRT_CFG.PREPARE= CN()
 MRT_CFG.PREPARE.DEVICE_TYPE = default_device_type
 MRT_CFG.PREPARE.DEVICE_IDS = default_device_ids
-MRT_CFG.PREPARE.INPUT_SHAPE = [-1, 3, 224, 224]
+MRT_CFG.PREPARE.INPUT_SHAPE = default_input_shape
 MRT_CFG.PREPARE.SPLIT_KEYS = []
+
+parser.add_argument(
+    "--device-type-prepare", type=str, choices=["cpu", "gpu"],
+    default=default_device_type)
+parser.add_argument(
+    "--device-ids-prepare", type=int, nargs="+",
+    default=default_device_ids)
+parser.add_argument(
+    "--input-shape", type=int, nargs="+", default=default_input_shape)
+parser.add_argument("--split-keys", type=str, nargs="+", default=[])
 
 def prepare(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

@@ -19,6 +19,14 @@ MRT_CFG.EVALUATE.DEVICE_TYPE = default_device_type
 MRT_CFG.EVALUATE.DEVICE_IDS = default_device_ids
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
+parser.add_argument("--batch-evaluate", type=int, default=default_batch)
+parser.add_argument(
+    "--device-type-evaluate", type=str, choices=["cpu", "gpu"],
+    default=default_device_type)
+parser.add_argument(
+    "--device-ids-evaluate", type=int, nargs="+", default=default_device_ids)
+parser.add_argument("--iter-num", type=int, default=10)
+
 def evaluate(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME

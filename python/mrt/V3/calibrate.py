@@ -6,16 +6,31 @@ from mrt import conf
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname, save_conf,
-    load_conf, check_file_existance, get_ctx)
+    load_conf, check_file_existance, get_ctx, parser)
+
+default_num_calib = 1
 
 MRT_CFG.CALIBRATE = CN()
 MRT_CFG.CALIBRATE.BATCH = default_batch
-MRT_CFG.CALIBRATE.NUM_CALIB = 1
+MRT_CFG.CALIBRATE.NUM_CALIB = default_num_calib
 MRT_CFG.CALIBRATE.LAMBD = None
 MRT_CFG.CALIBRATE.DATASET_NAME = "imagenet"
 MRT_CFG.CALIBRATE.DATASET_DIR = conf.MRT_DATASET_ROOT
 MRT_CFG.CALIBRATE.DEVICE_TYPE = default_device_type
 MRT_CFG.CALIBRATE.DEVICE_IDS = default_device_ids
+
+parser.add_argument("--batch-calibrate", type=int, default=default_batch)
+parser.add_argument("--num-calib", type=int, default=default_num_calib)
+parser.add_argument("--lambd", type=float)
+parser.add_argument(
+    "--dataset-name", type=str, default="imagenet",
+    choices=list(ds.DS_REG.keys()))
+parser.add_argument("--dataset-dir", type=str, default=conf.MRT_DATASET_ROOT)
+parser.add_argument(
+    "--device-type-calibrate", type=str, choices=["cpu", "gpu"],
+    default=default_device_type)
+parser.add_argument(
+    "--device-ids-calibrate", type=int, nargs="+", default=default_device_ids)
 
 def calibrate(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

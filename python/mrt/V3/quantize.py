@@ -6,7 +6,7 @@ from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids,
     get_model_prefix, get_logger, load_fname, save_conf,
-    load_conf, check_file_existance, get_ctx)
+    load_conf, check_file_existance, get_ctx, parser)
 
 MRT_CFG.QUANTIZE = CN()
 MRT_CFG.QUANTIZE.RESTORE_NAMES = []
@@ -19,6 +19,20 @@ MRT_CFG.QUANTIZE.SHIFT_BITS = None
 MRT_CFG.QUANTIZE.THRESHOLDS = []
 MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = []
 MRT_CFG.QUANTIZE.OSCALE_MAPS = []
+
+parser.add_argument("--restore-names", nargs="+", type=str, default=[])
+parser.add_argument("--input-precision", type=int)
+parser.add_argument("--output-precision", type=int)
+parser.add_argument(
+    "--device-type-quantize", type=str, choices=["cpu", "gpu"],
+    default=default_device_type)
+parser.add_argument(
+    "--device-ids-quantize", type=int, nargs="+", default=default_device_ids)
+parser.add_argument("--softmax-lambd", type=float)
+parser.add_argument("--shift-bits", type=int)
+parser.add_argument("--thresholds", type=tuple, default=[])
+parser.add_argument("--attribute-deps", type=tuple, default=[])
+parser.add_argument("--oscale-maps", type=tuple, default=[])
 
 def quantize(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

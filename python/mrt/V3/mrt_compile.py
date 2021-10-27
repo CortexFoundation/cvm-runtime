@@ -9,13 +9,23 @@ from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname,
-    load_conf, check_file_existance)
+    load_conf, check_file_existance, parser)
+
+default_dump_dir = path.join("data1", "tmp")
 
 MRT_CFG.COMPILE = CN()
 MRT_CFG.COMPILE.BATCH = 1
-MRT_CFG.COMPILE.DUMP_DIR = "/data1/tmp"
+MRT_CFG.COMPILE.DUMP_DIR = default_dump_dir
 MRT_CFG.COMPILE.DEVICE_TYPE = default_device_type
 MRT_CFG.COMPILE.DEVICE_IDS = default_device_ids
+
+parser.add_argument("--batch-compile", type=int, default=1)
+parser.add_argument("--dump-dir", type=str, default=default_dump_dir)
+parser.add_argument(
+    "--device-type-compile", type=str, choices=["cpu", "gpu"],
+    default=default_device_type)
+parser.add_argument(
+    "--device-ids-compile", type=int, nargs="+", default=default_device_ids)
 
 def mrt_compile(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR
