@@ -31,15 +31,32 @@ MRT_CFG.COMMON.RUN_EVALUATE = True
 MRT_CFG.COMMON.RUN_COMPILE = True
 
 parser = argparse.ArgumentParser("MRT YAML Interface")
-parser.add_argument("--model-dir", type=str, default=conf.MRT_MODEL_ROOT)
-parser.add_argument("--model-name", type=str, default="")
-parser.add_argument("--verobosity", type=str, default="debug")
-parser.add_argument("--start-after", type=str, default=None)
-parser.add_argument("--device-type", type=str, default=default_device_type)
-parser.add_argument("--device-ids", type=int, default=default_device_ids)
-parser.add_argument("--batch", type=int, default=default_batch)
-parser.add_argument("--run-evaluate", action="store_true")
-parser.add_argument("--run-compile", action="store_true")
+_pname = "COMMON"
+dest2yaml = {
+    parser.add_argument(
+        "--model-dir", type=str,
+        default=conf.MRT_MODEL_ROOT).dest: (_pname, "MODEL_DIR"),
+    parser.add_argument(
+        "--verobosity", type=str, default="debug").dest: (_pname, "VERBOSITY"),
+    parser.add_argument(
+        "--start-after", type=str, default=None).dest: (_pname, "START_AFTER"),
+    parser.add_argument(
+        "--device-type", type=str,
+        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
+    parser.add_argument(
+        "--device-ids", type=int,
+        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
+    parser.add_argument(
+        "--batch", type=int, default=default_batch).dest: (_pname, "BATCH"),
+}
+
+def update_dest2yaml(dest2yaml_upt):
+    for dest, cfg in dest2yaml_upt.items():
+        if dest in dest2yaml:
+            raise RuntimeError(
+                "dest: {} already in dest2yaml: {}".format(
+                    dest, dest2yaml.keys()))
+        dest2yaml[dest] = cfg
 
 def get_model_prefix(model_dir, model_name):
     if model_dir.startswith("~"):
@@ -146,3 +163,15 @@ def get_cfg_defaults():
     # Return a clone so that the defaults will not be altered
     # This is for the "local variable" use pattern
     return MRT_CFG.clone()
+
+def override_cfg_argparse(cfg, args):
+    if cfg.is_frozen():
+        cfg.defrost()
+    for dest in dir(args):
+        if dest not in dest2yaml:
+            continue
+        pname, attr = dest2yaml[dest]
+        cnode = getattr(cfg, pname)
+        setattr(cnode, attr, getattr(args, dest))
+    cfg.freeze()
+    return cfg

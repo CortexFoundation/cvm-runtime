@@ -1,7 +1,7 @@
 import sys
 from os import path
 
-from mrt.V3.utils import get_cfg_defaults
+from mrt.V3.utils import get_cfg_defaults, override_cfg_argparse, parser
 from mrt.V3.prepare import prepare
 from mrt.V3.calibrate import calibrate
 from mrt.V3.quantize import quantize
@@ -36,16 +36,22 @@ def yaml_main(cfg):
     if cfg.COMMON.RUN_COMPILE:
         mrt_compile(cfg.COMMON, cfg.COMPILE)
 
+parser.add_argument("yaml_file", type=str)
+parser.add_argument(
+    "--entry-name", type=str, choices=[
+        "prepare", "calibrate", "quantize", "evalueate", "compile"])
+
 if __name__ == "__main__":
-    assert len(sys.argv) in [2,3], len(sys.argv)
-    yaml_file = sys.argv[1]
+    args = parser.parse_args()
+    yaml_file = args.yaml_file
     if yaml_file.startswith("~"):
         yaml_file = path.expanduser(yaml_file)
     cfg = get_cfg_defaults()
     cfg.merge_from_file(yaml_file)
     cfg.freeze()
-    if len(sys.argv) == 3:
-        entry_name = sys.argv[2]
+    cfg = override_cfg_argparse(cfg, args)
+    entry_name = args.entry_name
+    if entry_name is not None:
         if entry_name == "compile":
             entry_name = "mrt_compile"
         if not hasattr(thismodule, entry_name):

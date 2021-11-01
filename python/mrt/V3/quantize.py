@@ -6,7 +6,7 @@ from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids,
     get_model_prefix, get_logger, load_fname, save_conf,
-    load_conf, check_file_existance, get_ctx, parser)
+    load_conf, check_file_existance, get_ctx, parser, update_dest2yaml)
 
 MRT_CFG.QUANTIZE = CN()
 MRT_CFG.QUANTIZE.RESTORE_NAMES = []
@@ -20,19 +20,33 @@ MRT_CFG.QUANTIZE.THRESHOLDS = []
 MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = []
 MRT_CFG.QUANTIZE.OSCALE_MAPS = []
 
-parser.add_argument("--restore-names", nargs="+", type=str, default=[])
-parser.add_argument("--input-precision", type=int)
-parser.add_argument("--output-precision", type=int)
-parser.add_argument(
-    "--device-type-quantize", type=str, choices=["cpu", "gpu"],
-    default=default_device_type)
-parser.add_argument(
-    "--device-ids-quantize", type=int, nargs="+", default=default_device_ids)
-parser.add_argument("--softmax-lambd", type=float)
-parser.add_argument("--shift-bits", type=int)
-parser.add_argument("--thresholds", type=tuple, default=[])
-parser.add_argument("--attribute-deps", type=tuple, default=[])
-parser.add_argument("--oscale-maps", type=tuple, default=[])
+_pname = "QUANTIZE"
+update_dest2yaml({
+    parser.add_argument(
+        "--restore-names", nargs="+", type=str,
+        default=[]).dest: (_pname, "RESTORE_NAMES"),
+    parser.add_argument(
+        "--input-precision", type=int).dest: (_pname, "INPUT_PRECISION"),
+    parser.add_argument(
+        "--output-precision", type=int).dest: (_pname, "OUTPUT_PRECISION"),
+    parser.add_argument(
+        "--device-type-quantize", type=str, choices=["cpu", "gpu"],
+        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
+    parser.add_argument(
+        "--device-ids-quantize", type=int, nargs="+",
+        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
+    parser.add_argument(
+        "--softmax-lambd", type=float).dest: (_pname, "SOFTMAX_LAMBD"),
+    parser.add_argument(
+        "--shift-bits", type=int).dest: (_pname, "SHIFT_BITS"),
+    parser.add_argument(
+        "--thresholds", type=tuple, default=[]).dest: (_pname, "THRESHOLDS"),
+    parser.add_argument(
+        "--attribute-deps", type=tuple,
+        default=[]).dest: (_pname, "ATTRIBUTE_DEPS"),
+    parser.add_argument(
+        "--oscale-maps", type=tuple, default=[]).dest: (_pname, "OSCALE_MAPS"),
+})
 
 def quantize(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

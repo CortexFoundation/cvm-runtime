@@ -11,7 +11,8 @@ from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname,
-    load_conf, check_file_existance, get_ctx, get_batch_axis, parser)
+    load_conf, check_file_existance, get_ctx, get_batch_axis, parser,
+    update_dest2yaml)
 
 MRT_CFG.EVALUATE = CN()
 MRT_CFG.EVALUATE.BATCH = default_batch
@@ -19,13 +20,20 @@ MRT_CFG.EVALUATE.DEVICE_TYPE = default_device_type
 MRT_CFG.EVALUATE.DEVICE_IDS = default_device_ids
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
-parser.add_argument("--batch-evaluate", type=int, default=default_batch)
-parser.add_argument(
-    "--device-type-evaluate", type=str, choices=["cpu", "gpu"],
-    default=default_device_type)
-parser.add_argument(
-    "--device-ids-evaluate", type=int, nargs="+", default=default_device_ids)
-parser.add_argument("--iter-num", type=int, default=10)
+_pname = "EVALUATE"
+update_dest2yaml({
+    parser.add_argument(
+        "--batch-evaluate", type=int,
+        default=default_batch).dest: (_pname, "BATCH"),
+    parser.add_argument(
+        "--device-type-evaluate", type=str, choices=["cpu", "gpu"],
+        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
+    parser.add_argument(
+        "--device-ids-evaluate", type=int, nargs="+",
+        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
+    parser.add_argument(
+        "--iter-num", type=int, default=10).dest: (_pname, "ITER_NUM"),
+})
 
 def evaluate(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR

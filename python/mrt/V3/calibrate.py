@@ -6,7 +6,7 @@ from mrt import conf
 from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, default_batch,
     get_model_prefix, get_logger, set_batch, load_fname, save_conf,
-    load_conf, check_file_existance, get_ctx, parser)
+    load_conf, check_file_existance, get_ctx, parser, update_dest2yaml)
 
 default_num_calib = 1
 
@@ -19,18 +19,28 @@ MRT_CFG.CALIBRATE.DATASET_DIR = conf.MRT_DATASET_ROOT
 MRT_CFG.CALIBRATE.DEVICE_TYPE = default_device_type
 MRT_CFG.CALIBRATE.DEVICE_IDS = default_device_ids
 
-parser.add_argument("--batch-calibrate", type=int, default=default_batch)
-parser.add_argument("--num-calib", type=int, default=default_num_calib)
-parser.add_argument("--lambd", type=float)
-parser.add_argument(
-    "--dataset-name", type=str, default="imagenet",
-    choices=list(ds.DS_REG.keys()))
-parser.add_argument("--dataset-dir", type=str, default=conf.MRT_DATASET_ROOT)
-parser.add_argument(
-    "--device-type-calibrate", type=str, choices=["cpu", "gpu"],
-    default=default_device_type)
-parser.add_argument(
-    "--device-ids-calibrate", type=int, nargs="+", default=default_device_ids)
+_pname = "CALIBRATE"
+update_dest2yaml({
+    parser.add_argument(
+        "--batch-calibrate", type=int,
+        default=default_batch).dest: (_pname, "BATCH"),
+    parser.add_argument(
+        "--num-calib", type=int,
+        default=default_num_calib).dest: (_pname, "NUM_CALIB"),
+    parser.add_argument("--lambd", type=float).dest: (_pname, "LAMBD"),
+    parser.add_argument(
+        "--dataset-name", type=str, default="imagenet",
+        choices=list(ds.DS_REG.keys())).dest: (_pname, "DATASET_NAME"),
+    parser.add_argument(
+        "--dataset-dir", type=str,
+        default=conf.MRT_DATASET_ROOT).dest: (_pname, "DATASET_DIR"),
+    parser.add_argument(
+        "--device-type-calibrate", type=str, choices=["cpu", "gpu"],
+        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
+    parser.add_argument(
+        "--device-ids-calibrate", type=int, nargs="+",
+        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
+})
 
 def calibrate(cm_cfg, pass_cfg):
     model_dir = cm_cfg.MODEL_DIR
