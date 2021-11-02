@@ -21,7 +21,7 @@ default_ctx = mx.cpu()
 MRT_CFG = CN()
 MRT_CFG.COMMON = CN()
 MRT_CFG.COMMON.MODEL_DIR = conf.MRT_MODEL_ROOT
-MRT_CFG.COMMON.MODEL_NAME = ""
+MRT_CFG.COMMON.MODEL_NAME = None
 MRT_CFG.COMMON.VERBOSITY = "debug"
 MRT_CFG.COMMON.START_AFTER = None
 MRT_CFG.COMMON.DEVICE_TYPE = default_device_type
@@ -36,6 +36,8 @@ dest2yaml = {
     parser.add_argument(
         "--model-dir", type=str,
         default=conf.MRT_MODEL_ROOT).dest: (_pname, "MODEL_DIR"),
+    parser.add_argument(
+        "--model-name", type=str).dest: (_pname, "MODEL_NAME"),
     parser.add_argument(
         "--verobosity", type=str, default="debug").dest: (_pname, "VERBOSITY"),
     parser.add_argument(
@@ -172,6 +174,8 @@ def override_cfg_argparse(cfg, args):
             continue
         pname, attr = dest2yaml[dest]
         cnode = getattr(cfg, pname)
-        setattr(cnode, attr, getattr(args, dest))
+        argv = getattr(args, dest)
+        if argv is not None:
+            setattr(cnode, attr, argv)
     cfg.freeze()
     return cfg
