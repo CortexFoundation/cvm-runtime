@@ -52,15 +52,15 @@ or run either of the following commands for each pass.
 
 ```bash
 # preparation
-python main2.py ~/mrt_yaml_root/alexnet.yaml prepare
+python main2.py ~/mrt_yaml_root/alexnet.yaml --entry-name prepare
 # calibration
-python main2.py ~/mrt_yaml_root/alexnet.yaml calibrate
+python main2.py ~/mrt_yaml_root/alexnet.yaml --entry-name calibrate
 # quantization
-python main2.py ~/mrt_yaml_root/alexnet.yaml quantize
+python main2.py ~/mrt_yaml_root/alexnet.yaml --entry-name quantize
 # evaluation
-python main2.py ~/mrt_yaml_root/alexnet.yaml evaluate
+python main2.py ~/mrt_yaml_root/alexnet.yaml --entry-name evaluate
 # compilation
-python main2.py ~/mrt_yaml_root/alexnet.yaml compile
+python main2.py ~/mrt_yaml_root/alexnet.yaml --entry-name compile
 ```
 
 ## ssd_512_voc_resnet50_v1_voc
