@@ -1,3 +1,3 @@
 from mrt.V3 import (
-    utils, prepare, calibrate, evaluate, mrt_compile
+    utils, prepare, calibrate, quantize, evaluate, mrt_compile
 )
