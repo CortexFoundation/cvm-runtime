@@ -33,6 +33,7 @@ update_dest2yaml({
 })
 
 def prepare(cm_cfg, pass_cfg):
+    print("hihihisss")
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
