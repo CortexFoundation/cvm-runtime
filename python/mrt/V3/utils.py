@@ -32,6 +32,7 @@ MRT_CFG.COMMON.RUN_COMPILE = True
 
 parser = argparse.ArgumentParser("MRT YAML Interface")
 _pname = "COMMON"
+# TODO: update with yaml
 dest2yaml = {
     parser.add_argument(
         "--model-dir", type=str,
