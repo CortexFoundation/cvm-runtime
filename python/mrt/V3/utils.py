@@ -166,16 +166,10 @@ def get_cfg_defaults():
     # This is for the "local variable" use pattern
     return MRT_CFG.clone()
 
-def override_cfg_argparse(cfg, args):
-    if cfg.is_frozen():
-        cfg.defrost()
-    for dest in dir(args):
-        if dest not in dest2yaml:
-            continue
-        pname, attr = dest2yaml[dest]
-        cnode = getattr(cfg, pname)
-        argv = getattr(args, dest)
-        if argv is not None:
-            setattr(cnode, attr, argv)
+def merge_cfg(yaml_file):
+    if yaml_file.startswith("~"):
+        yaml_file = path.expanduser(yaml_file)
+    cfg = get_cfg_defaults()
+    cfg.merge_from_file(yaml_file)
     cfg.freeze()
     return cfg

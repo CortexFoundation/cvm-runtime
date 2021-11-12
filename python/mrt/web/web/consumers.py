@@ -1,5 +1,11 @@
 import json
+import os
 from channels.generic.websocket import WebsocketConsumer
+
+from .log import get_logger
+from .streamer import Streamer, printer
+from mrt.V3.utils import merge_cfg
+from mrt.V3.execute import run
 
 class ChatConsumer(WebsocketConsumer):
     def connect(self):
@@ -10,5 +16,10 @@ class ChatConsumer(WebsocketConsumer):
 
     def receive(self, text_data):
         text_data_json = json.loads(text_data)
-        message = text_data_json['message']
-        self.send(text_data=json.dumps({'message': message}))
+        yaml_file = text_data_json['yaml_file']
+        cfg = merge_cfg(yaml_file)
+        pass_name = text_data_json['pass_name']
+        logger = get_logger(cm_cfg.VERBOSITY, printer)
+        my_streamer = Streamer(run, (cfg, pass_name, logger))
+        for message in my_streamer.start():
+            self.send(text_data=json.dumps({'message': message}))

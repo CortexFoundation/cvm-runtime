@@ -1,68 +1,30 @@
-import sys
 from os import path
 
-from mrt.V3.utils import get_cfg_defaults, override_cfg_argparse, parser
-from mrt.V3.prepare import prepare
-from mrt.V3.calibrate import calibrate
-from mrt.V3.quantize import quantize
-from mrt.V3.evaluate import evaluate
-from mrt.V3.mrt_compile import mrt_compile
-
-thismodule = sys.modules[__name__]
-
-def yaml_main(cfg):
-    if cfg.is_frozen():
-        cfg.defrost()
-    for prefix in ["BATCH", "DEVICE_TYPE", "DEVICE_IDS"]:
-        for subcfg in [cfg.PREPARE, cfg.CALIBRATE, cfg.QUANTIZE,
-            cfg.EVALUATE, cfg.COMPILE]:
-            for attr in dir(subcfg):
-                if attr == prefix and getattr(subcfg, prefix) is None:
-                    setattr(subcfg, prefix, getattr(cfg.COMMON, prefix))
-    if not cfg.is_frozen():
-        cfg.freeze()
-    start_pos = 0
-    start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
-    if cfg.COMMON.START_AFTER in start_pos_map:
-        start_pos = start_pos_map[cfg.COMMON.START_AFTER]
-    if start_pos < 1:
-        prepare(cfg.COMMON, cfg.PREPARE)
-    if start_pos < 2:
-        calibrate(cfg.COMMON, cfg.CALIBRATE)
-    if start_pos < 3:
-        quantize(cfg.COMMON, cfg.QUANTIZE)
-    if cfg.COMMON.RUN_EVALUATE:
-        evaluate(cfg.COMMON, cfg.EVALUATE)
-    if cfg.COMMON.RUN_COMPILE:
-        mrt_compile(cfg.COMMON, cfg.COMPILE)
+from mrt.V3.utils import get_cfg_defaults, parser
+from mrt.V3.execute import run
 
 parser.add_argument("yaml_file", type=str)
 parser.add_argument(
-    "--entry-name", type=str, choices=[
-        "prepare", "calibrate", "quantize", "evalueate", "compile"])
+    "--pass-name", type=str, default="all", choices=[
+        "all", "prepare", "calibrate", "quantize", "evaluate", "compile"])
+
+def override_cfg_argparse(cfg, args):
+    if cfg.is_frozen():
+        cfg.defrost()
+    for dest in dir(args):
+        if dest not in dest2yaml:
+            continue
+        pname, attr = dest2yaml[dest]
+        cnode = getattr(cfg, pname)
+        argv = getattr(args, dest)
+        if argv is not None:
+            setattr(cnode, attr, argv)
+    cfg.freeze()
+    return cfg
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    yaml_file = args.yaml_file
-    if yaml_file.startswith("~"):
-        yaml_file = path.expanduser(yaml_file)
-    cfg = get_cfg_defaults()
-    cfg.merge_from_file(yaml_file)
-    cfg.freeze()
+    cfg = merge_cfg(yaml_file)
     cfg = override_cfg_argparse(cfg, args)
-    entry_name = args.entry_name
-    if entry_name is not None:
-        if entry_name == "compile":
-            entry_name = "mrt_compile"
-        if not hasattr(thismodule, entry_name):
-            raise RuntimeError("invalid entry_name: {}".format(entry_name))
-        yaml_func = getattr(thismodule, entry_name)
-        cm_cfg = cfg.COMMON
-        if entry_name == "mrt_compile":
-            cfg_name = "COMPILE"
-        else:
-            cfg_name = entry_name.upper()
-        pass_cfg = getattr(cfg, cfg_name)
-        yaml_func(cm_cfg, pass_cfg)
-    else:
-        yaml_main(cfg)
+    pass_name = args.pass_name
+    run(cfg, pass_name)
