@@ -57,4 +57,4 @@ docs/doctrees
 docs/doxygen_output
 
 # django
-python/mrt/frontend/db.sqlite3
+python/mrt/web/db.sqlite3

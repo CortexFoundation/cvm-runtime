@@ -48,7 +48,7 @@ update_dest2yaml({
         "--oscale-maps", type=tuple, default=[]).dest: (_pname, "OSCALE_MAPS"),
 })
 
-def quantize(cm_cfg, pass_cfg):
+def quantize(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -65,7 +65,8 @@ def quantize(cm_cfg, pass_cfg):
     oscale_maps = {opn1: opn2 for opn1, opn2 in pass_cfg.OSCALE_MAPS}
 
     model_prefix = get_model_prefix(model_dir, model_name)
-    logger = get_logger(verbosity)
+    if logger is None:
+        logger = get_logger(verbosity)
     conf_calib_file = model_prefix + ".calibrate.conf"
     check_file_existance(conf_calib_file, logger=logger)
     conf_map = load_conf(conf_calib_file, logger=logger)

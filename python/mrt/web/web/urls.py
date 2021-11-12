@@ -22,4 +22,5 @@ urlpatterns = [
     path('calibrate/', views.mrt_calibrate_log),
     path('quantize/', views.mrt_quantize_log),
     path('evaluate/', views.mrt_evaluate_log),
+    path('compile/', views.mrt_compile_log),
 ]

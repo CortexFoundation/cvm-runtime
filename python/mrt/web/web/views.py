@@ -12,7 +12,7 @@ from mrt.V3.prepare import prepare
 from mrt.V3.calibrate import calibrate
 from mrt.V3.quantize import quantize
 from mrt.V3.evaluate import evaluate
-# from mrt.V3.mrt_compile import mrt_compile
+from mrt.V3.mrt_compile import mrt_compile
 from .log import get_logger
 
 class Printer:
@@ -55,7 +55,7 @@ class Streamer:
                 yield f'{item}<br>'
             except Empty:
                 pass
-        yield 'End'
+        yield '<br>***End***<br>'
         printer.clean(self.thread)
 
 mrt_web_tmp_dir = os.path.expanduser("~/.mrt_web")
@@ -95,4 +95,11 @@ def mrt_evaluate_log(request):
     cm_cfg, pass_cfg = get_cfg(yaml_file, "EVALUATE")
     logger = get_logger(cm_cfg.VERBOSITY, printer)
     streamer = Streamer(evaluate, (cm_cfg, pass_cfg, logger))
+    return StreamingHttpResponse(streamer.start())
+
+def mrt_compile_log(request):
+    yaml_file = os.path.expanduser("~/mrt_yaml_root/alexnet.yaml")
+    cm_cfg, pass_cfg = get_cfg(yaml_file, "COMPILE")
+    logger = get_logger(cm_cfg.VERBOSITY, printer)
+    streamer = Streamer(mrt_compile, (cm_cfg, pass_cfg, logger))
     return StreamingHttpResponse(streamer.start())
