@@ -42,7 +42,7 @@ update_dest2yaml({
         default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
 })
 
-def calibrate(cm_cfg, pass_cfg):
+def calibrate(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -55,7 +55,8 @@ def calibrate(cm_cfg, pass_cfg):
     batch=pass_cfg.BATCH
 
     model_prefix = get_model_prefix(model_dir, model_name)
-    logger = get_logger(verbosity)
+    if logger is None:
+        logger = get_logger(verbosity)
     conf_prep_file = model_prefix + ".prepare.conf"
     check_file_existance(conf_prep_file, logger=logger)
     conf_map = load_conf(conf_prep_file, logger=logger)

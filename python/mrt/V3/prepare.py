@@ -32,8 +32,7 @@ update_dest2yaml({
         default=[]).dest: (_pname, "SPLIT_KEYS"),
 })
 
-def prepare(cm_cfg, pass_cfg):
-    print("hihihisss")
+def prepare(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -43,7 +42,8 @@ def prepare(cm_cfg, pass_cfg):
     split_keys = pass_cfg.SPLIT_KEYS
 
     model_prefix = get_model_prefix(model_dir, model_name)
-    logger = get_logger(verbosity)
+    if logger is None:
+        logger = get_logger(verbosity)
     conf_prep_file = model_prefix + ".prepare.conf"
     conf_map = {}
 
