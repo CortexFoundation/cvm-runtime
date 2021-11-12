@@ -1,6 +1,7 @@
 from os import path
 
-from mrt.V3.utils import get_cfg_defaults, parser
+from mrt.V3.utils import (
+    get_cfg_defaults, parser, merge_cfg, dest2yaml)
 from mrt.V3.execute import run
 
 parser.add_argument("yaml_file", type=str)
@@ -24,6 +25,7 @@ def override_cfg_argparse(cfg, args):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    yaml_file = args.yaml_file
     cfg = merge_cfg(yaml_file)
     cfg = override_cfg_argparse(cfg, args)
     pass_name = args.pass_name

@@ -19,7 +19,7 @@ class ChatConsumer(WebsocketConsumer):
         yaml_file = text_data_json['yaml_file']
         cfg = merge_cfg(yaml_file)
         pass_name = text_data_json['pass_name']
-        logger = get_logger(cm_cfg.VERBOSITY, printer)
+        logger = get_logger(cfg.COMMON.VERBOSITY, printer)
         my_streamer = Streamer(run, (cfg, pass_name, logger))
         for message in my_streamer.start():
             self.send(text_data=json.dumps({'message': message}))

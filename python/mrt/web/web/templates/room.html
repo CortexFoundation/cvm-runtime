@@ -6,9 +6,8 @@
     <title>Chat Room</title>
 </head>
 <body>
-    <textarea id="log-console" cols="200" rows="30"></textarea>
-    <br>
-    <input id="pass-name-input" type="text" size="100">
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
+    <input id="chat-message-input" type="text" size="100">
     <select>
       <option>all</option>
       <option>prepare</option>
@@ -18,7 +17,7 @@
       <option>compile</option>
     </select>
     <br>
-    <input id="yaml-file-submit" type="button" value="Submit">
+    <input id="chat-message-submit" type="button" value="Send">
     {{ room_name|json_script:"room-name" }}
     <script>
         const roomName = JSON.parse(document.getElementById('room-name').textContent);
@@ -33,30 +32,28 @@
 
         chatSocket.onmessage = function(e) {
             const data = JSON.parse(e.data);
-            document.querySelector('#log-console').value += (data.message + '\n');
+            document.querySelector('#chat-log').value += (data.message + '\n');
         };
 
         chatSocket.onclose = function(e) {
             console.error('Chat socket closed unexpectedly');
         };
 
-        document.querySelector('#yaml-file-input').focus();
-        document.querySelector('#yaml-file-input').onkeyup = function(e) {
+        document.querySelector('#chat-message-input').focus();
+        document.querySelector('#chat-message-input').onkeyup = function(e) {
             if (e.keyCode === 13) {  // enter, return
-                document.querySelector('#yaml-file-submit').click();
+                document.querySelector('#chat-message-submit').click();
             }
         };
 
-        document.querySelector('#yaml-file-submit').onclick = function(e) {
-            const yamlFileInputDom = document.querySelector('#yaml-file-input');
-            const passNameInputDom = document.querySelector('#pass-name-input');
-            const yaml_file = yamlFileInputDom.value;
-            const pass_name = passNameInputDom.value;
+        document.querySelector('#chat-message-submit').onclick = function(e) {
+            const messageInputDom = document.querySelector('#chat-message-input');
+            const message = messageInputDom.value;
             chatSocket.send(JSON.stringify({
-                'yaml_file': yaml_file
-                'pass_name': pass_name
+                'yaml_file': message,
+                'pass_name': 'prepare'
             }));
-            <!-- messageInputDom.value = ''; -->
+            messageInputDom.value = '';
         };
     </script>
 </body>
