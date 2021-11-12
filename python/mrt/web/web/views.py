@@ -6,6 +6,7 @@ import os
 import logging
 
 from django.http.response import StreamingHttpResponse
+from django.shortcuts import render
 
 from mrt.V3.utils import get_cfg_defaults
 from mrt.V3.prepare import prepare
@@ -103,3 +104,6 @@ def mrt_compile_log(request):
     logger = get_logger(cm_cfg.VERBOSITY, printer)
     streamer = Streamer(mrt_compile, (cm_cfg, pass_cfg, logger))
     return StreamingHttpResponse(streamer.start())
+
+def room(request, room_name):
+    return render(request, "room.html", {"room_name": room_name})
