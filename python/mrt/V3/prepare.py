@@ -4,9 +4,8 @@ from yacs.config import CfgNode as CN
 from mrt.gluon_zoo import save_model
 from mrt.transformer import Model
 from mrt.V3.utils import (
-    MRT_CFG, default_device_type, default_device_ids,
-    get_model_prefix, get_logger, set_batch, load_fname, save_conf,
-    get_ctx, parser, update_dest2yaml)
+    MRT_CFG, default_device_type, default_device_ids, get_model_prefix,
+    get_logger, set_batch, load_fname, save_conf, get_ctx)
 
 default_input_shape = [-1, 3, 224, 224]
 
@@ -15,22 +14,6 @@ MRT_CFG.PREPARE.DEVICE_TYPE = default_device_type
 MRT_CFG.PREPARE.DEVICE_IDS = default_device_ids
 MRT_CFG.PREPARE.INPUT_SHAPE = default_input_shape
 MRT_CFG.PREPARE.SPLIT_KEYS = []
-
-_pname = "PREPARE"
-update_dest2yaml({
-    parser.add_argument(
-        "--device-type-prepare", type=str, choices=["cpu", "gpu"],
-        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
-    parser.add_argument(
-        "--device-ids-prepare", type=int, nargs="+",
-        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
-    parser.add_argument(
-        "--input-shape", type=int, nargs="+",
-        default=default_input_shape).dest: (_pname, "INPUT_SHAPE"),
-    parser.add_argument(
-        "--split-keys", type=str, nargs="+",
-        default=[]).dest: (_pname, "SPLIT_KEYS"),
-})
 
 def prepare(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR

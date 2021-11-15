@@ -34,7 +34,8 @@ def yaml_main(cfg, logger=None):
     if cfg.COMMON.RUN_COMPILE:
         mrt_compile(cfg.COMMON, cfg.COMPILE, logger=logger)
 
-def run(cfg, pass_name, logger=None):
+def run(cfg, logger=None):
+    pass_name = cfg.COMMON.PASS_NAME
     if pass_name is not None:
         if pass_name == "compile":
             pass_name = "mrt_compile"

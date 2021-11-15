@@ -44,8 +44,11 @@ EVALUATE:
 
 run command
 
-```python
-python main2.py ~/mrt_yaml_root/alexnet.yaml
+```bash
+python main2.py ~/mrt_yaml_root/alexnet.yaml \
+	--calibrate.device_type cpu \
+	--calibrate.device_ids [0] \
+	--common.pass_name calibrate
 ```
 
 or run either of the following commands for each pass.

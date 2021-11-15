@@ -2,7 +2,6 @@ from os import path
 import logging
 import json
 from yacs.config import CfgNode as CN
-import argparse
 
 import mxnet as mx
 
@@ -20,6 +19,7 @@ default_ctx = mx.cpu()
 
 MRT_CFG = CN()
 MRT_CFG.COMMON = CN()
+MRT_CFG.COMMON.PASS_NAME = None
 MRT_CFG.COMMON.MODEL_DIR = conf.MRT_MODEL_ROOT
 MRT_CFG.COMMON.MODEL_NAME = None
 MRT_CFG.COMMON.VERBOSITY = "debug"
@@ -29,29 +29,6 @@ MRT_CFG.COMMON.DEVICE_IDS = default_device_ids
 MRT_CFG.COMMON.BATCH = default_batch
 MRT_CFG.COMMON.RUN_EVALUATE = True
 MRT_CFG.COMMON.RUN_COMPILE = True
-
-parser = argparse.ArgumentParser("MRT YAML Interface")
-_pname = "COMMON"
-# TODO: update with yaml
-dest2yaml = {
-    parser.add_argument(
-        "--model-dir", type=str,
-        default=conf.MRT_MODEL_ROOT).dest: (_pname, "MODEL_DIR"),
-    parser.add_argument(
-        "--model-name", type=str).dest: (_pname, "MODEL_NAME"),
-    parser.add_argument(
-        "--verobosity", type=str, default="debug").dest: (_pname, "VERBOSITY"),
-    parser.add_argument(
-        "--start-after", type=str, default=None).dest: (_pname, "START_AFTER"),
-    parser.add_argument(
-        "--device-type", type=str,
-        default=default_device_type).dest: (_pname, "DEVICE_TYPE"),
-    parser.add_argument(
-        "--device-ids", type=int,
-        default=default_device_ids).dest: (_pname, "DEVICE_IDS"),
-    parser.add_argument(
-        "--batch", type=int, default=default_batch).dest: (_pname, "BATCH"),
-}
 
 def update_dest2yaml(dest2yaml_upt):
     for dest, cfg in dest2yaml_upt.items():
