@@ -11,6 +11,21 @@ evoke passes by `mrt_entry.py`
 
 Currently supported configuration format by MRT: `yaml`, `argparse`, `ini`(not integrated into mrt_entry.py yet)
 
+# Web Configuration
+
+```bash
+# launch http server
+cd /path/to/cvm-runtime/python/mrt/web
+python manage.py runserver
+```
+
+```http
+# open in browser
+http://127.0.0.1:8000/test
+```
+
+
+
 # YAML Configuration Examples
 
 ## alexnet
