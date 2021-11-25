@@ -20,9 +20,13 @@ def yaml_main(cfg, logger=None):
     if not cfg.is_frozen():
         cfg.freeze()
     start_pos = 0
-    start_pos_map = {'prepare': 1, 'calibrate': 2, 'quantize': 3}
-    if cfg.COMMON.START_AFTER in start_pos_map:
-        start_pos = start_pos_map[cfg.COMMON.START_AFTER]
+    start_pos_map = {
+        'initial': 0, 'prepare': 1, 'calibrate': 2, 'quantize': 3}
+    start_after = cfg.COMMON.START_AFTER
+    assert start_after in start_pos_map, \
+        "start_after: {}, start_pos_map: {}".format(
+            start_after, start_pos_map)
+    start_pos = start_pos_map[start_after]
     if start_pos < 1:
         prepare(cfg.COMMON, cfg.PREPARE, logger=logger)
     if start_pos < 2:
@@ -36,7 +40,9 @@ def yaml_main(cfg, logger=None):
 
 def run(cfg, logger=None):
     pass_name = cfg.COMMON.PASS_NAME
-    if pass_name is not None:
+    if pass_name == "all":
+        yaml_main(cfg, logger=logger)
+    else:
         if pass_name == "compile":
             pass_name = "mrt_compile"
         if not hasattr(thismodule, pass_name):
@@ -49,5 +55,3 @@ def run(cfg, logger=None):
             cfg_name = pass_name.upper()
         pass_cfg = getattr(cfg, cfg_name)
         yaml_func(cm_cfg, pass_cfg, logger=logger)
-    else:
-        yaml_main(cfg, logger=logger)

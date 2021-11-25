@@ -10,7 +10,6 @@ from mrt.common import log
 from mrt.utils import extend_fname
 
 # TODO: jiazhen branch code design
-# TODO main jungle server  # python server, flask
 
 default_device_type = "cpu"
 default_device_ids = [0]
@@ -19,11 +18,11 @@ default_ctx = mx.cpu()
 
 MRT_CFG = CN()
 MRT_CFG.COMMON = CN()
-MRT_CFG.COMMON.PASS_NAME = None
+MRT_CFG.COMMON.PASS_NAME = "all"
 MRT_CFG.COMMON.MODEL_DIR = conf.MRT_MODEL_ROOT
 MRT_CFG.COMMON.MODEL_NAME = None
 MRT_CFG.COMMON.VERBOSITY = "debug"
-MRT_CFG.COMMON.START_AFTER = None
+MRT_CFG.COMMON.START_AFTER = "initial"
 MRT_CFG.COMMON.DEVICE_TYPE = default_device_type
 MRT_CFG.COMMON.DEVICE_IDS = default_device_ids
 MRT_CFG.COMMON.BATCH = default_batch
@@ -151,3 +150,10 @@ def merge_cfg(yaml_file):
     cfg.merge_from_file(yaml_file)
     cfg.freeze()
     return cfg
+
+def revise_cfg(cfg, stage, attr, value):
+    if cfg.is_frozen():
+        cfg.defrost()
+    subcfg = getattr(cfg, stage)
+    setattr(subcfg, attr, value)
+    cfg.freeze()
