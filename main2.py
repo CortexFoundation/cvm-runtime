@@ -22,7 +22,7 @@ def override_cfg_args(cfg, argv):
 
 if __name__ == "__main__":
     assert len(sys.argv) >= 2 and len(sys.argv)%2 == 0, \
-        "invalid length: {} of sys.argv: {}".format(length, sys.argv)
+        "invalid length: {} of sys.argv: {}".format(len(sys.argv), sys.argv)
     yaml_file = sys.argv[1]
     cfg = get_cfg_defaults()
     cfg = merge_cfg(yaml_file)
