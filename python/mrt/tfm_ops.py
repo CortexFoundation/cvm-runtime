@@ -1893,6 +1893,7 @@ class ElemwiseSub(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
+@register_pass("prepare_for_compile")
 @register_pass("rewrite")
 @register_transformer("elemwise_mul")
 class ElemwiseMul(Transformer):
@@ -1901,17 +1902,16 @@ class ElemwiseMul(Transformer):
 
     def quantize(self, op, **kwargs):
         precs, scales = kwargs['precs'], kwargs['scales']
-        name, op_name = op.attr('name'), kwargs['op_name']
+        name, op_name = op.attr('name'), op.attr('op_name')
         childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
 
         oprec = kwargs['op_input_precs'][op_name]
         X, xprec, xs = requant(childs[0], oprec, oname=name, **kwargs)
-        W, wprec, ws = requant_parameter(
-            cns[1], oprec, oname=name, **kwargs)
+        W, wprec, ws = requant(childs[1], oprec, oname=name, **kwargs)
         scales[name] = ws * xs
-        op = get_mxnet_op(op_name)(X, W, B, **attr, name=name)
+        op = get_mxnet_op(op_name)(X, W, **attr, name=name)
 
-        shp = kwargs['params'][childs[1].attr('name')].shape
         infer_prec = xprec + wprec
         kwargs['precs'][name][OUT_KEY] = infer_prec
 

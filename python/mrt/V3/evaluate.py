@@ -92,6 +92,13 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         'data': set_batch(input_shape, split_batch)})
     qgraph = rqmodel.to_graph(ctx=ctx)
     qmetric = dataset.metrics()
+    try:
+        data, _ = dataset.iter_func()()
+        data = sim.load_real_data(data, 'data', inputs_ext)
+        outs = forward(qgraph, data, ctx)
+        logger.debug("shape of outs: {}".format([o.shape for o in outs]))
+    except:
+        raise RuntimeError("Quantized Graph could not forward")
 
     def quantize(data, label):
         data = sim.load_real_data(data, 'data', inputs_ext)
