@@ -12,7 +12,7 @@ def override_cfg_args(cfg, argv):
         attr, value = argv[i:i+2]
         try:
             value = eval(value)
-        except NameError:
+        except:
             pass
         pass_name, pass_attr = [s.upper() for s in attr[2:].split(".")]
         cnode = getattr(cfg, pass_name)

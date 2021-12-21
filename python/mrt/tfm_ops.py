@@ -229,18 +229,25 @@ class Activation(Transformer):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().fuse_transpose(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            op = Sigmoid().fuse_transpose(op, **kwargs)
         return op
 
     def rewrite(self, op, **kwargs):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().rewrite(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            childs = sym_iter(op.get_children())
+            op = mx.sym.sigmoid(childs[0])
         return op
 
     def calculate_ops(self, op, **kwargs):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().calculate_ops(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            op = Sigmoid().calculate_ops(op, **kwargs)
         return op
 
     def prepare_for_compile(self, op, **kwargs):
@@ -252,12 +259,13 @@ class Activation(Transformer):
     def compile(self, op, **kwargs):
         attrs = kwargs['attr']
         act_type = attrs['act_type']
+
+        nkwargs = {k: v for k, v in kwargs.items() if k != 'attr'}
+        nattrs = {k: v for k, v in attrs.items() if k != 'act_type'}
+        nkwargs['attr'] = nattrs
         if act_type == Relu.op_name:
-            nkwargs = {k: v for k, v in kwargs.items() if k != 'attr'}
-            nattrs = {k: v for k, v in attrs.items() if k != 'act_type'}
-            nkwargs['attr'] = nattrs
-            sym = Relu().compile(op, **nkwargs)
-        return sym
+            op = Relu().compile(op, **nkwargs)
+        return op
 
 
 @register_pass("fuse_transpose")
@@ -1893,6 +1901,7 @@ class ElemwiseSub(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
+@register_pass("compile")
 @register_pass("prepare_for_compile")
 @register_pass("rewrite")
 @register_transformer("elemwise_mul")
