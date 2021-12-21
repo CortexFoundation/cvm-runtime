@@ -260,10 +260,10 @@ class Activation(Transformer):
         attrs = kwargs['attr']
         act_type = attrs['act_type']
 
-        nkwargs = {k: v for k, v in kwargs.items() if k != 'attr'}
-        nattrs = {k: v for k, v in attrs.items() if k != 'act_type'}
-        nkwargs['attr'] = nattrs
         if act_type == Relu.op_name:
+            nkwargs = {k: v for k, v in kwargs.items() if k != 'attr'}
+            nattrs = {k: v for k, v in attrs.items() if k != 'act_type'}
+            nkwargs['attr'] = nattrs
             op = Relu().compile(op, **nkwargs)
         return op
 
