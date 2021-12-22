@@ -7,7 +7,7 @@ from copy import deepcopy
 import mxnet as mx
 from mxnet import ndarray as nd
 
-from mrt.sym_utils import sym_iter
+from mrt.sym_utils import topo_visit_transformer, sym_iter
 from mrt import utils
 from mrt.tfm_base import N
 from mrt.conf import MRT_MODEL_ROOT
@@ -15,13 +15,12 @@ from mrt.V3.utils import load_fname
 
 utils.log_init()
 parser = argparse.ArgumentParser()
-parser.add_argument("model_name", type=str)
-parser.add_argument("--model-dir", type=str, default=MRT_MODEL_ROOT)
-parser.add_argument("--unify", action="store_true")
+parser.add_argument("--model-name", type=str, default="yolov5s")
+parser.add_argument(
+    "--model-dir", type=str, default=MRT_MODEL_ROOT)
 
 @N.register_nm("unify")
-def check_duplicate_name(
-    sym, params, unify=False, logger=logging.getLogger("unify")):
+def unify(sym, params, logger=logging.getLogger("unify")):
 
     # check symbol
     sym_json_str = sym.tojson()
@@ -34,20 +33,17 @@ def check_duplicate_name(
         name = node["name"]
         if name in name_cnts:
             cur_cnt = name_cnts[name] = N.n(name)
-            logger.warning("duplicate name: {}".format(name))
-            if unify:
-                nnode = deepcopy(node)
-                nnode["name"] = "{}_{}".format(name, cur_cnt)
-                nnodes.append(nnode)
+            logger.info("duplicate name: {}".format(name))
+            nnode = deepcopy(node)
+            nnode["name"] = "{}_{}".format(name, cur_cnt)
+            nnodes.append(nnode)
         else:
             name_cnts[name] = 1
-            if unify:
-                nnodes.append(node)
+            nnodes.append(node)
 
-    if unify:
-        sym_json_dict["nodes"] = nnodes
-        sym_json_str = json.dumps(sym_json_dict)
-        sym = mx.sym.load_json(sym_json_str)
+    sym_json_dict["nodes"] = nnodes
+    sym_json_str = json.dumps(sym_json_dict)
+    sym = mx.sym.load_json(sym_json_str)
 
     # check params
     param_keys = {}
@@ -63,6 +59,21 @@ def check_duplicate_name(
 
     return sym, params
 
+@N.register_nm("broadcastify")
+def broadcastify(sym, params, logger=logging.getLogger("broadcastify")):
+    def callback(op, **kwargs):
+        name, op_name = op.attr("name"), op.attr("op_name")
+        if op_name != "elemwise_mul":
+            return op
+        childs = sym_iter(op.get_children())
+        lhs, rhs = childs
+        op = mx.sym.broadcast_mul(lhs, rhs)
+        logger.info("op: {} has been broadcastified".format(name))
+        return op
+
+    return topo_visit_transformer(
+        sym, params, callback, logger=logger)
+
 if __name__ == "__main__":
     args = parser.parse_args()
 
@@ -72,14 +83,14 @@ if __name__ == "__main__":
         model_dir = path.expanduser(model_dir)
     prefix = path.join(model_dir, model_name)
     sym_file, prm_file = load_fname(prefix)
-
     sym = mx.sym.load(sym_file)
     params = nd.load(prm_file)
 
-    sym, params = check_duplicate_name(sym, params, unify=args.unify)
+    sym, params = unify(sym, params)
+    sym, params = broadcastify(sym, params)
+
     sym_json_str = sym.tojson()
-    nsym_file = "{}.unify.json".format(path.join(model_dir, model_name))
-    nsym_file, nprm_file = load_fname(prefix, suffix="unify")
+    nsym_file, nprm_file = load_fname(prefix, suffix="unify.broadcastify")
     with open(nsym_file, "w") as f:
         f.write(sym_json_str)
     nd.save(nprm_file, params)
