@@ -1,5 +1,6 @@
 COMMON:
-  MODEL_NAME: yolov5s.unify.broadcastify
+  MODEL_NAME: yolov5s.preprocess.unify.broadcastify
+  # MODEL_NAME: yolov5s.preprocess.unify
   VERBOSITY: info
   RUN_EVALUATE: True
 PREPARE:
@@ -20,3 +21,6 @@ EVALUATE:
   DEVICE_TYPE: gpu
   DEVICE_IDS: [0]
   ITER_NUM: 10
+COMPILE:
+  # in this model, the BATCH should be set as 16
+  BATCH: 16

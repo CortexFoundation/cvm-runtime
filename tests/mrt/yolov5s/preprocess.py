@@ -18,6 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--model-name", type=str, default="yolov5s")
 parser.add_argument(
     "--model-dir", type=str, default=MRT_MODEL_ROOT)
+parser.add_argument("--no-unify", action="store_true")
+parser.add_argument("--no-broadcastify", action="store_true")
 
 @N.register_nm("unify")
 def unify(sym, params, logger=logging.getLogger("unify")):
@@ -67,7 +69,7 @@ def broadcastify(sym, params, logger=logging.getLogger("broadcastify")):
             return op
         childs = sym_iter(op.get_children())
         lhs, rhs = childs
-        op = mx.sym.broadcast_mul(lhs, rhs)
+        op = mx.sym.broadcast_mul(lhs, rhs, name=name)
         logger.info("op: {} has been broadcastified".format(name))
         return op
 
@@ -86,11 +88,17 @@ if __name__ == "__main__":
     sym = mx.sym.load(sym_file)
     params = nd.load(prm_file)
 
-    sym, params = unify(sym, params)
-    sym, params = broadcastify(sym, params)
+    suffixes = ["preprocess"]
+    if not args.no_unify:
+        suffixes.append("unify")
+        sym, params = unify(sym, params)
+    if not args.no_broadcastify:
+        suffixes.append("broadcastify")
+        sym, params = broadcastify(sym, params)
+    suffix = ".".join(suffixes)
 
     sym_json_str = sym.tojson()
-    nsym_file, nprm_file = load_fname(prefix, suffix="unify.broadcastify")
+    nsym_file, nprm_file = load_fname(prefix, suffix=suffix)
     with open(nsym_file, "w") as f:
         f.write(sym_json_str)
     nd.save(nprm_file, params)
