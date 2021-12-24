@@ -1,0 +1,144 @@
+<!-- chat/templates/chat/room.html -->
+<!DOCTYPE html>
+{% load static %}
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Chat Room</title>
+</head>
+<body>
+    <em>Destination Host Address</em><input id="host-locator" type="text" size="100"><br>
+
+    <br>
+
+    <textarea id="chat-log" cols="100" rows="20"></textarea><br>
+
+    <br>
+
+    <div class="MRT Execution">
+      <select id="mrt-stage-selector">
+        <option>all</option>
+        <option>prepare</option>
+        <option>calibrate</option>
+        <option>quantize</option>
+        <option>evaluate</option>
+        <option>compile</option>
+      </select>
+      <input id="mrt-executor" type="button" value="Execute MRT"><br>
+    </div>
+
+    <br>
+
+    <div class="Model Submission">
+      <em>Local Symbol File Path</em><input id="symbol-locator" type="text" size="100"><br>
+      <em>Local Params File Path</em><input id="params-locator" type="text" size="100"><br>
+      <input id="model-submitter" type="button" value="Submit Model"><br>
+    </div>
+
+    <br>
+
+    <div class="YAML Editor">
+      <em>Local YAML File Path</em><input id="yaml-file-locator" type="text" size="60">
+      <input id="yaml-loader" type="button" value="Load YAML File">
+      <input id="yaml-resetter" type="button" value="Reset Default">
+      <input id="yaml-clearer" type="button" value="Clear"><br>
+    </div>
+
+    <br>
+
+    <p>YAML Configuration Zone</p>
+
+
+    <div class="COMMON">
+      <p>COMMON</p>
+      <em>PASS_NAME</em><input id="COMMON_PASS_NAME" type="text" size="10"><br>
+      <em>MODEL_DIR</em><input id="COMMON_MODEL_DIR" type="text" size="50"><br>
+      <em>MODEL_NAME</em><input id="COMMON_MODEL_NAME" type="text" size="10"><br>
+      <em>VERBOSITY</em><input id="COMMON_VERBOSITY" type="text" size="10"><br>
+      <em>START_AFTER</em><input id="COMMON_START_AFTER" type="text" size="10"><br>
+      <em>DEVICE_TYPE</em><input id="COMMON_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="COMMON_DEVICE_IDS" type="text" size="20"><br>
+      <em>BATCH</em><input id="COMMON_BATCH" type="text" size="10"><br>
+      <em>RUN_EVALUATE</em><input id="COMMON_RUN_EVALUATE" type="text" size="10"><br>
+      <em>RUN_COMPILE</em><input id="COMMON_RUN_COMPILE" type="text" size="10"><br>
+    </div>
+
+
+    <br>
+
+
+    <div class="PREPARE">
+      <p>PREPARE</p>
+      <em>DEVICE_TYPE</em><input id="PREPARE_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="PREPARE_DEVICE_IDS" type="text" size="20"><br>
+      <em>INPUT_SHAPE</em><input id="PREPARE_INPUT_SHAPE" type="text" size="20"><br>
+      <em>SPLIT_KEYS</em><input id="PREPARE_SPLIT_KEYS" type="text" size="100"><br>
+    </div>
+
+
+    <br>
+
+
+    <div class="CALIBRATE">
+      <p>CALIBRATE</p>
+      <em>BATCH</em><input id="CALIBRATE_BATCH" type="text" size="10"><br>
+      <em>NUM_CALIB</em><input id="CALIBRATE_NUM_CALIB" type="text" size="10"><br>
+      <em>LAMBD</em><input id="CALIBRATE_LAMBD" type="text" size="10"><br>
+      <em>DATASET_NAME</em><input id="CALIBRATE_DATASET_NAME" type="text" size="10"><br>
+      <em>DATASET_DIR</em><input id="CALIBRATE_DATASET_DIR" type="text" size="100"><br>
+      <em>DEVICE_TYPE</em><input id="CALIBRATE_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="CALIBRATE_DEVICE_IDS" type="text" size="20"><br>
+    </div>
+
+
+    <br>
+
+
+    <div class="QUANTIZE">
+      <p>QUANTIZATE</p>
+      <em>RESTORE_NAMES</em><input id="QUANTIZE_RESTORE_NAMES" type="text" size="100"><br>
+      <em>INPUT_PRECISION</em><input id="QUANTIZE_INPUT_PRECISION" type="text" size="10"><br>
+      <em>OUTPUT_PRECISION</em><input id="QUANTIZE_OUTPUT_PRECISION" type="text" size="10"><br>
+      <em>DEVICE_TYPE</em><input id="QUANTIZE_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="QUANTIZE_DEVICE_IDS" type="text" size="20"><br>
+      <em>SOFTMAX_LAMBD</em><input id="QUANTIZE_SOFTMAX_LAMBD" type="text" size="10"><br>
+      <em>SHIFT_BITS</em><input id="QUANTIZE_SHIFT_BITS" type="text" size="10"><br>
+      <em>THRESHOLDS</em><input id="QUANTIZE_THRESHOLDS" type="text" size="10"><br>
+      <em>ATTRIBUTE_DEPS</em><input id="QUANTIZE_ATTRIBUTE_DEPS" type="text" size="10"><br>
+      <em>OSCALE_MAPS</em><input id="QUANTIZE_OSCALE_MAPS" type="text" size="10"><br>
+    </div>
+
+
+    <br>
+
+
+    <div class="EVALUATE">
+      <p>EVALUATE</p>
+      <em>BATCH</em><input id="EVALUATE_BATCH" type="text" size="10"><br>
+      <em>DEVICE_TYPE</em><input id="EVALUATE_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="EVALUATE_DEVICE_IDS" type="text" size="20"><br>
+      <em>ITER_NUM</em><input id="EVALUATE_ITER_NUM" type="text" size="10"><br>
+    </div>
+
+
+    <br>
+
+
+    <div class="COMPILE">
+      <p>COMPLIE</p>
+      <em>BATCH</em><input id="COMPILE_BATCH" type="text" size="10"><br>
+      <em>DUMP_DIR</em><input id="COMPILE_DUMP_DIR" type="text" size="100"><br>
+      <em>DEVICE_TYPE</em><input id="COMPILE_DEVICE_TYPE" type="text" size="10"><br>
+      <em>DEVICE_IDS</em><input id="COMPILE_DEVICE_IDS" type="text" size="20"><br>
+    </div>
+
+    {{ room_name|json_script:"room-name" }}
+    <script type="module" defer src="{% static 'utils.js' %}"></script>
+    <script type="module" defer src="{% static 'init.js' %}"></script>
+    <script type="module" defer src="{% static 'yaml_clearer.js' %}"></script>
+    <script type="module" defer src="{% static 'mrt_executor.js' %}"></script>
+    <script type="module" defer src="{% static 'model_submitter.js' %}"></script>
+    <script type="module" defer src="{% static 'yaml_file_loader.js' %}"></script>
+    <script type="module" defer src="{% static 'model_submitter.js' %}"></script>
+</body>
+</html>
