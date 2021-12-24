@@ -18,23 +18,8 @@
 #ifndef CVM_RUNTIME_C_RUNTIME_API_H_
 #define CVM_RUNTIME_C_RUNTIME_API_H_
 
-// Macros to do weak linking
-#ifdef _MSC_VER
-#define CVM_WEAK __declspec(selectany)
-#else
-#define CVM_WEAK __attribute__((weak))
-#endif
-
 #ifndef CVM_DLL
-#ifdef _WIN32
-#ifdef CVM_EXPORTS
-#define CVM_DLL __declspec(dllexport)
-#else
-#define CVM_DLL __declspec(dllimport)
-#endif
-#else
 #define CVM_DLL __attribute__((visibility("default")))
-#endif
 #endif
 
 // CVM version
@@ -412,7 +397,33 @@ CVM_DLL int CVMArrayCopyFromTo(CVMArrayHandle from,
                                CVMArrayHandle to,
                                CVMStreamHandle stream);
 
-CVM_DLL int CVMSaveParamsDict(void** params, int params_size, CVMByteArray* re);
+CVM_DLL int CVMSaveParamsDict(
+    const void** params,
+    int params_size,
+    CVMByteArray* re);
+
+CVM_DLL int CVMLoadParamsDict(
+    const char* data,
+    int datalen,
+    int* retNum,
+    void*** retNames,
+    void*** retValues);
+
+CVM_DLL int CVMAssignSliceScalar(
+    CVMArrayHandle target,
+    int* indices,
+    double value
+);
+
+CVM_DLL int CVMAssignSliceND(
+    CVMArrayHandle target,
+    int* indices,
+    CVMArrayHandle source
+);
+
+CVM_DLL int CVMAssignAllScalar(CVMArrayHandle target, double value);
+
+CVM_DLL int CVMAssignAllND(CVMArrayHandle target, CVMArrayHandle source);
 
 #ifdef __cplusplus
 }  // CVM_EXTERN_C

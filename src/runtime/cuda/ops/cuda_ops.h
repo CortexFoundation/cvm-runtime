@@ -13,7 +13,6 @@
 #include <string.h>
 #include <iostream>
 #include <string>
-#define DEBUG
 
 namespace cvm{
 namespace runtime{

@@ -30,11 +30,13 @@ import numpy as np
 if sys.version_info[0] == 3:
     string_types = str
     numeric_types = (float, int, np.float32, np.int32)
+    integer_types = (int, np.integer)
     # this function is needed for python3
     # to convert ctypes.char_p .value back to python str
     py_str = lambda x: x.decode('utf-8')
 else:
     string_types = basestring
+    integer_types = (int, long, np.integer)
     numeric_types = (float, int, long, np.float32, np.int32)
     py_str = lambda x: x
 

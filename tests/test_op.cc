@@ -12,6 +12,7 @@
 #include <cvm/runtime/packed_func.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/runtime/serializer.h>
+#include <cvm/runtime/param_dict.h>
 #include <cvm/node.h>
 #include <cvm/runtime/c_runtime_api.h>
 #include "npy.hpp"
@@ -454,7 +455,7 @@ void load_input(int num_inputs, string case_path, vector<vector<uint64_t>>& tsha
       //npy::LoadArrayFromNumpy(in_path, tshape[in_i], tdata[in_i]);
       read_data(in_path.c_str(), tshape[i], tdata[i]);
       TShape shp(tshape[i].size());
-      for (size_t ti = 0; ti < shp.ndim(); ++ti) {
+      for (int ti = 0; ti < shp.ndim(); ++ti) {
         shp[ti] = tshape[i][ti];
       }
       ishape[i] = shp;
@@ -621,7 +622,7 @@ void test_op(string op_name) {
     op();
 
     // compare each expected output and actual output
-    for (int out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
+    for (uint out_no = 0; out_no < num_outputs; out_no++) { // out_no means which output data we are comparing. out_0 or out_1
       vector<int32_t> cpu_output_tensor(tdata[params.num_inputs+out_no].size());
       {
         DLTensor* cpu_tensor;
@@ -640,7 +641,7 @@ void test_op(string op_name) {
                  sizeof(int32_t) * tdata[params.num_inputs+out_no].size());
       printf("match %d | %d\n", ret == 0, ret);
       if (ret != 0) {
-        for (int i = 0; i < num_inputs; i++) {
+        for (uint i = 0; i < num_inputs; i++) {
           printf("input%d:\n", i);
           print(tdata[i]);
         }
@@ -659,33 +660,35 @@ void test_op(string op_name) {
   }
 }
 int main() {
-   //test_op("max_pool2d");
-   //test_op("upsampling");
-   //test_op("dense");
-   //test_op("conv2d");
-  test_op("sum");
-   test_op("max"); // pass
-  // test_op("slice_like");
-  // test_op("tile"); //pass
-  // test_op("repeat"); //pass
-  // test_op("get_valid_counts");
+  test_op("max_pool2d"); // formal & cpu pass
+  test_op("upsampling"); // formal & cpu pass
+  test_op("dense");  // formal & cpu pass
+  test_op("conv2d"); // formal & cpu pass
+  test_op("sum");  // formal & cpu pass
+  test_op("max");  // formal & cpu pass
+  test_op("slice_like"); // formal & cpu pass
+  test_op("tile"); // formal & cpu pass
+  test_op("repeat"); // formal & cpu pass
+  test_op("get_valid_counts");  // formal & CPU pass
 
-  // test_op("strided_slice"); //pass
-  // test_op("concatenate");//pass
-  // test_op("transpose");// pass
-  // test_op("take");
-  // test_op("clip");
-  // test_op("cvm_clip");
-  // test_op("cvm_right_shift");
-  // test_op("elemwise_add");
-  // test_op("elemwise_sub");
-  // test_op("non_max_suppression");
-  //test_op("broadcast_sub");
-  // test_op("broadcast_add");
-  // test_op("broadcast_mul");
-  // test_op("broadcast_max");
-  // test_op("broadcast_div");
-  // test_op("broadcast_greater");
+  test_op("strided_slice"); // formal & cpu pass
+  test_op("concatenate");// formal & cpu pass
+  test_op("transpose");// formal & cpu pass
+  test_op("take"); // formal & cpu pass
+  //test_op("clip"); // no test case
+  //test_op("cvm_clip"); // no test case
+  //test_op("cvm_right_shift");  // no test case
+  test_op("elemwise_add"); // formal & cpu pass
+  //test_op("elemwise_sub"); // no test case
+  //test_op("where"); // no test case
+  test_op("non_max_suppression");  // formal & cpu pass
+  test_op("broadcast_sub"); // formal & cpu pass
+  test_op("broadcast_add");  // formal & cpu pass
+  test_op("broadcast_mul");  // formal & cpu pass
+  test_op("broadcast_max");  // formal & cpu pass
+  test_op("broadcast_div");  // formal & cpu pass
+  test_op("broadcast_greater");  // formal & cpu pass
+  
   cout << "all tests finished" << endl;
   return 0;
 }

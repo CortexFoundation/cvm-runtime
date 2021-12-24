@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <stdint.h>
 #include <string.h>
-#include <cvm/top/nn.h>
 
-#include "ops.h"
+// #include "ops.h"
+#include <cvm/runtime/forward.h>
+#include <cvm/runtime/registry.h>
+#include <cvm/top/nn.h>
 
 namespace cvm {
 namespace runtime{
@@ -64,24 +66,18 @@ void get_valid_count(const int32_t *x_data, int32_t *y_data, int32_t *valid_coun
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.get_valid_counts")
 .set_body([](cvm::runtime::CVMArgs args, cvm::runtime::CVMRetValue *rv){
-    DLTensor *x = args[0];
-    DLTensor *valid_count = args[1];
-    DLTensor *y = args[2];
-    void* _attr = args[3];
-    auto *attr = static_cast<cvm::NodeAttrs*>(_attr);
-    auto &param = cvm::get<cvm::top::GetValidCountsParam>(attr->parsed);
+  int32_t *x_data = CVMArg2Data<int32_t>(args[0]);
+  int32_t *valid_count_data = CVMArg2Data<int32_t>(args[1]);
+  int32_t *y_data = CVMArg2Data<int32_t>(args[2]);
+  auto &param = CVMArg2Attr<cvm::top::GetValidCountsParam>(args[3]);
 
-    int32_t score_threshold = param.score_threshold; 
+  int32_t score_threshold = param.score_threshold; 
+  const TShape &xShape = CVMArgShape(args[0]);
+  int32_t batches = xShape[0];
+  int32_t n = xShape[1];
+  int32_t k = xShape[2];
 
-    int32_t batches = x->shape[0];
-    int32_t n = x->shape[1];
-    int32_t k = x->shape[2];
-
-    int32_t *x_data = static_cast<int32_t*>(x->data);
-    int32_t *valid_count_data = static_cast<int32_t*>(valid_count->data);
-    int32_t *y_data = static_cast<int32_t*>(y->data);
-
-    get_valid_count(x_data, y_data, valid_count_data, batches, n, k, score_threshold);
+  get_valid_count(x_data, y_data, valid_count_data, batches, n, k, score_threshold);
 });
 
 CVM_REGISTER_GLOBAL("cvm.runtime.formal.non_max_suppression")
@@ -92,7 +88,7 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.non_max_suppression")
     auto params = CVMArg2Attr<top::NonMaximumSuppressionParam>(args[3]);
 
     // X's shape must be (B, N, K), K = 6
-    auto x_shape = CVMArgShape(args[0]);
+    const TShape& x_shape = CVMArgShape(args[0]);
     int32_t B = x_shape[0];
     int32_t N = x_shape[1];
     int32_t K = x_shape[2];
@@ -118,7 +114,8 @@ CVM_REGISTER_GLOBAL("cvm.runtime.formal.non_max_suppression")
       int32_t *y_batch = Y + b * N * K; // temporary variable
       // dynamic calculate U, and n \in [0, min{n_max, card{U})
       for (int32_t p = 0; n < n_max && p < p_max; ++p) { // p \in [0, p_max)
-        if (R[p][0] < 0) continue; // R[b, p, 0] >= 0
+        // R[b, p, 0] is the id of an object in batch b. An id must be>= 0
+        if (R[p][0] < 0) continue;
 
         bool ignored = false; // iou(p, q) <= iou_threshold, \forall q in U.
         for (int32_t i = 0; i < n; ++i) {

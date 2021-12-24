@@ -1,68 +1,8 @@
-# MRT Installation
+# MRT Guide
 
-## 1. Install Python
+#### MRT Pipeline
 
-The mxnet and gluoncv are required. For installation, please respectively refer to:
-
-1. [mxnet installation](https://mxnet.apache.org/get_started)
-
-2. [gluoncv installation](https://gluon-cv.mxnet.io/install.html)
-
-## 2. MRT Preparation
-
-2.1. Clone the project
-
-```
-git clone git@github.com:CortexFoundation/cvm-runtime.git
-```
-
-
-
-2.2. Build the Shared Library
-
-  See [CVM Installation](../cvm/install.md) for reference.
-
-
-
-2.3. Install other dependancies
-
-​	First, create the file `requirements.txt` to see which dependancies are to be installed. 
-
-​	For cuda with version 9.2, the default file looks like this:
-
->mxnet-cu92mkl
->
->gluoncv
->
->decorator
-
-​	If other packages are also needed while testing, append the package name at a newline.
-
-​	Use the following command to install all the dependancies.
-
-```
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-An alternative command is available.
-
-```
-pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/web/simple
-```
-
-
-
-2.4. Create a Data Folder
-
-```
-mkdir data
-```
-
-
-
-#### 3. MRT Pipeline
-
-3.1. Download (Customize) dataset
+1. Download (Customize) dataset
 
 The source files of MRT validation needed for the currently mainstream datasets and corresponding dataset label file (under `path/to/cvm-runtime/docs/mrt`) are:
 
@@ -78,9 +18,7 @@ The source files of MRT validation needed for the currently mainstream datasets 
 
 Or download other custom dataset if needed.
 
-
-
-3.2. Pre-process Datasets
+2. Pre-process Datasets
 
 Please refer to https://gluon-cv.mxnet.io/build/examples_datasets/index.html for reference.
 
@@ -89,8 +27,7 @@ For example, dataset records is needed for`imagenet` datasets.
 run `im2rec.py` as described in https://gluon-cv.mxnet.io/build/examples_datasets/recordio.html#sphx-glr-build-examples-datasets-recordio-py.
 
 
-
-3.3. Predefined Models
+3. Predefined Models
 
 Download predefined gluonzoo models, please refer to https://gluon-cv.mxnet.io/model_zoo/index.html for reference.
 
@@ -120,15 +57,11 @@ ssd_512_mobilenet1.0_voc
 
 Or convert other (customized) models into mxnet models if needed.
 
-
-
-3.4. Configure model
+4. Configure model
 
 Create `<your_model_name>.ini` in `path/to/cvm-runtime/python/mrt/model_zoo`, please refer to  https://github.com/CortexFoundation/cvm-runtime/blob/ryt_tune/python/mrt/model_zoo/config.example.ini for sample configuration.
 
-
-
-3.5. Run MRT
+5. Run MRT
 
  MRT includes pre-process stages, quantization stage and post process stages, including `preparation`, `split model`, `calibration`, `quantization`, `merge model`, `evaluation` and `compilation`. The main work done in each stage is:
 

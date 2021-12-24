@@ -6,3 +6,5 @@ from . import ndarray as nd
 
 from .common import *
 from . import runtime
+
+from . import utils

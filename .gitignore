@@ -54,3 +54,4 @@ out/*
 # docs
 docs/html
 docs/doctrees
+docs/doxygen_output

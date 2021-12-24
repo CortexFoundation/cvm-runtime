@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 project(cvm C CXX)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON )
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Utility functions
 include(cmake/util/Util.cmake)
@@ -78,6 +78,7 @@ if(ENABLE_CUDA)
     list(APPEND CVM_RUNTIME_LINKER_LIBS ${CUDA_NVRTC_LIBRARY})
 
     set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --expt-extended-lambda)
+    # set(CMAKE_CUDA_FLAGS ${CMAKE_CUDA_FLAGS} --expt-extended-lambda)
 
     add_definitions(-DCVM_RUNTIME_CUDA)
     if(USE_NANO)

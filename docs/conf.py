@@ -20,6 +20,8 @@
 import os
 import sys
 import subprocess
+from recommonmark.parser import CommonMarkParser
+from recommonmark.transform import AutoStructify
 
 # Set the doc generator environment variable
 os.environ['DOC_GEN'] = 'True'
@@ -42,23 +44,23 @@ release = '1.0.0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "recommonmark",
-    "sphinx_markdown_tables",
-
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.mathjax",
+
+    "recommonmark",
+    "sphinx_markdown_tables",
+
+    # c++ doxygen
+    "breathe",
 
     "sphinx_rtd_theme",
 ]
 
 source_parser = {
-    ".md": "recommonmark.parser.CommonMarkParser",
+    ".md": CommonMarkParser,
 }
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
+source_suffix = [ ".rst", ".md" ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -69,7 +71,6 @@ templates_path = ['_templates']
 exclude_patterns = ['Thumbs.db', '.DS_Store']
 
 master_doc = "index"
-
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -83,3 +84,38 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 html_logo = "_static/img/icon.png"
+
+# doxygen -------------------------------------
+# breathe_domain_by_extension = {"h": "cpp"}
+breathe_projects = {"cvm-runtime": "doxygen_output/xml"}
+breathe_default_project = "cvm-runtime"
+
+# hook for doxygen
+def run_doxygen():
+    """Run the doxygen make command in the designated folder."""
+    base_dir = os.path.join(
+        os.path.dirname(__file__),
+        "..")
+    try:
+        retcode = subprocess.call(
+            "cd %s; doxygen docs/Doxyfile" % base_dir, shell=True)
+        if retcode < 0:
+            sys.stderr.write(
+                "doxygen terminated by signal %s" % (-retcode))
+    except OSError as e:
+        sys.stderr.write("doxygen execution failed: %s" % e)
+
+github_doc_root = 'https://github.com/CortexFoundation/cvm-runtime'
+
+def setup(app):
+    app.add_config_value('recommonmark_config', {
+           'url_resolver': lambda url: github_doc_root + url,
+           'enable_math': True,
+           'enable_inline_math': True,
+           'enable_eval_rst': True,
+           'enable_auto_toc_tree': True,
+           }, True)
+    app.add_transform(AutoStructify)
+
+    run_doxygen()
+

@@ -1,3 +1,13 @@
+""" Dataset Class Definition.
+
+    Customized datasets definition and customized interface
+    definition including ``metrics``, ``validate``,
+    ``_load_data`` and ``iter_func``.
+
+    Only **crucial parts** of the custommized interface
+    implementation are elaborated.
+"""
+
 import mxnet as mx
 from mxnet import gluon
 from mxnet import nd
@@ -80,48 +90,103 @@ def register_dataset(name):
 class Dataset:
     """ Base dataset class, with pre-defined interface.
 
-        The dataset directory is located at the `root` directory containing
-            the dataset `name` directory. And the custom dataset should pass
-            the parameter location of root, or implement the derived class
-            of your data iterator, metrics and validate function.
+        The dataset directory is located at the ``root`` directory containing
+        the dataset `name` directory. And the custom dataset should pass
+        the parameter location of root, or implement the derived class
+        of your data iterator, metrics and validate function.
 
         Notice:
-        =======
-            our default imagenet dataset is organized as an `record`
+            Our default imagenet dataset is organized as an ``record``
             binary format, which can amplify the throughput for image read.
-            Custom dataset of third party should be preprocessed by the `im2rec`
-            procedure to transform the image into the record format.
-            The transformation script is located at `docs/mrt/im2rec.py`. And more
-            details refer to the script helper documentation please(print usage
-            with command `-h`).
+            Custom Image dataset of third party could be preprocessed by the
+            `im2rec` procedure to transform the image into the record format.
+
+            The transformation script is located at ``docs/mrt/im2rec.py``.
+            And more details refer to the script helper documentation
+            please(print usage with command ``-h``).
 
 
-        Parameters:
-        ===========
-            input_shape: the input shape requested from user, and some dataset would
-                check the validity format.
-            root: the location where dataset is stored, defined with variable `MRT_DATASET_ROOT`
-                in conf.py or custom directory.
+        Parameters
+        ==========
+        input_shape: Tuple or List
+            The input shape requested from user, and some dataset would
+            check the format validity. Generally, specific dataset will
+            do some checks for input shape, such as the channel number for
+            image.
+            Example: imagenet's input shape is like to this, (N, C, H, W),
+            where the C must be equal to 3, H equals to W and N indicates
+            the batch size user want. Different H(W) requests the dataset
+            loader to resize image.
+
+        root: os.path.Path or path string
+            The location where dataset is stored, defined with variable
+            ``MRT_DATASET_ROOT`` in conf.py or custom directory.
 
 
-        Derived Class Implementation:
-        =============================
-            1. register dataset name into DS_REG that can be accessed
-                at the `dataset` package API. releated function is
-                `register_dataset`.
+        **Custom Dataset Implementation (derived this class):**
 
-            2. override the abstract method defined in base dataset class,
-                _load_data[Required]:
-                    load data from disk that stored into the data variable.
-                iter_func[Optional]:
-                    return the tuple (data, label) for each invocation.
-                metrics[Required]:
-                    returns the metrics object for the dataset.
-                validate[Required];
-                    calculates the accuracy for model inference of string.
+            1. Register dataset name into DS_REG that can be accessed
+            at the ``dataset`` package API. And releated function is
+            the ``register_dataset`` function.
 
+            2. Override the abstract method defined in base dataset class:
+
+                _load_data(self) [Required]:
+                    Load data from disk that stored into the data variable.
+                    And save the required `data_loader` to the member: `data`.
+
+                iter_func(self) [Optional]:
+                    Return the tuple (data, label) for each invocation according
+                    to the member `data` loaded from the function `_load_data`.
+
+                    Also, this function is optional since we have implemented
+                    a naive version if the member `data` is python generator-
+                    compatible type, supporting the `iter(data)` function. Or
+                    you will override the function you need.
+
+                metrics(self) [Required]:
+                    Return the metrics object for the dataset, such as
+                    some auxiliary variable.
+
+                validate(self, metrics, predict, label) [Required]:
+                    Calculates the accuracy for model inference of string.
+                    Return formated string type
+
+        Examples
+        ========
+        >>> from mxnet import ndarray as nd
+        >>> @register_dataset("my_dataset")
+        >>> class MyDataset(Dataset):
+        ...     def _load_data(self):
+        ...         B = self.ishape[0]
+        ...         def _data_loader():
+        ...             for i in range(1000):
+        ...                 yield nd.array([i + c for c in range(B)])
+        ...         self.data = _data_loader()
+        ...
+        ...     # use the default `iter_func` defined in base class
+        ...
+        ...     def metrics(self):
+        ...         return {"count": 0, "total": 0}
+        ...     def validate(self, metrics, predict, label):
+        ...         for idx in range(predict.shape[0]):
+        ...             res_label = predict[idx].asnumpy().argmax()
+        ...             data_label = label[idx].asnumpy()
+        ...             if res_label == data_label:
+        ...                 metrics["acc"] += 1
+        ...             metrics["total"] += 1
+        ...         acc = 1. * metrics["acc"] / metrics["total"]
+        ...         return "{:6.2%}".format(acc)
+        >>>
+        >>> # usage
+        >>> md_cls = DS_REG["my_dataset"]
+        >>> ds = md_cls([8]) # batch size is 8
+        >>> data_iter_func = ds.iter_func()
+        >>> data_iter_func() # get the batch data
+        NDArray<[0, 1, 2, 3, 4, 5, 6, 7] @ctx(cpu)>
     """
     name = None
+    """ Registered Dataset Name """
 
     def __init__(self, input_shape, root=conf.MRT_DATASET_ROOT):
         self.ishape = input_shape
@@ -147,22 +212,42 @@ class Dataset:
                 "Derived " + self.name + " dataset not override the" +
                 " base `metric` function defined in Dataset")
 
-    def validate(self, metrics, predicts, labels):
+    def validate(self, metrics, predict, label):
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `validate` function defined in Dataset")
 
     def _load_data(self):
+        """ Load data from disk.
+
+            Save the data loader into member `data` like:
+
+            .. code-block:: python
+
+                self.data = data_loader
+
+            And validate the input shape if necessary:
+
+            .. code-block:: python
+
+                N, C, H, W = self.ishape
+                assert C == 3 and H == W
+        """
         raise NotImplementedError(
                 "Derived " + self.name + " dataset not override the" +
                 " base `_load_data` function defined in Dataset")
 
-    def __iter__(self):
-        """ Returns (data, label) iterator """
-        return iter(self.data)
-
     def iter_func(self):
-        """ Returns (data, label) iterator function """
+        """ Returns (data, label) iterator function.
+
+            Get the iterator of `self.data` and iterate each batch sample
+            with `next` function manually. Call like this:
+
+            .. code-block:: python
+
+                data_iter_func = dataset.iter_func()
+                data, label = data_iter_func()
+        """
         data_iter = iter(self.data)
         def _wrapper():
             return next(data_iter)
@@ -174,6 +259,12 @@ class COCODataset(Dataset):
     # download_deps = ['val2017.zip']
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            COCO dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size).
+
+            The validation dataset will be created by *MS COCO Detection Dataset* and use SSDDefaultValTransform as data preprocess function.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -186,6 +277,10 @@ class COCODataset(Dataset):
             last_batch='rollover', num_workers=30)
 
     def metrics(self):
+        """ Customized metrics method introduction.
+
+            COCODetectionMetric is used which is the detection metric for COCO bbox task.
+        """
         _, _, H, W = self.ishape
         metric = COCODetectionMetric(
             self.val_dataset, '_eval', cleanup=True, data_shape=(H, W))
@@ -193,6 +288,21 @@ class COCODataset(Dataset):
         return metric
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method introduction.
+
+            The image height must be equal to the image width.
+
+            The model output is [id, score, bounding_box], 
+            where bounding_box is of layout (x1, y1, x2, y2).
+
+            The data label is implemented as follows:
+
+            .. code-block:: python
+
+                map_name, mean_ap = metrics.get()
+                acc = {k: v for k,v in zip(map_name, mean_ap)}
+                acc = float(acc['~~~~ MeanAP @ IoU=[0.50, 0.95] ~~~~\\n']) / 100
+        """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
 
@@ -223,6 +333,12 @@ class VOCDataset(Dataset):
     # download_deps = ["VOCtest_06-Nov-2007.tar"]
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            VOC dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size).
+
+            The validation dataset will be created by Pascal *VOC detection Dataset* and use YOLO3DefaultValTransform as data preprocess function.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -236,12 +352,30 @@ class VOCDataset(Dataset):
             last_batch='discard', num_workers=30)
 
     def metrics(self):
+        """ Customized metric method introduction.
+
+            VOC07MApMetric is used which is the Mean average precision metric for PASCAL V0C 07 dataset.
+        """
         metric = VOC07MApMetric(
             iou_thresh=0.5, class_names=gdata.VOCDetection.CLASSES)
         metric.reset()
         return metric
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method introduction.
+
+            The image height must be equal to the image width.
+
+            The model output is [id, score, bounding_box], 
+            where bounding_box is of layout (x1, y1, x2, y2).
+
+            The data label is implemented as follows:
+
+            .. code-block:: python
+
+                map_name, mean_ap = metrics.get()
+                acc = {k: v for k,v in zip(map_name, mean_ap)}['mAP']
+        """
         det_ids, det_scores, det_bboxes = [], [], []
         gt_ids, gt_bboxes, gt_difficults = [], [], []
 
@@ -267,10 +401,18 @@ class VOCDataset(Dataset):
 
 class VisionDataset(Dataset):
     def metrics(self):
+        """ Customized metric method introduction.
+
+            Computes accuracy classification score and top k predictions accuracy.
+        """
         return [mx.metric.Accuracy(),
                 mx.metric.TopKAccuracy(5)]
 
     def validate(self, metrics, predict, label):
+        """ Customized metric method introduction.
+
+            The model output include score for 1000 classes.
+        """
         metrics[0].update(label, predict)
         metrics[1].update(label, predict)
         _, top1 = metrics[0].get()
@@ -284,6 +426,26 @@ class ImageNetDataset(VisionDataset):
     download_deps = ["rec/val.rec", "rec/val.idx"]
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            ImageNet dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, input_size, input_size). The image height must be equal to the image width.
+
+            The data preprocess process includes:
+
+            .. math::
+                crop_ratio = 0.875
+
+            .. math::
+                resize = ceil(H / crop\_ratio)
+
+            .. math::
+                mean_rgb = [123.68, 116.779, 103.939]
+
+            .. math::
+                std_rgb = [58.393, 57.12, 57.375]
+
+            Use ImageRecordIter to iterate on image record io files.
+        """
         assert len(self.ishape) == 4
         N, C, H, W = self.ishape
         assert C == 3
@@ -327,6 +489,18 @@ class Cifar10Dataset(VisionDataset):
     #  download_deps = ["cifar-10-binary.tar.gz"]
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            Cifar10Dataset only support layout of NCHW and the number of channels must be 3, i.e. (batch_size, 3, 32, 32). The image height and width must be equal to 32.
+
+            The data preprocess process includes:
+
+            .. math::
+                mean = [0.4914, 0.4822, 0.4465]
+
+            .. math::
+                std = [0.2023, 0.1994, 0.2010]
+        """
         N, C, H, W = self.ishape
         assert C == 3 and H == W and H == 32
         transform_test = gluon.data.vision.transforms.Compose([
@@ -351,6 +525,10 @@ class QuickDrawDataset(VisionDataset):
         super().__init__(input_shape, **kwargs)
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            QuickDrawDataset only support layout of NCHW and the number of channels must be 3, the image height and width must be equal to 32, i.e. (batch_size, 3, 28, 28).
+        """
         N, C, H, W = self.ishape
         assert C == 1 and H == 28 and W == 28
         X = nd.array(np.load(path.join(self.root_dir, self.download_deps[0])))
@@ -373,12 +551,22 @@ class MnistDataset(VisionDataset):
     #                  "train-images-idx3-ubyte.gz",
     #                  "train-labels-idx1-ubyte.gz"]
 
-    def _load_data(self):
+    def data_xform(self, data):
+        """Move channel axis to the beginning,
+            cast to float32, and normalize to [0, 1].
         """
+        return nd.moveaxis(data, 2, 0).astype('float32') / 255
+
+    def _load_data(self):
+        """ Customized _load_data method introduction.
+
             The MxNet gluon package will auto-download the mnist dataset.
+
+            MnistDataset only support layout of NCHW and the number of channels must be 1, the image height and width must be equal to 32, i.e. (batch_size, 1, 28, 28).
         """
         val_data = mx.gluon.data.vision.MNIST(
-            root=self.root_dir, train=False).transform_first(data_xform)
+            root=self.root_dir, train=False).transform_first(
+                self.data_xform)
 
         N, C, H, W = self.ishape
         assert C == 1 and H == 28 and W == 28
@@ -396,33 +584,49 @@ class TrecDataset(Dataset):
         super().__init__(input_shape, **kwargs)
 
     def _load_data(self):
+        """ Customized _load_data method introduction.
+
+            The MxNet gluon package will auto-download the mnist dataset.
+
+            TrecDataset only support layout of (I, N), the image height and width must be equal to 32, i.e. (batch_size, 1, 28, 28).
+        """
         fname = path.join(
             self.root_dir, self.download_deps[0] \
             if self.is_train else self.download_deps[1])
 
-        # (38, batch), (batch,)
-        with open(fname, "rb") as fin:
-            self.data = pickle.load(fin)
-
         I, N = self.ishape
         assert I == 38
 
-    def iter_func(self):
-        def _wrapper():
+        # (38, batch), (batch,)
+        with open(fname, "rb") as fin:
+            reader = pickle.load(fin)
+
+        def data_loader():
             data, label = [], []
-            for x, y in self.data:
+            for x, y in reader:
                 if len(data) < self.ishape[1]:
                     data.append(x)
                     label.append(y)
                 else:
-                    return nd.transpose(nd.array(data)), nd.array(label)
-            return nd.transpose(nd.array(data)), nd.array(label)
-        return _wrapper
+                    yield nd.transpose(nd.array(data)), nd.array(label)
+                    data, label = [], []
+            yield nd.transpose(nd.array(data)), nd.array(label)
+            raise RuntimeError("Data loader have been the end")
+
+        self.data = data_loader()
 
     def metrics(self):
         return {"acc": 0, "total": 0}
 
     def validate(self, metrics, predict, label):
+        """ Customized validate method introduction.
+
+            The score for 6 classes is the model output. The data label is implemented as follows:
+
+            .. code-block:: python
+
+                acc = 1. * metrcs["acc"] / metrics["total"]
+        """
         for idx in range(predict.shape[0]):
             res_label = predict[idx].asnumpy().argmax()
             data_label = label[idx].asnumpy()

@@ -1,6 +1,4 @@
-"""MRT Main2 API.
-
-    This is a user API that is used to parse model configurations.
+""" This is a user API that is used to parse model configurations.
 """
 
 import sys
@@ -340,7 +338,7 @@ if __name__ == "__main__":
     sym_file, prm_file = _load_fname(model_prefix, suffix='prepare')
     sym_path, prm_path = _load_fname(model_prefix)
     if not path.exists(sym_path) or not path.exists(prm_path):
-        save_model(model_name, data_dir=model_dir)
+        save_model(model_name, data_dir=model_dir, ctx=model_ctx)
         # save_model(model_name, sym_path=sym_path, prm_path=prm_path)
 
     if start_point < 1:
@@ -554,6 +552,7 @@ if __name__ == "__main__":
     # evaluation
     sec = 'EVALUATION'
     if sec in cfg.sections():
+        #  dataset_dir = _get_val(cfg, sec, 'Dataset_dir', dval=conf.MRT_DATASET_ROOT)
         iter_num = _get_val(cfg, sec, 'Iter_num', dtype=int_t, dval=0)
         batch = _get_val(cfg, sec, 'Batch', dtype=int_t, dval=batch)
         ctx = _get_ctx(cfg, sec, dctx=model_ctx)

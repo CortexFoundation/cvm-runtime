@@ -11,7 +11,6 @@ The CVM Runtime library is used in @CortexLabs full-node project: `CortexTheseus
 .. toctree::
   :maxdepth: 2
 
-  Installation <install.md>
   OPs Table <ops.md>
 
 Python API
@@ -39,10 +38,27 @@ Inference package contains the model load, inference, and free pass etc. A simpl
 
 And the detail methods refer to the API link.
 
-Model graph generally used to construct the network like `keras` does. This module is invoked by `MRT` to transform the MxNet model into CVM format.
+Model graph generally used to construct the network like ``keras`` does. This module is invoked by ``MRT`` to transform the MxNet model into CVM format.
+  
 
 .. toctree::
   :maxdepth: 2
 
   Inference API <api/inference>
   Symbol&Graph <api/graph>
+
+C++ API
+=======
+
+.. toctree::
+  :maxdepth: 3
+
+  All API <capi/index>
+
+Class Documentation
+===================
+
+.. toctree::
+  :maxdepth: 1
+
+  NDArray <ndarray>

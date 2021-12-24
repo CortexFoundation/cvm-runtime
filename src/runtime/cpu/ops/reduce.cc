@@ -4,19 +4,19 @@ namespace cvm {
 namespace runtime {
 
 inline std::vector<int64_t> GetRealAxis(TShape& axis, bool exclude, DLTensor *x){
-  for(size_t i = 0; i < axis.ndim(); i++){
+  for(int i = 0; i < axis.ndim(); i++){
     if(axis[i] < 0) axis[i] += x->ndim;
   }
   std::vector<int64_t> raxis;
   if(!exclude){
-    for(size_t i = 0; i < axis.ndim(); i++){
+    for(int i = 0; i < axis.ndim(); i++){
       raxis.push_back(axis[i]);
     }
   }else{
     raxis.resize(x->ndim - axis.ndim());
     for(int i = 0, k = 0; i < x->ndim; i++){
       bool flag = false;
-      for(size_t j = 0; j < axis.ndim(); j++){
+      for(int j = 0; j < axis.ndim(); j++){
         if(axis[j] == i) {
           flag = true;
           break;
