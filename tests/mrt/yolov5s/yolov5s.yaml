@@ -1,6 +1,7 @@
 COMMON:
-  MODEL_NAME: yolov5s.preprocess.unify
+  # MODEL_NAME: yolov5s.preprocess.unify.broadcastify
   # MODEL_NAME: yolov5s.preprocess.unify
+  MODEL_NAME: yolov5s
   VERBOSITY: info
   RUN_EVALUATE: False
 PREPARE:
