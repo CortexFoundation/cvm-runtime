@@ -1901,34 +1901,51 @@ class ElemwiseSub(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
-@register_pass("compile")
-@register_pass("prepare_for_compile")
-@register_pass("rewrite")
+# @register_pass("compile")
+# @register_pass("prepare_for_compile")
+# @register_pass("rewrite")
 @register_transformer("elemwise_mul")
 class ElemwiseMul(Transformer):
     def fuse_transpose(self, op, **kwargs):
         return _ft_multi_input(op)
 
-    def quantize(self, op, **kwargs):
-        precs, scales = kwargs['precs'], kwargs['scales']
+    def rewrite(self, op, **kwargs):
         name, op_name = op.attr('name'), op.attr('op_name')
-        childs, attr = sym_iter(op.get_children()), op.list_attr()
-        cns = [c.attr('name') for c in childs] if childs else []
+        childs = sym_iter(op.get_children())
 
-        oprec = kwargs['op_input_precs'][op_name]
-        X, xprec, xs = requant(childs[0], oprec, oname=name, **kwargs)
-        W, wprec, ws = requant(childs[1], oprec, oname=name, **kwargs)
-        scales[name] = ws * xs
-        op = get_mxnet_op(op_name)(X, W, **attr, name=name)
+        # validate the infer_shapes of lhs and rhs must be the same
+        # thus this op could be rewrite into broadcast_mul
+        # corresponding cvm op would be optimized at compile time
+        ln, rn = [c.attr('name') for c in childs]
+        infer_shapes = kwargs['infer_shapes']
+        lshp, rshp = infer_shapes[ln], infer_shapes[rn]
+        assert lshp == rshp, \
+            "lhs infer_shape: {}, rhs infer_shape: {}".format(lshp, rshp)
 
-        infer_prec = xprec + wprec
-        kwargs['precs'][name][OUT_KEY] = infer_prec
-
-        logger = logging.getLogger('log.mrt.realize')
-        logger.debug(
-            "operator  %-20s name=%-40s oscale=%s, iscale=%s",
-            op_name, name, scales[name], cns)
+        lhs, rhs = childs
+        op = mx.sym.broadcast_mul(lhs, rhs, name=name)
         return op
+
+    # def quantize(self, op, **kwargs):
+        # precs, scales = kwargs['precs'], kwargs['scales']
+        # name, op_name = op.attr('name'), op.attr('op_name')
+        # childs, attr = sym_iter(op.get_children()), op.list_attr()
+        # cns = [c.attr('name') for c in childs] if childs else []
+
+        # oprec = kwargs['op_input_precs'][op_name]
+        # X, xprec, xs = requant(childs[0], oprec, oname=name, **kwargs)
+        # W, wprec, ws = requant(childs[1], oprec, oname=name, **kwargs)
+        # scales[name] = ws * xs
+        # op = get_mxnet_op(op_name)(X, W, **attr, name=name)
+
+        # infer_prec = xprec + wprec
+        # kwargs['precs'][name][OUT_KEY] = infer_prec
+
+        # logger = logging.getLogger('log.mrt.realize')
+        # logger.debug(
+            # "operator  %-20s name=%-40s oscale=%s, iscale=%s",
+            # op_name, name, scales[name], cns)
+        # return op
 
 
 @register_pass("validate")

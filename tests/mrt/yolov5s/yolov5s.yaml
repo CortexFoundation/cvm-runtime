@@ -1,8 +1,8 @@
 COMMON:
-  MODEL_NAME: yolov5s.preprocess.unify.broadcastify
+  MODEL_NAME: yolov5s.preprocess.unify
   # MODEL_NAME: yolov5s.preprocess.unify
   VERBOSITY: info
-  RUN_EVALUATE: True
+  RUN_EVALUATE: False
 PREPARE:
   INPUT_SHAPE: [-1, 3, 640, 640]
 CALIBRATE:
