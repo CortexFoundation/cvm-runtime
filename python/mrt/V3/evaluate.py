@@ -92,6 +92,7 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         'data': set_batch(input_shape, split_batch)})
     qgraph = rqmodel.to_graph(ctx=ctx)
     qmetric = dataset.metrics()
+    # move to test
     try:
         data, _ = dataset.iter_func()()
         data = sim.load_real_data(data, 'data', inputs_ext)

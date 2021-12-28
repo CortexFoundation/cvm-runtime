@@ -11,7 +11,9 @@ from rpc.utils import get_streamer
 
 # TODO(ryt): load balancer for maxinum_workers
 maximum_workers = 4
-local_addr = "127.0.0.1:5000"
+#  local_addr = "127.0.0.1:5000"
+# socket host difference
+local_addr = "0.0.0.0:5000"
 chunk_size = 1024 * 1024  # 1MB
 
 def mrt_submit(
