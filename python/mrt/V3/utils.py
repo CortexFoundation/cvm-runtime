@@ -157,3 +157,21 @@ def revise_cfg(cfg, stage, attr, value):
     subcfg = getattr(cfg, stage)
     setattr(subcfg, attr, value)
     cfg.freeze()
+
+def override_cfg_args(cfg, mrt_argv):
+    if not mrt_argv:
+        return cfg
+    if cfg.is_frozen():
+        cfg.defrost()
+
+    for i in range(len(mrt_argv), 2):
+        attr, value = mrt_argv[i:i+2]
+        try:
+            value = eval(value)
+        except:
+            pass
+        pass_name, pass_attr = [s.upper() for s in attr[2:].split(".")]
+        cnode = getattr(cfg, pass_name)
+        setattr(cnode, pass_attr, value)
+    cfg.freeze()
+    return cfg
