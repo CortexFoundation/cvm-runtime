@@ -7,6 +7,7 @@ import numpy as np
 from mrt.V3.utils import get_cfg_defaults, merge_cfg, override_cfg_args
 from mrt.V3.execute import run
 from mrt import dataset as ds
+import forward_utils as futils
 
 
 @ds.register_dataset("stdrandom")
@@ -37,3 +38,4 @@ if __name__ == "__main__":
     cfg = merge_cfg(yaml_file)
     cfg = override_cfg_args(cfg, sys.argv[1:])
     run(cfg)
+    # futils.test_quantized_forward(cfg.COMMON, cfg.EVALUATE)
