@@ -31,9 +31,11 @@ class StdRandomDataset(ds.Dataset):
 
 if __name__ == "__main__":
     assert len(sys.argv) >= 1 and len(sys.argv)%2 == 1, \
-        "invalid length: {} of sys.argv: {}".format(len(sys.argv), sys.argv)
+        "invalid length: {} of sys.argv: {}".format(
+        len(sys.argv), sys.argv)
     yaml_file = path.join(
-        path.dirname(path.realpath(__file__)), "model_zoo", "prediction_SCTF.yaml")
+        path.dirname(path.realpath(__file__)),
+        "model_zoo", "prediction_SCTF.yaml")
     cfg = get_cfg_defaults()
     cfg = merge_cfg(yaml_file)
     cfg = override_cfg_args(cfg, sys.argv[1:])

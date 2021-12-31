@@ -164,7 +164,7 @@ def override_cfg_args(cfg, mrt_argv):
     if cfg.is_frozen():
         cfg.defrost()
 
-    for i in range(len(mrt_argv), 2):
+    for i in range(0, len(mrt_argv), 2):
         attr, value = mrt_argv[i:i+2]
         try:
             value = eval(value)
