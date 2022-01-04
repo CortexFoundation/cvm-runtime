@@ -9,6 +9,21 @@ from mrt import conf
 from mrt.common import log
 from mrt.utils import extend_fname
 
+DOC = """
+COMMON Stage Options:
+    --common.pass_name          Stage to be executed, chosen from "all", "prepare", "calibrate", "quantize", "evaluate", "compile".
+    --common.model_dir          Model root directory.
+    --common.model_name         Name of the model file without file extension.
+    --common.verbosity          Control the logger hiearchy, chosen from "debug", "info", "warning", "error", "critical".
+    --common.start_after        Name of the stage to start the execution from, chosen from "initial", "prepare", "calibrate", "quantize".
+    --common.device_type        Default context type for all stages chosen from "cpu" or "gpu".
+    --common.device_ids         A comma list within square brackets specifying the context ids, eg.[0,1,2].
+    --common.input_shape        Shape of the input data.
+    --common.batch              Default batch size for all stages.
+    --common.run_evaluate       Flag for determining whether to execute evaluation stage, "True" for execution, otherwise "False".
+    --common.run_compile        Flag for determining whether to execute compilation stage, "True" for execution, otherwise "False".
+"""
+
 # TODO: jiazhen branch code design
 
 default_device_type = "cpu"

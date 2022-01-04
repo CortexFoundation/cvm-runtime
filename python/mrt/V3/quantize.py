@@ -8,6 +8,20 @@ from mrt.V3.utils import (
     get_logger, load_fname, save_conf, load_conf, check_file_existance,
     get_ctx)
 
+DOC = """
+QUANTIZE Stage Options:
+    --quantize.restore_names    Names of graph nodes restored from quantization.
+    --quantize.input_precision  Input precision for quantization.
+    --quantize.output_precision Output precision for quantization.
+    --quantize.device_type      Context type for quantization stage chosen from "cpu" or "gpu".
+    --quantize.device_ids       A comma list within square brackets specifying the context ids, eg.[0,1,2].
+    --quantize.softmax_lambd    Hyperparameter for requant function.
+    --quantize.shift_bits       Hyperparameter for operator requantization.
+    --quantize.thresholds       Initial threshold for base symbol given model split.
+    --quantize.attribute_deps   Adjust the top attributes with respect to the base oscales.
+    --quantize.oscale_maps      Model merger output scales name map.
+"""
+
 MRT_CFG.QUANTIZE = CN()
 MRT_CFG.QUANTIZE.RESTORE_NAMES = []
 MRT_CFG.QUANTIZE.INPUT_PRECISION = None

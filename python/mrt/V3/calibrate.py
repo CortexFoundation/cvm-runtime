@@ -8,6 +8,17 @@ from mrt.V3.utils import (
     get_model_prefix, get_logger, set_batch, load_fname, save_conf,
     load_conf, check_file_existance, get_ctx)
 
+DOC = """
+CALIBRATE Stage Options:
+    --calibrate.batch           Batch size for calibration.
+    --calibrate.num_calib       Number of iterations for calibration.
+    --calibrate.lambd           Hyperparameter for the threshold of model internal data.
+    --calibrate.dataset_name    Name of the dataset chosen from "voc", "imagenet", "trec", "mnist", "coco", "quickdraw" and "cifar10".
+    --calibrate.dataset_dir     Dataset root directory for specific dataset out of list above.
+    --calibrate.device_type     Context type for calibration stage chosen from "cpu" or "gpu".
+    --calibrate.device_ids      A comma list within square brackets specifying the context ids, eg.[0,1,2].
+"""
+
 default_num_calib = 1
 
 MRT_CFG.CALIBRATE = CN()

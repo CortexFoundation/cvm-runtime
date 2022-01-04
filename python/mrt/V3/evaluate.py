@@ -13,6 +13,14 @@ from mrt.V3.utils import (
     get_model_prefix, get_logger, set_batch, load_fname, load_conf,
     check_file_existance, get_ctx, get_batch_axis)
 
+DOC = """
+EVALUATE Stage Options:
+    --evaluate.batch            Batch size for evaluation.
+    --evaluate.device_type      Context type for evaluation stage chosen from "cpu" or "gpu".
+    --evaluate.device_ids       A comma list within square brackets specifying the context ids, eg.[0,1,2].
+    --evaluate.iter_num         Number of evaluating iteration steps.
+"""
+
 MRT_CFG.EVALUATE = CN()
 MRT_CFG.EVALUATE.BATCH = default_batch
 MRT_CFG.EVALUATE.DEVICE_TYPE = default_device_type
