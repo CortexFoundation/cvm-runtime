@@ -13,9 +13,9 @@ from mrt.V3.evaluate import DOC as evaluate_doc
 from mrt.V3.mrt_compile import DOC as compile_doc
 
 DOC = """
-Usage:  python main2.py --help
-        python main2.py [YAML_FILE_PATH] [OPTIONS]
-"""
+Usage:  python {0} --help
+        python {0} [YAML_FILE_PATH] [OPTIONS]
+""".format(sys.argv[0])
 
 def complete_docs():
     return docs
