@@ -1,7 +1,12 @@
 import unittest
+import logging
 
 from mxnet import ndarray as nd
 import numpy as np
+
+from mrt.utils import log_init
+
+log_init()
 
 
 class TestOpEquiv(unittest.TestCase):
@@ -12,7 +17,8 @@ class TestOpEquiv(unittest.TestCase):
         norm = np.linalg.norm(res)
         self.assertAlmostEqual(norm, 0.0, places=places)
 
-    def test_elemmul_to_broadcast_mul(self):
+    def test_elemwisemul_to_broadcast_mul(
+        self, logger=logging.getLogger("elemwisemul_to_broadcastmul")):
         """
             ElemwiseMul --> BroadcastMul
         """
@@ -45,8 +51,10 @@ class TestOpEquiv(unittest.TestCase):
             out = nd.elemwise_mul(lhs=lhs, rhs=rhs)
             out1 = nd.broadcast_mul(lhs=lhs, rhs=rhs)
             self.assert_equal(out, out1)
+            logger.info("test succeeded, inp: {}".format(inp))
 
-    def test_activation_to_sigmoid(self):
+    def test_activation_to_sigmoid(
+        self, logger=logging.getLogger("activation_to_sigmoid")):
         """
             Activation(act_type=sigmoid) --> sigmoid
         """
@@ -78,8 +86,10 @@ class TestOpEquiv(unittest.TestCase):
             out = nd.Activation(data=data, act_type="sigmoid")
             out1 = nd.sigmoid(data=data)
             self.assert_equal(out, out1, places=4)
+            logger.info("test succeeded, inp: {}".format(inp))
 
-    def test_dense_to_dense2d_flatten(self):
+    def test_dense_to_dense2d_flatten(
+        self, logger=logging.getLogger("test_dense_to_dense2d_flatten")):
         """
             FullyConnected(flatten=True)
             -->
@@ -156,8 +166,10 @@ class TestOpEquiv(unittest.TestCase):
                     no_bias=no_bias, flatten=True, num_hidden=num_hidden)
             # validate
             self.assert_equal(out, out1)
+            logger.info("test succeeded, inp: {}".format(inp))
 
-    def test_dense_to_dense2d(self):
+    def test_dense_to_dense2d(
+        self, logger=logging.getLogger("dense_to_dense2d")):
         """
             FullyConnected(flatten=False)
             -->
@@ -251,6 +263,7 @@ class TestOpEquiv(unittest.TestCase):
             out1 = nd.reshape(data=fc, shape=shape)
             # validate
             self.assert_equal(out, out1)
+            logger.info("test succeeded, inp: {}".format(inp))
 
 if __name__ == "__main__":
     unittest.main()
