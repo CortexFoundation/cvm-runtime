@@ -1,30 +1,35 @@
 from os import path
 import sys
 
-from mrt.V3.utils import get_cfg_defaults, merge_cfg
+from mrt.V3.utils import get_cfg_defaults, merge_cfg, override_cfg_args
 from mrt.V3.execute import run
+from mrt.V3.utils import DOC as utils_doc
+from mrt.V3.prepare import DOC as prepare_doc
+from mrt.V3.calibrate import DOC as calibrate_doc
+from mrt.V3.quantize import DOC as quantize_doc
+from mrt.V3.evaluate import DOC as evaluate_doc
+from mrt.V3.mrt_compile import DOC as compile_doc
 
-def override_cfg_args(cfg, argv):
-    if cfg.is_frozen():
-        cfg.defrost()
+DOC = """
+Usage:  python main2.py --help
+        python main2.py [YAML_FILE_PATH] [OPTIONS]
+"""
 
-    for i in range(2, len(argv), 2):
-        attr, value = argv[i:i+2]
-        try:
-            value = eval(value)
-        except:
-            pass
-        pass_name, pass_attr = [s.upper() for s in attr[2:].split(".")]
-        cnode = getattr(cfg, pass_name)
-        setattr(cnode, pass_attr, value)
-    cfg.freeze()
-    return cfg
+def complete_docs():
+    return docs
 
 if __name__ == "__main__":
-    assert len(sys.argv) >= 2 and len(sys.argv)%2 == 0, \
-        "invalid length: {} of sys.argv: {}".format(len(sys.argv), sys.argv)
-    yaml_file = sys.argv[1]
-    cfg = get_cfg_defaults()
-    cfg = merge_cfg(yaml_file)
-    cfg = override_cfg_args(cfg, sys.argv)
-    run(cfg)
+    if len(sys.argv) == 2 and sys.argv[1] in ["--help", "-h"]:
+        docs = "\n".join([
+            DOC, utils_doc, prepare_doc, calibrate_doc,
+            quantize_doc, evaluate_doc, compile_doc])
+        print(docs)
+    else:
+        assert len(sys.argv) >= 2 and len(sys.argv)%2 == 0, \
+            "invalid length: {} of sys.argv: {}".format(
+            len(sys.argv), sys.argv)
+        yaml_file = sys.argv[1]
+        cfg = get_cfg_defaults()
+        cfg = merge_cfg(yaml_file)
+        cfg = override_cfg_args(cfg, sys.argv[2:])
+        run(cfg)

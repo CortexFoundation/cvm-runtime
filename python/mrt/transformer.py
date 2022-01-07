@@ -113,6 +113,11 @@ def init(model, input_shape=None):
     logger.info("Model initializing...")
 
     _sym, _prm = model.symbol, model.params
+
+    # unify graph names and check graph params
+    _sym, _prm = tpass.unify_name_json(_sym, _prm)
+    _sym, _prm = tpass.remove_params_prefix(_sym, _prm)
+
     tpass.name_duplicate_check(_sym, _prm)
 
     if isinstance(input_shape, dict):

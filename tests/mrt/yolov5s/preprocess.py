@@ -48,6 +48,8 @@ def unify(sym, params, logger=logging.getLogger("unify")):
     sym = mx.sym.load_json(sym_json_str)
 
     # check params
+    # model exported from mxnet hybrid block compatibility,
+    # remove the unnecessary prefix, hack
     param_keys = {}
     for k in params:
         if k.startswith("arg:") or k.startswith("aux:"):

@@ -12,6 +12,14 @@ from mrt.V3.utils import (
     get_model_prefix, get_logger, set_batch, load_fname, load_conf,
     check_file_existance)
 
+DOC = """
+COMPILE Stage Options:
+    --compile.batch             Batch size for compilation.
+    --compile.dump_dir          Directory for saving compilation results.
+    --compile.device_type       Context type for compilation stage chosen from "cpu" or "gpu".
+    --compile.device_ids        A comma list within square brackets specifying the context ids, eg.[0,1,2].
+"""
+
 default_dump_dir = path.expanduser("~/mrt_dump")
 
 MRT_CFG.COMPILE = CN()

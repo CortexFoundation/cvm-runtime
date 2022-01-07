@@ -7,6 +7,14 @@ from mrt.V3.utils import (
     MRT_CFG, default_device_type, default_device_ids, get_model_prefix,
     get_logger, set_batch, load_fname, save_conf, get_ctx)
 
+DOC = """
+PREPARE Stage Options:
+    --prepare.device_type       Context type for preparation stage chosen from "cpu" or "gpu".
+    --prepare.device_ids        A comma list within square brackets specifying the context ids, eg.[0,1,2].
+    --prepare.input_shape       Shape of the input data.
+    --prepare.split_keys        Node names in the computation graph specifying the split points.
+"""
+
 default_input_shape = [-1, 3, 224, 224]
 
 MRT_CFG.PREPARE= CN()
