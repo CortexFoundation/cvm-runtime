@@ -9,7 +9,6 @@ from mrt.V3.calibrate import DOC as calibrate_doc
 from mrt.V3.quantize import DOC as quantize_doc
 from mrt.V3.evaluate import DOC as evaluate_doc
 from mrt.V3.mrt_compile import DOC as compile_doc
-import mrt.V3.calibrate as calirbat
 
 DOC = """
 Usage:  python main2.py --help
@@ -20,9 +19,7 @@ def complete_docs():
     return docs
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        assert sys.argv[1] == "--help", \
-            "invalid optional argument: {}".format(sys.argv[2])
+    if len(sys.argv) == 2 and sys.argv[1] in ["--help", "-h"]:
         docs = "\n".join([
             DOC, utils_doc, prepare_doc, calibrate_doc,
             quantize_doc, evaluate_doc, compile_doc])

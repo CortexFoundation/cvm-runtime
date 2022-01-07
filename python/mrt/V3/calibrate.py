@@ -40,7 +40,7 @@ def calibrate(cm_cfg, pass_cfg, logger=None):
     device_ids = pass_cfg.DEVICE_IDS
     calibrate_num = pass_cfg.NUM_CALIB
     lambd = pass_cfg.LAMBD
-    batch=pass_cfg.BATCH
+    batch = pass_cfg.BATCH
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:
