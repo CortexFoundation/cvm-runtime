@@ -9,13 +9,16 @@ Operator Math Formalization
   Write this section document refer to the doc:
   :ref:`Math Format <write_math_formalization>` please.
 
-This will give a full exhaustive explanation to CVM operators.
-The FORMAL version source code has a strong correlation
+This will give a full exhaustive explanation to CVM-Runtime operators.
+The source code of FORMAL version has a strong correlation
 with this mathematical description, while other versions like
 CPU, CUDA, will only promise the consistent inference result,
 with arbitrary process logic.
 
-All the operators' formalization obeys the unify format:
+.. note::
+  All numbers refered to by the symbol are integers by default.
+
+All the operators' formalization obeys the unified format:
 
 .. math::
 
@@ -28,7 +31,7 @@ All the operators' formalization obeys the unify format:
 
 which means that for given value range, the forluma in the first
 line is always true, subjecting to the constraints listed as the
-condition variable.
+condition statements.
 
 .. _op_list:
 
@@ -45,6 +48,8 @@ A reduce operator performs the reduction function to input data based on the par
 Reduction is performed on the given axes, other dimensions remains the same and the result are stored in those places.
 We abstract the common reduce logic as formalization here and specify the reduce function
 for each operators respectively.
+
+*Math Formalization*
 
 - Input: :math:`X`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
 - Output: :math:`Y`
@@ -172,29 +177,46 @@ Broadcast Operators
 
 A broadcast operator performs the broadcast function to input data, and the process logic over all kinds of operators are the same.
 
+*Math Formalization*
+
 - Input: There are 2 inputs.
 
  + :math:`A`, a tensor of :math:`M` dimensions, namely :math:`(m_0, m_1, \cdots, m_{M-1})`
  + :math:`B`, a tensor of :math:`N` dimensions, namely :math:`(n_0, n_1, \cdots, n_{N-1})`
 
-- Output: :math:`Y`, a tensor with :math:`max(M, N)` dimensions, the higher dimension of the two inputs, and it's shape is identical to the input with higher dimension.
+The two input shapes of tensor must satisfy the assertions as below:
 
-The lower :math:`min(M, N)` dimensions of the two inputs must be the same. The input with lower dimension is expanded with 1 so that the two inputs can have the same dimension.
+.. math::
+  P = \min(M, N) \\
+  Q = \max(M, N)
 
-Then the elementwise opertaion is performed to the inputs with broadcast.
+.. math::
+  m_i = n_i \text{ or } m_i = 1 \text{ or } n_i = 1,
+  \forall i \in [0, P)
+
+- Output: :math:`Y`, a tensor with :math:`Q` dimensions, the higher dimension of the two inputs, and it's shape is identical to the input with higher dimension.
+  
 
 We abstract the formalization here and introduce the details as below:
 
 .. math::
 
-  Y[d_0, d_1, \cdots, d_{K-1}] = \begin{cases}
-    A[d_{N-M}, d_1, \cdots, d_{N-1}] \text{ OP } B[d_0, d_1, \cdots, d_{N-1}], & M \leq N \\
-    A[d_0, d_1, \cdots, d_{M-1}] \text{ OP } B[d_{M-N}, d_1, \cdots, d_{M-1}], & M > N
-  \end{cases}, \\
+  Y[d_0, d_1, \cdots, d_{K-1}] =
+    A[a_0, a_1, \cdots, a_{M-1}] \text{ OP } B[b_0, a_1, \cdots, a_{N-1}], \\
 
-  \forall d_i \in [0, n_i) \text{ if } N \geq M \text{ or } d_i \in [0, m_i) \text{ otherwise} \\
+  \forall i \in [0, Q) \wedge d_i \in [0, \max(em_i, en_i)), \\
 
-  \text{where } i \in [0, max(M, N))\\
+  \text{where } 
+  a_j = d_{Q-M+j} \text{ if } d_{Q-M+j} < m_j \text{ else } 0, \forall j \in [0, M) \text{ and} \\
+  b_j = d_{Q-N+j} \text{ if } d_{Q-N+j} < n_j \text{ else } 0, \forall j \in [0, N) \text{ and} \\
+  em_i = \begin{cases}
+    1, & i < Q - M \\
+    m_{Q-M+i}, & \text{otherwise}
+  \end{cases}, \forall i \in [0, Q) \text{ and} \\
+  en_i = \begin{cases}
+    1, & i < Q - N \\
+    n_{Q-N+i}, & \text{otherwise}
+  \end{cases}, \forall i \in [0, Q)
   
 
 
@@ -221,7 +243,6 @@ set :math:`\text{OP}` to :math:`\text{add}`.
 broadcast_sub
 ~~~~~~~~~~~~~
 set :math:`\text{OP}` to :math:`\text{sub}`.
-Note that there's no need to make sure that the dimension of the minuend :math:`A` is higher than subtractor :math:`B`
 
 broadcast_mul
 ~~~~~~~~~~~~~
@@ -272,11 +293,15 @@ We only supported 2-D convolution operator. Also alias *Group-wise Convolution*.
   p \in \left[0, \text{Y_HMAX} \right) \wedge 
   q \in \left[0, \text{Y_WMAX} \right),
 
-  \text{where } \text{Y_HMAX} = \left\lfloor{H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1\over\text{SH}}\right\rfloor+1\wedge\\
-  \text{Y_WMAX} = \left\lfloor{W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}}\right\rfloor+1 \wedge\\
-  OPG = OC / \text{groups, }  OPG \in \mathbb N^+ \text{ since } OC \text{ mod } \text{groups} = 0\\
+  \text{where } \text{Y_HMAX} = \left\lfloor{
+    H+2 \cdot \text{PH}-\text{DH} \cdot (\text{KH}-1)-1 \over \text{SH}
+  }\right\rfloor + 1 \text{ and} \\
+  \text{Y_WMAX} = \left\lfloor{
+    W+2 \cdot \text{PW}-\text{DW} \cdot (\text{KW}-1)-1 \over \text{SW}
+  }\right\rfloor + 1 \text{ and} \\
+  OPG = OC / \text{groups, } OPG \in \mathbb N^+ \text{ since } OC \text{ mod } \text{groups} = 0\\
 
-where :math:`\text{kernel}` function does the 2D image convolution calculation, and the formulation is
+where :math:`\text{kernel}` function does the 2D image convolution calculation, and the formulation is:
 
 .. math::
 
@@ -322,8 +347,8 @@ Relu performs elementwise rectified linear unit function.
 - Output: :math:`Y`, the same shape as :math:`X`
 
 .. math::
-  Y[d_0, d_1, \cdots, d_{n-1}] = max(0, X[d_0, d_1, \cdots, d_{n-1}]) \\
-  \forall i \in [0, N), d_i \in [0, n_i)
+  Y[d_0, d_1, \cdots, d_{n-1}] = max(0, X[d_0, d_1, \cdots, d_{n-1}]), \\
+  \forall i \in [0, N) \wedge d_i \in [0, n_i)
 
 max_pool2d
 ~~~~~~~~~~
@@ -361,7 +386,7 @@ Max_pool2d performs max pooling over every plane for each batch and channel.
   \end{cases} \text{ and} \\
   \text{pad}(n, i, p, q) = \begin{cases}
   X[n, i, p, q], & \text{ if } p \in [0, H) \wedge q \in [0, W) \\
-  INT32_MIN, & \text{otherwise}
+  INT32\_MIN, & \text{otherwise}
   \end{cases}
 
 
@@ -402,9 +427,9 @@ This operator calculates absolute value of input data.
   -x, & x < 0
   \end{cases},\\
 
-  \forall i \in [0, N), d_i \in [0, n_i),\\
+  \forall i \in [0, N) \wedge d_i \in [0, n_i),\\
 
-  \text{, where }x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+  \text{where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 cvm_precision
 ~~~~~~~~~~~~~
@@ -423,9 +448,9 @@ The precision operator gives how many bits the absolute value of a number takes.
   1, & x = 0
   \end{cases},\\
   
-  \forall i \in [0, N), d_i \in [0, n_i),\\
+  \forall i \in [0, N) \wedge d_i \in [0, n_i),\\
 
-  \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+  \text{where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 
 elemwise_add
@@ -492,9 +517,9 @@ This operator performs clip, cutting the data into a range, to the input tensor.
   \text{a_min}, & x \leqslant \text{a_min}
   \end{cases},\\
 
-  \forall i \in [0, N) \wedge d_i \in [0, n_i),
+  \forall i \in [0, N) \wedge d_i \in [0, n_i), \\
 
-  \text{ where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
+  \text{where } x \text{ denotes } X[d_0, d_1, \cdots, d_{N-1}]
 
 cvm_cilp
 ~~~~~~~~
@@ -764,6 +789,8 @@ slice_like
 
 This operator slices the input :math:`X` to a shape that looks like the other given input ``shape_like``.
 
+TODO: need more consideration.
+
 *Math Formalization*
 
 - Input: there are 2 inputs
@@ -786,12 +813,10 @@ This operator slices the input :math:`X` to a shape that looks like the other gi
 .. math::
   Y[d_0, d_1, \cdots, d_{N-1}] = X[d_0, d_1, \cdots, d_{N-1}], \\
   
-  \forall d_j \in \begin{cases}
+  \forall j \in [0, N) \wedge d_j \in \begin{cases}
   [0, m_j), & j \in \text{sliced_axes} \\
   [0, n_j), & j \notin \text{sliced_axes}
   \end{cases},\\
-
-  \text{where } j \in [0, N)
 
 take
 ~~~~
@@ -1051,7 +1076,7 @@ This operator implements the nms algorithm, finding valid bounding boxes.
   \text{where } T = \text{max}\{
   \text{min}(N, \text{valid_count}[b]), 0\} \text{ and} \\
   I: \{ i \mid i \in [0, T) \} \to \{ i \mid i \in [0, T) \}, \\
-  \text {s.t. } X[b, I(i), 1] > X[b, I(j), 1] \vee \\
+  \text {s.t. } X[b, I(i), 1] > X[b, I(j), 1] \text{ or } \\
   (X[b, I(i), 1] = X[b, I(j), 1] \wedge I(i) < I(j)),
   \forall 0 \leqslant i < j < T
 
@@ -1074,7 +1099,7 @@ This operator implements the nms algorithm, finding valid bounding boxes.
     \text{OLR}(R[b, p, :], R[b, q, :]), &
     \begin{array}{}
     \text{force_suppress is true}\\
-    \vee R[b, p, 0] = R[b, q, 0]
+    \text{ or } R[b, p, 0] = R[b, q, 0]
     \end{array} \\[1ex]
     0, & \text{otherwise}
   \end{cases} \text{ and} \\
