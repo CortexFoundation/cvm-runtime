@@ -224,6 +224,7 @@ class MRT:
         op_precs['Embedding'] = 16
         op_precs['slice_like'] = 30
         op_precs['batch_dot'] = 8
+        op_precs['elemwise_mul'] = 16
 
     def set_input_prec(self, prec):
         """ Set the input precision before quantization.

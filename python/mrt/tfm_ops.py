@@ -229,18 +229,25 @@ class Activation(Transformer):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().fuse_transpose(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            op = Sigmoid().fuse_transpose(op, **kwargs)
         return op
 
     def rewrite(self, op, **kwargs):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().rewrite(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            childs = sym_iter(op.get_children())
+            op = mx.sym.sigmoid(childs[0])
         return op
 
     def calculate_ops(self, op, **kwargs):
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().calculate_ops(op, **kwargs)
+        elif attr['act_type'] == Sigmoid.op_name:
+            op = Sigmoid().calculate_ops(op, **kwargs)
         return op
 
     def prepare_for_compile(self, op, **kwargs):
@@ -252,12 +259,13 @@ class Activation(Transformer):
     def compile(self, op, **kwargs):
         attrs = kwargs['attr']
         act_type = attrs['act_type']
+
         if act_type == Relu.op_name:
             nkwargs = {k: v for k, v in kwargs.items() if k != 'attr'}
             nattrs = {k: v for k, v in attrs.items() if k != 'act_type'}
             nkwargs['attr'] = nattrs
-            sym = Relu().compile(op, **nkwargs)
-        return sym
+            op = Relu().compile(op, **nkwargs)
+        return op
 
 
 @register_pass("fuse_transpose")
@@ -1206,37 +1214,11 @@ class BroadcastAdd(Transformer):
         return _quantize_scale(op, **kwargs)
 
 
-# @register_pass("calculate_ops")
-# @register_pass("fuse_transpose")
-# @register_pass("rewrite")
-# @register_pass("prepare_for_compile")
-# @register_pass("compile")
-# @register_transformer("broadcast_div")
-# class BroadcastDiv(Transformer):
-#     def quantize(self, op, **kwargs):
-#         precs, scales = kwargs["precs"], kwargs["scales"]
-#         th_dict = kwargs["th_dict"]
-#         name, op_name = op.attr("name"), op.attr("op_name")
-#         X, Y = sym_iter(op.get_children())
-#         xn, yn = X.attr("name"), Y.attr("name")
-# 
-#         xs, ys = scales[xn], scales[yn]
-#         th = th_dict[name]
-# 
-#         if get_bit(th*xs/ys) > MAX_BIT:
-#             ys = xs / scale(th, MAX_BIT)
-#             yprec = min(get_bit(th_dict[yn] * ys), MAX_BIT)
-#             Y, _, ys = requant(
-#                 Y, yprec, oname=N.n("denominator"), **kwargs)
-# 
-#             xs = scale(th, MAX_BIT) * ys
-#             xprec = get_bit(th_dict[xn] * xs)
-#             X, _, xs = requant(
-#                 X, xprec, oscale=xs, oname=N.n("numerator"), **kwargs)
-# 
-#         oscale = scales[name] = xs / ys
-#         precs[name][OUT_KEY] = get_bit(th * oscale)
-#         return get_mxnet_op(op_name)(X, Y, name=name)
+@register_pass("prepare_for_compile")
+@register_pass("compile")
+@register_transformer("broadcast_div")
+class BroadcastDiv(Transformer):
+    pass
 
 
 @register_pass("calculate_ops")
@@ -1917,6 +1899,36 @@ class ElemwiseSub(Transformer):
             See :func:`mrt.tfm_ops._quantize_scale <._quantize_scale>` for reference.
         """
         return _quantize_scale(op, **kwargs)
+
+
+@register_pass("compile")
+@register_pass("prepare_for_compile")
+@register_pass("rewrite")
+@register_transformer("elemwise_mul")
+class ElemwiseMul(Transformer):
+    def fuse_transpose(self, op, **kwargs):
+        return _ft_multi_input(op)
+
+    def quantize(self, op, **kwargs):
+        precs, scales = kwargs['precs'], kwargs['scales']
+        name, op_name = op.attr('name'), op.attr('op_name')
+        childs, attr = sym_iter(op.get_children()), op.list_attr()
+        cns = [c.attr('name') for c in childs] if childs else []
+
+        oprec = kwargs['op_input_precs'][op_name]
+        X, xprec, xs = requant(childs[0], oprec, oname=name, **kwargs)
+        W, wprec, ws = requant(childs[1], oprec, oname=name, **kwargs)
+        scales[name] = ws * xs
+        op = get_mxnet_op(op_name)(X, W, **attr, name=name)
+
+        infer_prec = xprec + wprec
+        kwargs['precs'][name][OUT_KEY] = infer_prec
+
+        logger = logging.getLogger('log.mrt.realize')
+        logger.debug(
+            "operator  %-20s name=%-40s oscale=%s, iscale=%s",
+            op_name, name, scales[name], cns)
+        return op
 
 
 @register_pass("validate")
