@@ -9,8 +9,7 @@ from mrt import dataset as ds
 from mrt import utils
 from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
-    MRT_CFG, default_device_type, default_device_ids, default_batch,
-    get_model_prefix, get_logger, set_batch, load_fname, load_conf,
+    MRT_CFG, get_model_prefix, get_logger, set_batch, load_fname, load_conf,
     check_file_existance, get_ctx, get_batch_axis)
 
 DOC = """
@@ -22,9 +21,9 @@ EVALUATE Stage Options:
 """
 
 MRT_CFG.EVALUATE = CN()
-MRT_CFG.EVALUATE.BATCH = default_batch
-MRT_CFG.EVALUATE.DEVICE_TYPE = default_device_type
-MRT_CFG.EVALUATE.DEVICE_IDS = default_device_ids
+MRT_CFG.EVALUATE.BATCH = None
+MRT_CFG.EVALUATE.DEVICE_TYPE = None
+MRT_CFG.EVALUATE.DEVICE_IDS = None
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
 def evaluate(cm_cfg, pass_cfg, logger=None):
@@ -35,6 +34,12 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
     device_ids = pass_cfg.DEVICE_IDS
     iter_num = pass_cfg.ITER_NUM
     batch = pass_cfg.BATCH
+    if batch is None:
+        batch = cm_cfg.BATCH
+    if device_type is None:
+        device_type = cm_cfg.DEVICE_TYPE
+    if device_ids is None:
+        device_ids = cm_cfg.DEVICE_IDS
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:

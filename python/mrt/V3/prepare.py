@@ -18,8 +18,8 @@ PREPARE Stage Options:
 default_input_shape = [-1, 3, 224, 224]
 
 MRT_CFG.PREPARE= CN()
-MRT_CFG.PREPARE.DEVICE_TYPE = default_device_type
-MRT_CFG.PREPARE.DEVICE_IDS = default_device_ids
+MRT_CFG.PREPARE.DEVICE_TYPE = None
+MRT_CFG.PREPARE.DEVICE_IDS = None
 MRT_CFG.PREPARE.INPUT_SHAPE = default_input_shape
 MRT_CFG.PREPARE.SPLIT_KEYS = []
 
@@ -31,6 +31,10 @@ def prepare(cm_cfg, pass_cfg, logger=None):
     device_ids = pass_cfg.DEVICE_IDS
     input_shape = pass_cfg.INPUT_SHAPE
     split_keys = pass_cfg.SPLIT_KEYS
+    if device_type is None:
+        device_type = cm_cfg.DEVICE_TYPE
+    if device_ids is None:
+        device_ids = cm_cfg.DEVICE_IDS
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:

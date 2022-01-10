@@ -4,8 +4,7 @@ from mrt.transformer import Model
 from mrt import dataset as ds
 from mrt import conf
 from mrt.V3.utils import (
-    MRT_CFG, default_device_type, default_device_ids, default_batch,
-    get_model_prefix, get_logger, set_batch, load_fname, save_conf,
+    MRT_CFG, get_model_prefix, get_logger, set_batch, load_fname, save_conf,
     load_conf, check_file_existance, get_ctx)
 
 DOC = """
@@ -22,13 +21,13 @@ CALIBRATE Stage Options:
 default_num_calib = 1
 
 MRT_CFG.CALIBRATE = CN()
-MRT_CFG.CALIBRATE.BATCH = default_batch
+MRT_CFG.CALIBRATE.BATCH = None
 MRT_CFG.CALIBRATE.NUM_CALIB = default_num_calib
 MRT_CFG.CALIBRATE.LAMBD = None
 MRT_CFG.CALIBRATE.DATASET_NAME = "imagenet"
 MRT_CFG.CALIBRATE.DATASET_DIR = conf.MRT_DATASET_ROOT
-MRT_CFG.CALIBRATE.DEVICE_TYPE = default_device_type
-MRT_CFG.CALIBRATE.DEVICE_IDS = default_device_ids
+MRT_CFG.CALIBRATE.DEVICE_TYPE = None
+MRT_CFG.CALIBRATE.DEVICE_IDS = None
 
 def calibrate(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
@@ -41,6 +40,12 @@ def calibrate(cm_cfg, pass_cfg, logger=None):
     calibrate_num = pass_cfg.NUM_CALIB
     lambd = pass_cfg.LAMBD
     batch = pass_cfg.BATCH
+    if batch is None:
+        batch = cm_cfg.BATCH
+    if device_type is None:
+        device_type = cm_cfg.DEVICE_TYPE
+    if device_ids is None:
+        device_ids = cm_cfg.DEVICE_IDS
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:

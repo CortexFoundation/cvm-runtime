@@ -4,9 +4,8 @@ from mrt.transformer import Model, MRT
 from mrt import sym_utils as sutils
 from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
-    MRT_CFG, default_device_type, default_device_ids, get_model_prefix,
-    get_logger, load_fname, save_conf, load_conf, check_file_existance,
-    get_ctx)
+    MRT_CFG, get_model_prefix, get_logger, load_fname, save_conf, load_conf,
+    check_file_existance, get_ctx)
 
 DOC = """
 QUANTIZE Stage Options:
@@ -26,8 +25,8 @@ MRT_CFG.QUANTIZE = CN()
 MRT_CFG.QUANTIZE.RESTORE_NAMES = []
 MRT_CFG.QUANTIZE.INPUT_PRECISION = None
 MRT_CFG.QUANTIZE.OUTPUT_PRECISION = None
-MRT_CFG.QUANTIZE.DEVICE_TYPE = default_device_type
-MRT_CFG.QUANTIZE.DEVICE_IDS = default_device_ids
+MRT_CFG.QUANTIZE.DEVICE_TYPE = None
+MRT_CFG.QUANTIZE.DEVICE_IDS = None
 MRT_CFG.QUANTIZE.SOFTMAX_LAMBD = None
 MRT_CFG.QUANTIZE.SHIFT_BITS = None
 MRT_CFG.QUANTIZE.THRESHOLDS = []
@@ -49,6 +48,10 @@ def quantize(cm_cfg, pass_cfg, logger=None):
     attribute_deps = {attr: {sattr: opn for sattr, opn in attr_map} \
         for attr, attr_map in pass_cfg.ATTRIBUTE_DEPS}
     oscale_maps = {opn1: opn2 for opn1, opn2 in pass_cfg.OSCALE_MAPS}
+    if device_type is None:
+        device_type = cm_cfg.DEVICE_TYPE
+    if device_ids is None:
+        device_ids = cm_cfg.DEVICE_IDS
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:

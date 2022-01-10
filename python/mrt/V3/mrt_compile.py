@@ -8,8 +8,7 @@ from mrt.transformer import Model, MRT
 from mrt import dataset as ds
 from mrt import sim_quant_helper as sim
 from mrt.V3.utils import (
-    MRT_CFG, default_device_type, default_device_ids, default_batch,
-    get_model_prefix, get_logger, set_batch, load_fname, load_conf,
+    MRT_CFG, get_model_prefix, get_logger, set_batch, load_fname, load_conf,
     check_file_existance)
 
 DOC = """
@@ -25,8 +24,8 @@ default_dump_dir = path.expanduser("~/mrt_dump")
 MRT_CFG.COMPILE = CN()
 MRT_CFG.COMPILE.BATCH = 1
 MRT_CFG.COMPILE.DUMP_DIR = default_dump_dir
-MRT_CFG.COMPILE.DEVICE_TYPE = default_device_type
-MRT_CFG.COMPILE.DEVICE_IDS = default_device_ids
+MRT_CFG.COMPILE.DEVICE_TYPE = None
+MRT_CFG.COMPILE.DEVICE_IDS = None
 
 def mrt_compile(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
@@ -36,6 +35,10 @@ def mrt_compile(cm_cfg, pass_cfg, logger=None):
     device_type = pass_cfg.DEVICE_TYPE
     device_ids = pass_cfg.DEVICE_IDS
     batch = pass_cfg.BATCH
+    if device_type is None:
+        device_type = cm_cfg.DEVICE_TYPE
+    if device_ids is None:
+        device_ids = cm_cfg.DEVICE_IDS
 
     model_prefix = get_model_prefix(model_dir, model_name)
     if logger is None:

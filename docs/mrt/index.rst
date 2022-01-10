@@ -54,6 +54,14 @@ V2 Documentation
 
   V2.rst
 
+V3 Documentation
+================
+
+.. toctree::
+  :maxdepth: 3
+
+  V3.rst
+
 API Documentation
 =================
 
