@@ -3,6 +3,47 @@ V3 Documentation
 
 [TOC]
 
+V3 Architecture
+~~~~~~~~~~~~~~~
+
+MRT V3 is the functional entry point of MRT taht supports customized user-defined attributes 
+for different quantization stages. As listed, there are three required postional stages , which
+need to be executed sequentially:
+
+- preparation: initializing the pre-trained model, supported graph-level passes including:
+
+  - standardizing the specified model
+
+    - duplicate symbol name hacking and validation
+    - parameter prefix removal
+    - constant operator deduction
+    - input shape attachment
+    - input name replacement
+    - multiple outputs fusion
+    - parameter unification
+
+  - equivalent operator substitution for the availability of quantization and cvm compliation
+
+    - tranpose operator fusion
+    - operator rewriting
+
+  - model splitting into top and base to be precocessed respectively
+
+- calibration: calibrate the prepared model to acquire the operator-level thresholds that is 
+futher exploited in the stage of quantization.
+
+- quantization: perform the operator-level quantizing procedure that inludes:
+
+  - operator restoration for tuning purposes
+
+  - operator quantization 
+
+    - quantizing with respect to the acquried thresholds and input precisions
+    - operator clipping on condition that the output precision exceeds the tight precision
+    - model output operator quantization with respect to the pre-defined output precision
+
+  - graph-level model merging
+
 Model Test
 ~~~~~~~~~~
 
