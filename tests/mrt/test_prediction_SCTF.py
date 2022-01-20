@@ -40,4 +40,4 @@ if __name__ == "__main__":
     cfg = merge_cfg(yaml_file)
     cfg = override_cfg_args(cfg, sys.argv[1:])
     run(cfg)
-    # futils.test_quantized_forward(cfg.COMMON, cfg.EVALUATE)
+    # futils.evaluate_forward(cfg.COMMON, cfg.EVALUATE)

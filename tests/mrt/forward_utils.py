@@ -8,7 +8,7 @@ from mrt.V3.utils import (
     get_model_prefix, get_logger, set_batch, load_fname, load_conf,
     check_file_existance, get_ctx, get_batch_axis)
 
-def test_quantized_forward(cm_cfg, pass_cfg, logger=None):
+def evaluate_forward(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -46,7 +46,6 @@ def test_quantized_forward(cm_cfg, pass_cfg, logger=None):
             outs = [nd.concatenate([outs[i][j] \
                 for i in range(len(outs))]) for j in range(olen)]
         return outs
-
 
     # forward function for the quantized model
     num_xpus = len(ctx)
