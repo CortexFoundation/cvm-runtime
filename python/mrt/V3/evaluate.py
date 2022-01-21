@@ -53,6 +53,7 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
 
     # forward function for the orginal model
     omodel = Model.load(*load_fname(model_prefix))
+    #TODO(ryt.dev) [bug fix] load revised model
     graph = omodel.to_graph(ctx=ctx)
     dataset_name = conf_map["dataset_name"]
     input_shape = conf_map["input_shape"]
@@ -126,6 +127,7 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         logger.info("evaluatation stage skipped")
 
 def forward(net, data, ctx, baxis, olen):
+    #TODO(ryt.dev) documentation
     """ Multiple xpu run support.
     """
     data = gluon.utils.split_and_load(
@@ -139,6 +141,7 @@ def forward(net, data, ctx, baxis, olen):
     return outs
 
 def get_ctx_eval(ctx):
+    #TODO(ryt.dev) documentation
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
     elif isinstance(ctx, list):
@@ -152,6 +155,7 @@ def inference_original_model(
     symbol_file, params_file, data, batch_axis=0,
     device_type=MRT_CFG.EVALUATE.DEVICE_TYPE,
     device_ids=MRT_CFG.EVALUATE.DEVICE_IDS):
+    #TODO(ryt.dev) documentation
 
     ctx = get_ctx_eval(get_ctx(device_type, device_ids))
     omodel = Model.load(symbol_file, params_file)
@@ -165,6 +169,7 @@ def inference_quantized_model(
     qsymbol_file, qparams_file, qext_file, data, batch_axis=0, split=False,
     device_type=MRT_CFG.EVALUATE.DEVICE_TYPE,
     device_ids=MRT_CFG.EVALUATE.DEVICE_IDS):
+    #TODO(ryt.dev) documentation
 
     ctx = get_ctx_eval(get_ctx(device_type, device_ids))
 
