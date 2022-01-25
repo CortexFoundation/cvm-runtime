@@ -25,47 +25,54 @@ class Yolov5Metric:
         self.niou = iouv.shape[0]
         # status variable
         self.stats = []
-        self.seen = 0
 
     def reset(self):
         self.stats.clear()
-        self.seen = 0
 
-    def update(self, labels, out):
-        nl = labels.shape[0]
-        out = non_max_suppression(
-            out.asnumpy(), self.conf_thres, self.iou_thres, labels=[]
-            multi_label=True, agnostic=False)
-        pred = out[0]
-        tcls = labels[:,0] if nl else []
-        self.seen += 1
-        if pred.shape[0] == 0:
+    def update(self, labels, out, input_shape):
+        batch_size, _, H, W = input_shape
+        outs = []
+        for i in range(batch_size):
+            concat_out = nd.concatenate(
+                [o[i].reshape((-1, o[i].shape[-1])) for o in out])
+            expand_dims_out = concat_out.expand_dims(axis=0)
+            outs.append(expand_dims_out)
+        for i in range(batch_size):
+            label = labels[i]
+            nl = label.shape[0]
+            out = non_max_suppression(
+                outs[i].asnumpy(), self.conf_thres, self.iou_thres, labels=[],
+                multi_label=True, agnostic=False)
+            pred = out[0]
+            tcls = label[:,0] if nl else []
+            if pred.shape[0] == 0:
+                if nl:
+                    self.stats.append(
+                        (np.zeros((0,self.niou)), np.zeros((0)), np.zeros((0)), tcls))
+                continue
+            predn = pred.copy()
+            # native-space pred
+            scale_coords((H,W), predn[:,:4], [H,W], [[1.0,1.0],[0.0,0.0]])
             if nl:
-                self.stats.append(
-                    (np.zeros((0)), np.zeros((0)), np.zeros((0)), tcls))
-            continue
-        predn = pred.copy()
-        # native-space pred
-        _, _, H, W = self.ishape
-        scale_coords((H,W), predn[:,:4], [H,W], [[1.0,1.0],[0.0,0.0]])
-        if nl:
-            # target boxes
-            tbox = xywh2xyxy(labels[:,1:5])
-            # native-space labels
-            scale_coords((H,W), tbox, [H,W], [[1.0,1.0],[0.0,0.0]])
-            # native-space labels
-            labelsn = np.concatenate((labels[:,0:1],tbox), axis=1)
-            correct = process_batch(predn, labelsn, self.iouv)
-        else:
-            correct = np.zeros((pred.shape[0], self.niou), dtype=np.bool)
-        # (correct, conf, pcls, tcls)
-        self.stats.append((correct, pred[:, 4], pred[:, 5], tcls))
+                # target boxes
+                tbox = xywh2xyxy(label[:,1:5])
+                # native-space label
+                scale_coords((H,W), tbox, [H,W], [[1.0,1.0],[0.0,0.0]])
+                # native-space label
+                labelsn = np.concatenate((label[:,0:1],tbox), axis=1)
+                correct = process_batch(predn, labelsn, self.iouv)
+            else:
+                correct = np.zeros((pred.shape[0], self.niou), dtype=np.bool)
+            # (correct, conf, pcls, tcls)
+            self.stats.append((correct, pred[:, 4], pred[:, 5], tcls))
+
+    def get(self):
         # compute metrics
         # to numpy
         cur_stats = [np.concatenate(x, 0) for x in zip(*self.stats)]
         if len(cur_stats) and cur_stats[0].any():
             tp, fp, p, r, f1, ap, ap_class = ap_per_class(
-                *cur_stats, plot=False, save_dir=None, names=names)
+                *cur_stats, plot=False, save_dir=None, names=self.names)
             # AP@0.5, AP@0.5:0.95
             ap50, ap = ap[:, 0], ap.mean(1)
             mp, mr, map50, map_ = p.mean(), r.mean(), ap50.mean(), ap.mean()
@@ -73,11 +80,12 @@ class Yolov5Metric:
             nt = np.bincount(cur_stats[3].astype(np.int64), minlength=80)
         else:
             nt = np.zeros(1)
-        return self.seen, nt, mp, mr, map50, map_
+            mp = mr = map50 = map_ = 0.
+        return nt, mp, mr, map50, map_
 
 
-@ds.register_dataset("yolov5s_dataset")
-class Yolov5sDataset(ds.Dataset):
+@ds.register_dataset("yolov5_dataset")
+class Yolov5Dataset(ds.Dataset):
     def __init__(self, input_shape, imgsz=640, **kwargs):
         super().__init__(input_shape, **kwargs)
         self.image_dir = path.join(self.root_dir, "images")
@@ -86,17 +94,20 @@ class Yolov5sDataset(ds.Dataset):
 
     def _load_data(self):
         assert len(self.ishape) == 4, self.ishape
-        assert self.ishape[0] == 1, self.ishape
 
         def data_loader():
-            for f in os.listdir(self.image_dir):
+            data, label = [], []
+            for f in sorted(os.listdir(self.image_dir)):
                 _, ext = os.path.splitext(f)
-                if ext != ".jpg" and ext != ".JPG" and ext != ".png" and ext != ".PNG":
+                if ext != ".jpg" and ext != ".JPG" \
+                    and ext != ".png" and ext != ".PNG":
                     continue
                 l = f.replace(f.split(".")[1], "txt")
-                file_name = os.path.join(self.root_dir, f)
+                file_name = os.path.join(self.image_dir, f)
                 label_name = os.path.join(self.label_dir, l)
                 img = cv2.imread(file_name)
+                # hack size
+                img = cv2.resize(img, tuple(self.ishape[2:]))
                 try:
                     labels = np.loadtxt(label_name)
                 except:
@@ -109,7 +120,15 @@ class Yolov5sDataset(ds.Dataset):
                 img = img0.astype("float32")/255.
                 img = nd.array(img.transpose((2,0,1))[None])
                 labels[:,1:] = labels[:,1:] * np.array([img.shape[3], img.shape[2]]*2)
-                yield img, labels
+                # if img.shape[2] != self.ishape[2] or img.shape[3] != self.ishape[3]:
+                    # continue
+                if len(data) < self.ishape[0]:
+                    data.append(img)
+                    label.append(labels)
+                else:
+                    batch_data = nd.concatenate(data)
+                    yield batch_data, label
+                    data, label = [], []
 
         self.data = data_loader()
 
@@ -139,110 +158,24 @@ class Yolov5sDataset(ds.Dataset):
                 74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear',
                 78: 'hair drier', 79: 'toothbrush',
             }
-        return Yolov5Metric(
+        metric = Yolov5Metric(
             conf_thres=conf_thres, iou_thres=iou_thres, names=names, iouv=iouv)
+        metric.reset()
+        return metric
 
     def validate(self, metrics, out, labels):
-        metrics.update(labels, out)
-        seen, nt, mp, mr, map50, map_ = metrics.get()
-        return "{}: #images={}, #objects={}, ".fomrat(
-            self.root_dir, seen, nt.sum()) + \
-            "mp={02.2f}%, mr={02.2f}%, ".format(mp*100, mr*100) + \
-            "map50={02.2f}%, map={02.2f}%".format(map50*100, map_*100)
-
-def main(opt):
-    print(opt)
-    conf_thres = 0.001
-    iou_thres = 0.6
-
-    args = parse_opt()
-    ctx = mx.cpu() if args.cpu else mx.gpu(args.gpu)
-
-    gw = {"n":1, "s":2, "m":3, "l":4, "x":5}
-    gd = {"n":1, "s":1, "m":2, "l":3, "x":4}
-    postfix = args.model[-1]
-    model = yolov5(batch_size=args.batch_size, mode="val", ctx=ctx, act=args.silu, gd=gd[postfix], gw=gw[postfix])
-    model.collect_params().initialize(init=mx.init.Xavier(), ctx=ctx)
-    #model.hybridize()
-
-    try:
-        EPOCH = []
-        start_epoch = 0
-        for f in os.listdir(args.model_dir):
-            if f.endswith("params") and args.model in f:
-                name_epoch = f.strip().split(".")[0].split("-")
-                if len(name_epoch) == 2 and name_epoch[0] == args.model:
-                    EPOCH.append(name_epoch[1])
-        tmp = [int(_) for _ in EPOCH]
-        ind = tmp.index(max(tmp))
-        params_file = os.path.join(args.model_dir, args.model+"-"+EPOCH[ind]+".params")
-        model.collect_params().load(params_file,ignore_extra=False)
-        print(f'load weight {params_file} successfully')
-    except:
-        print("failed to load weight")
-
-    iouv = np.linspace(0.5, 0.95, 10)
-    niou = iouv.shape[0]
-    seen = 0
-    jdict, stats, ap, ap_class = [], [], [], []
-
-    for f in os.listdir(args.dataset):
-        _, ext = os.path.splitext(f)
-        if ext != ".jpg" and ext != ".JPG" and ext != ".png" and ext != ".PNG":
-            continue
-        print(f)
-        l = f.replace(f.split(".")[1], "txt")
-        file_name = os.path.join(args.dataset, f)
-        label_name = os.path.join(args.dataset.replace("images","labels"), l)
-        img = cv2.imread(file_name)
-        try:
-            labels = np.loadtxt(label_name)
-        except:
-            labels = np.array([])
-        labels = labels.reshape((-1, 5))
-        
-        height, width = img.shape[0:2]
-        scale = min(args.imgsz/height, args.imgsz/width)
-        h0, w0 = height*scale, width*scale
-        img0 = cv2.resize(img, (round(w0/32.)*32, round(h0/32.)*32))
-
-        img = img0.astype("float32")/255.
-        img = nd.array(img.transpose((2,0,1))[None], ctx = ctx)
-        labels[:,1:] = labels[:,1:]*np.array([img.shape[3], img.shape[2]]*2)
-
-        nl = labels.shape[0]
-        out = model(img).asnumpy()
-        out = non_max_suppression(out, conf_thres, iou_thres, labels=[], multi_label=True, agnostic=False)
-        pred = out[0]
-
-        tcls = labels[:,0] if nl else []
-        seen += 1
-        
-        if pred.shape[0] == 0:
-            if nl:
-                stats.append((np.zeros((0)), np.zeros((0)), np.zeros((0)), tcls))
-            continue
-        
-        predn = pred.copy()
-        scale_coords(img[0].shape[1:], predn[:, :4], [img.shape[2], img.shape[3]], [[1.0,1.0],[0.0,0.0]])  # native-space pred
-
-        if nl:
-            tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
-            scale_coords(img[0].shape[1:], tbox, [img.shape[2], img.shape[3]], [[1.0,1.0],[0.0,0.0]])  # native-space labels
-            labelsn = np.concatenate((labels[:, 0:1], tbox), axis=1)  # native-space labels
-            correct = process_batch(predn, labelsn, iouv)
-        else:
-            correct = np.zeros((pred.shape[0], niou), dtype=np.bool)
-        stats.append((correct, pred[:, 4], pred[:, 5], tcls))  # (correct, conf, pcls, tcls)
-
+        metrics.update(labels, out, self.ishape)
+        nt, mp, mr, map50, map_ = metrics.get()
+        return "#objects={}, ".format(nt.sum()) + \
+            "mp={:6.2%}, mr={:6.2%}, ".format(mp*100, mr*100) + \
+            "map50={:6.2%}, map={:6.2%}".format(map50*100, map_*100)
 
 if __name__ == "__main__":
     assert len(sys.argv) >= 1 and len(sys.argv)%2 == 1, \
         "invalid length: {} of sys.argv: {}".format(
         len(sys.argv), sys.argv)
     yaml_file = path.join(
-        path.dirname(path.realpath(__file__)),
-        "model_zoo", "prediction_SCTF.yaml")
+        path.dirname(path.realpath(__file__)), "yolov5s-0040.yaml")
     cfg = get_cfg_defaults()
     cfg = merge_cfg(yaml_file)
     cfg = override_cfg_args(cfg, sys.argv[1:])
