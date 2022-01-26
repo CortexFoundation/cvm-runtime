@@ -2,6 +2,7 @@ from os import path
 import os
 import sys
 
+import mxnet as mx
 from mxnet import ndarray as nd
 import numpy as np
 import cv2
@@ -15,28 +16,123 @@ from utils import (
 
 class Yolov5Metric:
     def __init__(
-        self, conf_thres=0.001, iou_thres=0.6, names=None,
-        iouv=np.linspace(0.5,0.95,10)):
-        # attributes
+        self, conf_thres=0.001, iou_thres=0.6, iouv=np.linspace(0.5,0.95,10),
+        nc=80, anchors=()):
+
+        # metric parameters
         self.conf_thres = conf_thres
         self.iou_thres = iou_thres
-        self.names = names
         self.iouv = iouv
         self.niou = iouv.shape[0]
+        self.names = {
+            0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle', 4: 'airplane',
+            5: 'bus', 6: 'train', 7: 'truck', 8: 'boat', 9: 'traffic light',
+            10: 'fire hydrant', 11: 'stop sign', 12: 'parking meter',
+            13: 'bench', 14: 'bird', 15: 'cat', 16: 'dog', 17: 'horse',
+            18: 'sheep', 19: 'cow', 20: 'elephant', 21: 'bear', 22: 'zebra',
+            23: 'giraffe', 24: 'backpack', 25: 'umbrella', 26: 'handbag',
+            27: 'tie', 28: 'suitcase', 29: 'frisbee', 30: 'skis',
+            31: 'snowboard', 32: 'sports ball', 33: 'kite', 34: 'baseball bat',
+            35: 'baseball glove', 36: 'skateboard', 37: 'surfboard',
+            38: 'tennis racket', 39: 'bottle', 40: 'wine glass', 41: 'cup',
+            42: 'fork', 43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana',
+            47: 'apple', 48: 'sandwich', 49: 'orange', 50: 'broccoli',
+            51: 'carrot', 52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake',
+            56: 'chair', 57: 'couch', 58: 'potted plant', 59: 'bed',
+            60: 'dining table', 61: 'toilet', 62: 'tv', 63: 'laptop',
+            64: 'mouse', 65: 'remote', 66: 'keyboard', 67: 'cell phone',
+            68: 'microwave', 69: 'oven', 70: 'toaster', 71: 'sink',
+            72: 'refrigerator', 73: 'book', 74: 'clock', 75: 'vase',
+            76: 'scissors', 77: 'teddy bear', 78: 'hair drier',
+            79: 'toothbrush',
+        }
+
+        # detect parameters
+        self.no = nc + 5
+        self.na = len(anchors[0]) // 2
+        self.stride = nd.array([8., 16., 32.])
+        self.anchors = nd.array(
+            [
+                [
+                    [ 1.25000,  1.62500],
+                    [ 2.00000,  3.75000],
+                    [ 4.12500,  2.87500]
+                ],
+                [
+                    [ 1.87500,  3.81250],
+                    [ 3.87500,  2.81250],
+                    [ 3.68750,  7.43750]
+                ],
+                [
+                    [ 3.62500,  2.81250],
+                    [ 4.87500,  6.18750],
+                    [11.65625, 10.18750]
+                ]
+            ]
+        )
+
         # status variable
         self.stats = []
 
     def reset(self):
         self.stats.clear()
 
-    def update(self, labels, out, input_shape):
+    def _make_grid(self, nx=20, ny=20, i=0, ctx=mx.cpu(0)):
+        yv = nd.array(range(ny))[:,None].repeat(nx,axis=1)
+        xv = nd.array(range(nx))[None,:].repeat(ny,axis=0)
+        grid = nd.concat(
+            xv[...,None], yv[...,None], dim=2)[None,None,...].repeat(
+            self.na, axis=1)
+        grid = nd.Cast(grid, dtype="float32")
+
+        anchor_grid = (self.anchors[i].copy()*self.stride[i])
+        anchor_grid = anchor_grid[None,:, None, None,:]
+        anchor_grid = anchor_grid.repeat(ny, axis=-3)
+        anchor_grid = anchor_grid.repeat(nx, axis=-2)
+        return grid.as_in_context(ctx), anchor_grid.as_in_context(ctx)
+
+    def update(self, labels, predict, input_shape):
         batch_size, _, H, W = input_shape
         outs = []
         for i in range(batch_size):
-            concat_out = nd.concatenate(
-                [o[i].reshape((-1, o[i].shape[-1])) for o in out])
-            expand_dims_out = concat_out.expand_dims(axis=0)
-            outs.append(expand_dims_out)
+            x, y, z = [o.slice_axis(axis=0, begin=i, end=i+1) for o in predict]
+            out = []
+
+            bs, _, ny, nx, _ = x.shape
+            grid, anchor_grid = self._make_grid(nx, ny, 0, ctx=x.ctx)
+            tmp = x.sigmoid()
+            # xy
+            xy = (tmp[..., 0:2]*2-0.5+grid) * \
+                self.stride[0].as_in_context(x.ctx)
+            # wh
+            wh = (tmp[..., 2:4]*2)**2 * anchor_grid
+            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+            out.append(tmp.reshape(bs, -1, self.no))
+
+            bs, _, ny, nx, _ = y.shape
+            grid, anchor_grid = self._make_grid(nx, ny, 1, ctx=y.ctx)
+            tmp = y.sigmoid()
+            # xy
+            xy = (tmp[..., 0:2]*2-0.5+grid) * \
+                self.stride[1].as_in_context(y.ctx)
+            # wh
+            wh = (tmp[..., 2:4]*2)*2 * anchor_grid
+            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+            out.append(tmp.reshape(bs, -1, self.no))
+
+            bs, _, ny, nx, _ = z.shape
+            grid, anchor_grid = self._make_grid(nx, ny, 2, ctx=z.ctx)
+            tmp = z.sigmoid()
+            # xy
+            xy = (tmp[..., 0:2]*2-0.5+grid) * \
+                self.stride[2].as_in_context(z.ctx)
+            # wh
+            wh = (tmp[..., 2:4]*2)**2 * anchor_grid
+            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+            out.append(tmp.reshape(bs, -1, self.no))
+
+            out = nd.concat(*out, dim=1)
+            outs.append(out)
         for i in range(batch_size):
             label = labels[i]
             nl = label.shape[0]
@@ -133,33 +229,15 @@ class Yolov5Dataset(ds.Dataset):
         self.data = data_loader()
 
     def metrics(
-        self, conf_thres=0.001, iou_thres=0.6, names=None,
-        iouv=np.linspace(0.5,0.95,10)):
-        if names is None:
-            names = {
-                0: 'person', 1: 'bicycle', 2: 'car', 3: 'motorcycle',
-                4: 'airplane', 5: 'bus', 6: 'train', 7: 'truck', 8: 'boat',
-                9: 'traffic light', 10: 'fire hydrant', 11: 'stop sign',
-                12: 'parking meter', 13: 'bench', 14: 'bird', 15: 'cat',
-                16: 'dog', 17: 'horse', 18: 'sheep', 19: 'cow', 20: 'elephant',
-                21: 'bear', 22: 'zebra', 23: 'giraffe', 24: 'backpack',
-                25: 'umbrella', 26: 'handbag', 27: 'tie', 28: 'suitcase',
-                29: 'frisbee', 30: 'skis', 31: 'snowboard', 32: 'sports ball',
-                33: 'kite', 34: 'baseball bat', 35: 'baseball glove',
-                36: 'skateboard', 37: 'surfboard', 38: 'tennis racket',
-                39: 'bottle', 40: 'wine glass', 41: 'cup', 42: 'fork',
-                43: 'knife', 44: 'spoon', 45: 'bowl', 46: 'banana', 47: 'apple',
-                48: 'sandwich', 49: 'orange', 50: 'broccoli', 51: 'carrot',
-                52: 'hot dog', 53: 'pizza', 54: 'donut', 55: 'cake', 56: 'chair',
-                57: 'couch', 58: 'potted plant', 59: 'bed', 60: 'dining table',
-                61: 'toilet', 62: 'tv', 63: 'laptop', 64: 'mouse', 65: 'remote',
-                66: 'keyboard', 67: 'cell phone', 68: 'microwave', 69: 'oven',
-                70: 'toaster', 71: 'sink', 72: 'refrigerator', 73: 'book',
-                74: 'clock', 75: 'vase', 76: 'scissors', 77: 'teddy bear',
-                78: 'hair drier', 79: 'toothbrush',
-            }
+        self, conf_thres=0.001, iou_thres=0.6, iouv=np.linspace(0.5,0.95,10)):
+        anchors = [
+            [10, 13, 16, 30, 33, 23],
+            [30 ,61, 62 ,45, 59, 119],
+            [116, 90, 156, 198, 373, 326]
+        ]
         metric = Yolov5Metric(
-            conf_thres=conf_thres, iou_thres=iou_thres, names=names, iouv=iouv)
+            conf_thres=conf_thres, iou_thres=iou_thres, iouv=iouv,
+            anchors=anchors, nc=80)
         metric.reset()
         return metric
 
@@ -167,8 +245,8 @@ class Yolov5Dataset(ds.Dataset):
         metrics.update(labels, out, self.ishape)
         nt, mp, mr, map50, map_ = metrics.get()
         return "#objects={}, ".format(nt.sum()) + \
-            "mp={:6.2%}, mr={:6.2%}, ".format(mp*100, mr*100) + \
-            "map50={:6.2%}, map={:6.2%}".format(map50*100, map_*100)
+            "mp={:6.2%}, mr={:6.2%}, ".format(mp, mr) + \
+            "map50={:6.2%}, map={:6.2%}".format(map50, map_)
 
 if __name__ == "__main__":
     assert len(sys.argv) >= 1 and len(sys.argv)%2 == 1, \
