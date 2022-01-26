@@ -190,6 +190,8 @@ class Yolov5Dataset(ds.Dataset):
 
     def _load_data(self):
         assert len(self.ishape) == 4, self.ishape
+        batch_size = self.ishape[0]
+        assert batch_size == 16, batch_size
 
         def data_loader():
             data, label = [], []
@@ -218,13 +220,15 @@ class Yolov5Dataset(ds.Dataset):
                 labels[:,1:] = labels[:,1:] * np.array([img.shape[3], img.shape[2]]*2)
                 # if img.shape[2] != self.ishape[2] or img.shape[3] != self.ishape[3]:
                     # continue
-                if len(data) < self.ishape[0]:
-                    data.append(img)
-                    label.append(labels)
-                else:
+                if len(data) == batch_size:
                     batch_data = nd.concatenate(data)
                     yield batch_data, label
                     data, label = [], []
+                data.append(img)
+                label.append(labels)
+            if len(data) == batch_size:
+                batch_data = nd.concatenate(data)
+                yield batch_data, label
 
         self.data = data_loader()
 
