@@ -1,3 +1,10 @@
+"""
+Preparation Module for MRT V3.
+
+Prepare function definition, default YAML configurations for MRT preparation
+Stage options and Command line help prompt are also included.
+"""
+
 from os import path
 from yacs.config import CfgNode as CN
 
@@ -24,7 +31,21 @@ MRT_CFG.PREPARE.INPUT_SHAPE = default_input_shape
 MRT_CFG.PREPARE.SPLIT_KEYS = []
 
 def prepare(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API of MRT preparation stage.
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of preparation stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     model_dir = cm_cfg.MODEL_DIR
+    if model_dir.startswith("~"):
+        model_dir = path.expanduser(model_dir)
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
     device_type = pass_cfg.DEVICE_TYPE
@@ -49,6 +70,7 @@ def prepare(cm_cfg, pass_cfg, logger=None):
             model_name, data_dir=model_dir,
             ctx=get_ctx(device_type, device_ids))
     model = Model.load(sym_path, prm_path)
+    model.fix_original_model(model_dir, model_name)
     model.prepare(set_batch(input_shape, 1))
     sym_prep_file, prm_prep_file = load_fname(
         model_prefix, suffix="prepare")

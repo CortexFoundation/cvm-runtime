@@ -7,6 +7,12 @@ from PIL import Image, ImageDraw, ImageFont
 import cv2
 import random
 import math
+import mxnet
+import mxnet.ndarray as nd
+
+from mrt.V3.utils import get_model_prefix, load_fname, check_file_existance, set_batch
+from mrt.transformer import MRT, reduce_graph
+
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
@@ -514,6 +520,102 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     return output
 
 
+def from_torch_model(w_file, model, ctx):
+    weight_from_troch = np.load(w_file, allow_pickle=True)
+    net_params = model.collect_params()
+    for i, k in enumerate(net_params.keys()):
+        if i == 0:
+            net_params[k].set_data(weight_from_troch[i][:,[2,1,0],:,:])
+        else:
+            net_params[k].set_data(weight_from_troch[i])
 
 
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        pass
 
+def get_quantized_model(model_dir, model_name, ctx):
+    model_dir = '/tmp/yolov5s'
+    model_name = 'yolov5s-0040.preprocess.unify.broadcastify'
+    model_prefix = get_model_prefix(model_dir, model_name)
+    sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
+            model_prefix, suffix="mrt.quantize", with_ext=True)
+    check_file_existance(sym_quant_file, prm_quant_file, ext_quant_file)
+    mrt = MRT.load(model_name+".mrt.quantize", datadir=model_dir)
+    oscales = mrt.get_output_scales()
+    inputs_ext = mrt.get_inputs_ext()
+    qmodel = mrt.current_model
+    rqmodel = reduce_graph(qmodel, {'data': set_batch([1,3,640,640], 1)})
+    qgraph = rqmodel.to_graph(ctx=ctx)
+    return qgraph, inputs_ext, oscales
+
+def concat_out(x, y, z):
+    stride = nd.array([8., 16., 32.], ctx=x.context)
+    anchors = nd.array([[[ 1.25000,  1.62500],
+                        [ 2.00000,  3.75000],
+                        [ 4.12500,  2.87500]],
+                        [[ 1.87500,  3.81250],
+                        [ 3.87500,  2.81250],
+                        [ 3.68750,  7.43750]],
+                        [[ 3.62500,  2.81250],
+                        [ 4.87500,  6.18750],
+                        [11.65625, 10.18750]]
+                        ], ctx=x.context)
+
+    def _make_grid(nx=20, ny=20, i=0):
+        yv = nd.array(range(ny), ctx=x.context)[:,None].repeat(nx,axis=1)
+        xv = nd.array(range(nx), ctx=x.context)[None,:].repeat(ny,axis=0)
+        grid = nd.concat(xv[...,None], yv[...,None], dim=2)[None,None,...].repeat(3, axis=1)
+        grid = nd.Cast(grid, dtype="float32")
+        anchor_grid = (anchors[i].copy() * stride[i])
+        anchor_grid = anchor_grid[None,:, None, None,:]
+        anchor_grid = anchor_grid.repeat(ny, axis=-3)
+        anchor_grid = anchor_grid.repeat(nx, axis=-2)
+        return grid, anchor_grid
+
+    out = []
+    ny, nx = x.shape[2:4]
+    grid, anchor_grid = _make_grid(nx, ny, 0)
+    tmp = x.sigmoid()
+    xy = (tmp[..., 0:2] * 2 - 0.5 + grid) * stride[0]  # xy
+    wh = (tmp[..., 2:4] * 2) ** 2 * anchor_grid  # wh
+    tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+    out.append(tmp.reshape(x.shape[0], -1, x.shape[4]))
+
+    ny, nx = y.shape[2:4]
+    grid, anchor_grid = _make_grid(nx, ny, 1)
+    tmp = y.sigmoid()
+    xy = (tmp[..., 0:2] * 2 - 0.5 + grid) * stride[1]  # xy
+    wh = (tmp[..., 2:4] * 2) ** 2 * anchor_grid  # wh
+    tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+    out.append(tmp.reshape(y.shape[0], -1, y.shape[4]))
+
+    ny, nx = z.shape[2:4]
+    grid, anchor_grid = _make_grid(nx, ny, 2)
+    tmp = z.sigmoid()
+    xy = (tmp[..., 0:2] * 2 - 0.5 + grid) * stride[2]  # xy
+    wh = (tmp[..., 2:4] * 2) ** 2 * anchor_grid  # wh
+    tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
+    out.append(tmp.reshape(z.shape[0], -1, z.shape[4]))
+
+    return nd.concat(*out, dim=1)
+
+def make_squre(x):
+    h, w = x.shape[0:2]
+    if h > w:
+        padh_up,   padw_left  = 0, (h-w)//2
+        padh_down, padw_right = 0, (h-w) - padw_left
+        y_l = np.ones((h,padw_left,x.shape[2]), dtype=x.dtype)*114
+        y_r = np.ones((h,padw_right,x.shape[2]), dtype=x.dtype)*114
+        return padh_up,   padw_left,  padh_down, padw_right, np.concatenate((y_l, x, y_r),axis=1)
+    else:
+        padh_up,    padw_left = (w-h)//2, 0
+        padh_down, padw_right = (w-h) - padh_up, 0
+        y_u = np.ones((padh_up,w,x.shape[2]), dtype=x.dtype)*114
+        y_d = np.ones((padh_down,w,x.shape[2]), dtype=x.dtype)*114
+        return padh_up,   padw_left,  padh_down, padw_right, np.concatenate((y_u, x, y_d),axis=0)
+    

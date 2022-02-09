@@ -1,3 +1,10 @@
+"""
+Execution Module for MRT V3.
+
+Definition of execution functions for either MRT complete process execution or
+specified stages execution.
+"""
+
 import sys
 
 from mrt.V3.prepare import prepare
@@ -9,6 +16,16 @@ from mrt.V3.mrt_compile import mrt_compile
 thismodule = sys.modules[__name__]
 
 def yaml_main(cfg, logger=None):
+    """
+    Execution function to launch the complete MRT process.
+
+    Parameters
+    ----------
+    cfg : yacs.config.CfgNode
+        CfgNode of MRT.
+    logger : logging.RootLogger
+        Console logger.
+    """
     if cfg.is_frozen():
         cfg.defrost()
     for prefix in ["BATCH", "DEVICE_TYPE", "DEVICE_IDS"]:
@@ -39,6 +56,17 @@ def yaml_main(cfg, logger=None):
         mrt_compile(cfg.COMMON, cfg.COMPILE, logger=logger)
 
 def run(cfg, logger=None):
+    """
+    Execution function to launch either the complete MRT process
+    or a specified MRT stage.
+
+    Parameters
+    ----------
+    cfg : yacs.config.CfgNode
+        CfgNode of MRT.
+    logger : logging.RootLogger
+        Console logger.
+    """
     pass_name = cfg.COMMON.PASS_NAME
     if pass_name == "all":
         yaml_main(cfg, logger=logger)

@@ -1,3 +1,10 @@
+"""
+Evaluation Module for MRT V3.
+
+Evaluate function definition, default YAML configurations for MRT evaluation
+Stage options and Command line help prompt are also included.
+"""
+
 from yacs.config import CfgNode as CN
 import logging
 
@@ -26,13 +33,12 @@ MRT_CFG.EVALUATE.DEVICE_TYPE = None
 MRT_CFG.EVALUATE.DEVICE_IDS = None
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
-def evaluate(cm_cfg, pass_cfg, logger=None):
+def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
     device_type = pass_cfg.DEVICE_TYPE
     device_ids = pass_cfg.DEVICE_IDS
-    iter_num = pass_cfg.ITER_NUM
     batch = pass_cfg.BATCH
     if batch is None:
         batch = cm_cfg.BATCH
@@ -52,7 +58,8 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         ctx = [ctx]
 
     # forward function for the orginal model
-    omodel = Model.load(*load_fname(model_prefix))
+    model_prefix_fixed = model_prefix + ".fixed"
+    omodel = Model.load(*load_fname(model_prefix_fixed))
     #TODO(ryt.dev) [bug fix] load revised model
     graph = omodel.to_graph(ctx=ctx)
     dataset_name = conf_map["dataset_name"]
@@ -116,7 +123,17 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         acc = dataset.validate(qmetric, outs, label)
         return acc
 
-    # evaluate
+    return evalfunc, data_iter_func, quantize
+
+def evaluate(cm_cfg, pass_cfg, logger=None):
+    evalfunc, data_iter_func, quantize = get_evaluation_info(
+        cm_cfg, pass_cfg, logger=logger)
+
+    iter_num = pass_cfg.ITER_NUM
+    batch = pass_cfg.BATCH
+    if batch is None:
+        batch = cm_cfg.BATCH
+
     if iter_num > 0:
         logger.info("Validating...")
         utils.multi_validate(

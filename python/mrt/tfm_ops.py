@@ -657,8 +657,77 @@ class FullyConnected(Transformer):
             .. math::
                 Xi.shape = (batchSize, step), X = [X1, X2, ...]
         """
+        name = op.attr('name')
+        attr, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
         infer_shapes, params = kwargs['infer_shapes'], kwargs['params']
+        xshp = infer_shapes[cns[0]][get_entry_id(childs[0])]
+
+        if len(xshp) > 2:
+            op = self.reduce(op, **kwargs)
+            return op
+
         op = self._matrix_decomposition(op, params, infer_shapes)
+        return op
+
+    def reduce(self, op, **kwargs):
+        # TODO(ryt.dev) documentation
+        name = op.attr('name')
+        attr, childs = op.list_attr(), sym_iter(op.get_children())
+        cns = [c.attr('name') for c in childs]
+        X, W = childs[:2]
+        infer_shapes, params = kwargs['infer_shapes'], kwargs['params']
+        xshp = infer_shapes[cns[0]][get_entry_id(X)]
+
+        no_bias = get_attr(attr, 'no_bias')
+        flatten = get_attr(attr, "flatten")
+        num_hidden = get_attr(attr, "num_hidden")
+
+        rshp_name = N.n("pre_reshape")
+        if flatten:
+            shape = (-1,) + xshp[1:]
+            rshp = mx.sym.reshape(X, shape=shape, name=rshp_name)
+            if no_bias:
+                op = mx.sym.FullyConnected(
+                    rshp, W, no_bias=no_bias, flatten=flatten,
+                    num_hidden=num_hidden, name=name)
+            else:
+                op = mx.sym.FullyConnected(
+                    rshp, W, childs[2], no_bias=no_bias, flatten=flatten,
+                    num_hidden=num_hidden, name=name)
+            op = self._matrix_decomposition(op, params, infer_shapes)
+        else:
+            fc_name = N.n("reduced_fc")
+            default_batch_axis = 0
+            batch_axis = \
+                kwargs.get("batch_axes", {}).get(name, default_batch_axis)
+            assert batch_axis < len(xshp), \
+                "invalid batch_axis: {}, length of xshp: {}".format(
+                batch_axis, len(xshp))
+            if batch_axis == len(xshp)-1:
+                product = int(nd.prod(nd.array(xshp)).asscalar())
+                res_shp = int(product/xshp[batch_axis])
+                shape = (res_shp, -1)
+            else:
+                shape = (-1, xshp[-1])
+            rshp = mx.sym.reshape(X, shape=shape, name=rshp_name)
+            if no_bias:
+                fc = mx.sym.FullyConnected(
+                    rshp, W, no_bias=no_bias, flatten=flatten,
+                    num_hidden=num_hidden, name=fc_name)
+            else:
+                fc = mx.sym.FullyConnected(
+                    rshp, W, childs[2], no_bias=no_bias, flatten=flatten,
+                    num_hidden=num_hidden, name=fc_name)
+            fc = self._matrix_decomposition(fc, params, infer_shapes)
+            if batch_axis == len(xshp)-1:
+                shape = xshp[:-1] + (num_hidden,)
+            else:
+                shape = \
+                    xshp[:batch_axis] + (-1,) + \
+                    xshp[batch_axis+1:-1] + (num_hidden,)
+            op = mx.sym.reshape(fc, shape=shape, name=name)
+
         return op
 
     def quantize(self, op, **kwargs):

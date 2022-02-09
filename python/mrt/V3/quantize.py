@@ -1,3 +1,10 @@
+"""
+Quantization Module for MRT V3.
+
+Quantize function definition, default YAML configurations for MRT quantization
+Stage options and Command line help prompt are also included.
+"""
+
 from yacs.config import CfgNode as CN
 
 from mrt.transformer import Model, MRT
@@ -34,6 +41,18 @@ MRT_CFG.QUANTIZE.ATTRIBUTE_DEPS = []
 MRT_CFG.QUANTIZE.OSCALE_MAPS = []
 
 def quantize(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API of MRT quantization stage.
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of evaluation stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY

@@ -8,9 +8,13 @@ V3 Architecture
 
 MRT V3 is the functional entry point of MRT taht supports customized user-defined attributes 
 for different quantization stages. As listed, there are three required postional stages , which
-need to be executed sequentially:
+need to be executed sequentially. V3 architecture can be shown as:
 
-- preparation: initializing the pre-trained model, supported graph-level passes including:
+-  |avatar|
+
+.. |avatar| image:: ../assets/V3.png
+
+- **Preparation**: initializing the pre-trained model, supported graph-level passes including:
 
   - standardizing the specified model
 
@@ -29,10 +33,9 @@ need to be executed sequentially:
 
   - model splitting into top and base to be precocessed respectively
 
-- calibration: calibrate the prepared model to acquire the operator-level thresholds that is 
-futher exploited in the stage of quantization.
+- **Calibration**: calibrate the prepared model to acquire the operator-level thresholds that is futher exploited in the stage of quantization
 
-- quantization: perform the operator-level quantizing procedure that inludes:
+- **Quantization**: perform the operator-level quantizing procedure that inludes:
 
   - operator restoration for tuning purposes
 
@@ -44,10 +47,37 @@ futher exploited in the stage of quantization.
 
   - graph-level model merging
 
-Model Test
-~~~~~~~~~~
+- **Evaluation**: multiple model validating with specified metric definition
 
-The comparison between the original float model and quantized model 
+  - pre-compilation stage graph-level reduction
+
+    - input shape attaching
+    - operator attribute revising for the stage of compilation
+    - constant operator deduction
+
+  - precision comparison of quantized and unquantized models with provided metric function
+
+- **Compilation**: compile mxnet model into cvm accepted json&bin format
+
+  - pre-compilation stage graph-level reduction
+
+    - input shape attaching
+    - operator attribute revising for the stage of compilation
+    - constant operator deduction
+
+  - CVM graph compilation
+    - op shape inference
+    - graph compilation
+
+  - CVM parameter precision reduction
+
+  - CVM deployed graph and parameter complilation
+
+
+Benchmark Quantization Results
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The comparison between the original float model and quantized model
 is listed as below.
 
 
@@ -144,3 +174,6 @@ Accuracy:
 +-------------------------------------------+----------------------+------------------------+
 | ssd_512_mobilenet1.0_voc                  | 75.58%               | 71.32%                 |
 +-------------------------------------------+----------------------+------------------------+
+
+For most recent model quantization results,
+please refer to :ref:`MRT Quantization Results <mrt_quantization_results>`.

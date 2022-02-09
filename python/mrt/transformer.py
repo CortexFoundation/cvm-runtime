@@ -108,6 +108,15 @@ class Model:
                               input_shape, target,
                               device_ids=device_ids)
 
+    def fix_original_model(self, model_dir, model_name):
+        _sym, _prm = tpass.unify_name_json(self.symbol, self.params)
+        self.symbol, self.params = tpass.remove_params_prefix(_sym, _prm)
+        model_prefix = path.join(model_dir, model_name+".fixed")
+        sym_file, prm_file = utils.extend_fname(model_prefix)
+        with open(sym_file, "w") as f:
+            f.write(self.symbol.tojson())
+        nd.save(prm_file, self.params)
+
 def init(model, input_shape=None):
     logger = logging.getLogger("mrt.prepare")
     logger.info("Model initializing...")
@@ -115,8 +124,8 @@ def init(model, input_shape=None):
     _sym, _prm = model.symbol, model.params
 
     # unify graph names and check graph params
-    _sym, _prm = tpass.unify_name_json(_sym, _prm)
-    _sym, _prm = tpass.remove_params_prefix(_sym, _prm)
+    # TODO(ryt.dev) [bug fix, reconstruct] write fixed model in conf_map, move to fix_orginal_model
+    #  _sym, _prm = fix_original_model(sym, parmas)
 
     tpass.name_duplicate_check(_sym, _prm)
 

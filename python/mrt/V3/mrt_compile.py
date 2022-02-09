@@ -1,3 +1,10 @@
+"""
+Compilation Module for MRT V3.
+
+Compile function definition, default YAML configurations for MRT compilation
+Stage options and Command line help prompt are also included.
+"""
+
 from os import path
 import os
 from yacs.config import CfgNode as CN
@@ -28,6 +35,18 @@ MRT_CFG.COMPILE.DEVICE_TYPE = None
 MRT_CFG.COMPILE.DEVICE_IDS = None
 
 def mrt_compile(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API of MRT compilation stage.
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of compilation stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY

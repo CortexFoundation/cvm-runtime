@@ -636,3 +636,23 @@ class TrecDataset(Dataset):
 
         acc = 1. * metrics["acc"] / metrics["total"]
         return "{:6.2%}".format(acc)
+
+
+@register_dataset("stdrandom")
+class StdRandomDataset(Dataset):
+    def _load_data(self):
+        def data_loader():
+            N, I, C = self.ishape
+            assert I == 1 and C == 3
+            data, label = [], []
+            while True:
+                if len(data) < N:
+                    x = np.random.uniform(low=0.0, high=1.0, size=(I,C))
+                    y = np.random.uniform(low=0.0, high=1.0, size=(I))
+                    data.append(x)
+                    label.append(y)
+                else:
+                    batch_data, batch_label = nd.array(data), nd.array(label)
+                    yield batch_data, batch_label
+                    data, label = [], []
+        self.data = data_loader()

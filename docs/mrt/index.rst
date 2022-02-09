@@ -78,6 +78,7 @@ For other detailed classes and methods, please refer to the API links.
   Operator List <api/operator>
   Graph API <api/graph>
   Helper Utils <api/utils>
+  V3 API <api/V3>
 
 Deprecated Docs
 ===============

@@ -1,3 +1,10 @@
+"""
+Calibration Module for MRT V3.
+
+Calibration function definition, default YAML configurations for MRT calibration
+Stage options and Command line help prompt are also included.
+"""
+
 from yacs.config import CfgNode as CN
 
 from mrt.transformer import Model
@@ -30,6 +37,18 @@ MRT_CFG.CALIBRATE.DEVICE_TYPE = None
 MRT_CFG.CALIBRATE.DEVICE_IDS = None
 
 def calibrate(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API of MRT calibration stage.
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of calibration stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY

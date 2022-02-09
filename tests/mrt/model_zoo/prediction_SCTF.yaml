@@ -1,6 +1,6 @@
 COMMON:
-  MODEL_NAME: prediction_SCTF.preprocess.reduce_dense
-  # MODEL_NAME: prediction_SCTF
+  # MODEL_NAME: prediction_SCTF.preprocess.reduce_dense
+  MODEL_NAME: prediction_SCTF
   VERBOSITY: info
   RUN_EVALUATE: False
 PREPARE:
