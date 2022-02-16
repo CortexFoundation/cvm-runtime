@@ -611,7 +611,6 @@ class TrecDataset(Dataset):
                     yield nd.transpose(nd.array(data)), nd.array(label)
                     data, label = [], []
             yield nd.transpose(nd.array(data)), nd.array(label)
-            raise RuntimeError("Data loader have been the end")
 
         self.data = data_loader()
 

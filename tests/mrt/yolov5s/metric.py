@@ -8,7 +8,8 @@ import cv2
 
 from mrt import dataset as ds
 from utils import (
-    non_max_suppression, scale_coords, xywh2xyxy, process_batch, ap_per_class)
+    non_max_suppression, scale_coords, xywh2xyxy, process_batch, ap_per_class,
+    concat_out)
 
 
 class Yolov5Metric:
@@ -93,42 +94,7 @@ class Yolov5Metric:
         outs = []
         for i in range(batch_size):
             x, y, z = [o.slice_axis(axis=0, begin=i, end=i+1) for o in predict]
-            out = []
-
-            bs, _, ny, nx, _ = x.shape
-            grid, anchor_grid = self._make_grid(nx, ny, 0, ctx=x.ctx)
-            tmp = x.sigmoid()
-            # xy
-            xy = (tmp[..., 0:2]*2-0.5+grid) * \
-                self.stride[0].as_in_context(x.ctx)
-            # wh
-            wh = (tmp[..., 2:4]*2)**2 * anchor_grid
-            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
-            out.append(tmp.reshape(bs, -1, self.no))
-
-            bs, _, ny, nx, _ = y.shape
-            grid, anchor_grid = self._make_grid(nx, ny, 1, ctx=y.ctx)
-            tmp = y.sigmoid()
-            # xy
-            xy = (tmp[..., 0:2]*2-0.5+grid) * \
-                self.stride[1].as_in_context(y.ctx)
-            # wh
-            wh = (tmp[..., 2:4]*2)*2 * anchor_grid
-            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
-            out.append(tmp.reshape(bs, -1, self.no))
-
-            bs, _, ny, nx, _ = z.shape
-            grid, anchor_grid = self._make_grid(nx, ny, 2, ctx=z.ctx)
-            tmp = z.sigmoid()
-            # xy
-            xy = (tmp[..., 0:2]*2-0.5+grid) * \
-                self.stride[2].as_in_context(z.ctx)
-            # wh
-            wh = (tmp[..., 2:4]*2)**2 * anchor_grid
-            tmp = nd.concat(xy, wh, tmp[..., 4:], dim=-1)
-            out.append(tmp.reshape(bs, -1, self.no))
-
-            out = nd.concat(*out, dim=1)
+            out = concat_out(x, y, z)
             outs.append(out)
         for i in range(batch_size):
             label = labels[i]

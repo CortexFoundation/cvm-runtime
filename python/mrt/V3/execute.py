@@ -12,6 +12,7 @@ from mrt.V3.calibrate import calibrate
 from mrt.V3.quantize import quantize
 from mrt.V3.evaluate import evaluate
 from mrt.V3.mrt_compile import mrt_compile
+from mrt.V3.utils import get_logger
 
 thismodule = sys.modules[__name__]
 
@@ -68,6 +69,7 @@ def run(cfg, logger=None):
         Console logger.
     """
     pass_name = cfg.COMMON.PASS_NAME
+    logger = get_logger(cfg.COMMON.VERBOSITY)
     if pass_name == "all":
         yaml_main(cfg, logger=logger)
     else:

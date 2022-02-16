@@ -42,7 +42,7 @@ QUANTIZE:
     ["ssd0_slice_axis43", "ssd0_normalizedboxcenterdecoder0_concat0"],
   ]
 EVALUATE:
-  BATCH: 64
+  BATCH: 16
   DEVICE_TYPE: gpu
   DEVICE_IDS: [0]
   ITER_NUM: 2000

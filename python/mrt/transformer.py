@@ -109,6 +109,7 @@ class Model:
                               device_ids=device_ids)
 
     def fix_original_model(self, model_dir, model_name):
+        # unify graph names and check graph params
         _sym, _prm = tpass.unify_name_json(self.symbol, self.params)
         self.symbol, self.params = tpass.remove_params_prefix(_sym, _prm)
         model_prefix = path.join(model_dir, model_name+".fixed")
@@ -122,11 +123,6 @@ def init(model, input_shape=None):
     logger.info("Model initializing...")
 
     _sym, _prm = model.symbol, model.params
-
-    # unify graph names and check graph params
-    # TODO(ryt.dev) [bug fix, reconstruct] write fixed model in conf_map, move to fix_orginal_model
-    #  _sym, _prm = fix_original_model(sym, parmas)
-
     tpass.name_duplicate_check(_sym, _prm)
 
     if isinstance(input_shape, dict):

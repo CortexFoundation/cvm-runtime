@@ -539,8 +539,8 @@ def str2bool(v):
         pass
 
 def get_quantized_model(model_dir, model_name, ctx):
-    model_dir = '/tmp/yolov5s'
-    model_name = 'yolov5s-0040.preprocess.unify.broadcastify'
+    #model_dir = '/tmp/yolov5s'
+    #model_name = 'yolov5s-0040.preprocess.unify.broadcastify'
     model_prefix = get_model_prefix(model_dir, model_name)
     sym_quant_file, prm_quant_file, ext_quant_file = load_fname(
             model_prefix, suffix="mrt.quantize", with_ext=True)

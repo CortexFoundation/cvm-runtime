@@ -16,11 +16,11 @@ CALIBRATE:
   NUM_CALIB: 1
   DATASET_NAME: voc
   DEVICE_TYPE: gpu
-  DEVICE_IDS: [2]
+  DEVICE_IDS: [0]
 QUANTIZE:
   OUTPUT_PRECISION: 30
   DEVICE_TYPE: gpu
-  DEVICE_IDS: [2]
+  DEVICE_IDS: [0]
   THRESHOLDS: [
     ["mrt_rewrite_mobilenet0_conv23_weight_0", 11],
     ["yolov30_yolooutputv30_tile0", 416],
@@ -43,5 +43,5 @@ QUANTIZE:
 EVALUATE:
   BATCH: 64
   DEVICE_TYPE: gpu
-  DEVICE_IDS: [2]
+  DEVICE_IDS: [0]
   ITER_NUM: 2000

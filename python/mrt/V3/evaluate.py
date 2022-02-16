@@ -33,6 +33,20 @@ MRT_CFG.EVALUATE.DEVICE_TYPE = None
 MRT_CFG.EVALUATE.DEVICE_IDS = None
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
+def forward(net, data, ctx, baxis, olen):
+    #TODO(ryt.dev) documentation
+    """ Multiple xpu run support.
+    """
+    data = gluon.utils.split_and_load(
+        data, ctx_list=ctx, batch_axis=baxis, even_split=False)
+    outs = [net(d) for d in data]
+    if olen == 1:
+        outs = nd.concatenate(outs)
+    else:
+        outs = [nd.concatenate([outs[i][j] \
+            for i in range(len(outs))]) for j in range(olen)]
+    return outs
+
 def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
@@ -60,7 +74,6 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     # forward function for the orginal model
     model_prefix_fixed = model_prefix + ".fixed"
     omodel = Model.load(*load_fname(model_prefix_fixed))
-    #TODO(ryt.dev) [bug fix] load revised model
     graph = omodel.to_graph(ctx=ctx)
     dataset_name = conf_map["dataset_name"]
     input_shape = conf_map["input_shape"]
@@ -70,30 +83,26 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     baxis = get_batch_axis(input_shape)
     olen = len(omodel.symbol)
 
-    def forward(net, data, ctx):
-        """ Multiple xpu run support.
-        """
-        data = gluon.utils.split_and_load(
-            data, ctx_list=ctx, batch_axis=baxis, even_split=False)
-        outs = [net(d) for d in data]
-        if olen == 1:
-            outs = nd.concatenate(outs)
-        else:
-            outs = [nd.concatenate([outs[i][j] \
-                for i in range(len(outs))]) for j in range(olen)]
-        return outs
+    # def forward(net, data, ctx):
+        # """ Multiple xpu run support.
+        # """
+        # data = gluon.utils.split_and_load(
+            # data, ctx_list=ctx, batch_axis=baxis, even_split=False)
+        # outs = [net(d) for d in data]
+        # if olen == 1:
+            # outs = nd.concatenate(outs)
+        # else:
+            # outs = [nd.concatenate([outs[i][j] \
+                # for i in range(len(outs))]) for j in range(olen)]
+        # return outs
 
     def evalfunc(data, label):
-        outs = forward(graph, data, ctx=ctx)
+        # outs = forward(graph, data, ctx=ctx)
+        outs = forward(graph, data, ctx, baxis, olen)
         acc = dataset.validate(metric, outs, label)
         return acc
 
     # forward function for the quantized model
-    # TODO(ryt.dev) [bug fix] remove split batch check
-    num_xpus = len(ctx)
-    if batch % num_xpus:
-        raise RuntimeError("Batch must be divisible by the number of xpus")
-    split_batch = batch // num_xpus
     if conf_map.get("split_keys", "") != "":
         sym_all_file, prm_all_file, ext_all_file = load_fname(
             model_prefix, suffix="all.quantize", with_ext=True)
@@ -110,14 +119,13 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
         oscales = mrt.get_output_scales()
         inputs_ext = mrt.get_inputs_ext()
         qmodel = mrt.current_model
-    rqmodel = reduce_graph(qmodel, {
-        'data': set_batch(input_shape, split_batch)})
-    qgraph = rqmodel.to_graph(ctx=ctx)
+    qgraph = qmodel.to_graph(ctx=ctx)
     qmetric = dataset.metrics()
 
     def quantize(data, label):
         data = sim.load_real_data(data, 'data', inputs_ext)
-        outs = forward(qgraph, data, ctx)
+        # outs = forward(qgraph, data, ctx)
+        outs = forward(qgraph, data, ctx, baxis, olen)
         outs = outs / oscales[0] if olen == 1 \
             else [(t / oscales[i]) for i, t in enumerate(outs)]
         acc = dataset.validate(qmetric, outs, label)
@@ -142,20 +150,6 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         logger.info("evaluatation stage finished")
     else:
         logger.info("evaluatation stage skipped")
-
-def forward(net, data, ctx, baxis, olen):
-    #TODO(ryt.dev) documentation
-    """ Multiple xpu run support.
-    """
-    data = gluon.utils.split_and_load(
-        data, ctx_list=ctx, batch_axis=baxis, even_split=False)
-    outs = [net(d) for d in data]
-    if olen == 1:
-        outs = nd.concatenate(outs)
-    else:
-        outs = [nd.concatenate([outs[i][j] \
-            for i in range(len(outs))]) for j in range(olen)]
-    return outs
 
 def get_ctx_eval(ctx):
     #TODO(ryt.dev) documentation

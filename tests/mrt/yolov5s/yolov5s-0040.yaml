@@ -1,5 +1,6 @@
 COMMON:
-  MODEL_NAME: yolov5s-0040.preprocess.unify.broadcastify
+  # MODEL_NAME: yolov5s-0040.preprocess.unify.broadcastify
+  MODEL_NAME: yolov5s-0040
   VERBOSITY: info
   # RUN_EVALUATE: False
   BATCH: 16
@@ -16,6 +17,7 @@ QUANTIZE:
   DEVICE_IDS: [0]
 EVALUATE:
   # in this model, the BATCH should be set as 16
+  BATCH: 16
   DEVICE_TYPE: gpu
   DEVICE_IDS: [0]
   ITER_NUM: 10
