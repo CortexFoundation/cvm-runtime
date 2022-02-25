@@ -41,7 +41,12 @@ _______________
 mrt.V3.evaluate
 _______________
 .. automodule:: mrt.V3.evaluate
+.. autofunction:: mrt.V3.evaluate.forward
+.. autofunction:: mrt.V3.evaluate.get_evaluation_info
 .. autofunction:: mrt.V3.evaluate.evaluate
+.. autofunction:: mrt.V3.evaluate.get_ctx_eval
+.. autofunction:: mrt.V3.evaluate.inference_original_model
+.. autofunction:: mrt.V3.evaluate.inference_quantized_model
 
 mrt.V3.mrt_compile
 __________________
