@@ -34,8 +34,28 @@ MRT_CFG.EVALUATE.DEVICE_IDS = None
 MRT_CFG.EVALUATE.ITER_NUM = 10
 
 def forward(net, data, ctx, baxis, olen):
-    #TODO(ryt.dev) documentation
-    """ Multiple xpu run support.
+    """
+    Multiple xpu run support.
+
+    Parameters
+    ----------
+    net : mxnet.gluon.block.SymbolBlock
+        Graph for inference.
+    data : mxnet.ndarray.ndarray.NDArray
+        Input data to pass into the graph.
+    ctx : mx.context.Context
+        Context for inference.
+    baxis : int
+        Axis id of batch dimension.
+    olen : int
+        Length of the output.
+
+    Returns
+    -------
+    outs : mxnet.ndarray.ndarray.NDArray or list
+        inference result of the graph with respect to the given input data,
+        for multiple outputs, outs will be a list the entry type of which is
+        mxnet.ndarray.ndarray.NDArray.
     """
     data = gluon.utils.split_and_load(
         data, ctx_list=ctx, batch_axis=baxis, even_split=False)
@@ -48,6 +68,19 @@ def forward(net, data, ctx, baxis, olen):
     return outs
 
 def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API to get evaluation function,
+    quantization function and dataset iteration function
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of calibration stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     model_dir = cm_cfg.MODEL_DIR
     model_name = cm_cfg.MODEL_NAME
     verbosity = cm_cfg.VERBOSITY
@@ -134,6 +167,18 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     return evalfunc, data_iter_func, quantize
 
 def evaluate(cm_cfg, pass_cfg, logger=None):
+    """
+    YAML configuration API of MRT evaluation stage.
+
+    Parameters
+    ----------
+    cm_cfg : yacs.config.CfgNode
+        CfgNode of common stage.
+    pass_cfg : yacs.config.CfgNode
+        CfgNode of calibration stage.
+    logger : logging.RootLogger
+        Console logger.
+    """
     evalfunc, data_iter_func, quantize = get_evaluation_info(
         cm_cfg, pass_cfg, logger=logger)
 
@@ -152,7 +197,19 @@ def evaluate(cm_cfg, pass_cfg, logger=None):
         logger.info("evaluatation stage skipped")
 
 def get_ctx_eval(ctx):
-    #TODO(ryt.dev) documentation
+    """
+    Get the context instance for evaluation stage
+
+    Parameters
+    ----------
+    ctx : mx.context.Context
+        The input context.
+
+    Returns
+    -------
+    ctx : mx.context.Context
+        The modified context.
+    """
     if isinstance(ctx, mx.Context):
         ctx = [ctx]
     elif isinstance(ctx, list):
@@ -166,7 +223,31 @@ def inference_original_model(
     symbol_file, params_file, data, batch_axis=0,
     device_type=MRT_CFG.EVALUATE.DEVICE_TYPE,
     device_ids=MRT_CFG.EVALUATE.DEVICE_IDS):
-    #TODO(ryt.dev) documentation
+    """
+    MRT Inference API for original model.
+
+    Parameters
+    ----------
+    symbol_file : str
+        Path to the quantized mxnet symbol JSON file.
+    params_file : str
+        Path to the quantized mxnet parameters file.
+    data: mxnet.ndarray.ndarray.NDArray
+        Input data to pass into the graph.
+    batch_axis : int
+        Axis id of batch dimension.
+    device_type : str
+        Context type string chosen from `cpu` or `gpu`.
+    device_ids : list
+        List of context ids.
+
+    Returns
+    -------
+    outs : mxnet.ndarray.ndarray.NDArray or list
+        inference result of the graph with respect to the given input data,
+        for multiple outputs, outs will be a list the entry type of which is
+        mxnet.ndarray.ndarray.NDArray.
+    """
 
     ctx = get_ctx_eval(get_ctx(device_type, device_ids))
     omodel = Model.load(symbol_file, params_file)
@@ -180,7 +261,35 @@ def inference_quantized_model(
     qsymbol_file, qparams_file, qext_file, data, batch_axis=0, split=False,
     device_type=MRT_CFG.EVALUATE.DEVICE_TYPE,
     device_ids=MRT_CFG.EVALUATE.DEVICE_IDS):
-    #TODO(ryt.dev) documentation
+    """
+    MRT Inference API for quantized model.
+
+    Parameters
+    ----------
+    qsymbol_file : str
+        Path to the quantized mxnet symbol JSON file.
+    qparams_file : str
+        Path to the quantized mxnet parameters file.
+    qext_file : str
+        Path to the quantized extension file which store intermediate results.
+    data: mxnet.ndarray.ndarray.NDArray
+        Input data to pass into the graph.
+    batch_axis : int
+        Axis id of batch dimension.
+    split: bool
+        Flag indicating whether the model is split before quantization.
+    device_type : str
+        Context type string chosen from `cpu` or `gpu`.
+    device_ids : list
+        List of context ids.
+
+    Returns
+    -------
+    outs : mxnet.ndarray.ndarray.NDArray or list
+        inference result of the graph with respect to the given input data,
+        for multiple outputs, outs will be a list the entry type of which is
+        mxnet.ndarray.ndarray.NDArray.
+    """
 
     ctx = get_ctx_eval(get_ctx(device_type, device_ids))
 
