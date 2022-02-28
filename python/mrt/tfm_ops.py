@@ -234,6 +234,11 @@ class Activation(Transformer):
         return op
 
     def rewrite(self, op, **kwargs):
+        """ Equivalent transform of rewrite operator
+            Only applies when the attribute act_type equals to relu or sigmoid,
+            which indicates that rewrite could be directly tranformed into
+            the corresponding operator.
+        """
         attr = op.list_attr()
         if attr['act_type'] == Relu.op_name:
             op = Relu().rewrite(op, **kwargs)
@@ -671,7 +676,26 @@ class FullyConnected(Transformer):
         return op
 
     def reduce(self, op, **kwargs):
-        # TODO(ryt.dev) documentation
+        """ Dimension reduction function considering
+            both flatten cases.
+
+            Denote the input as X and transformed operator as Y.
+            If flatten is true, only one reduction of the high dimension input
+            to 2 dimension is needed.
+
+            .. math::
+                RX = reshape(X)
+                Y = FullyConnected(RX)
+
+            If flatten is false, firstly one reduction of the input to 2
+            dimension is needed. After FullyConnected op, the ouput should
+            be reshaped to the correct output shape.
+
+            .. math::
+                RX = reshape(X)
+                out = FullyConnected(RX)
+                Y = reshape(out)
+        """
         name = op.attr('name')
         attr, childs = op.list_attr(), sym_iter(op.get_children())
         cns = [c.attr('name') for c in childs]
@@ -1979,12 +2003,13 @@ class ElemwiseMul(Transformer):
         return _ft_multi_input(op)
 
     def rewrite(self, op, **kwargs):
+        """ validate the infer_shapes of lhs and rhs must be the same
+            thus this op could be rewrite into broadcast_mul
+            corresponding cvm op would be optimized at compile time
+        """
         name, op_name = op.attr('name'), op.attr('op_name')
         childs = sym_iter(op.get_children())
 
-        # validate the infer_shapes of lhs and rhs must be the same
-        # thus this op could be rewrite into broadcast_mul
-        # corresponding cvm op would be optimized at compile time
         ln, rn = [c.attr('name') for c in childs]
         infer_shapes = kwargs['infer_shapes']
         lshp, rshp = infer_shapes[ln], infer_shapes[rn]
