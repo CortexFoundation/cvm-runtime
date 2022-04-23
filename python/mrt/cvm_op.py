@@ -157,6 +157,24 @@ class LUT(mx.operator.CustomOp):
     def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
         assert False
 
+class RightShiftV2(mx.operator.CustomOp):
+    def __init__(self, shift_bit, **kwargs):
+        super(RightShiftV2, self).__init__(**kwargs)
+        self.sb = int(shift_bit)
+        assert self.sb > 0
+
+    def forward(self, is_train, req, in_data, out_data, aux):
+        assert is_train == False
+        X = in_data[0]
+        out = X.round()
+        if self.sb > 1:
+            out = out / 2**self.sb
+            out = out.round()
+        self.assign(out_data[0], req[0], out)
+
+    def backward(self, req, out_grad, in_data, out_data, in_grad, aux):
+        assert False
+
 class Annotate(mx.operator.CustomOp):
     def __init__(self, in_prec, out_prec, anno_type):
         super(Annotate, self).__init__()
@@ -269,6 +287,27 @@ class RightShiftProp(mx.operator.CustomOpProp):
         return [X_type], [X_type], []
     def create_operator(self, ctx, shapes, dtypes):
         return RightShift(self.precision, self.shift_bit)
+
+@mx.operator.register("right_shift")
+class RightShiftV2Prop(mx.operator.CustomOpProp):
+    """ MxNet right_shift operator property class.
+    """
+    def __init__(self, shift_bit=0):
+        self.shift_bit = shift_bit
+        super(RightShiftV2Prop, self).__init__(need_top_grad=False)
+    def list_arguments(self):
+        return ['data']
+    def list_outputs(self):
+        return ['output']
+    def infer_shape(self, in_shape):
+        X_shape = in_shape[0]
+        out_shape = in_shape[0]
+        return [X_shape], [out_shape], []
+    def infer_type(self, in_type):
+        X_type = in_type[0]
+        return [X_type], [X_type], []
+    def create_operator(self, ctx, shapes, dtypes):
+        return RightShiftV2(self.shift_bit)
 
 @mx.operator.register("cvm_lut")
 class LUTProp(mx.operator.CustomOpProp):

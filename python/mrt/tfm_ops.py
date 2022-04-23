@@ -1449,41 +1449,42 @@ class Sum(Transformer):
         return op
 
     def fuse_transpose(self, op, **kwargs):
-        """ Customized fuse_transpose pass Introduction.
+        return fuse_transpose_reduce(op, kwargs["infer_shapes"])
+        # """ Customized fuse_transpose pass Introduction.
 
-             Suppose 'keepdims' is True and the input is 'Transpose'.
+             # Suppose 'keepdims' is True and the input is 'Transpose'.
 
-             .. code-block:: none
+             # .. code-block:: none
 
-                       cX
-                       |
-                 Transpose(axis)
-                       |
-                   sum(dims1)
+                       # cX
+                       # |
+                 # Transpose(axis)
+                       # |
+                   # sum(dims1)
 
-             then, the graph can be transformed into:
+             # then, the graph can be transformed into:
 
-             .. code-block:: none
+             # .. code-block:: none
 
-                       cX
-                       |
-                   Sum(dims2)
+                       # cX
+                       # |
+                   # Sum(dims2)
 
-             where:
+             # where:
 
-             .. code-block:: python
+             # .. code-block:: python
 
-                 dims2 = [axis[i] for i in dims1]
-        """
-        name, attr, X = op.attr('name'), op.list_attr(), op.get_children()[0]
-        xshp = kwargs['infer_shapes'][X.attr('name')][get_entry_id(X)]
-        axis = get_attr(attr, 'axis', [i for i in range(len(xshp))])
-        keepdims = get_attr(attr, 'keepdims', False)
-        if X.attr('op_name') == Transpose.op_name and not keepdims:
-            axes, op = get_attr(X.list_attr(), 'axes'), X.get_children()[0]
-            axis = [axes[i] for i in axis]
-            op = mx.sym.sum(op, axis=axis, keepdims=keepdims, name=name)
-        return op
+                 # dims2 = [axis[i] for i in dims1]
+        # """
+        # name, attr, X = op.attr('name'), op.list_attr(), op.get_children()[0]
+        # xshp = kwargs['infer_shapes'][X.attr('name')][get_entry_id(X)]
+        # axis = get_attr(attr, 'axis', [i for i in range(len(xshp))])
+        # keepdims = get_attr(attr, 'keepdims', False)
+        # if X.attr('op_name') == Transpose.op_name and not keepdims:
+            # axes, op = get_attr(X.list_attr(), 'axes'), X.get_children()[0]
+            # axis = [axes[i] for i in axis]
+            # op = mx.sym.sum(op, axis=axis, keepdims=keepdims, name=name)
+        # return op
 
     def calculate_ops(self, op, **kwargs):
         infer_shapes = kwargs['infer_shapes']
@@ -3103,3 +3104,196 @@ def fusable_cvm_precision_attr(op):
     assert is_fusable_cvm_precision(op)
     attr = op.list_attr()
     return get_attr(attr, 'precision'), get_attr(attr, 'shift_bit', 0)
+
+def sum_and_rightshift(ops, axis, shift_bit):
+    nops = []
+    while ops:
+        cop = ops.pop()
+        cop = mx.sym.sum(
+            cop, axis=axis, keepdims=True, name=N.n('sum'))
+        cop = mx.sym.Custom(
+            cop, shift_bit=shift_bit, name=N.n('custom'),
+            op_type='right_shift')
+        nops.append(cop)
+    ops = nops
+    return ops
+
+
+@register_transformer("mean")
+class Mean(Transformer):
+    def fuse_transpose(self, op, **kwargs):
+        return fuse_transpose_reduce(op, kwargs["infer_shapes"])
+    def rewrite(self, op, **kwargs):
+        name = op.attr('name')
+        return self._decompose_axis(op, kwargs['infer_shapes'])
+
+    def _decompose_axis(self, op, infer_shapes):
+        name = op.attr('name')
+        attr, childs = op.list_attr(), sym_iter(op.get_children())
+
+        axis = eval(attr['axis'])
+        if isinstance(axis, int):
+            axis = (axis,)
+        else:
+            assert isinstance(axis, tuple), (axis, type(axis))
+
+        keepdims = eval(attr.get('keepdims', 'False'))
+
+        exclude = eval(attr.get('exclude', 'False'))
+        if exclude:
+            raise NotImplementedError
+
+        op = childs[0]
+        shp = infer_shapes[op.attr('name')][get_entry_id(op)]
+        prod = int(nd.prod(nd.array([shp[ax] for ax in axis])).asscalar())
+        power_value = int(math.log2(prod))
+        assert 1<<power_value == prod, \
+            "unsupported operator mean, axis: {}, shp: {}".format(axis, shp)
+
+        MAXIMUM_SIZE = 128
+        assert MAXIMUM_SIZE > 1
+        if prod <= MAXIMUM_SIZE:
+            op = mx.sym.sum(
+                op, axis=axis, keepdims=keepdims, name=N.n('sum'))
+            if prod == 1:
+                return op
+            op = mx.sym.Custom(
+                op, shift_bit=int(math.log2(prod)), name=name,
+                op_type='right_shift')
+            return op
+
+        # TODO(ryt): select batch_axis
+        axis_set = set(axis)
+        oaxes = list(range(len(shp)))
+        naxes = sorted(axis)
+        axes = [ax for ax in oaxes if ax not in axis_set] + naxes
+        nshp = tuple(
+            [sz for ax,sz in enumerate(shp) if ax not in axis_set]) + \
+            (prod,)
+        transposed = False
+        if axes != oaxes:
+            transposed = True
+            op = mx.sym.transpose(op, axes=axes, name=N.n('transpose'))
+        reshaped = False
+        if len(naxes) > 1:
+            reshaped = True
+            op = mx.sym.reshape(op, shape=nshp, name=N.n('reshape'))
+        ops = []
+        eax = len(nshp) - 1
+        for i in range(0, prod, MAXIMUM_SIZE):
+            cop = mx.sym.slice_axis(
+                op, axis=eax, begin=i, end=i+MAXIMUM_SIZE,
+                name=N.n('slice_axis'))
+            ops.append(cop)
+        sb = int(math.log2(MAXIMUM_SIZE))
+        ops = sum_and_rightshift(ops, eax, sb)
+        while len(ops) > MAXIMUM_SIZE:
+            assert MAXIMUM_SIZE % len(ops) == 0
+            nops = []
+            for i in range(0, len(ops), MAXIMUM_SIZE):
+                cop = mx.sym.concat(
+                    *ops[i:i+MAXIMUM_SIZE], dim=eax, name=N.n('concat'))
+                nops.append(cop)
+            ops = sum_and_rightshift(nops, eax, sb)
+        res_sz = len(ops)
+        assert res_sz > 1
+        sb = int(math.log2(res_sz))
+        op = mx.sym.concat(*ops, dim=eax, name=N.n('concat'))
+        if keepdims:
+            op = mx.sym.sum(op, axis=eax, keepdims=True, name=N.n('sum'))
+            if reshaped:
+                for i in range(1, len(naxes)):
+                    op = mx.sym.expand_dims(
+                        op, axis=i+len(nshp)-1, name=N.n('expand_dims'))
+            if transposed:
+                raxes = [0] * len(axes)
+                for i, ax in enumerate(axes):
+                    raxes[ax] = i
+                op = mx.sym.tranpose(op, axes=raxes, name=N.n('transpose'))
+        else:
+            op = mx.sym.sum(op, axis=eax, name=N.n('sum'))
+        op = mx.sym.Custom(
+            op, shift_bit=sb, name=name, op_type='right_shift')
+        return op
+
+def fuse_transpose_reduce(op, infer_shapes):
+    """ fuse_tranpose for reduce op, with fuse_transpose as the only child op.
+        currently support `sum` and `mean`.
+
+         .. code-block:: none
+
+                   cX
+                   |
+             Transpose(axis)
+                   |
+               op(dims1)
+
+         then, the graph can be transformed into:
+
+         .. code-block:: none
+
+                   cX
+                   |
+               op(dims2)
+
+         where:
+
+         .. code-block:: python
+
+             dims2 = [axis[i] for i in dims1]
+
+        if keepdims is true, we switch the order of reduce op and
+        transpose in an equivalent way, which could be an optimization for
+        cases like:
+
+        .. code-block:: none
+
+                cX
+                |
+             Transpose1
+                |
+             reduce
+                |
+            Transpose2
+
+        which in the visit of Transpose2, could be further fused into:
+
+        .. code-block:: none
+                cX
+                |
+              reduce
+                |
+            Transpose
+    """
+    name, op_name = op.attr('name'), op.attr('op_name')
+    shp = infer_shapes[name][get_entry_id(op)]
+    if op_name not in [Sum.op_name, Mean.op_name]:
+        return op
+    attr, X = op.list_attr(), op.get_children()[0]
+    xopn = X.attr('op_name')
+    if xopn != Transpose.op_name:
+        return op
+    xshp = infer_shapes[X.attr('name')][get_entry_id(X)]
+    axis = get_attr(attr, 'axis', [i for i in range(len(xshp))])
+    axes, cX = get_attr(X.list_attr(), 'axes'), X.get_children()[0]
+    naxis = [axes[i] for i in axis]
+    naxis_sorted = sorted(naxis)
+    keepdims = get_attr(attr, 'keepdims', False)
+    if keepdims:
+        op = get_mxnet_op(op_name)(
+            cX, axis=naxis_sorted, keepdims=True, name=N.n("reduce"))
+        op = mx.sym.transpose(op, axes=axes, name=name)
+    else:
+        naxis_set = set(naxis)
+        naxes = [ax for ax in axes if ax not in naxis_set]
+        naxes_dict = {ax:i for i,ax in enumerate(sorted(naxes))}
+        naxes = [naxes_dict[ax] for ax in naxes]
+        axes_ref = [i for i in range(len(shp))]
+        if naxes != axes_ref:
+            op = get_mxnet_op(op_name)(
+                cX, axis=naxis_sorted, keepdims=False, name=N.n("reduce"))
+            op = mx.sym.transpose(op, axes=naxes, name=name)
+        else:
+            op = get_mxnet_op(op_name)(
+                cX, axis=naxis_sorted, keepdims=False, name=name)
+    return op
