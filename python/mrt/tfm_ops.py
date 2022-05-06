@@ -722,6 +722,7 @@ class FullyConnected(Transformer):
             op = self._matrix_decomposition(op, params, infer_shapes)
         else:
             fc_name = N.n("reduced_fc")
+            # TODO(ryt): apply infer_batch_axis
             default_batch_axis = 0
             batch_axis = \
                 kwargs.get("batch_axes", {}).get(name, default_batch_axis)
@@ -3125,11 +3126,8 @@ class Mean(Transformer):
         return fuse_transpose_reduce(op, kwargs["infer_shapes"])
     def rewrite(self, op, **kwargs):
         name = op.attr('name')
-        return self._decompose_axis(op, kwargs['infer_shapes'])
-
-    def _decompose_axis(self, op, infer_shapes):
-        name = op.attr('name')
         attr, childs = op.list_attr(), sym_iter(op.get_children())
+        infer_shapes = kwargs['infer_shapes']
 
         axis = eval(attr['axis'])
         if isinstance(axis, int):
@@ -3162,7 +3160,7 @@ class Mean(Transformer):
                 op_type='right_shift')
             return op
 
-        # TODO(ryt): select batch_axis
+        # TODO(ryt): apply infer_batch_axis
         axis_set = set(axis)
         oaxes = list(range(len(shp)))
         naxes = sorted(axis)
