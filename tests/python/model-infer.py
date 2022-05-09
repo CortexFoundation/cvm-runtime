@@ -36,7 +36,7 @@ model_root = "/data/ryt/tf_mobilenet_tfm"
 if len(os.sys.argv) > 1:
     model_root = os.sys.argv[1]
 
-print("Modal Load: ", model_root)
+print("Model Load: ", model_root)
 
 json, params = utils.load_model(
         os.path.join(model_root, "symbol"),

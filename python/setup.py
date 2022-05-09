@@ -65,5 +65,5 @@ setup(name='cvm',
     url="https://github.com/CortexFoundation/cvm-runtime.git",
     packages=find_packages(),
     author="CortexLabs Foundation",
-    ext_modules = config_cython(),
+    # ext_modules = config_cython(),
     **setup_kwargs)
