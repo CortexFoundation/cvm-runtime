@@ -1,43 +1,36 @@
-CURR_DIR=$(dirname $(realpath $0))
+CURR_DIR=$(dirname $(realpath ${BASH_SOURCE[0]}))
 ROOT_DIR=$(dirname ${CURR_DIR})
 PROJECT_NAME=$(basename ${ROOT_DIR})
 
 COM=""
-LN=$'\n  '
 
 if [[ "${PYTHONPATH}" != *"${PROJECT_NAME}/python"* ]]; then
-  read -d '' COM <<EOF
-  ${COM}
-
-  PYTHONPATH=${ROOT_DIR}/python:\${PYTHONPATH}
-  echo "PYTHONPATH=\${PYTHONPATH}"
-EOF
+  TPATH=${ROOT_DIR}/python
+  [[ -z ${PYTHONPATH} ]] || TPATH=${TPATH}:${PYTHONPATH}
+  export PYTHONPATH=${TPATH}
 fi
 
 if [[ "${LD_LIBRARY_PATH}" != *"${PROJECT_NAME}/build"* ]]; then
-  read -d '' COM <<EOF
-  ${COM}
-
-  export LD_LIBRARY_PATH=${ROOT_DIR}/build:\${LD_LIBRARY_PATH}
-  echo "LD_LIBRARY_PATH=\${LD_LIBRARY_PATH}"
-EOF
+  TPATH=${ROOT_DIR}/build
+  [[ -z ${LD_LIBRARY_PATH} ]] || TPATH=${TPATH}:${LD_LIBRARY_PATH}
+  export LD_LIBRARY_PATH=${TPATH}
 fi
 
-if [[ ${COM} != "" ]]; then
-  cat <<EOF
+# if [[ ${COM} != "" ]]; then
+  # cat <<EOF
 
-Due to bash limitation, we cannot add python & link library 
-  environment via scripts, and then we supply the below commands to 
-  help to setup the project, copy and execute it in terminal please:
+# Due to bash limitation, we cannot add python & link library
+  # environment via scripts, and then we supply the below commands to
+  # help to setup the project, copy and execute it in terminal please:
 
-\`
-  ${COM}
-\`
+# \`
+  # ${COM}
+# \`
 
-EOF
-fi
+# EOF
+# fi
 
-echo "Done."
+# echo "Done."
 
 # compile the cython module
 # echo "Compile the cython setup"
