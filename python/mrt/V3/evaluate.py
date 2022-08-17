@@ -7,6 +7,7 @@ Stage options and Command line help prompt are also included.
 
 from yacs.config import CfgNode as CN
 import logging
+import time
 
 import mxnet as mx
 from mxnet import gluon, ndarray as nd
@@ -132,8 +133,10 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
     def evalfunc(data, label):
         # outs = forward(graph, data, ctx=ctx)
         outs = forward(graph, data, ctx, baxis, olen)
+        start = time.time()
         acc = dataset.validate(metric, outs, label)
-        return acc
+        end = time.time()
+        return acc, int((end-start)*1e3)
 
     # forward function for the quantized model
     if conf_map.get("split_keys", "") != "":
@@ -161,8 +164,10 @@ def get_evaluation_info(cm_cfg, pass_cfg, logger=None):
         outs = forward(qgraph, data, ctx, baxis, olen)
         outs = outs / oscales[0] if olen == 1 \
             else [(t / oscales[i]) for i, t in enumerate(outs)]
+        start = time.time()
         acc = dataset.validate(qmetric, outs, label)
-        return acc
+        end = time.time()
+        return acc, int((end-start)*1e3)
 
     return evalfunc, data_iter_func, quantize
 
