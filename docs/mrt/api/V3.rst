@@ -1,0 +1,60 @@
+**********
+MRT V3 API
+**********
+
+.. _mrt_v3_api:
+
+.. contents::
+
+mrt.V3.utils
+____________
+.. automodule:: mrt.V3.utils
+.. autofunction:: mrt.V3.utils.get_model_prefix
+.. autofunction:: mrt.V3.utils.get_logger
+.. autofunction:: mrt.V3.utils.set_batch
+.. autofunction:: mrt.V3.utils.load_fname
+.. autofunction:: mrt.V3.utils.save_conf
+.. autofunction:: mrt.V3.utils.load_conf
+.. autofunction:: mrt.V3.utils.check_file_existance
+.. autofunction:: mrt.V3.utils.get_ctx
+.. autofunction:: mrt.V3.utils.get_batch_axis
+.. autofunction:: mrt.V3.utils.get_cfg_defaults
+.. autofunction:: mrt.V3.utils.merge_cfg
+.. autofunction:: mrt.V3.utils.revise_cfg
+.. autofunction:: mrt.V3.utils.override_cfg_args
+
+mrt.V3.prepare
+______________
+.. automodule:: mrt.V3.prepare
+.. autofunction:: mrt.V3.prepare.prepare
+
+mrt.V3.calibrate
+________________
+.. automodule:: mrt.V3.calibrate
+.. autofunction:: mrt.V3.calibrate.calibrate
+
+mrt.V3.quantize
+_______________
+.. automodule:: mrt.V3.quantize
+.. autofunction:: mrt.V3.quantize.quantize
+
+mrt.V3.evaluate
+_______________
+.. automodule:: mrt.V3.evaluate
+.. autofunction:: mrt.V3.evaluate.forward
+.. autofunction:: mrt.V3.evaluate.get_evaluation_info
+.. autofunction:: mrt.V3.evaluate.evaluate
+.. autofunction:: mrt.V3.evaluate.get_ctx_eval
+.. autofunction:: mrt.V3.evaluate.inference_original_model
+.. autofunction:: mrt.V3.evaluate.inference_quantized_model
+
+mrt.V3.mrt_compile
+__________________
+.. automodule:: mrt.V3.mrt_compile
+.. autofunction:: mrt.V3.mrt_compile.mrt_compile
+
+mrt.V3.execute
+______________
+.. automodule:: mrt.V3.execute
+.. autofunction:: mrt.V3.execute.yaml_main
+.. autofunction:: mrt.V3.execute.run

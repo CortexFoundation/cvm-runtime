@@ -11,7 +11,7 @@ all: lib python tests html
 
 # Mac OS should install libomp with brew
 dep:
-	python3 install/deps.py
+	python3 conf/deps.py
 
 lib: dep
 	@cd ${BUILD} && cmake ../ && $(MAKE)
@@ -38,6 +38,9 @@ test_cpu: ${TEST_CPUS}
 test_gpu: ${TEST_GPUS}
 test_formal: ${TEST_FORMALS}
 test_opencl: ${TEST_OPENCL}
+
+%: %_cpu %_gpu %_formal
+	@echo "compile $@ succeed"
 
 %_cpu: ${TESTS}/%.cc lib
 	g++ -o ${BUILD}/${TESTS}/$@ $< -DDEVICE=0 -std=c++11 -I${INCLUDE} -L${BUILD} -lcvm -fopenmp -fsigned-char -pthread -Wl,-rpath=${BUILD}

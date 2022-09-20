@@ -7,6 +7,7 @@ from mxnet import ndarray as nd
 import math
 import numpy as np
 import time
+from copy import deepcopy
 
 from .tfm_utils import get_bit, scale, requant
 from .sym_utils import is_var, is_params, is_inputs
@@ -345,12 +346,57 @@ def name_duplicate_check(symbol, params):
         assert name not in names, "duplicated name in graph: %s" % name
         names.add(name)
 
+@N.register_nm("unify")
+def unify_name_json(
+    symbol, params, logger=logging.getLogger("unify_name_json")):
+
+    # check symbol
+    sym_json_str = symbol.tojson()
+    sym_json_dict = json.loads(sym_json_str)
+    nodes = sym_json_dict["nodes"]
+
+    name_cnts = {}
+    nnodes = []
+    for node in nodes:
+        name = node["name"]
+        if name in name_cnts:
+            cur_cnt = name_cnts[name] = N.n(name)
+            logger.info("duplicate name: {}".format(name))
+            nnode = deepcopy(node)
+            nnode["name"] = "{}_{}".format(name, cur_cnt)
+            nnodes.append(nnode)
+        else:
+            name_cnts[name] = 1
+            nnodes.append(node)
+
+    sym_json_dict["nodes"] = nnodes
+    sym_json_str = json.dumps(sym_json_dict)
+    sym = mx.sym.load_json(sym_json_str)
+    return sym, params
+
 def params_unique(symbol, params):
     """ Remove duplicate keys params dict.
     """
     new_params = {s.attr('name'):params[s.attr('name')] \
             for s in topo_sort(symbol) if is_params(s, params)}
     return symbol, new_params
+
+def remove_params_prefix(
+    symbol, params, logger=logging.getLogger("remove_params_prefix")):
+    # check params
+    # model exported from mxnet hybrid block compatibility,
+    # remove the unnecessary prefix, hack
+    param_keys = {}
+    for k in params:
+        if k.startswith("arg:") or k.startswith("aux:"):
+            nk = k[4:]
+        else:
+            nk = k
+        if nk in param_keys:
+            assert False, nk
+        param_keys[k] = nk
+    params = {param_keys[k]: v for k, v in params.items()}
+    return symbol, params
 
 def input_name_replace(symbol, params):
     """ Customized graph-level topo pass definition.

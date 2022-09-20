@@ -108,6 +108,16 @@ class Model:
                               input_shape, target,
                               device_ids=device_ids)
 
+    def fix_original_model(self, model_dir, model_name):
+        # unify graph names and check graph params
+        _sym, _prm = tpass.unify_name_json(self.symbol, self.params)
+        self.symbol, self.params = tpass.remove_params_prefix(_sym, _prm)
+        model_prefix = path.join(model_dir, model_name+".fixed")
+        sym_file, prm_file = utils.extend_fname(model_prefix)
+        with open(sym_file, "w") as f:
+            f.write(self.symbol.tojson())
+        nd.save(prm_file, self.params)
+
 def init(model, input_shape=None):
     logger = logging.getLogger("mrt.prepare")
     logger.info("Model initializing...")
@@ -224,6 +234,7 @@ class MRT:
         op_precs['Embedding'] = 16
         op_precs['slice_like'] = 30
         op_precs['batch_dot'] = 8
+        op_precs['elemwise_mul'] = 16
 
     def set_input_prec(self, prec):
         """ Set the input precision before quantization.

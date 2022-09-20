@@ -91,6 +91,7 @@ MxNet Supported Operators are listed as below:
 
   + :py:class:`ElemwiseAdd <mrt.tfm_ops.ElemwiseAdd>`
   + :py:class:`ElemwiseSub <mrt.tfm_ops.ElemwiseSub>`
+  + :py:class:`ElemwiseMul <mrt.tfm_ops.ElemwiseMul>`
   + :py:class:`Clip <mrt.tfm_ops.Clip>`
   + :py:class:`negative <mrt.tfm_ops.Negative>`
   + :py:class:`abs <mrt.tfm_ops.Abs>`
@@ -137,7 +138,7 @@ MxNet Supported Operators are listed as below:
   :members: rewrite
 
 .. autoclass:: mrt.tfm_ops.Activation
-  :members: validate
+  :members: validate, rewrite
 
 .. autoclass:: mrt.tfm_ops.Convolution
   :members: rewrite, quantize
@@ -170,7 +171,7 @@ MxNet Supported Operators are listed as below:
   :members:
 
 .. autoclass:: mrt.tfm_ops.FullyConnected
-  :members: rewrite, quantize
+  :members: rewrite, reduce, quantize
 
 .. autoclass:: mrt.tfm_ops.Sigmoid
   :members: quantize
@@ -262,9 +263,11 @@ MxNet Supported Operators are listed as below:
 .. autoclass:: mrt.tfm_ops.ElemwiseAdd
   :members: fuse_transpose, quantize
 
-
 .. autoclass:: mrt.tfm_ops.ElemwiseSub
   :members: fuse_transpose, quantize
+
+.. autoclass:: mrt.tfm_ops.ElemwiseMul
+  :members: rewrite
 
 .. autoclass:: mrt.tfm_ops.Dropout
   :members: fuse_transpose

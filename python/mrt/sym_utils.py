@@ -471,6 +471,9 @@ def get_entry_id(sym):
             oindex = json.loads(graph.json())['heads'][0][1]
     return oindex
 
+def has_multi_outs(sym):
+    return sym.attr('op_name') in MULTIPYE_OUTS_NODE
+
 def get_node(sym, graph):
     """ Get the symbol from the provided graph which has the same name as the given symbol.
 
