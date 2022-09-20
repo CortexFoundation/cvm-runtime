@@ -1,5 +1,5 @@
 COMMON:
-  MODEL_NAME: mobilenet1_0
+  MODEL_NAME: mobilenet1.0
 CALIBRATE:
   NUM_CALIB: 1
   DATASET_NAME: imagenet

@@ -1,5 +1,5 @@
 COMMON:
-  MODEL_NAME: resnet152_v1
+  MODEL_NAME: resnet152_v2
   VERBOSITY: debug
   RUN_EVALUATE: True
 CALIBRATE:
