@@ -1,8 +1,11 @@
-#include <cvm/c_api.h>
-#include <cvm/model.h>
 #include <iostream>
 #include <thread>
 #include <omp.h>
+#include <vector>
+#include <fstream>
+
+#include <cvm/c_api.h>
+#include <cvm/model.h>
 #include <cvm/runtime/registry.h>
 #include <cvm/op.h>
 #include "npy.hpp"
@@ -129,7 +132,7 @@ int run_LIF(string model_root, int device_type = 0) {
   {
     vector<int32_t> input_int32_t;
     std::vector<unsigned long> tshape;
-    npy::LoadArrayFromNumpy("/data/std_out/trec/data.npy", tshape, input_int32_t);
+    npy::LoadArrayFromNumpy(model_root + "/data.npy", tshape, input_int32_t);
     std::cout << "Loading a int32 data and cast to byte array: "
               << input.size() << " " << input_int32_t.size() << "\n";
     memcpy(input.data(), input_int32_t.data(), input.size());
@@ -251,57 +254,58 @@ void test_thread() {
 
 int test_models(int device_type = 0) {
   std::cout << device_type << " DDDDDD" << std::endl;
-  auto model_roots = {
-    "/data/std_out/yolo_tfm",
-    "/data/std_out/null",
-    "/data/std_out/resnet50_mxg",
-    "/data/std_out/ssd_512_mobilenet1.0_voc_tfm",
-    "/data/std_out/resnet18_v1_tfm",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/trec",
-    // "/data/new_cvm/yolo3_darknet53_voc/data",
-    "/data/lz_model_storage/dcnet_mnist_v1/data",
-    "/data/lz_model_storage/mobilenetv1.0_imagenet/data",
-    "/data/lz_model_storage/resnet50_v1_imagenet/data",
-    "/data/lz_model_storage/animal10/data",
-    "/data/lz_model_storage/resnet50_v2/data",
-    "/data/lz_model_storage/vgg16_gcv/data",
-    "/data/lz_model_storage/sentiment_trec/data",
-    "/data/lz_model_storage/vgg19_gcv/data",
-    "/data/lz_model_storage/squeezenet_gcv1.1/data",
-    "/data/lz_model_storage/squeezenet_gcv1.0/data",
+  std::string model_root = "/data1/";
+  auto model_dirs = {
+    "std_out/yolo_tfm",
+    "std_out/null",
+    "std_out/resnet50_mxg",
+    "std_out/ssd_512_mobilenet1.0_voc_tfm",
+    "std_out/resnet18_v1_tfm",
+    "std_out/resnet50_v2",
+    "std_out/qd10_resnet20_v2",
+    "std_out/trec",
+    // "new_cvm/yolo3_darknet53_voc/data",
+    "lz_model_storage/dcnet_mnist_v1/data",
+    "lz_model_storage/mobilenetv1.0_imagenet/data",
+    "lz_model_storage/resnet50_v1_imagenet/data",
+    "lz_model_storage/animal10/data",
+    "lz_model_storage/resnet50_v2/data",
+    "lz_model_storage/vgg16_gcv/data",
+    "lz_model_storage/sentiment_trec/data",
+    "lz_model_storage/vgg19_gcv/data",
+    "lz_model_storage/squeezenet_gcv1.1/data",
+    "lz_model_storage/squeezenet_gcv1.0/data",
     // invalid has strange attribute in operator elemwise_add.
-    // "/data/lz_model_storage/octconv_resnet26_0.250/data",
-    "/data/std_out/resnet50_mxg/",
-    "/data/std_out/resnet50_v2",
-    "/data/std_out/qd10_resnet20_v2",
-    "/data/std_out/random_3_0/",
-    "/data/std_out/random_3_1/",
-    "/data/std_out/random_3_2/",
-    "/data/std_out/random_3_3/",
-    "/data/std_out/random_3_4/",
-    "/data/std_out/random_3_5/",
-    "/data/std_out/random_4_0/",
-    "/data/std_out/random_4_1/",
-    // "/data/std_out/random_4_2/",
-    // "/data/std_out/random_4_3/",
-    // "/data/std_out/random_4_4/",
-    "/data/std_out/random_4_5/",
-    "/data/std_out/random_4_6/",
-    "/data/std_out/random_4_7/",
-    "/data/std_out/random_4_8/",
-    "/data/std_out/random_4_9/",
-    "/data/std_out/log2",
+    // "lz_model_storage/octconv_resnet26_0.250/data",
+    "std_out/resnet50_mxg/",
+    "std_out/resnet50_v2",
+    "std_out/qd10_resnet20_v2",
+    "std_out/random_3_0/",
+    "std_out/random_3_1/",
+    "std_out/random_3_2/",
+    "std_out/random_3_3/",
+    "std_out/random_3_4/",
+    "std_out/random_3_5/",
+    "std_out/random_4_0/",
+    "std_out/random_4_1/",
+    // "std_out/random_4_2/",
+    // "std_out/random_4_3/",
+    // "std_out/random_4_4/",
+    "std_out/random_4_5/",
+    "std_out/random_4_6/",
+    "std_out/random_4_7/",
+    "std_out/random_4_8/",
+    "std_out/random_4_9/",
+    "std_out/log2",
     //"./tests/3145ad19228c1cd2d051314e72f26c1ce77b7f02/",
-    "/data/std_out/lr_attr",
-    // "/data/std_out/non_in",
-    "/data/std_out/shufflenet",
-    "/data/std_out/ssd",
-    "/data/std_out/ssd_512_mobilenet1.0_coco_tfm/",
+    "std_out/lr_attr",
+    // "std_out/non_in",
+    "std_out/shufflenet",
+    "std_out/ssd",
+    "std_out/ssd_512_mobilenet1.0_coco_tfm/",
   };
-  for (auto model_root : model_roots) {
-    auto ret = run_LIF(model_root, device_type);
+  for (auto dir : model_dirs) {
+    auto ret = run_LIF(model_root + dir, device_type);
     if (ret == -1) return -1;
   }
   return 0;

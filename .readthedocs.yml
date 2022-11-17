@@ -17,6 +17,6 @@ sphinx:
 python:
   version: 3.7
   install:
-    - requirements: install/requirements.txt
+    - requirements: conf/requirements.txt
     - requirements: docs/requirements.txt
   system_packages: true
