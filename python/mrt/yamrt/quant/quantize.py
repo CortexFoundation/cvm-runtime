@@ -106,7 +106,7 @@ def quantize_static(model_input,
 
     model = load_model(Path(model_input), optimize_model)
 
-    calibrator = get_calibrator(model, op_types_to_quantize, calibrate_method=calibrate_method)
+    calibrator = get_calibrator(model, op_types_to_quantize, method=calibrate_method)
     calibrator.collect_data(calibration_data_reader)
     tensors_range = calibrator.compute_range()
 

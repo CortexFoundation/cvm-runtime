@@ -46,7 +46,7 @@ for di in li:
         for i in range(data.shape[0]):
             norm_data[i,:,:] = (data[i,:,:]/255 - mean_vec[i]) / stddev_vec[i]
         norm_data = norm_data.reshape(1, 3, 224, 224).astype('float32')
-        
+
         result = session.run([output_name],{input_name:norm_data})
         res = softmax(np.array(result)).tolist()
         idx = np.argmax(res)
