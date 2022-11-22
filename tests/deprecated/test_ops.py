@@ -649,7 +649,7 @@ def verify_get_valid_counts():
     def get_valid_counts(data, score_threshold):
         np_data = np.array(data)
         dshp = np_data.shape
-        if len(dshp) != 3 or (dshp[2] <= 2):
+        if len(dshp) != 3 or (dshp[2] < 2):
             raise ValueError("data shape error: " + str(dshp))
         batch_size, num_anchor, elem_length = dshp
         np_out1 = np.zeros(shape=(batch_size,))
