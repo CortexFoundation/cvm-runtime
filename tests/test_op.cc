@@ -475,7 +475,7 @@ void load_input(int num_inputs, string case_path, vector<vector<uint64_t>>& tsha
       CVMArrayFree(cpu_tensor);
     }
 }
-const string CASE_DIR = "/home/remloveh/cvm-runtime/data/ops_generator";
+const string CASE_DIR = "/data/ops_generator";
 //const string CASE_DIR = "/data/zkh";
 
 void test_op(string op_name) {
@@ -664,34 +664,36 @@ void test_op(string op_name) {
 }
 int main(int argc, char* argv[]) {
   ctx = APIDevTypeMap.at(stoi(argv[1]));
-  // test_op("max_pool2d"); // formal & cpu pass
-  //test_op("upsampling"); // formal & cpu pass
-  // test_op("dense");  // formal & cpu pass
-  test_op("conv2d"); // formal & cpu pass
-  // test_op("sum");  // formal & cpu pass
-  // test_op("max");  // formal & cpu pass
-  // test_op("slice_like"); // formal & cpu pass
-  // test_op("tile"); // formal & cpu pass
-  // test_op("repeat"); // formal & cpu pass
-  // test_op("get_valid_counts");  // formal & CPU pass
+  // argv[1]=0 is cpu, argv[1]=1 is gpu, argv[1]=2 is formal
 
-  // test_op("strided_slice"); // formal & cpu pass
-  // test_op("concatenate");// formal & cpu pass
-  // test_op("transpose");// formal & cpu pass
-  // test_op("take"); // formal & cpu pass
+  test_op("max_pool2d"); // formal & cpu & gpu pass
+  //test_op("upsampling"); // formal & cpu pass
+  // test_op("dense");  // formal & cpu & gpu pass
+  //test_op("conv2d"); // formal & cpu pass
+  // test_op("sum");  // formal & cpu & gpu pass
+  // test_op("max");  // formal & cpu & gpu pass
+  // test_op("slice_like"); // formal & cpu & gpu pass
+  // test_op("tile"); // formal & cpu & gpu pass
+  // test_op("repeat"); // formal & cpu & gpu pass
+  // test_op("get_valid_counts");  // formal & CPU & gpu pass
+
+  // test_op("strided_slice"); // formal & cpu & gpu pass
+  // test_op("concatenate");// formal & cpu & gpu pass
+  // test_op("transpose");// formal & cpu & gpu pass
+  // test_op("take"); // formal & cpu & gpu pass
   // test_op("clip"); // no test case
   // test_op("cvm_clip"); // no test case
   // test_op("cvm_right_shift");  // no test case
-  //test_op("elemwise_add"); // formal & cpu pass
+  //test_op("elemwise_add"); // no test case
   //test_op("elemwise_sub"); // no test case
   //test_op("where"); // no test case
   //test_op("non_max_suppression");  // formal & cpu pass
-  // test_op("broadcast_sub"); // formal & cpu pass
-  // test_op("broadcast_add");  // formal & cpu pass
-  // test_op("broadcast_mul");  // formal & cpu pass
-  // test_op("broadcast_max");  // formal & cpu pass
-  // test_op("broadcast_div");  // formal & cpu pass
-  // test_op("broadcast_greater");  // formal & cpu pass
+  // test_op("broadcast_sub"); // formal & cpu & gpu pass
+  // test_op("broadcast_add");  // formal & cpu & gpu pass
+  // test_op("broadcast_mul");  // formal & cpu & gpu pass
+  // test_op("broadcast_max");  // formal & cpu & gpu pass
+  // test_op("broadcast_div");  // formal & cpu & gpu pass
+  // test_op("broadcast_greater");  // formal & cpu & gpu pass
   
   cout << "test device: "<< DeviceName(static_cast<int>(ctx)) << endl;
   cout << "all tests finished" << endl;

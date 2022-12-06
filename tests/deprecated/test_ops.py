@@ -1,20 +1,20 @@
 from mxnet import nd
 import mxnet as mx
 import numpy as np
-import topi.testing
+import tvm.topi.testing
 import tvm
 import os
 import math
 import random
 
-import ops_generator as opg
-from ops_generator import std_int_constraint, iter_constraint, \
+import mrt.ops_generator as opg
+from mrt.ops_generator import std_int_constraint, iter_constraint, \
     list_constraint, gen_non_constraint, range_constraint, \
     rand_constraint, shape_constraint
-from ops_generator import IntIter, NoneIter, ConstantIter, ConcatIter, \
+from mrt.ops_generator import IntIter, NoneIter, ConstantIter, ConcatIter, \
     VectorIter, PermutationIter, ShapeIter, AllOverIter, BoolIter, \
     RepeatIter, RandomBoolIter, RandomVectorIter, RandomIter
-import utils
+import mrt.utils
 
 INT32 = "int32"
 
@@ -189,7 +189,7 @@ def verify_strided_slice():
                         % (begin[i], b, end[i], e, s))
 
         data_npy = np.array(data)
-        out_npy = topi.testing.strided_slice_python(data_npy, begin, end, strides)
+        out_npy = tvm.topi.testing.strided_slice_python(data_npy, begin, end, strides)
         return [out_npy]
 
     op_units = opg.OpUnitIter([data, begin, end, strides], 1, [cstr_func])
@@ -379,8 +379,8 @@ def verify_conv2d():
                     strides, dilation, padding, num_filter, groups,
                     no_bias=(not use_bias))
 
-            dw_np = topi.testing.dilate_python(w_np, (1, 1, *dilation))
-            c_np = topi.testing.conv2d_nchw_python(a_np, dw_np, strides, padding)
+            dw_np = tvm.topi.testing.dilate_python(w_np, (1, 1, *dilation))
+            c_np = tvm.topi.testing.conv2d_nchw_python(a_np, dw_np, strides, padding, groups)
             if use_bias:
                 c_np += b_np.reshape(num_filter, 1, 1)
             outs = [c_np]
@@ -541,7 +541,8 @@ def verify_upsampling():
         if scale == 0:
             raise ValueError("scale must > 0 vs. " + str(scale))
         a_np = np.array(data)
-        b_np = topi.testing.upsampling_python(a_np, scale, "NCHW")
+        #b_np = tvm.topi.testing.upsampling_python(a_np, scale, "NCHW")
+        b_np = tvm.topi.testing.resize2d_python(a_np, (scale, scale), "NCHW")
         return [b_np]
 
     op_units = opg.OpUnitIter([data, scale], 1)
@@ -712,13 +713,13 @@ def verify_non_max_suppression():
     dshp = opg.ExtendIter(batch, n, k)
     datas = []
     for i in range(len(dshp)):
-        shp = dshp[i]
-        data = []
+        shp = dshp[i] # (B, N, K)
+        data = [] # (N, K)
         for n in range(shp[1]):
             elem = rand_constraint(-20, 20, 6)()
             elem[0] = random.randint(-1, 10)
             data.append(elem)
-        datas.append([[data]])
+        datas.append([[data]]) # (1, 1, N, K)
     data = ConcatIter(*datas)
     valid_count = RandomVectorIter(1, 32, 1, 10)
     iou = ConcatIter(
@@ -755,22 +756,24 @@ def verify_non_max_suppression():
             id_index, score_index, coord_start,
             max_output_size, return_indices, invalid_to_bottom):
         device = 'llvm'
-        ctx = tvm.context(device, 0)
-        data_np, valid_count_np = np.array(data, dtype="float32"), np.array(valid_count, dtype="int32")
+        ctx = tvm.device(device, 0)
+        data_np, valid_count_np = np.array(data, dtype="int32"), np.array(valid_count, dtype="int32")
+        indices_np = np.array([np.arange(data_np.shape[1])], dtype="int32")
         data_nd, valid_count_nd = tvm.nd.array(data_np, ctx), tvm.nd.array(valid_count_np, ctx)
+        indices_nd = tvm.nd.array(indices_np, ctx)
         dshp = data_nd.shape
-        data_tvm = tvm.placeholder(dshp, name="data", dtype="float32")
-        valid_count_tvm = tvm.placeholder((dshp[0],), dtype="int32", name="valid_count")
-        with tvm.target.create(device):
-            out = topi.vision.non_max_suppression(data_tvm, valid_count_tvm,
+        data_tvm = tvm.te.placeholder(dshp, name="data", dtype="int32")
+        valid_count_tvm = tvm.te.placeholder((dshp[0],), dtype="int32", name="valid_count")
+        indices_tvm = tvm.te.placeholder((dshp[0],dshp[1]), dtype="int32", name="indices")
+        with tvm.target.Target(device):
+            out = tvm.topi.vision.non_max_suppression(data_tvm, valid_count_tvm, indices_tvm,
                     max_output_size, iou/100, force_suppress, top_k,
                     coord_start, score_index, id_index,
                     return_indices, invalid_to_bottom)
-            s = topi.generic.schedule_nms(out)
-
+            s = tvm.topi.generic.schedule_nms(out)
         out_nd = tvm.nd.array(np.zeros(dshp, dtype=data_tvm.dtype), ctx)
-        f = tvm.build(s, [data_tvm, valid_count_tvm, out], device)
-        f(data_nd, valid_count_nd, out_nd)
+        f = tvm.build(s, [data_tvm, valid_count_tvm, indices_tvm, out], device)
+        f(data_nd, valid_count_nd, indices_nd, out_nd)
         return [out_nd.asnumpy()]
 
     op_units.eval_data("non_max_suppression", non_max_suppression, True)
@@ -818,14 +821,14 @@ def test_load(op_name, hsh, datadir="/data/ops_generator"):
         #  'dilate': attr['dilation'],
         #  'num_group': attr['groups'],
     #  }
-    dw_np = topi.testing.dilate_python(w_np, dilation)
-    c_np = topi.testing.conv2d_nchw_python(a_np, dw_np, stride, padding)
+    dw_np = tvm.topi.testing.dilate_python(w_np, dilation)
+    c_np = tvm.topi.testing.conv2d_nchw_python(a_np, dw_np, stride, padding)
     print (c_np.flatten(), outs[0].flatten())
 
 
 
 if __name__ == "__main__":
-    utils.log_init()
+    mrt.utils.log_init()
     # opg.clean_dir()
     # verify_transpose()
     # verify_concatenate()
@@ -848,10 +851,10 @@ if __name__ == "__main__":
     #  verify_broadcast('broadcast_sub')
     #  verify_broadcast('broadcast_mul')
     #  verify_broadcast('broadcast_maximum')
-    verify_broadcast('broadcast_div')
+    # verify_broadcast('broadcast_div')
     #  verify_broadcast('broadcast_greater')
 
-    # test_load("conv2d", "ffd9ad6afc62dd7541778a81d6529c9a2735fc0a")
+    # test_load("conv2d", "ffd9ad6afc62dd7541778a81d6529c9a2735fc0a", '/home/remloveh/cvm-runtime/data/ops_generator')
 
     # verify_get_valid_counts()
-    # verify_non_max_suppression()
+    verify_non_max_suppression()
