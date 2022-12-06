@@ -854,7 +854,7 @@ if __name__ == "__main__":
     # verify_broadcast('broadcast_div')
     #  verify_broadcast('broadcast_greater')
 
-    # test_load("conv2d", "ffd9ad6afc62dd7541778a81d6529c9a2735fc0a", '/home/remloveh/cvm-runtime/data/ops_generator')
+    # test_load("conv2d", "ffd9ad6afc62dd7541778a81d6529c9a2735fc0a")
 
     # verify_get_valid_counts()
     verify_non_max_suppression()
