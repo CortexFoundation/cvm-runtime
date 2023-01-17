@@ -86,86 +86,88 @@ vector<NDArray> result(vector<vector<int64_t>> tshape, vector<vector<int32_t>> t
     return res;
 }
 
-NDArray conv2d(NDArray const& data, NDArray const& weight, string attr_str, NDArray* bias = nullptr)
+// NDArray
+NDArray conv2d(NDArray const &data, NDArray const &weight, TShape padding, TShape strides, TShape dilation, int groups, NDArray *bias = nullptr)
 {
     CVMOpParam params;
     params.func_name = "conv2d";
-    if(bias)
+    if (bias)
         params.num_inputs = 3;
     else
         params.num_inputs = 2;
     params.num_outputs = 1;
     params.flatten_data = false;
 
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // data
+    int32_t *ddata = static_cast<int32_t *>(data->data);
+    vector<int64_t> dshape = vector<int64_t>(data->shape, data->shape + data->ndim);
+    tshape[0] = dshape;
+    int dsize = 1;
+    for (int i = 0; i < data->ndim; i++)
+    {
+        dsize *= dshape[i];
+    }
+    vector<int32_t> d_data(dsize);
+    for (int i = 0; i < dsize; i++)
+    {
+        d_data[i] = ddata[i];
+    }
+    tdata[0] = d_data;
+    // weight
+    vector<int64_t> wshape = vector<int64_t>(weight->shape, weight->shape + weight->ndim);
+    tshape[1] = wshape;
+    int32_t *wdata = static_cast<int32_t *>(weight->data);
+    int wsize = 1;
+    for (int i = 0; i < weight->ndim; i++)
+    {
+        wsize *= wshape[i];
+    }
+    vector<int32_t> w_data(wsize);
+    for (int i = 0; i < wsize; i++)
+    {
+        w_data[i] = wdata[i];
+    }
+    tdata[1] = w_data;
+    // bias
+    if (bias != nullptr)
+    {
+        DLTensor *bptr = bias->operator->();
+        vector<int64_t> bshape = vector<int64_t>(bptr->shape, bptr->shape + bptr->ndim);
+        tshape[2] = bshape;
+        int32_t *bdata = static_cast<int32_t *>(bptr->data);
+        int bsize = bshape[0];
+        vector<int32_t> b_data(bsize);
+        for (int i = 0; i < bsize; i++)
+        {
+            b_data[i] = bdata[i];
+        }
+        tdata[2] = b_data;
+    }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "{\"channels\":" + to_string(dshape[0]) + "\", \"kernel_size\":\"[" + to_string(dshape[2]) + ", " + to_string(dshape[3]) +
+                      "], \"strides\":\"[" + to_string(strides[0]) + ", " + to_string(strides[1]) + "]\", \"padding\":\"[" + to_string(padding[0]) +
+                      ", " + to_string(padding[1]) + "]\", \"dilation\":\"(" + to_string(dilation[0]) + ", " + to_string(dilation[1]) + ")\", \"groups\":\"" +
+                      to_string(groups) + "\", \"layout\":\"NCHW\", \"kernel_layout\":\"OIHW\", \"use_bias\":\"" + use_bias + "\"}";
     NodeAttrs attr;
     LoadOp("conv2d", attr);
     LoadOpAttr(attr_str, attr);
-
-    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
-    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
-    // data
-    int32_t *ddata = static_cast<int32_t *>(data->data);
-    vector<int64_t> dshape = vector<int64_t>(data->shape, data->shape + data->ndim);
-    tshape[0] = dshape;
-    int dsize = 1;
-    for (int i = 0; i < data->ndim; i++)
-    {
-        dsize *= dshape[i];
-    }
-    vector<int32_t> d_data(dsize);
-    for (int i = 0; i < dsize; i++)
-    {
-        d_data[i] = ddata[i];
-    }
-    tdata[0] = d_data;
-    // weight
-    vector<int64_t> wshape = vector<int64_t>(weight->shape, weight->shape + weight->ndim);
-    tshape[1] = wshape;
-    int32_t *wdata = static_cast<int32_t *>(weight->data);
-    int wsize = 1;
-    for (int i = 0; i < weight->ndim; i++)
-    {
-        wsize *= wshape[i];
-    }
-    vector<int32_t> w_data(wsize);
-    for (int i = 0; i < wsize; i++)
-    {
-        wdata[i] = wdata[i];
-    }
-    tdata[1] = w_data;
-    // bias
-    if (bias != nullptr)
-    {
-        DLTensor *bptr = bias->operator->();
-        vector<int64_t> bshape = vector<int64_t>(bptr->shape, bptr->shape + bptr->ndim);
-        tshape[2] = bshape;
-        int32_t *bdata = static_cast<int32_t *>(bptr->data);
-        int bsize = bshape[0];
-        vector<int32_t> b_data(bsize);
-        for (int i = 0; i < bsize; i++)
-        {
-            b_data[i] = bdata[i];
-        }
-        tdata[2] = b_data;
-    }
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray dense(NDArray const& data, NDArray const& weight, string attr_str, NDArray* bias = nullptr)
+NDArray dense(NDArray const &data, NDArray const &weight, NDArray *bias = nullptr)
 {
     CVMOpParam params;
     params.func_name = "dense";
-    if(bias)
+    if (bias)
         params.num_inputs = 3;
     else
         params.num_inputs = 2;
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("dense", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // data
@@ -195,7 +197,7 @@ NDArray dense(NDArray const& data, NDArray const& weight, string attr_str, NDArr
     vector<int32_t> w_data(wsize);
     for (int i = 0; i < wsize; i++)
     {
-        wdata[i] = wdata[i];
+        w_data[i] = wdata[i];
     }
     tdata[1] = w_data;
     // bias
@@ -213,10 +215,16 @@ NDArray dense(NDArray const& data, NDArray const& weight, string attr_str, NDArr
         }
         tdata[2] = b_data;
     }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "\"units\":\"" + to_string(wshape[0]) + "\", \"use_bias\":\"" + use_bias + "\"}";
+    NodeAttrs attr;
+    LoadOp("dense", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray max_pool2d(NDArray const& x, string attr_str)
+NDArray max_pool2d(NDArray const &x, TShape pool_size, TShape strides, TShape padding, bool ceil_mode)
 {
     CVMOpParam params;
     params.func_name = "max_pool2d";
@@ -224,10 +232,6 @@ NDArray max_pool2d(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("max_pool2d", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -244,11 +248,19 @@ NDArray max_pool2d(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string ceil = ceil_mode == true ? "True" : "False";
+    string attr_str = "{\"pool_size\":\"" + to_string(pool_size[0]) + ", " + to_string(pool_size[1]) +
+                      "]\", \"strides\":\"[" + to_string(padding[0]) + ", " + to_string(padding[1]) + "]\", \"ceil_mode\":\"" +
+                      ceil + "\"}";
+    NodeAttrs attr;
+    LoadOp("max_pool2d", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray upsampling(NDArray const& x, string attr_str)
+NDArray upsampling(NDArray const &x, int scale)
 {
     CVMOpParam params;
     params.func_name = "upsampling";
@@ -256,10 +268,6 @@ NDArray upsampling(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("upsampling", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -276,21 +284,22 @@ NDArray upsampling(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string attr_str = "{\"scale\":" + to_string(scale) + "\"}";
+    NodeAttrs attr;
+    LoadOp("upsampling", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-vector<NDArray> get_valid_counts(NDArray const& x, string attr_str)
+vector<NDArray> get_valid_counts(NDArray const &x, int score_threshold)
 {
     CVMOpParam params;
     params.func_name = "get_valid_counts";
     params.num_inputs = 1;
     params.num_outputs = 2;
     params.flatten_data = false;
-
-    NodeAttrs attr;
-    LoadOp("get_valid_counts", attr);
-    LoadOpAttr(attr_str, attr);
 
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
@@ -306,10 +315,14 @@ vector<NDArray> get_valid_counts(NDArray const& x, string attr_str)
     }
     tdata[0] = x_data;
 
+    string attr_str = "{\"score_threshold\":\"" + to_string(score_threshold) + "\"}";
+    NodeAttrs attr;
+    LoadOp("get_valid_counts", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr);
 }
 
-NDArray sum(NDArray const& x, string attr_str)
+NDArray sum(NDArray const &x, TShape axis, bool keepdims, bool exclude)
 {
     CVMOpParam params;
     params.func_name = "sum";
@@ -317,10 +330,6 @@ NDArray sum(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("sum", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -337,11 +346,19 @@ NDArray sum(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("sum", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray max(NDArray const& x, string attr_str)
+NDArray max(NDArray const &x, TShape axis, bool keepdims, bool exclude)
 {
     CVMOpParam params;
     params.func_name = "max";
@@ -349,10 +366,6 @@ NDArray max(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("max", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -369,11 +382,19 @@ NDArray max(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("max", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_add(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_add(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_add";
@@ -381,10 +402,6 @@ NDArray broadcast_add(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_add", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -401,7 +418,7 @@ NDArray broadcast_add(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -416,11 +433,16 @@ NDArray broadcast_add(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_add", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_div(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_div(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_div";
@@ -428,10 +450,6 @@ NDArray broadcast_div(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_div", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -448,7 +466,7 @@ NDArray broadcast_div(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -463,11 +481,16 @@ NDArray broadcast_div(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_div", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_greater(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_greater(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_greater";
@@ -475,10 +498,6 @@ NDArray broadcast_greater(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_greater", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -495,7 +514,7 @@ NDArray broadcast_greater(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -510,11 +529,16 @@ NDArray broadcast_greater(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_greater", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_max(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_max(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_max";
@@ -522,10 +546,6 @@ NDArray broadcast_max(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_max", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -542,7 +562,7 @@ NDArray broadcast_max(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -557,11 +577,16 @@ NDArray broadcast_max(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_max", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_mul(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_mul(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_mul";
@@ -569,10 +594,6 @@ NDArray broadcast_mul(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_mul", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -589,7 +610,7 @@ NDArray broadcast_mul(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -604,11 +625,16 @@ NDArray broadcast_mul(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_mul", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray broadcast_sub(NDArray const& x, NDArray const& y, string attr_str)
+NDArray broadcast_sub(NDArray const &x, NDArray const &y)
 {
     CVMOpParam params;
     params.func_name = "broadcast_sub";
@@ -616,10 +642,6 @@ NDArray broadcast_sub(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("broadcast_sub", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -636,7 +658,7 @@ NDArray broadcast_sub(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -651,11 +673,16 @@ NDArray broadcast_sub(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_sub", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray slice_like(NDArray const& x, NDArray const& y, string attr_str)
+NDArray slice_like(NDArray const &x, NDArray const &y, TShape axis)
 {
     CVMOpParam params;
     params.func_name = "slice_like";
@@ -663,10 +690,6 @@ NDArray slice_like(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("slice_like", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -683,7 +706,7 @@ NDArray slice_like(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -698,11 +721,16 @@ NDArray slice_like(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " + to_string(axis[2]) + ", " + to_string(axis[3]) + "]\"";
+    NodeAttrs attr;
+    LoadOp("slice_like", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray tile(NDArray const& x, NDArray const& y, string attr_str)
+NDArray tile(NDArray const &x, NDArray const &y, TShape reps)
 {
     CVMOpParam params;
     params.func_name = "tile";
@@ -710,10 +738,6 @@ NDArray tile(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("tile", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -730,7 +754,7 @@ NDArray tile(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -745,11 +769,21 @@ NDArray tile(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{\"reps\":\"[";
+    for (int i = 0; i < reps.ndim() - 1; i++)
+    {
+        attr_str += to_string(reps[i]) + ", ";
+    }
+    attr_str += to_string(reps[reps.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("tile", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray repeat(NDArray const& x, string attr_str)
+NDArray repeat(NDArray const &x, int repeats, int axis)
 {
     CVMOpParam params;
     params.func_name = "repeat";
@@ -757,10 +791,6 @@ NDArray repeat(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("repeat", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -777,11 +807,16 @@ NDArray repeat(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string attr_str = "{\"repeats\":\"" + to_string(repeats) + "\", \"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("repeat", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray strided_slice(NDArray const& x, string attr_str)
+NDArray strided_slice(NDArray const &x, TShape begin, TShape end, TShape stride)
 {
     CVMOpParam params;
     params.func_name = "strided_slice";
@@ -789,10 +824,6 @@ NDArray strided_slice(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("strided_slice", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -809,11 +840,25 @@ NDArray strided_slice(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string attr_str = "{\"begin\":\"[";
+    for (int i = 0; i < begin.ndim() - 1; i++)
+        attr_str += to_string(begin[i]) + ", ";
+    attr_str += to_string(begin[begin.ndim() - 1]) + "]\", \"end\":\"[";
+    for (int i = 0; i < end.ndim() - 1; i++)
+        attr_str += to_string(end[i]) + ", ";
+    attr_str += to_string(end[end.ndim() - 1]) + "]\", \"stride\":\"[";
+    for (int i = 0; i < stride.ndim() - 1; i++)
+        attr_str += to_string(stride[i]) + ", ";
+    attr_str += to_string(stride[stride.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("strided_slice", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray concatenate(vector<NDArray> const& x, string attr_str)
+NDArray concatenate(vector<NDArray> const &x, int axis)
 {
     CVMOpParam params;
     params.func_name = "concatenate";
@@ -821,14 +866,10 @@ NDArray concatenate(vector<NDArray> const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("concatenate", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
-    for(int in = 0; in < params.num_inputs; in++)
+    for (int in = 0; in < params.num_inputs; in++)
     {
         int32_t *data = static_cast<int32_t *>(x[in]->data);
         vector<int64_t> shape = vector<int64_t>(x[in]->shape, x[in]->shape + x[in]->ndim);
@@ -845,10 +886,15 @@ NDArray concatenate(vector<NDArray> const& x, string attr_str)
         }
         tdata[in] = x_data;
     }
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("concatenate", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray transpose(NDArray const& x, string attr_str)
+NDArray transpose(NDArray const &x, TShape axes)
 {
     CVMOpParam params;
     params.func_name = "transpose";
@@ -856,10 +902,6 @@ NDArray transpose(NDArray const& x, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("transpose", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -876,11 +918,21 @@ NDArray transpose(NDArray const& x, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
+
+    string attr_str = "{\"axes\":\"[";
+    for (int i = 0; i < axes.ndim() - 1; i++)
+    {
+        attr_str += to_string(axes[i]) + ", ";
+    }
+    attr_str += to_string(axes[axes.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("transpose", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray take(NDArray const& x, NDArray const& y, string attr_str)
+NDArray take(NDArray const &x, NDArray const &y, int axis)
 {
     CVMOpParam params;
     params.func_name = "take";
@@ -888,10 +940,6 @@ NDArray take(NDArray const& x, NDArray const& y, string attr_str)
     params.num_outputs = 1;
     params.flatten_data = false;
 
-    NodeAttrs attr;
-    LoadOp("take", attr);
-    LoadOpAttr(attr_str, attr);
-
     vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
     vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
     // x
@@ -908,7 +956,7 @@ NDArray take(NDArray const& x, NDArray const& y, string attr_str)
     {
         x_data[i] = xdata[i];
     }
-    tdata[0] =x_data;
+    tdata[0] = x_data;
     // y
     int32_t *ydata = static_cast<int32_t *>(y->data);
     vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
@@ -923,6 +971,1780 @@ NDArray take(NDArray const& x, NDArray const& y, string attr_str)
     {
         y_data[i] = ydata[i];
     }
-    tdata[1] =y_data;
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("take", attr);
+    LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
+}
+
+// DLTensor
+DLTensor *conv2d(DLTensor *data, DLTensor *weight, TShape padding, TShape strides, TShape dilation, int groups, DLTensor *bias = nullptr)
+{
+    CVMOpParam params;
+    params.func_name = "conv2d";
+    if (bias)
+        params.num_inputs = 3;
+    else
+        params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // data
+    int32_t *ddata = static_cast<int32_t *>(data->data);
+    vector<int64_t> dshape = vector<int64_t>(data->shape, data->shape + data->ndim);
+    tshape[0] = dshape;
+    int dsize = 1;
+    for (int i = 0; i < data->ndim; i++)
+    {
+        dsize *= dshape[i];
+    }
+    vector<int32_t> d_data(dsize);
+    for (int i = 0; i < dsize; i++)
+    {
+        d_data[i] = ddata[i];
+    }
+    tdata[0] = d_data;
+    // weight
+    vector<int64_t> wshape = vector<int64_t>(weight->shape, weight->shape + weight->ndim);
+    tshape[1] = wshape;
+    int32_t *wdata = static_cast<int32_t *>(weight->data);
+    int wsize = 1;
+    for (int i = 0; i < weight->ndim; i++)
+    {
+        wsize *= wshape[i];
+    }
+    vector<int32_t> w_data(wsize);
+    for (int i = 0; i < wsize; i++)
+    {
+        w_data[i] = wdata[i];
+    }
+    tdata[1] = w_data;
+    // bias
+    if (bias != nullptr)
+    {
+        vector<int64_t> bshape = vector<int64_t>(bias->shape, bias->shape + bias->ndim);
+        tshape[2] = bshape;
+        int32_t *bdata = static_cast<int32_t *>(bias->data);
+        int bsize = bshape[0];
+        vector<int32_t> b_data(bsize);
+        for (int i = 0; i < bsize; i++)
+        {
+            b_data[i] = bdata[i];
+        }
+        tdata[2] = b_data;
+    }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "{\"channels\":" + to_string(dshape[0]) + "\", \"kernel_size\":\"[" + to_string(dshape[2]) + ", " + to_string(dshape[3]) +
+                      "], \"strides\":\"[" + to_string(strides[0]) + ", " + to_string(strides[1]) + "]\", \"padding\":\"[" + to_string(padding[0]) +
+                      ", " + to_string(padding[1]) + "]\", \"dilation\":\"(" + to_string(dilation[0]) + ", " + to_string(dilation[1]) + ")\", \"groups\":\"" +
+                      to_string(groups) + "\", \"layout\":\"NCHW\", \"kernel_layout\":\"OIHW\", \"use_bias\":\"" + use_bias + "\"}";
+    NodeAttrs attr;
+    LoadOp("conv2d", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *dense(DLTensor *data, DLTensor *weight, NDArray *bias = nullptr)
+{
+    CVMOpParam params;
+    params.func_name = "dense";
+    if (bias)
+        params.num_inputs = 3;
+    else
+        params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // data
+    int32_t *ddata = static_cast<int32_t *>(data->data);
+    vector<int64_t> dshape = vector<int64_t>(data->shape, data->shape + data->ndim);
+    tshape[0] = dshape;
+    int dsize = 1;
+    for (int i = 0; i < data->ndim; i++)
+    {
+        dsize *= dshape[i];
+    }
+    vector<int32_t> d_data(dsize);
+    for (int i = 0; i < dsize; i++)
+    {
+        d_data[i] = ddata[i];
+    }
+    tdata[0] = d_data;
+    // weight
+    vector<int64_t> wshape = vector<int64_t>(weight->shape, weight->shape + weight->ndim);
+    tshape[1] = wshape;
+    int32_t *wdata = static_cast<int32_t *>(weight->data);
+    int wsize = 1;
+    for (int i = 0; i < weight->ndim; i++)
+    {
+        wsize *= wshape[i];
+    }
+    vector<int32_t> w_data(wsize);
+    for (int i = 0; i < wsize; i++)
+    {
+        w_data[i] = wdata[i];
+    }
+    tdata[1] = w_data;
+    // bias
+    if (bias != nullptr)
+    {
+        DLTensor *bptr = bias->operator->();
+        vector<int64_t> bshape = vector<int64_t>(bptr->shape, bptr->shape + bptr->ndim);
+        tshape[2] = bshape;
+        int32_t *bdata = static_cast<int32_t *>(bptr->data);
+        int bsize = bshape[0];
+        vector<int32_t> b_data(bsize);
+        for (int i = 0; i < bsize; i++)
+        {
+            b_data[i] = bdata[i];
+        }
+        tdata[2] = b_data;
+    }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "\"units\":\"" + to_string(wshape[0]) + "\", \"use_bias\":\"" + use_bias + "\"}";
+    NodeAttrs attr;
+    LoadOp("dense", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *max_pool2d(DLTensor *x, TShape pool_size, TShape strides, TShape padding, bool ceil_mode)
+{
+    CVMOpParam params;
+    params.func_name = "max_pool2d";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string ceil = ceil_mode == true ? "True" : "False";
+    string attr_str = "{\"pool_size\":\"" + to_string(pool_size[0]) + ", " + to_string(pool_size[1]) +
+                      "]\", \"strides\":\"[" + to_string(padding[0]) + ", " + to_string(padding[1]) + "]\", \"ceil_mode\":\"" +
+                      ceil + "\"}";
+    NodeAttrs attr;
+    LoadOp("max_pool2d", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *upsampling(DLTensor *x, int scale)
+{
+    CVMOpParam params;
+    params.func_name = "upsampling";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"scale\":" + to_string(scale) + "\"}";
+    NodeAttrs attr;
+    LoadOp("upsampling", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+vector<DLTensor *> get_valid_counts(DLTensor *x, int score_threshold)
+{
+    CVMOpParam params;
+    params.func_name = "get_valid_counts";
+    params.num_inputs = 1;
+    params.num_outputs = 2;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = xshape[0] * xshape[1] * xshape[2];
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"score_threshold\":\"" + to_string(score_threshold) + "\"}";
+    NodeAttrs attr;
+    LoadOp("get_valid_counts", attr);
+    LoadOpAttr(attr_str, attr);
+    vector<NDArray> res = result(tshape, tdata, params, attr);
+    vector<DLTensor *> out(res.size());
+    for (int i = 0; i < res.size(); i++)
+    {
+        out[i] = res[i].operator->();
+    }
+    return out;
+}
+
+DLTensor *sum(DLTensor *x, TShape axis, bool keepdims, bool exclude)
+{
+    CVMOpParam params;
+    params.func_name = "sum";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("sum", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *max(DLTensor *x, TShape axis, bool keepdims, bool exclude)
+{
+    CVMOpParam params;
+    params.func_name = "max";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("max", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_add(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_add";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_add", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_div(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_div";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_div", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_greater(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_greater";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_greater", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_max(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_max";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_max", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_mul(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_mul";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_mul", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *broadcast_sub(DLTensor *x, DLTensor *y)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_sub";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_sub", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *slice_like(DLTensor *x, DLTensor *y, TShape axis)
+{
+    CVMOpParam params;
+    params.func_name = "slice_like";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " + to_string(axis[2]) + ", " + to_string(axis[3]) + "]\"";
+    NodeAttrs attr;
+    LoadOp("slice_like", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *tile(DLTensor *x, DLTensor *y, TShape reps)
+{
+    CVMOpParam params;
+    params.func_name = "tile";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"reps\":\"[";
+    for (int i = 0; i < reps.ndim() - 1; i++)
+    {
+        attr_str += to_string(reps[i]) + ", ";
+    }
+    attr_str += to_string(reps[reps.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("tile", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *repeat(DLTensor *x, int repeats, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "repeat";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"repeats\":\"" + to_string(repeats) + "\", \"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("repeat", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *strided_slice(DLTensor *x, TShape begin, TShape end, TShape stride)
+{
+    CVMOpParam params;
+    params.func_name = "strided_slice";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"begin\":\"[";
+    for (int i = 0; i < begin.ndim() - 1; i++)
+        attr_str += to_string(begin[i]) + ", ";
+    attr_str += to_string(begin[begin.ndim() - 1]) + "]\", \"end\":\"[";
+    for (int i = 0; i < end.ndim() - 1; i++)
+        attr_str += to_string(end[i]) + ", ";
+    attr_str += to_string(end[end.ndim() - 1]) + "]\", \"stride\":\"[";
+    for (int i = 0; i < stride.ndim() - 1; i++)
+        attr_str += to_string(stride[i]) + ", ";
+    attr_str += to_string(stride[stride.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("strided_slice", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *concatenate(vector<DLTensor *> x, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "concatenate";
+    params.num_inputs = x.size();
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    for (int in = 0; in < params.num_inputs; in++)
+    {
+        int32_t *data = static_cast<int32_t *>(x[in]->data);
+        vector<int64_t> shape = vector<int64_t>(x[in]->shape, x[in]->shape + x[in]->ndim);
+        tshape[in] = shape;
+        int in_size = 1;
+        for (int i = 0; i < x[in]->ndim; i++)
+        {
+            in_size *= shape[i];
+        }
+        vector<int32_t> x_data(in_size);
+        for (int i = 0; i < in_size; i++)
+        {
+            x_data[i] = data[i];
+        }
+        tdata[in] = x_data;
+    }
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("concatenate", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *transpose(DLTensor *x, TShape axes)
+{
+    CVMOpParam params;
+    params.func_name = "transpose";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"axes\":\"[";
+    for (int i = 0; i < axes.ndim() - 1; i++)
+    {
+        attr_str += to_string(axes[i]) + ", ";
+    }
+    attr_str += to_string(axes[axes.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("transpose", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+DLTensor *take(DLTensor *x, DLTensor *y, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "take";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    int32_t *xdata = static_cast<int32_t *>(x->data);
+    vector<int64_t> xshape = vector<int64_t>(x->shape, x->shape + x->ndim);
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < x->ndim; i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = xdata[i];
+    }
+    tdata[0] = x_data;
+    // y
+    int32_t *ydata = static_cast<int32_t *>(y->data);
+    vector<int64_t> yshape = vector<int64_t>(y->shape, y->shape + y->ndim);
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < y->ndim; i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = ydata[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("take", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return res.operator->();
+}
+
+// int32_t *
+int32_t *conv2d(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, TShape padding, TShape strides, TShape dilation, int groups, vector<int64_t> bshape, int32_t *bias = nullptr)
+{
+    CVMOpParam params;
+    params.func_name = "conv2d";
+    if (bias)
+        params.num_inputs = 3;
+    else
+        params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // data
+    tshape[0] = dshape;
+    int dsize = 1;
+    for (int i = 0; i < dshape.size(); i++)
+    {
+        dsize *= dshape[i];
+    }
+    vector<int32_t> d_data(dsize);
+    for (int i = 0; i < dsize; i++)
+    {
+        d_data[i] = data[i];
+    }
+    tdata[0] = d_data;
+    // weight
+    tshape[1] = wshape;
+    int wsize = 1;
+    for (int i = 0; i < wshape.size(); i++)
+    {
+        wsize *= wshape[i];
+    }
+    vector<int32_t> w_data(wsize);
+    for (int i = 0; i < wsize; i++)
+    {
+        w_data[i] = weight[i];
+    }
+    tdata[1] = w_data;
+    // bias
+    if (bias != nullptr)
+    {
+        tshape[2] = bshape;
+        int bsize = bshape[0];
+        vector<int32_t> b_data(bsize);
+        for (int i = 0; i < bsize; i++)
+        {
+            b_data[i] = bias[i];
+        }
+        tdata[2] = b_data;
+    }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "{\"channels\":" + to_string(dshape[0]) + "\", \"kernel_size\":\"[" + to_string(dshape[2]) + ", " + to_string(dshape[3]) +
+                      "], \"strides\":\"[" + to_string(strides[0]) + ", " + to_string(strides[1]) + "]\", \"padding\":\"[" + to_string(padding[0]) +
+                      ", " + to_string(padding[1]) + "]\", \"dilation\":\"(" + to_string(dilation[0]) + ", " + to_string(dilation[1]) + ")\", \"groups\":\"" +
+                      to_string(groups) + "\", \"layout\":\"NCHW\", \"kernel_layout\":\"OIHW\", \"use_bias\":\"" + use_bias + "\"}";
+    NodeAttrs attr;
+    LoadOp("conv2d", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *dense(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, vector<int64_t> bshape, int32_t *bias = nullptr)
+{
+    CVMOpParam params;
+    params.func_name = "dense";
+    if (bias)
+        params.num_inputs = 3;
+    else
+        params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // data
+    tshape[0] = dshape;
+    int dsize = 1;
+    for (int i = 0; i < dshape.size(); i++)
+    {
+        dsize *= dshape[i];
+    }
+    vector<int32_t> d_data(dsize);
+    for (int i = 0; i < dsize; i++)
+    {
+        d_data[i] = data[i];
+    }
+    tdata[0] = d_data;
+    // weight
+    tshape[1] = wshape;
+    int wsize = 1;
+    for (int i = 0; i < wshape.size(); i++)
+    {
+        wsize *= wshape[i];
+    }
+    vector<int32_t> w_data(wsize);
+    for (int i = 0; i < wsize; i++)
+    {
+        w_data[i] = weight[i];
+    }
+    tdata[1] = w_data;
+    // bias
+    if (bias != nullptr)
+    {
+        tshape[2] = bshape;
+        int bsize = bshape[0];
+        vector<int32_t> b_data(bsize);
+        for (int i = 0; i < bsize; i++)
+        {
+            b_data[i] = bias[i];
+        }
+        tdata[2] = b_data;
+    }
+
+    string use_bias = bias == nullptr ? "False" : "True";
+    string attr_str = "\"units\":\"" + to_string(wshape[0]) + "\", \"use_bias\":\"" + use_bias + "\"}";
+    NodeAttrs attr;
+    LoadOp("dense", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *max_pool2d(int32_t *x, vector<int64_t> xshape, TShape pool_size, TShape strides, TShape padding, bool ceil_mode)
+{
+    CVMOpParam params;
+    params.func_name = "max_pool2d";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string ceil = ceil_mode == true ? "True" : "False";
+    string attr_str = "{\"pool_size\":\"" + to_string(pool_size[0]) + ", " + to_string(pool_size[1]) +
+                      "]\", \"strides\":\"[" + to_string(padding[0]) + ", " + to_string(padding[1]) + "]\", \"ceil_mode\":\"" +
+                      ceil + "\"}";
+    NodeAttrs attr;
+    LoadOp("max_pool2d", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *upsampling(int32_t *x, vector<int64_t> xshape, int scale)
+{
+    CVMOpParam params;
+    params.func_name = "upsampling";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"scale\":" + to_string(scale) + "\"}";
+    NodeAttrs attr;
+    LoadOp("upsampling", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+vector<int32_t *> get_valid_counts(int32_t *x, vector<int64_t> xshape, int score_threshold)
+{
+    CVMOpParam params;
+    params.func_name = "get_valid_counts";
+    params.num_inputs = 1;
+    params.num_outputs = 2;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = xshape[0] * xshape[1] * xshape[2];
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"score_threshold\":\"" + to_string(score_threshold) + "\"}";
+    NodeAttrs attr;
+    LoadOp("get_valid_counts", attr);
+    LoadOpAttr(attr_str, attr);
+    vector<NDArray> res = result(tshape, tdata, params, attr);
+    vector<int32_t *> out(res.size());
+    for (int i = 0; i < res.size(); i++)
+    {
+        out[i] = (int32_t *)res[i]->data;
+    }
+    return out;
+}
+
+int32_t *sum(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
+{
+    CVMOpParam params;
+    params.func_name = "sum";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("sum", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *max(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
+{
+    CVMOpParam params;
+    params.func_name = "max";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string kdims = keepdims == true ? "True" : "False";
+    string exc = exclude == true ? "True" : "False";
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " +
+                      to_string(axis[2]) + "]\", \"keepdims\":\"" + kdims + "\", \"exclude\":\"" + exc + "\"}";
+    NodeAttrs attr;
+    LoadOp("max", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_add(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_add";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_add", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_div(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_div";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_div", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_greater(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_greater";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_greater", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_max(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_max";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_max", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_mul(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_mul";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_mul", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *broadcast_sub(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+{
+    CVMOpParam params;
+    params.func_name = "broadcast_sub";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{}";
+    NodeAttrs attr;
+    LoadOp("broadcast_sub", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *slice_like(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape axis)
+{
+    CVMOpParam params;
+    params.func_name = "slice_like";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"[" + to_string(axis[0]) + ", " + to_string(axis[1]) + ", " + to_string(axis[2]) + ", " + to_string(axis[3]) + "]\"";
+    NodeAttrs attr;
+    LoadOp("slice_like", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *tile(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape reps)
+{
+    CVMOpParam params;
+    params.func_name = "tile";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"reps\":\"[";
+    for (int i = 0; i < reps.ndim() - 1; i++)
+    {
+        attr_str += to_string(reps[i]) + ", ";
+    }
+    attr_str += to_string(reps[reps.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("tile", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *repeat(int32_t *x, vector<int64_t> xshape, int repeats, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "repeat";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"repeats\":\"" + to_string(repeats) + "\", \"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("repeat", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *strided_slice(int32_t *x, vector<int64_t> xshape, TShape begin, TShape end, TShape stride)
+{
+    CVMOpParam params;
+    params.func_name = "strided_slice";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"begin\":\"[";
+    for (int i = 0; i < begin.ndim() - 1; i++)
+        attr_str += to_string(begin[i]) + ", ";
+    attr_str += to_string(begin[begin.ndim() - 1]) + "]\", \"end\":\"[";
+    for (int i = 0; i < end.ndim() - 1; i++)
+        attr_str += to_string(end[i]) + ", ";
+    attr_str += to_string(end[end.ndim() - 1]) + "]\", \"stride\":\"[";
+    for (int i = 0; i < stride.ndim() - 1; i++)
+        attr_str += to_string(stride[i]) + ", ";
+    attr_str += to_string(stride[stride.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("strided_slice", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *concatenate(vector<int32_t *> x, vector<vector<int64_t>> xshape, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "concatenate";
+    params.num_inputs = x.size();
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    for (int in = 0; in < params.num_inputs; in++)
+    {
+        tshape[in] = xshape[in];
+        int in_size = 1;
+        for (int i = 0; i < xshape[in].size(); i++)
+        {
+            in_size *= xshape[in][i];
+        }
+        vector<int32_t> x_data(in_size);
+        for (int i = 0; i < in_size; i++)
+        {
+            x_data[i] = x[in][i];
+        }
+        tdata[in] = x_data;
+    }
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("concatenate", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *transpose(int32_t *x, vector<int64_t> xshape, TShape axes)
+{
+    CVMOpParam params;
+    params.func_name = "transpose";
+    params.num_inputs = 1;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+
+    string attr_str = "{\"axes\":\"[";
+    for (int i = 0; i < axes.ndim() - 1; i++)
+    {
+        attr_str += to_string(axes[i]) + ", ";
+    }
+    attr_str += to_string(axes[axes.ndim() - 1]) + "]\"}";
+    NodeAttrs attr;
+    LoadOp("transpose", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
+}
+
+int32_t *take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, int axis)
+{
+    CVMOpParam params;
+    params.func_name = "take";
+    params.num_inputs = 2;
+    params.num_outputs = 1;
+    params.flatten_data = false;
+
+    vector<vector<int64_t>> tshape(params.num_inputs + params.num_outputs);
+    vector<vector<int32_t>> tdata(params.num_inputs + params.num_outputs);
+    // x
+    tshape[0] = xshape;
+    int xsize = 1;
+    for (int i = 0; i < xshape.size(); i++)
+    {
+        xsize *= xshape[i];
+    }
+    vector<int32_t> x_data(xsize);
+    for (int i = 0; i < xsize; i++)
+    {
+        x_data[i] = x[i];
+    }
+    tdata[0] = x_data;
+    // y
+    tshape[1] = yshape;
+    int ysize = 1;
+    for (int i = 0; i < yshape.size(); i++)
+    {
+        ysize *= yshape[i];
+    }
+    vector<int32_t> y_data(ysize);
+    for (int i = 0; i < ysize; i++)
+    {
+        y_data[i] = y[i];
+    }
+    tdata[1] = y_data;
+
+    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    NodeAttrs attr;
+    LoadOp("take", attr);
+    LoadOpAttr(attr_str, attr);
+    NDArray res = result(tshape, tdata, params, attr)[0];
+    return (int32_t *)res->data;
 }
