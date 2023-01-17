@@ -1,5 +1,11 @@
 #include "test_op.cc"
 
+struct data_and_shape
+{
+    int32_t* data;
+    vector<int64_t> shape;
+};
+
 vector<NDArray> result(vector<vector<int64_t>> tshape, vector<vector<int32_t>> tdata, CVMOpParam params, NodeAttrs attr)
 {
     const cvm::Op *op = cvm::Op::Get(params.func_name);
@@ -85,6 +91,7 @@ vector<NDArray> result(vector<vector<int64_t>> tshape, vector<vector<int32_t>> t
     }
     return res;
 }
+
 
 // NDArray
 NDArray conv2d(NDArray const &data, NDArray const &weight, TShape padding, TShape strides, TShape dilation, int groups, NDArray *bias = nullptr)
@@ -979,6 +986,7 @@ NDArray take(NDArray const &x, NDArray const &y, int axis)
     LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
+
 
 // DLTensor
 DLTensor *conv2d(DLTensor *data, DLTensor *weight, TShape padding, TShape strides, TShape dilation, int groups, DLTensor *bias = nullptr)
@@ -1898,8 +1906,9 @@ DLTensor *take(DLTensor *x, DLTensor *y, int axis)
     return res.operator->();
 }
 
+
 // int32_t *
-int32_t *conv2d(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, TShape padding, TShape strides, TShape dilation, int groups, vector<int64_t> bshape, int32_t *bias = nullptr)
+data_and_shape conv2d(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, TShape padding, TShape strides, TShape dilation, int groups, vector<int64_t> bshape, int32_t *bias = nullptr)
 {
     CVMOpParam params;
     params.func_name = "conv2d";
@@ -1960,10 +1969,10 @@ int32_t *conv2d(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<i
     LoadOp("conv2d", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *dense(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, vector<int64_t> bshape, int32_t *bias = nullptr)
+data_and_shape dense(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, vector<int64_t> bshape, int32_t *bias = nullptr)
 {
     CVMOpParam params;
     params.func_name = "dense";
@@ -2021,10 +2030,10 @@ int32_t *dense(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<in
     LoadOp("dense", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *max_pool2d(int32_t *x, vector<int64_t> xshape, TShape pool_size, TShape strides, TShape padding, bool ceil_mode)
+data_and_shape max_pool2d(int32_t *x, vector<int64_t> xshape, TShape pool_size, TShape strides, TShape padding, bool ceil_mode)
 {
     CVMOpParam params;
     params.func_name = "max_pool2d";
@@ -2056,10 +2065,10 @@ int32_t *max_pool2d(int32_t *x, vector<int64_t> xshape, TShape pool_size, TShape
     LoadOp("max_pool2d", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *upsampling(int32_t *x, vector<int64_t> xshape, int scale)
+data_and_shape upsampling(int32_t *x, vector<int64_t> xshape, int scale)
 {
     CVMOpParam params;
     params.func_name = "upsampling";
@@ -2088,10 +2097,10 @@ int32_t *upsampling(int32_t *x, vector<int64_t> xshape, int scale)
     LoadOp("upsampling", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-vector<int32_t *> get_valid_counts(int32_t *x, vector<int64_t> xshape, int score_threshold)
+vector<data_and_shape> get_valid_counts(int32_t *x, vector<int64_t> xshape, int score_threshold)
 {
     CVMOpParam params;
     params.func_name = "get_valid_counts";
@@ -2116,15 +2125,15 @@ vector<int32_t *> get_valid_counts(int32_t *x, vector<int64_t> xshape, int score
     LoadOp("get_valid_counts", attr);
     LoadOpAttr(attr_str, attr);
     vector<NDArray> res = result(tshape, tdata, params, attr);
-    vector<int32_t *> out(res.size());
+    vector<data_and_shape> out(res.size());
     for (int i = 0; i < res.size(); i++)
     {
-        out[i] = (int32_t *)res[i]->data;
+        out[i] = data_and_shape{(int32_t *)res[i]->data, vector<int64_t>(res[i]->shape, res[i]->shape + res[i]->ndim)};
     }
     return out;
 }
 
-int32_t *sum(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
+data_and_shape sum(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
 {
     CVMOpParam params;
     params.func_name = "sum";
@@ -2156,10 +2165,10 @@ int32_t *sum(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, boo
     LoadOp("sum", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *max(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
+data_and_shape max(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, bool exclude)
 {
     CVMOpParam params;
     params.func_name = "max";
@@ -2191,10 +2200,10 @@ int32_t *max(int32_t *x, vector<int64_t> xshape, TShape axis, bool keepdims, boo
     LoadOp("max", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_add(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_add(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_add";
@@ -2236,10 +2245,10 @@ int32_t *broadcast_add(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<in
     LoadOp("broadcast_add", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_div(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_div(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_div";
@@ -2281,10 +2290,10 @@ int32_t *broadcast_div(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<in
     LoadOp("broadcast_div", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_greater(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_greater(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_greater";
@@ -2326,10 +2335,10 @@ int32_t *broadcast_greater(int32_t *x, vector<int64_t> xshape, int32_t *y, vecto
     LoadOp("broadcast_greater", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_max(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_max(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_max";
@@ -2371,10 +2380,10 @@ int32_t *broadcast_max(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<in
     LoadOp("broadcast_max", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_mul(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_mul(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_mul";
@@ -2416,10 +2425,10 @@ int32_t *broadcast_mul(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<in
     LoadOp("broadcast_mul", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *broadcast_sub(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
+data_and_shape broadcast_sub(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape)
 {
     CVMOpParam params;
     params.func_name = "broadcast_sub";
@@ -2461,10 +2470,10 @@ int32_t *broadcast_sub(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<in
     LoadOp("broadcast_sub", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *slice_like(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape axis)
+data_and_shape slice_like(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape axis)
 {
     CVMOpParam params;
     params.func_name = "slice_like";
@@ -2506,10 +2515,10 @@ int32_t *slice_like(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64
     LoadOp("slice_like", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *tile(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape reps)
+data_and_shape tile(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, TShape reps)
 {
     CVMOpParam params;
     params.func_name = "tile";
@@ -2556,10 +2565,10 @@ int32_t *tile(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> ys
     LoadOp("tile", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *repeat(int32_t *x, vector<int64_t> xshape, int repeats, int axis)
+data_and_shape repeat(int32_t *x, vector<int64_t> xshape, int repeats, int axis)
 {
     CVMOpParam params;
     params.func_name = "repeat";
@@ -2588,10 +2597,10 @@ int32_t *repeat(int32_t *x, vector<int64_t> xshape, int repeats, int axis)
     LoadOp("repeat", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *strided_slice(int32_t *x, vector<int64_t> xshape, TShape begin, TShape end, TShape stride)
+data_and_shape strided_slice(int32_t *x, vector<int64_t> xshape, TShape begin, TShape end, TShape stride)
 {
     CVMOpParam params;
     params.func_name = "strided_slice";
@@ -2629,10 +2638,10 @@ int32_t *strided_slice(int32_t *x, vector<int64_t> xshape, TShape begin, TShape 
     LoadOp("strided_slice", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *concatenate(vector<int32_t *> x, vector<vector<int64_t>> xshape, int axis)
+data_and_shape concatenate(vector<int32_t *> x, vector<vector<int64_t>> xshape, int axis)
 {
     CVMOpParam params;
     params.func_name = "concatenate";
@@ -2664,10 +2673,10 @@ int32_t *concatenate(vector<int32_t *> x, vector<vector<int64_t>> xshape, int ax
     LoadOp("concatenate", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *transpose(int32_t *x, vector<int64_t> xshape, TShape axes)
+data_and_shape transpose(int32_t *x, vector<int64_t> xshape, TShape axes)
 {
     CVMOpParam params;
     params.func_name = "transpose";
@@ -2701,10 +2710,10 @@ int32_t *transpose(int32_t *x, vector<int64_t> xshape, TShape axes)
     LoadOp("transpose", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-int32_t *take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, int axis)
+data_and_shape take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, int axis)
 {
     CVMOpParam params;
     params.func_name = "take";
@@ -2746,5 +2755,5 @@ int32_t *take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> ys
     LoadOp("take", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
-    return (int32_t *)res->data;
+    return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
