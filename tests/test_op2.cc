@@ -2,7 +2,7 @@
 
 struct data_and_shape
 {
-    int32_t* data;
+    int32_t *data;
     vector<int64_t> shape;
 };
 
@@ -91,7 +91,6 @@ vector<NDArray> result(vector<vector<int64_t>> tshape, vector<vector<int32_t>> t
     }
     return res;
 }
-
 
 // NDArray
 NDArray conv2d(NDArray const &data, NDArray const &weight, TShape padding, TShape strides, TShape dilation, int groups, NDArray *bias = nullptr)
@@ -939,7 +938,7 @@ NDArray transpose(NDArray const &x, TShape axes)
     return result(tshape, tdata, params, attr)[0];
 }
 
-NDArray take(NDArray const &x, NDArray const &y, int axis)
+NDArray take(NDArray const &x, NDArray const &y, int *axis)
 {
     CVMOpParam params;
     params.func_name = "take";
@@ -980,13 +979,16 @@ NDArray take(NDArray const &x, NDArray const &y, int axis)
     }
     tdata[1] = y_data;
 
-    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    string attr_str = "";
+    if (axis == nullptr)
+        attr_str += "{}";
+    else
+        attr_str += "{\"axis\":\"" + to_string(*axis) + "\"}";
     NodeAttrs attr;
     LoadOp("take", attr);
     LoadOpAttr(attr_str, attr);
     return result(tshape, tdata, params, attr)[0];
 }
-
 
 // DLTensor
 DLTensor *conv2d(DLTensor *data, DLTensor *weight, TShape padding, TShape strides, TShape dilation, int groups, DLTensor *bias = nullptr)
@@ -1857,7 +1859,7 @@ DLTensor *transpose(DLTensor *x, TShape axes)
     return res.operator->();
 }
 
-DLTensor *take(DLTensor *x, DLTensor *y, int axis)
+DLTensor *take(DLTensor *x, DLTensor *y, int *axis)
 {
     CVMOpParam params;
     params.func_name = "take";
@@ -1898,14 +1900,17 @@ DLTensor *take(DLTensor *x, DLTensor *y, int axis)
     }
     tdata[1] = y_data;
 
-    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    string attr_str = "";
+    if (axis == nullptr)
+        attr_str += "{}";
+    else
+        attr_str += "{\"axis\":\"" + to_string(*axis) + "\"}";
     NodeAttrs attr;
     LoadOp("take", attr);
     LoadOpAttr(attr_str, attr);
     NDArray res = result(tshape, tdata, params, attr)[0];
     return res.operator->();
 }
-
 
 // int32_t *
 data_and_shape conv2d(int32_t *data, vector<int64_t> dshape, int32_t *weight, vector<int64_t> wshape, TShape padding, TShape strides, TShape dilation, int groups, vector<int64_t> bshape, int32_t *bias = nullptr)
@@ -2713,7 +2718,7 @@ data_and_shape transpose(int32_t *x, vector<int64_t> xshape, TShape axes)
     return data_and_shape{(int32_t *)res->data, vector<int64_t>(res->shape, res->shape + res->ndim)};
 }
 
-data_and_shape take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, int axis)
+data_and_shape take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64_t> yshape, int *axis)
 {
     CVMOpParam params;
     params.func_name = "take";
@@ -2750,7 +2755,11 @@ data_and_shape take(int32_t *x, vector<int64_t> xshape, int32_t *y, vector<int64
     }
     tdata[1] = y_data;
 
-    string attr_str = "{\"axis\":\"" + to_string(axis) + "\"}";
+    string attr_str = "";
+    if (axis == nullptr)
+        attr_str += "{}";
+    else
+        attr_str += "{\"axis\":\"" + to_string(*axis) + "\"}";
     NodeAttrs attr;
     LoadOp("take", attr);
     LoadOpAttr(attr_str, attr);
