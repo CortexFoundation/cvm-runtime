@@ -18,9 +18,13 @@ This document is intended for developers who want to understand the architecture
   process logic for specific input data with strict mathematical
   description, guiding the source code.
 
+- The :ref:`operator-and-model-test` introduces the relevant content of 
+  operator and model testing.
+
 .. toctree::
   :maxdepth: 2
   
   system
   infer_flow
   math_formalization
+  operator_and_model_test

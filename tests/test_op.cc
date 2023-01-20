@@ -50,11 +50,11 @@ struct CVMOpParam {
   std::string attrs;
 };
 
-#ifndef DEVICE
-#define DEVICE 0
-#endif 
+// #ifndef DEVICE
+// #define DEVICE 1
+// #endif 
 
-int ctx = APIDevTypeMap.at(DEVICE);
+int ctx;
 
 int device_id = 0;
 /*
@@ -128,6 +128,9 @@ std::function<void()> get_func(
   arg_ptr->arg_tcodes.push_back(kHandle);
 
 
+  // cvm.runtime.{version}.{op_name}
+  // cvm.runtime.cpu.conv2d
+  // cvm.runtime.cuda.dense
   auto op = param.func_name;
   int device_type = static_cast<int>(ctx);
   std::string module_name = "cvm.runtime.";
@@ -659,36 +662,40 @@ void test_op(string op_name) {
     // }
   }
 }
-int main() {
-  test_op("max_pool2d"); // formal & cpu pass
-  test_op("upsampling"); // formal & cpu pass
-  test_op("dense");  // formal & cpu pass
-  test_op("conv2d"); // formal & cpu pass
-  test_op("sum");  // formal & cpu pass
-  test_op("max");  // formal & cpu pass
-  test_op("slice_like"); // formal & cpu pass
-  test_op("tile"); // formal & cpu pass
-  test_op("repeat"); // formal & cpu pass
-  test_op("get_valid_counts");  // formal & CPU pass
+int main(int argc, char* argv[]) {
+  ctx = APIDevTypeMap.at(stoi(argv[1]));
+  // argv[1]=0 is cpu, argv[1]=1 is gpu, argv[1]=2 is formal
 
-  test_op("strided_slice"); // formal & cpu pass
-  test_op("concatenate");// formal & cpu pass
-  test_op("transpose");// formal & cpu pass
-  test_op("take"); // formal & cpu pass
-  //test_op("clip"); // no test case
-  //test_op("cvm_clip"); // no test case
-  //test_op("cvm_right_shift");  // no test case
-  test_op("elemwise_add"); // formal & cpu pass
+  test_op("max_pool2d"); // formal & cpu & gpu pass
+  //test_op("upsampling"); // formal & cpu pass
+  // test_op("dense");  // formal & cpu & gpu pass
+  //test_op("conv2d"); // formal & cpu pass
+  // test_op("sum");  // formal & cpu & gpu pass
+  // test_op("max");  // formal & cpu & gpu pass
+  // test_op("slice_like"); // formal & cpu & gpu pass
+  // test_op("tile"); // formal & cpu & gpu pass
+  // test_op("repeat"); // formal & cpu & gpu pass
+  // test_op("get_valid_counts");  // formal & CPU & gpu pass
+
+  // test_op("strided_slice"); // formal & cpu & gpu pass
+  // test_op("concatenate");// formal & cpu & gpu pass
+  // test_op("transpose");// formal & cpu & gpu pass
+  // test_op("take"); // formal & cpu & gpu pass
+  // test_op("clip"); // no test case
+  // test_op("cvm_clip"); // no test case
+  // test_op("cvm_right_shift");  // no test case
+  //test_op("elemwise_add"); // no test case
   //test_op("elemwise_sub"); // no test case
   //test_op("where"); // no test case
-  test_op("non_max_suppression");  // formal & cpu pass
-  test_op("broadcast_sub"); // formal & cpu pass
-  test_op("broadcast_add");  // formal & cpu pass
-  test_op("broadcast_mul");  // formal & cpu pass
-  test_op("broadcast_max");  // formal & cpu pass
-  test_op("broadcast_div");  // formal & cpu pass
-  test_op("broadcast_greater");  // formal & cpu pass
+  //test_op("non_max_suppression");  // formal & cpu pass
+  // test_op("broadcast_sub"); // formal & cpu & gpu pass
+  // test_op("broadcast_add");  // formal & cpu & gpu pass
+  // test_op("broadcast_mul");  // formal & cpu & gpu pass
+  // test_op("broadcast_max");  // formal & cpu & gpu pass
+  // test_op("broadcast_div");  // formal & cpu & gpu pass
+  // test_op("broadcast_greater");  // formal & cpu & gpu pass
   
+  cout << "test device: "<< DeviceName(static_cast<int>(ctx)) << endl;
   cout << "all tests finished" << endl;
   return 0;
 }
