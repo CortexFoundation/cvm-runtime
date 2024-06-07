@@ -33,9 +33,9 @@ void read_data(const char *filename, vector<unsigned long> &shape, vector<int32_
     fscanf(fp, "%d ", &shape_dim);
     printf("shape_dim = %d\n", shape_dim);
     shape.resize(shape_dim);
-    uint64_t size = 1;
+    uint32_t size = 1;
     for(int i = 0; i < shape_dim; i++){
-        int64_t value = 0;
+        int32_t value = 0;
         fscanf(fp, "%ld ", &value);
         shape[i] = value;
         size *= shape[i];
@@ -88,7 +88,7 @@ struct OpArgs {
   std::vector<DLTensor> args;
   std::vector<CVMValue> arg_values;
   std::vector<int> arg_tcodes;
-  std::vector<int64_t> shape_data;
+  std::vector<int32_t> shape_data;
 };
 
 int run_LIF(string model_root, int device_type = 0) {
@@ -181,11 +181,11 @@ int run_LIF(string model_root, int device_type = 0) {
   CHECK_STATUS(status, "free model failed");
 
   if (json_path.find("yolo") != string::npos || json_path.find("ssd") != string::npos) {
-    uint64_t n_bytes = 4;
-    uint64_t ns =  output.size() / n_bytes;
+    uint32_t n_bytes = 4;
+    uint32_t ns =  output.size() / n_bytes;
     std::cout << "yolo output size = " << ns << " n_bytes = " << n_bytes << "\n";
     int32_t* int32_output = static_cast<int32_t*>((void*)output.data());
-    for (auto i = 0; i < std::min<uint64_t>(60UL, ns); i++) {
+    for (auto i = 0; i < std::min<uint32_t>(60UL, ns); i++) {
       std::cout << (int32_t)int32_output[i] << " ";
       if ((i + 1) % 6 == 0)
         std::cout << "\n";
@@ -201,7 +201,7 @@ int run_LIF(string model_root, int device_type = 0) {
     std::cout << "\n";
   } else {
     std::cout << "output size = " << output.size() << "\n";
-    for (auto i = 0; i < std::min<uint64_t>(6UL * 10, output.size()); i++) {
+    for (auto i = 0; i < std::min<uint32_t>(6UL * 10, output.size()); i++) {
       std::cout << (int32_t)output[i] << " ";
     }
     std::cout << "\n";

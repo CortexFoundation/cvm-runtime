@@ -43,3 +43,11 @@ CVM-Runtime Test_Model
 After running 2 Architectures, the result file can be compared.
 
 - static run: `LD_LIBRARY_PATH="/path_to_libcvm_runtime_library":${LD_LIBRARY_PATH} qemu-mips-static ./test_model_arch0`
+
+
+# To execute under dynamic library (so: shared library)
+- using mips32 big endian
+- debian-mips-qemu, install img and start kernel. has ld.so.1 (single core mips cpu)
+- scp -R cvm-runtime -P 2222 debian@127.0.0.1:/home/debian
+- ssh -p 2222 debian@127.0.0.1 # with password debian
+- build libso, build test_model, and execute binary.
