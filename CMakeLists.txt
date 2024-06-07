@@ -4,10 +4,11 @@ project(cvm C CXX)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_COMPILER "/usr/bin/mips-linux-gnu-gcc")
 set(CMAKE_CXX_COMPILER "/usr/bin/mips-linux-gnu-g++")
-set(CMAKE_EXE_LINKER_FLAGS "-march=mips64r2")
+#set(CMAKE_EXE_LINKER_FLAGS "-static -march=mips64r2")
+set(CMAKE_EXE_LINKER_FLAGS "-static -march=R4000")
 
 ## Add architecture
-add_compile_options(-Wall -march=mips64r2)
+add_compile_options(-Wall -static -march=R4000)
 
 ## Assign specific system type
 set(CMAKE_SYSTEM_NAME Linux)
@@ -130,10 +131,10 @@ file(GLOB CVM_TOP_SRCS src/top/*.cc
 list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 
 #add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
-add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
+add_library(${EXECUTE_NAME} STATIC ${RUNTIME_SRCS})
 target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 
 list(APPEND CVM_SRCS ${RUNTIME_SRCS})
 #add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
-add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
+add_library(${LIBRARY_NAME} STATIC ${CVM_SRCS})
 target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})

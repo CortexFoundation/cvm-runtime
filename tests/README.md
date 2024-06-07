@@ -42,3 +42,4 @@ CVM-Runtime Test_Model
 - LD_LIBRARY_PATH="/path_to_libcvm_runtime_library":${LD_LIBRARY_PATH} qemu-mips ./test_model_arch1
 After running 2 Architectures, the result file can be compared.
 
+- static run: `LD_LIBRARY_PATH="/path_to_libcvm_runtime_library":${LD_LIBRARY_PATH} qemu-mips-static ./test_model_arch0`

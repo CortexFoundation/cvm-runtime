@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.2)
+project(cvm C CXX)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Utility functions
+include(conf.cmake)
+
+include_directories("include")
+
+file(GLOB CVM_TOP_SRCS src/*.cc)
+
+add_library(demo SHARED src/main.cc)
+target_link_libraries(demo atomic)
+
+add_executable(main src/main.cc)
+target_link_libraries(main atomic)
