@@ -2,6 +2,16 @@ cmake_minimum_required(VERSION 3.2)
 project(cvm C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_C_COMPILER "/usr/bin/mips-linux-gnu-gcc")
+set(CMAKE_CXX_COMPILER "/usr/bin/mips-linux-gnu-g++")
+set(CMAKE_EXE_LINKER_FLAGS "-march=mips64r2")
+
+## Add architecture
+add_compile_options(-Wall -march=mips64r2)
+
+## Assign specific system type
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR mips)
 
 # Utility functions
 include(cmake/util/Util.cmake)
@@ -119,9 +129,11 @@ file(GLOB CVM_TOP_SRCS src/top/*.cc
                        src/top/tensor/*.cc)
 list(APPEND RUNTIME_SRCS ${CVM_TOP_SRCS})
 
+#add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
 add_library(${EXECUTE_NAME} SHARED ${RUNTIME_SRCS})
 target_link_libraries(${EXECUTE_NAME} ${CVM_RUNTIME_LINKER_LIBS})
 
 list(APPEND CVM_SRCS ${RUNTIME_SRCS})
+#add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
 add_library(${LIBRARY_NAME} SHARED ${CVM_SRCS})
 target_link_libraries(${LIBRARY_NAME} ${CVM_RUNTIME_LINKER_LIBS})

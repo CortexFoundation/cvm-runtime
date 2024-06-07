@@ -185,7 +185,7 @@ int run_LIF(string model_root, int device_type = 0) {
     uint64_t ns =  output.size() / n_bytes;
     std::cout << "yolo output size = " << ns << " n_bytes = " << n_bytes << "\n";
     int32_t* int32_output = static_cast<int32_t*>((void*)output.data());
-    for (auto i = 0; i < std::min(60UL, ns); i++) {
+    for (auto i = 0; i < std::min<uint64_t>(60UL, ns); i++) {
       std::cout << (int32_t)int32_output[i] << " ";
       if ((i + 1) % 6 == 0)
         std::cout << "\n";
@@ -201,7 +201,7 @@ int run_LIF(string model_root, int device_type = 0) {
     std::cout << "\n";
   } else {
     std::cout << "output size = " << output.size() << "\n";
-    for (auto i = 0; i < std::min(6UL * 10, output.size()); i++) {
+    for (auto i = 0; i < std::min<uint64_t>(6UL * 10, output.size()); i++) {
       std::cout << (int32_t)output[i] << " ";
     }
     std::cout << "\n";
