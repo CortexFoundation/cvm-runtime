@@ -26,5 +26,6 @@ python3 python/mrt/main2.py python/mrt/model_zoo/mnist.ini
 ```
 `main2.py` does the convert job and `mnist.ini` provides necessary config information, including full path to the model, input shape, dataset, etc.
 The converted model is defaultly stored in the same directory as input model directory, as specified by `Model_dir` in `DEFAULT` section of the `ini` file.
+If run in gpu mode, you should change device settings as `Device_type=gpu` and set `Device_ids=0` in `mnist.ini`
 
  All the pre-quantized model configuration file is stored in `python/mrt/model_zoo`, and the file `config.example.ini` expositions all the key meanings and value. 

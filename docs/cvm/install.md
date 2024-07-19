@@ -127,10 +127,10 @@ ability of importing cvm and mrt.
 Use the command to install CVM python requirements:
 
 ``` bash
-pip install -r install/requirements.txt
+pip install -r conf/requirements.txt
 ```
 
-More dependency details refer to `install/requirements.txt` please.
+More dependency details refer to `conf/requirements.txt` please.
 
 #### MRT requirements
 
