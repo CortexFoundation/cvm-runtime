@@ -343,7 +343,7 @@ def _simulate_layer(sym, params, graph, inputs_ext, scales, precs):
         alpha = (2 ** (in_prec - 1)) - 1
         data = nd.arange(-alpha, alpha+1)
         out = get_nd_op(op_name)(data / cscales[0])
-        weight = (out * scales[name]).round().reshape(2*alpha, 1)
+        weight = (out * scales[name]).round().reshape(2*alpha+1, 1)
         W_name = name + '_weight'
         assert W_name not in graph
         W = graph[W_name] = mx.sym.var(W_name, shape=weight.shape)
@@ -353,7 +353,7 @@ def _simulate_layer(sym, params, graph, inputs_ext, scales, precs):
         precs[alpha_name] = { out_key: in_prec }
         params[alpha_name] = nd.array([alpha])
         X = mx.sym.broadcast_add(childs[0], alpha_sym)
-        node = mx.sym.Custom(X, W, in_dim=2*alpha,
+        node = mx.sym.Custom(X, W, in_dim=2*alpha+1,
                 name=name, op_type='cvm_lut')
 
     scales[node.attr('name')] = scales[name]
