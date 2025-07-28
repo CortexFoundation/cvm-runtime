@@ -193,7 +193,8 @@ def multi_validate(base_func, data_iter, *comp_funcs,
     total = 0
     for i in range(iter_num):
         data, label = data_iter()
-        base_acc, base_time = base_func(data, label)
+        base_acc = base_func(data, label)
+        base_time = 'null_sec'
         comp_acc = [func(data, label) for func in comp_funcs]
         total += batch_size
         msg = log_str.format(i, base_acc, comp_acc[0][0], base_time, comp_acc[0][1], total)
